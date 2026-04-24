@@ -36,6 +36,7 @@ import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors'
 import heroImage from '../assets/hero.png';
 import BloodBowlCard from '../components/BloodBowlCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import Card3DWrapper from '../components/Card3DWrapper';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import VR from '../components/VR';
@@ -45,14 +46,25 @@ import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import DeckListItem from '../components/DeckListItem';
 import AddonListItem from '../components/AddonListItem';
+import RichTextEditor from '../components/RichTextEditor';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddKeywordModal from '../components/AddKeywordModal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import WeaponInfoModal from '../components/WeaponInfoModal';
+import ImportListModal from '../components/ImportListModal';
+import SaveTemplateModal from '../components/SaveTemplateModal';
+import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
 import BlogEntryPreview from '../components/BlogEntryPreview';
 import Modal from '../components/Modal';
 import UploadPhotoModal from '../components/UploadPhotoModal';
 import GamePickerItem from '../components/GamePickerItem';
+import ModeToggle, { type Mode } from '../components/ModeToggle';
+import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
+import EditSubnav from '../components/EditSubnav';
+import TokenMenu from '../components/TokenMenu';
+import TokenOverlay from '../components/TokenOverlay';
+import PrintCardGrid from '../components/PrintCardGrid';
+import type { TokenDefinition } from '../lib/database.types';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces, TS path resolver struggles but Vite handles fine
 import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
@@ -244,6 +256,20 @@ const ComponentGallery = () => {
   const [keywordModalOpen,   setKeywordModalOpen]   = useState(false);
   const [keywordInfoOpen,    setKeywordInfoOpen]    = useState(false);
   const [weaponInfoOpen,     setWeaponInfoOpen]     = useState(false);
+  const [importListOpen,     setImportListOpen]     = useState(false);
+  const [saveTemplateOpen,   setSaveTemplateOpen]   = useState(false);
+  const [saveTemplatePrefill,setSaveTemplatePrefill]= useState(false);
+  const [newCardOpen,        setNewCardOpen]        = useState(false);
+  const [newCardHasTemplates,setNewCardHasTemplates]= useState(true);
+
+  const galleryTemplates: NewCardModalTemplate[] = [
+    { id: 't1', name: 'Spartan Sergeant' },
+    { id: 't2', name: 'Elite Honor Guard' },
+    { id: 't3', name: 'ODST Demolition' },
+    { id: 't4', name: 'Grunt Squad Leader' },
+    { id: 't5', name: 'Jackal Sniper' },
+    { id: 't6', name: 'Brute Chieftain' },
+  ];
   const [selectedAddonId,    setSelectedAddonId]    = useState<string | null>(null);
   const [pickedGame,     setPickedGame]     = useState<string | null>(null);
   return (
@@ -286,6 +312,8 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-blog-entry-preview" icon={<Gallery className="w-5 h-5" />}           label="Blog Entry Preview" />
         <SidebarItem href="#nav-modal"              icon={<Gallery className="w-5 h-5" />}            label="Modal"            />
         <SidebarItem href="#nav-upload-photo-modal" icon={<Gallery className="w-5 h-5" />}            label="Upload Photo Modal" />
+        <SidebarItem href="#nav-save-template-modal" icon={<Gallery className="w-5 h-5" />}           label="Save Template Modal" />
+        <SidebarItem href="#nav-new-card-modal"     icon={<Gallery className="w-5 h-5" />}            label="New Card Modal" />
         <SidebarItem href="#nav-game-picker-item"   icon={<Gallery className="w-5 h-5" />}            label="Game Picker Item" />
       </Sidebar>
 
@@ -731,6 +759,15 @@ const ComponentGallery = () => {
               <UnitListEntry status="blank"    active />
               <UnitListEntry status="complete" active unitName="Jane-664"        unitType="Spartan ZVEZDA" />
               <UnitListEntry status="pending"  active unitName="Mk. VII Warrior" unitType="UNSC Marine"   />
+            </div>
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Edit Mode</p>
+            <div className="space-y-1">
+              <UnitListEntry status="complete" editMode unitName="Jane-664"        unitType="Spartan ZVEZDA" onDuplicate={() => {}} onDelete={() => {}} />
+              <UnitListEntry status="complete" editMode active unitName="Mk. VII Warrior" unitType="UNSC Marine" onDuplicate={() => {}} onDelete={() => {}} />
+              <UnitListEntry status="blank"    editMode onDuplicate={() => {}} onDelete={() => {}} />
             </div>
           </div>
 
@@ -1946,8 +1983,8 @@ const ComponentGallery = () => {
             <p className="font-body text-xs text-gray-400 dark:text-gray-500">
               Empty state (default props)
             </p>
-            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(779 * (278 / 556)) }}>
-              <div style={{ transform: `scale(${278 / 556})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(1100 * (278 / 750)) }}>
+              <div style={{ transform: `scale(${278 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
                 <BloodBowlCard />
               </div>
             </div>
@@ -1958,8 +1995,8 @@ const ComponentGallery = () => {
             <p className="font-body text-xs text-gray-400 dark:text-gray-500">
               Filled state
             </p>
-            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(779 * (278 / 556)) }}>
-              <div style={{ transform: `scale(${278 / 556})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(1100 * (278 / 750)) }}>
+              <div style={{ transform: `scale(${278 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
                 <BloodBowlCard
                   teamName="Imperial Nobility"
                   unitName="Noble Blitzer"
@@ -2025,6 +2062,53 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Rich Text Editor ────────────────────────────────────────── */}
+      <GallerySection id="nav-rich-text-editor" title="Rich Text Editor">
+        <div className="max-w-md space-y-4">
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+            TipTap-based markdown editor with formatting toolbar. Used in the Add Rule modal.
+          </p>
+          <RichTextEditor
+            value={"**Bold text**, *italic text*, and ~~strikethrough~~.\n\n- Bullet one\n- Bullet two\n\n> A blockquote"}
+            onChange={() => {}}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ── Halo Flashpoint Rule Card ─────────────────────────────── */}
+      <GallerySection id="nav-halo-rule-card" title="Halo Flashpoint Rule Card">
+        <div className="flex flex-wrap gap-8 items-start">
+
+          {/* Empty state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <HaloFlashpointRuleCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled state with markdown */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filled state (markdown)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <HaloFlashpointRuleCard
+                  title="Assault"
+                  description={"When this unit activates, it may make a **free move action** before its normal actions.\n\n- The free move must be towards the nearest enemy unit\n- Cannot be used if the unit is *pinned*\n- Stacks with other movement abilities"}
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
       {/* ── Card 3D Wrapper ───────────────────────────────────────── */}
       <GallerySection id="nav-card-3d" title="Card 3D Wrapper">
         <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -2038,13 +2122,13 @@ const ComponentGallery = () => {
             <Card3DWrapper
               style={{
                 width:    278,
-                height:   Math.round(779 * (278 / 556)),
+                height:   Math.round(1100 * (278 / 750)),
                 position: 'relative',
                 flexShrink: 0,
                 filter:   'drop-shadow(0 5.571px 75.215px #1E1F6E)',
               }}
             >
-              <div style={{ transform: `scale(${278 / 556})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+              <div style={{ transform: `scale(${278 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
                 <BloodBowlCard
                   teamName="Imperial Nobility"
                   unitName="Noble Blitzer"
@@ -2703,6 +2787,329 @@ const ComponentGallery = () => {
             </div>
           </div>
 
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          IMPORT LIST MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-import-list-modal" title="Import List Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Two-step flow: paste a plain-text army list, preview the parsed units,
+            then import as a new deck. Currently supports Halo: Flashpoint lists.
+          </p>
+
+          <Button onClick={() => setImportListOpen(true)}>
+            Open Import List Modal
+          </Button>
+
+          <ImportListModal
+            open={importListOpen}
+            onClose={() => setImportListOpen(false)}
+            onImported={(deckId, gameSlug) => {
+              setImportListOpen(false);
+              console.log('Imported deck:', deckId, 'game:', gameSlug);
+            }}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SAVE TEMPLATE MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-save-template-modal" title="Save Template Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Opens from the "Save as Template" button in the card edit panel.
+            Collects a template name (required). When invoked from a card
+            that already has a unit name, the field is prefilled.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => { setSaveTemplatePrefill(false); setSaveTemplateOpen(true); }}>
+              Open (blank name)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setSaveTemplatePrefill(true); setSaveTemplateOpen(true); }}
+            >
+              Open (prefilled name)
+            </Button>
+          </div>
+
+          <SaveTemplateModal
+            open={saveTemplateOpen}
+            onClose={() => setSaveTemplateOpen(false)}
+            defaultName={saveTemplatePrefill ? 'Spartan Sergeant' : ''}
+            onSave={async (name) => {
+              console.log('Save template as:', name);
+              setSaveTemplateOpen(false);
+            }}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          NEW CARD MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-new-card-modal" title="New Card Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Shown when the user adds a card to a deck and has saved templates
+            for that game. Offers a blank-card path plus a searchable list of
+            templates. When there are no templates, the parent skips this
+            modal and creates a blank card directly.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => { setNewCardHasTemplates(true); setNewCardOpen(true); }}>
+              Open (with templates)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setNewCardHasTemplates(false); setNewCardOpen(true); }}
+            >
+              Open (no templates)
+            </Button>
+          </div>
+
+          <NewCardModal
+            open={newCardOpen}
+            onClose={() => setNewCardOpen(false)}
+            templates={newCardHasTemplates ? galleryTemplates : []}
+            onNewBlank={() => {
+              console.log('New blank card');
+              setNewCardOpen(false);
+            }}
+            onPickTemplate={async (id) => {
+              console.log('Create from template:', id);
+              setNewCardOpen(false);
+            }}
+            onDeleteTemplate={(id) => console.log('Delete template:', id)}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ── PlaySubnav ─────────────────────────────────────────────────── */}
+      <GallerySection title="PlaySubnav / Units & Rules">
+        <div className="flex flex-col gap-6">
+          {(() => {
+            const [tab, setTab] = React.useState<PlayTab>('units');
+            return (
+              <div className="flex flex-col gap-3">
+                <Text size="sm" color="secondary">Interactive (click to toggle)</Text>
+                <PlaySubnav tab={tab} onTabChange={setTab} />
+                <Text size="xs" color="secondary">Current: {tab}</Text>
+              </div>
+            );
+          })()}
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Units active</Text>
+            <PlaySubnav tab="units" onTabChange={() => {}} />
+          </div>
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Rules active</Text>
+            <PlaySubnav tab="rules" onTabChange={() => {}} />
+          </div>
+        </div>
+      </GallerySection>
+
+      {/* ── EditSubnav ─────────────────────────────────────────────────── */}
+      <GallerySection title="EditSubnav / Card List & Editor (tablet + mobile)">
+        <div className="flex flex-col gap-6">
+          <Text size="sm" color="secondary">
+            Shown below the Navbar in Edit mode on viewports smaller than lg.
+            Each button's label + colour flips based on whether the panel is open.
+          </Text>
+
+          {(() => {
+            const [cardListOpen, setCardListOpen] = React.useState(false);
+            const [editorOpen, setEditorOpen]     = React.useState(false);
+            return (
+              <div className="flex flex-col gap-3">
+                <Text size="sm" color="secondary">Interactive (click to toggle)</Text>
+                <EditSubnav
+                  cardListOpen={cardListOpen}
+                  onToggleCardList={() => setCardListOpen(o => !o)}
+                  editorOpen={editorOpen}
+                  onToggleEditor={() => setEditorOpen(o => !o)}
+                />
+                <Text size="xs" color="secondary">
+                  cardListOpen: {String(cardListOpen)} · editorOpen: {String(editorOpen)}
+                </Text>
+              </div>
+            );
+          })()}
+
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Both closed (default — invites to open)</Text>
+            <EditSubnav
+              cardListOpen={false}
+              onToggleCardList={() => {}}
+              editorOpen={false}
+              onToggleEditor={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Card list open, editor closed</Text>
+            <EditSubnav
+              cardListOpen={true}
+              onToggleCardList={() => {}}
+              editorOpen={false}
+              onToggleEditor={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Card list closed, editor open</Text>
+            <EditSubnav
+              cardListOpen={false}
+              onToggleCardList={() => {}}
+              editorOpen={true}
+              onToggleEditor={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Both open</Text>
+            <EditSubnav
+              cardListOpen={true}
+              onToggleCardList={() => {}}
+              editorOpen={true}
+              onToggleEditor={() => {}}
+            />
+          </div>
+        </div>
+      </GallerySection>
+
+      {/* ── ModeToggle ──────────────────────────────────────────────────── */}
+      <GallerySection title="ModeToggle / Edit & Play">
+        <div className="flex flex-wrap gap-6 items-start">
+          {(() => {
+            const [mode, setMode] = React.useState<Mode>('edit');
+            return (
+              <div className="flex flex-col gap-3">
+                <Text size="sm" color="secondary">Interactive (click to toggle)</Text>
+                <ModeToggle mode={mode} onModeChange={setMode} />
+                <Text size="xs" color="secondary">Current: {mode}</Text>
+              </div>
+            );
+          })()}
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Edit active</Text>
+            <ModeToggle mode="edit" onModeChange={() => {}} />
+          </div>
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">Play active</Text>
+            <ModeToggle mode="play" onModeChange={() => {}} />
+          </div>
+        </div>
+      </GallerySection>
+
+      <GallerySection id="play-token-menu" title="TokenMenu / Play Mode">
+        <div className="flex flex-col gap-6 w-full max-w-md">
+          <Text size="sm" color="secondary">
+            Floating token action menu for Play mode. Click "Token" to expand.
+          </Text>
+          <div className="relative bg-gray-900 rounded-lg p-8 h-64 flex items-end justify-end">
+            <TokenMenu
+              tokenDefinitions={[
+                { id: 'demo-damage', game_id: '', name: 'Damage', description: null, icon: 'Token Type=Damage, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: 'hp', stat_role: 'max', starting_value: 0, min_value: 0, max_value: null, sort_order: 1, created_at: '' },
+                { id: 'demo-shield', game_id: '', name: 'Shield', description: null, icon: 'Token Type=Shield, State=Default', icon_off: 'Token Type=Shield, State=Off', is_toggle: true, keyword_name: 'Energy Shield', keyword_value_role: 'max', stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: null, sort_order: 2, created_at: '' },
+                { id: 'demo-crouch', game_id: '', name: 'Crouching', description: null, icon: 'Token Type=Crouch, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: 1, sort_order: 3, created_at: '' },
+                { id: 'demo-pinned', game_id: '', name: 'Pinned', description: null, icon: 'Token Type=Pinned, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: 1, sort_order: 4, created_at: '' },
+                { id: 'demo-activated', game_id: '', name: 'Activated', description: null, icon: 'Token Type=Activated, State=Default', icon_off: 'Token Type=Activated, State=Off', is_toggle: true, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: 1, min_value: 0, max_value: 1, sort_order: 5, created_at: '' },
+              ] as TokenDefinition[]}
+              card={{ hp: 3, unitKeywords: [{ keywordName: 'Energy Shield', paramValue: 2 }] }}
+              tokenState={{ 'demo-activated': 1 }}
+              onTokenChange={() => {}}
+            />
+          </div>
+        </div>
+      </GallerySection>
+
+      <GallerySection id="play-token-overlay" title="TokenOverlay / Play Mode">
+        <div className="flex flex-col gap-6 w-full">
+          <Text size="sm" color="secondary">
+            Token icons overlaid on the card in play mode. Scaled down here for preview.
+          </Text>
+          <div className="relative bg-gray-900 rounded-lg p-8 overflow-visible" style={{ width: 660, height: 520 }}>
+            {/* Scaled-down card container to show overlay positioning */}
+            <div style={{ position: 'relative', width: 1270 / 2, height: 890 / 2, transform: 'scale(0.5)', transformOrigin: 'top left', background: '#a1a1a1', borderRadius: 8 }}>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Text size="sm" color="secondary">Card placeholder</Text>
+              </div>
+              <TokenOverlay
+                tokenDefinitions={[
+                  { id: 'demo-damage', game_id: '', name: 'Damage', description: null, icon: 'Token Type=Damage, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: 'hp', stat_role: 'max', starting_value: 0, min_value: 0, max_value: null, sort_order: 1, created_at: '' },
+                  { id: 'demo-shield', game_id: '', name: 'Shield', description: null, icon: 'Token Type=Shield, State=Default', icon_off: 'Token Type=Shield, State=Off', is_toggle: true, keyword_name: 'Energy Shield', keyword_value_role: 'max', stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: null, sort_order: 2, created_at: '' },
+                  { id: 'demo-crouch', game_id: '', name: 'Crouching', description: null, icon: 'Token Type=Crouch, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: 1, sort_order: 3, created_at: '' },
+                  { id: 'demo-pinned', game_id: '', name: 'Pinned', description: null, icon: 'Token Type=Pinned, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: 1, sort_order: 4, created_at: '' },
+                  { id: 'demo-activated', game_id: '', name: 'Activated', description: null, icon: 'Token Type=Activated, State=Default', icon_off: 'Token Type=Activated, State=Off', is_toggle: true, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: 1, min_value: 0, max_value: 1, sort_order: 5, created_at: '' },
+                ] as TokenDefinition[]}
+                card={{ hp: 4, unitKeywords: [{ keywordName: 'Energy Shield', paramValue: 3 }] }}
+                tokenState={{ 'demo-activated': 1, 'demo-crouch': 0, 'demo-pinned': 0, 'demo-damage': 2, 'demo-shield': 2 }}
+              />
+            </div>
+          </div>
+        </div>
+      </GallerySection>
+
+      {/* ── PrintCardGrid ──────────────────────────────────────────────── */}
+      <GallerySection title="PrintCardGrid / Blood Bowl (A4)">
+        <div className="flex flex-col gap-4 w-full overflow-auto">
+          <Text size="sm" color="secondary">
+            Print layout grid with demo Blood Bowl cards scaled to fit A4 paper. 2x2 = 4 cards per page.
+          </Text>
+          <div className="bg-gray-800 p-6 rounded-lg overflow-auto">
+            <PrintCardGrid
+              gameSlug="blood-bowl"
+              paperSize="a4"
+              printSize={[75, 110]}
+              bleedSize={[81, 116]}
+              excludedIds={new Set()}
+              bloodBowlCards={[
+                { id: 'bb1', teamName: 'Orc Boyz', unitName: 'Black Orc', playerRole: 'Blocker', cost: '90,000', skills: 'Block, Grab', primaryAttribute: 'S', secondaryAttribute: 'GA', ma: 4, st: 4, ag: 4, pa: 5, av: 10, portraitUrl: null, avatarUrl: null },
+                { id: 'bb2', teamName: 'Orc Boyz', unitName: 'Blitzer', playerRole: 'Blitzer', cost: '80,000', skills: 'Block', primaryAttribute: 'GS', secondaryAttribute: 'AP', ma: 6, st: 3, ag: 3, pa: 4, av: 9, portraitUrl: null, avatarUrl: null },
+                { id: 'bb3', teamName: 'Orc Boyz', unitName: 'Thrower', playerRole: 'Thrower', cost: '65,000', skills: 'Sure Hands, Pass', primaryAttribute: 'GP', secondaryAttribute: 'AS', ma: 5, st: 3, ag: 3, pa: 3, av: 8, portraitUrl: null, avatarUrl: null },
+                { id: 'bb4', teamName: 'Orc Boyz', unitName: 'Lineman', playerRole: 'Lineman', cost: '50,000', skills: '', primaryAttribute: 'G', secondaryAttribute: 'AS', ma: 5, st: 3, ag: 3, pa: 4, av: 9, portraitUrl: null, avatarUrl: null },
+                { id: 'bb5', teamName: 'Orc Boyz', unitName: 'Goblin', playerRole: 'Goblin', cost: '40,000', skills: 'Dodge, Stunty', primaryAttribute: 'A', secondaryAttribute: 'GPS', ma: 6, st: 2, ag: 3, pa: 4, av: 7, portraitUrl: null, avatarUrl: null },
+              ]}
+            />
+          </div>
+        </div>
+      </GallerySection>
+
+      <GallerySection title="PrintCardGrid / Halo Flashpoint (A4)">
+        <div className="flex flex-col gap-4 w-full overflow-auto">
+          <Text size="sm" color="secondary">
+            Print layout grid with demo Halo Flashpoint cards. 1 column x 2 rows = 2 cards per page.
+          </Text>
+          <div className="bg-gray-800 p-6 rounded-lg overflow-auto">
+            <PrintCardGrid
+              gameSlug="halo-flashpoint"
+              paperSize="a4"
+              printSize={[127, 89]}
+              bleedSize={[133, 95]}
+              excludedIds={new Set()}
+              haloCards={[
+                { id: 'h1', unitName: 'Spartan-IV', keywords: 'UNSC, Spartan', ra: 3, fi: 3, sv: 4, advanceValue: 4, sprintValue: 6, ar: 2, hp: 4, pointsCost: 150, portraitUrl: null, portraitStyle: null, avatarUrl: null, weapons: [{ name: 'MA40 Assault Rifle', type: 'Ranged', range: '18"', ap: '-', keywords: 'Rapid Fire' }] },
+                { id: 'h2', unitName: 'ODST', keywords: 'UNSC, ODST', ra: 4, fi: 4, sv: 5, advanceValue: 4, sprintValue: 6, ar: 3, hp: 3, pointsCost: 100, portraitUrl: null, portraitStyle: null, avatarUrl: null, weapons: [{ name: 'M7S SMG', type: 'Ranged', range: '12"', ap: '-', keywords: 'Suppressive' }] },
+                { id: 'h3', unitName: 'Elite Minor', keywords: 'Covenant, Elite', ra: 4, fi: 3, sv: 4, advanceValue: 4, sprintValue: 6, ar: 2, hp: 3, pointsCost: 120, portraitUrl: null, portraitStyle: null, avatarUrl: null, weapons: [{ name: 'Plasma Rifle', type: 'Ranged', range: '18"', ap: '1', keywords: 'Rapid Fire' }] },
+              ]}
+              rules={[
+                { id: 'r1', title: 'Energy Shield', description: 'When this unit takes damage, reduce the damage by the shield value.' },
+              ]}
+            />
+          </div>
         </div>
       </GallerySection>
 

@@ -1,0 +1,72 @@
+/*
+ * print.css — Print-specific styles
+ *
+ * Screen: WYSIWYG preview with paper-sized pages on a gray background.
+ * Print:  Hides toolbar/navbar, enforces white background, page breaks.
+ */
+
+/* ── Print media ───────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide all non-print UI */
+  .print-toolbar,
+  nav {
+    display: none !important;
+  }
+
+  /* Reset page background and remove all height/overflow constraints */
+  body, body * {
+    overflow: visible !important;
+  }
+
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Remove screen-only preview styles from pages */
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    background: white !important;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  /* Preserve exact colors (white text on dark backgrounds, etc.) */
+  .print-page,
+  .print-page * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-page:last-child {
+    break-after: auto;
+  }
+
+  /* Reset the preview container for print */
+  .print-preview-area {
+    background: white !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: none !important;
+  }
+}
+
+/* ── Screen preview ────────────────────────────────────────────────────────── */
+
+@media screen {
+  .print-page {
+    background: white;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 1px 2px rgba(0, 0, 0, 0.24);
+    border: 1px solid #e5e7eb;
+  }
+}

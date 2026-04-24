@@ -76,12 +76,12 @@ const GAME_CONFIG: Record<GameSlug, GameConfig> = {
     recommendation:   'For Halo: Flashpoint, we recommend a photo with a white background.',
   },
   'blood-bowl': {
-    cropAspect:       393 / 407,
+    cropAspect:       593 / 614,
     cropAspectFramed: null,
     hasFrame:         false,
-    cardW:            556,
-    cardH:            779,
-    previewVisibleW:  556,
+    cardW:            750,
+    cardH:            1100,
+    previewVisibleW:  750,
     recommendation:   'For Blood Bowl, we recommend a player portrait with a clean background.',
   },
 };

@@ -78,7 +78,31 @@
       "Bash(curl -s http://localhost:5173/)",
       "Bash(npx vite:*)",
       "Bash(find /c/Users/Bam/OneDrive/Documents/BattleCards/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
-      "Bash(ls /c/Users/Bam/OneDrive/Documents/BattleCards/src/components/*.tsx)"
+      "Bash(ls /c/Users/Bam/OneDrive/Documents/BattleCards/src/components/*.tsx)",
+      "Bash(node -e \"require\\('pdfjs-dist/package.json'\\).version\")",
+      "Bash(npm ls:*)",
+      "Bash(npx tsx -e ':*)",
+      "Bash(node -e ':*)",
+      "Bash(npm uninstall:*)",
+      "Bash(supabase functions:*)",
+      "Bash(where supabase:*)",
+      "Bash(npx supabase:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs ls:*)",
+      "Bash(awk 'NR>=910 && NR<=925 {print NR\": \"$0}' \"C:/Users/Bam/OneDrive/Documents/BattleCards/src/components/HaloFlashpointCard.tsx\")",
+      "Bash(git checkout *)",
+      "Bash(diskette)",
+      "Bash(save)",
+      "Bash(floppy\")",
+      "mcp__d8b86caa-1885-4a88-87f3-c44311d5eadd__get_design_context",
+      "mcp__d8b86caa-1885-4a88-87f3-c44311d5eadd__get_screenshot",
+      "Bash(find /c/Users/Bam/OneDrive/Documents/BattleCards/src/pages -name \"*.tsx\" -type f -exec grep -l \"md:\\\\|lg:\\\\|sm:\" {} \\\\;)",
+      "Bash(sed -i '1257,1545d' src/pages/CardBuilderBloodBowl.tsx)",
+      "Bash(sed -n '1250,1260p' src/pages/CardBuilderBloodBowl.tsx)",
+      "Bash(netstat -ano)",
+      "mcp__d8b86caa-1885-4a88-87f3-c44311d5eadd__get_variable_defs",
+      "Bash(npx eslint *)"
     ]
   }
 }

@@ -9,7 +9,7 @@
  *   Layer 3 — Interactive           : dynamically-bound text nodes, positioned to
  *             match the Figma "Interactive" group exactly (node 226:3515)
  *
- * The card renders at its native 556 × 779 px. Scale the outer wrapper with a
+ * The card renders at its native 750 × 1100 px. Scale the outer wrapper with a
  * CSS transform for smaller display sizes.
  *
  * All positions and styles are taken directly from Figma — do not adjust by eye.
@@ -23,7 +23,9 @@
 import { useState, useRef } from 'react';
 import { createPortal }    from 'react-dom';
 import KeywordInfoModal    from './KeywordInfoModal';
-import cardBackground      from '../assets/games/card assets/blood-bowl/card-background.svg';
+import { clampNumber, getMaxLength } from '../lib/constraints';
+import type { EntityConstraints }    from '../lib/database.types';
+import cardBackground      from '../assets/games/card assets/blood-bowl/bg.svg';
 import portraitPlaceholder from '../assets/games/card assets/blood-bowl/example-image.jpg';
 
 // ── Font shorthands ───────────────────────────────────────────────────────────
@@ -95,6 +97,8 @@ export interface BloodBowlCardProps {
   onAvChange?: (v: number) => void;
   /** Called when user clicks "Edit Skill" from a skill info modal on the card */
   onEditSkill?:        (skill: CardSkillInfo) => void;
+  /** DB-driven validation constraints — when omitted, falls back to 0–9 for numbers. */
+  constraints?:        EntityConstraints;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -126,6 +130,7 @@ const BloodBowlCard = ({
   onPaChange,
   onAvChange,
   onEditSkill,
+  constraints = {},
 }: BloodBowlCardProps) => {
 
   // ── Skill info modal state ──────────────────────────────────────────────────
@@ -150,11 +155,11 @@ const BloodBowlCard = ({
     setEditingField(null);
   };
 
-  // Commits a single-digit number field
-  const commitNumber = (onChange?: (v: number) => void) => {
+  // Commits a number field, clamped by DB-driven constraints
+  const commitNumber = (statKey: string, onChange?: (v: number) => void) => {
     if (!cancellingRef.current) {
       const n = parseInt(editValue, 10);
-      onChange?.(isNaN(n) ? 0 : Math.max(0, Math.min(9, n)));
+      onChange?.(isNaN(n) ? 0 : clampNumber(n, constraints, statKey));
     }
     cancellingRef.current = false;
     setEditingField(null);
@@ -178,7 +183,7 @@ const BloodBowlCard = ({
   return (
     <div
       className={`relative overflow-clip rounded-[30px] shrink-0 ${className}`}
-      style={{ width: 556, height: 779 }}
+      style={{ width: 750, height: 1100 }}
     >
 
       {/* ── Layer 1: static SVG background ─────────────────────────────── */}
@@ -196,11 +201,11 @@ const BloodBowlCard = ({
       <div
         className="absolute"
         style={{
-          left:     163,
-          top:      50,
-          width:    393,
-          height:   407,
-          clipPath: 'polygon(0px 38px, 393px 0px, 393px 369px, 0px 407px)',
+          left:     169,
+          top:      22,
+          width:    593,
+          height:   614,
+          clipPath: 'polygon(0px 57px, 593px 0px, 593px 557px, 0px 614px)',
         }}
       >
         <img
@@ -219,11 +224,11 @@ const BloodBowlCard = ({
         className="absolute flex flex-col items-start"
         style={{ left: '22.85px', top: '15px' }}
       >
-        {/* Team name — 30px Brothers, white, drop shadow */}
-        <div className="flex h-[60px] pt-[10px] items-start justify-start">
+        {/* Team name — 40px Brothers, white, drop shadow */}
+        <div className="flex h-[80px] pt-[10px] items-start justify-start">
           <div className="flex-none" style={{ transform: HEADING_TRANSFORM }}>
             <div
-              className="flex flex-col justify-center leading-[0] not-italic relative text-[30px] text-white whitespace-nowrap"
+              className="flex flex-col justify-center leading-[0] not-italic relative text-[40px] text-white whitespace-nowrap"
               style={{ ...BROTHERS, textShadow: '2px 3px 0px black' }}
             >
               {editingField === 'teamName' ? (
@@ -231,18 +236,19 @@ const BloodBowlCard = ({
                   autoFocus
                   type="text"
                   value={editValue}
+                  maxLength={getMaxLength(constraints, 'stats.teamName')}
                   onChange={e => setEditValue(e.target.value)}
                   onBlur={() => commitText(onTeamNameChange)}
                   onKeyDown={onKeyDown}
                   style={{
                     ...INPUT_BASE,
                     ...BROTHERS,
-                    fontSize:    30,
+                    fontSize:    40,
                     color:       'white',
                     textShadow:  '2px 3px 0px black',
                     borderBottom:'1.5px solid rgba(255,255,255,0.5)',
                     lineHeight:  'normal',
-                    width:       280,
+                    width:       310,
                   }}
                 />
               ) : (
@@ -258,11 +264,11 @@ const BloodBowlCard = ({
           </div>
         </div>
 
-        {/* Unit name — 52px Brothers, white, drop shadow */}
-        <div className="flex h-[111px] mt-[-20px] items-start justify-start">
+        {/* Unit name — 62px Brothers, white, drop shadow */}
+        <div className="flex h-[133px] mt-[-20px] items-start justify-start">
           <div className="flex-none" style={{ transform: HEADING_TRANSFORM }}>
             <div
-              className="flex flex-col justify-center leading-[0] not-italic relative text-[52px] text-white whitespace-nowrap"
+              className="flex flex-col justify-center leading-[0] not-italic relative text-[62px] text-white whitespace-nowrap"
               style={{ ...BROTHERS, textShadow: '3px 4px 0px black' }}
             >
               {editingField === 'unitName' ? (
@@ -270,18 +276,19 @@ const BloodBowlCard = ({
                   autoFocus
                   type="text"
                   value={editValue}
+                  maxLength={getMaxLength(constraints, 'name')}
                   onChange={e => setEditValue(e.target.value)}
                   onBlur={() => commitText(onUnitNameChange)}
                   onKeyDown={onKeyDown}
                   style={{
                     ...INPUT_BASE,
                     ...BROTHERS,
-                    fontSize:    52,
+                    fontSize:    62,
                     color:       'white',
                     textShadow:  '3px 4px 0px black',
                     borderBottom:'1.5px solid rgba(255,255,255,0.5)',
                     lineHeight:  'normal',
-                    width:       380,
+                    width:       560,
                   }}
                 />
               ) : (
@@ -302,19 +309,19 @@ const BloodBowlCard = ({
           Brothers 58px, #0e457d, 3px white stroke behind fill.
           MA/ST: no suffix. AG/PA/AV: "+" suffix at 28px. */}
 
-      {/* MA — top 153 */}
+      {/* MA — top 215 */}
       <div
         className="absolute flex gap-px items-center leading-[0] not-italic whitespace-nowrap"
-        style={{ ...STAT_STYLE, left: 72, top: 153 }}
+        style={{ ...STAT_STYLE, left: 87, top: 215 }}
       >
-        <div className="flex flex-col justify-end relative shrink-0 text-[58px]">
+        <div className="flex flex-col justify-end relative shrink-0 text-[68px]">
           {editingField === 'ma' ? (
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onMaChange)}
+              onBlur={() => commitNumber('ma', onMaChange)}
               onKeyDown={onKeyDown}
-              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 58, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 52, textAlign: 'center' }}
+              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 68, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 60, textAlign: 'center' }}
             />
           ) : (
             <p
@@ -326,19 +333,19 @@ const BloodBowlCard = ({
         </div>
       </div>
 
-      {/* ST — top 254 */}
+      {/* ST — top 350 */}
       <div
         className="absolute flex gap-px items-center leading-[0] not-italic whitespace-nowrap"
-        style={{ ...STAT_STYLE, left: 72, top: 254 }}
+        style={{ ...STAT_STYLE, left: 87, top: 350 }}
       >
-        <div className="flex flex-col justify-end relative shrink-0 text-[58px]">
+        <div className="flex flex-col justify-end relative shrink-0 text-[68px]">
           {editingField === 'st' ? (
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onStChange)}
+              onBlur={() => commitNumber('st', onStChange)}
               onKeyDown={onKeyDown}
-              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 58, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 52, textAlign: 'center' }}
+              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 68, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 60, textAlign: 'center' }}
             />
           ) : (
             <p
@@ -350,19 +357,19 @@ const BloodBowlCard = ({
         </div>
       </div>
 
-      {/* AG — top 356, with "+" */}
+      {/* AG — top 489, with "+" */}
       <div
         className="absolute flex gap-px items-center leading-[0] not-italic whitespace-nowrap"
-        style={{ ...STAT_STYLE, left: 72, top: 356 }}
+        style={{ ...STAT_STYLE, left: 87, top: 489 }}
       >
-        <div className="flex flex-col justify-end relative shrink-0 text-[58px]">
+        <div className="flex flex-col justify-end relative shrink-0 text-[68px]">
           {editingField === 'ag' ? (
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onAgChange)}
+              onBlur={() => commitNumber('ag', onAgChange)}
               onKeyDown={onKeyDown}
-              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 58, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 52, textAlign: 'center' }}
+              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 68, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 60, textAlign: 'center' }}
             />
           ) : (
             <p
@@ -377,19 +384,19 @@ const BloodBowlCard = ({
         </div>
       </div>
 
-      {/* PA — top 459, with "+" */}
+      {/* PA — top 628, with "+" */}
       <div
         className="absolute flex gap-px items-center leading-[0] not-italic whitespace-nowrap"
-        style={{ ...STAT_STYLE, left: 72, top: 459 }}
+        style={{ ...STAT_STYLE, left: 87, top: 628 }}
       >
-        <div className="flex flex-col justify-end relative shrink-0 text-[58px]">
+        <div className="flex flex-col justify-end relative shrink-0 text-[68px]">
           {editingField === 'pa' ? (
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onPaChange)}
+              onBlur={() => commitNumber('pa', onPaChange)}
               onKeyDown={onKeyDown}
-              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 58, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 52, textAlign: 'center' }}
+              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 68, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 60, textAlign: 'center' }}
             />
           ) : (
             <p
@@ -404,19 +411,19 @@ const BloodBowlCard = ({
         </div>
       </div>
 
-      {/* AV — top 562, with "+" */}
+      {/* AV — top 763, with "+" */}
       <div
         className="absolute flex gap-px items-center leading-[0] not-italic whitespace-nowrap"
-        style={{ ...STAT_STYLE, left: 72, top: 562 }}
+        style={{ ...STAT_STYLE, left: 87, top: 763 }}
       >
-        <div className="flex flex-col justify-end relative shrink-0 text-[58px]">
+        <div className="flex flex-col justify-end relative shrink-0 text-[68px]">
           {editingField === 'av' ? (
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onAvChange)}
+              onBlur={() => commitNumber('av', onAvChange)}
               onKeyDown={onKeyDown}
-              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 58, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 52, textAlign: 'center' }}
+              style={{ ...INPUT_BASE, ...STAT_STYLE, fontSize: 68, lineHeight: 'normal', borderBottom: '2px solid rgba(14,69,125,0.5)', width: 60, textAlign: 'center' }}
             />
           ) : (
             <p
@@ -434,26 +441,27 @@ const BloodBowlCard = ({
       {/* ── GP Cost (node 31:11427) ───────────────────────────────────────
           Brothers 22px, white, centered in the GP banner ribbon. */}
       <div
-        className="-translate-x-1/2 -translate-y-full absolute flex flex-col justify-end leading-[0] not-italic text-[22px] text-center text-white whitespace-nowrap"
-        style={{ ...BROTHERS, left: 'calc(50% - 196px)', top: 'calc(50% + 330.5px)' }}
+        className="-translate-x-1/2 -translate-y-full absolute flex flex-col justify-end leading-[0] not-italic text-[28px] text-center text-white whitespace-nowrap"
+        style={{ ...BROTHERS, left: 'calc(50% - 264px)', top: 'calc(50% + 492px)' }}
       >
         {editingField === 'cost' ? (
           <input
             autoFocus
             type="text"
             value={editValue}
+            maxLength={getMaxLength(constraints, 'stats.cost')}
             onChange={e => setEditValue(e.target.value)}
             onBlur={() => commitText(onCostChange)}
             onKeyDown={onKeyDown}
             style={{
               ...INPUT_BASE,
               ...BROTHERS,
-              fontSize:    22,
+              fontSize:    28,
               color:       'white',
               borderBottom:'1.5px solid rgba(255,255,255,0.5)',
               lineHeight:  'normal',
               textAlign:   'center',
-              width:       90,
+              width:       100,
             }}
           />
         ) : (
@@ -468,27 +476,28 @@ const BloodBowlCard = ({
       </div>
 
       {/* ── Player Role (node 240:4610) ───────────────────────────────────
-          Brothers 33px, white, centered, tracking -0.66px, uppercase.
-          x:163 y:696 w:363 h:38 */}
+          Brothers 53px, white, centered, tracking -1.06px, uppercase.
+          bottom:96.5 centered at left:calc(50%+80.5px) w:509 */}
       <div
-        className="absolute flex flex-col justify-center leading-[0] not-italic text-[33px] text-center text-white uppercase"
-        style={{ ...BROTHERS, left: 163, top: 696, width: 363, height: 38, letterSpacing: '-0.66px' }}
+        className="-translate-x-1/2 translate-y-1/2 absolute flex flex-col justify-center leading-[0] not-italic text-[53px] text-center text-white uppercase"
+        style={{ ...BROTHERS, left: 'calc(50% + 80.5px)', bottom: 96.5, width: 509, letterSpacing: '-1.06px' }}
       >
         {editingField === 'playerRole' ? (
           <input
             autoFocus
             type="text"
             value={editValue}
+            maxLength={getMaxLength(constraints, 'stats.playerRole')}
             onChange={e => setEditValue(e.target.value)}
             onBlur={() => commitText(onPlayerRoleChange)}
             onKeyDown={onKeyDown}
             style={{
               ...INPUT_BASE,
               ...BROTHERS,
-              fontSize:      33,
+              fontSize:      53,
               color:         'white',
               textTransform: 'uppercase',
-              letterSpacing: '-0.66px',
+              letterSpacing: '-1.06px',
               borderBottom:  '1.5px solid rgba(255,255,255,0.5)',
               lineHeight:    'normal',
               textAlign:     'center',
@@ -512,11 +521,11 @@ const BloodBowlCard = ({
           Skills Container:   h-[118px] pt-[12px] px-[7px]
           Development Container: gap-px px-[7px] (no vertical padding) */}
       <div
-        className="absolute flex flex-col gap-[10px] items-start w-[367px]"
-        style={{ left: 163, top: 476 }}
+        className="absolute w-[367px] h-[231px]"
+        style={{ left: 178, top: 679 }}
       >
         {/* Skills Container */}
-        <div className="flex flex-col h-[118px] items-start pt-[12px] px-[7px] relative shrink-0 w-full">
+        <div className="absolute flex flex-col h-[118px] items-start pt-[12px] px-[7px] left-0 right-0 top-0">
           <div
             className="flex flex-col font-normal justify-end leading-[0] relative shrink-0 text-[20px] text-black w-[353px]"
             style={NOTO}
@@ -570,7 +579,8 @@ const BloodBowlCard = ({
 
         {/* Development Container */}
         <div
-          className="flex flex-col gap-px items-start leading-[0] px-[7px] relative text-[18px] text-black tracking-[-0.36px] size-full"
+          className="absolute flex flex-col gap-px items-start leading-[0] left-0 right-0 px-[7px] text-[18px] text-black tracking-[-0.36px]"
+          style={{ top: 166 }}
         >
           {/* Primary */}
           <div className="flex gap-[4px] h-[32px] items-center justify-center relative shrink-0 w-full">

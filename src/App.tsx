@@ -12,6 +12,7 @@
  * - /app                           → App home
  * - /app/builder/blood-bowl        → Blood Bowl card builder
  * - /app/builder/halo-flashpoint   → Halo Flashpoint card builder
+ * - /app/builder/starcraft         → StarCraft card builder (scaffolding)
  *
  * As new pages are designed and built, import them here and add a
  * corresponding <Route> inside the <Routes> block.
@@ -23,6 +24,8 @@ import { supabase } from './lib/supabase';
 import ComponentGallery from './pages/ComponentGallery';
 import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
 import CardBuilderHaloFlashpoint from './pages/CardBuilderHaloFlashpoint';
+import CardBuilderStarcraft from './pages/CardBuilderStarcraft';
+import PrintDeck from './pages/PrintDeck';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
 import AuthCallback from './pages/AuthCallback';
@@ -75,6 +78,12 @@ function App() {
 
         {/* ── Card Builder — Halo Flashpoint ── */}
         <Route path="/app/builder/halo-flashpoint" element={<CardBuilderHaloFlashpoint />} />
+
+        {/* ── Card Builder — StarCraft ── */}
+        <Route path="/app/builder/starcraft" element={<CardBuilderStarcraft />} />
+
+        {/* ── Print Deck ── */}
+        <Route path="/app/print" element={<PrintDeck />} />
 
       </Routes>
     </BrowserRouter>
