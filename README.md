@@ -12,6 +12,27 @@ A web-based application for creating custom unit cards for tabletop wargaming. B
 
 ## Getting Started
 
+### Environment setup.
+
+For the server, you will need the following dependencies:
+```md
+- NodeJS >= v22.0
+```
+
+For the environment, you will need A .env file with at a minimum the following defined:
+```js
+# Supabase configuration
+# Get these values from your Supabase project settings: https://supabase.com
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anonymous-key-here
+
+# Google OAuth (planned feature)
+# Get these from Google Cloud Console: https://console.cloud.google.com
+VITE_GOOGLE_CLIENT_ID=your-google-client-id-here
+```
+
+
+### Running the server.
 ```bash
 npm install       # Install dependencies
 npm run dev       # Start local development server
