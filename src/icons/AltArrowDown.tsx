@@ -10,7 +10,7 @@ const AltArrowDown = ({ className }: Props) => (
     className={className}
     aria-hidden="true"
   >
-    <path d="M19 9L12 15L5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M19 9L12 15L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 

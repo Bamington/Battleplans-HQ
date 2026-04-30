@@ -10,8 +10,8 @@ const Magnifer = ({ className }: Props) => (
     className={className}
     aria-hidden="true"
   >
-    <circle cx="11.5" cy="11.5" r="9.5" stroke="currentColor" stroke-width="1.5"/>
-<path d="M18.5 18.5L22 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="11.5" cy="11.5" r="9.5" stroke="currentColor" strokeWidth="1.5"/>
+<path d="M18.5 18.5L22 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 
