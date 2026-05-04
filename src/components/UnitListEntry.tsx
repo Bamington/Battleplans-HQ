@@ -15,6 +15,8 @@
 import React from 'react';
 import CheckCircle from '../icons/CheckCircle';
 import DangerCircle from '../icons/DangerCircle';
+import Copy from '../icons/Copy';
+import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
@@ -41,7 +43,13 @@ export interface UnitListEntryProps {
   /** URL for the unit's portrait or game icon */
   avatarSrc?: string;
   /** Called when the row is clicked */
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  onClick?: React.MouseEventHandler<HTMLElement>;
+  /** Whether deck edit mode is active — shows duplicate/delete icons */
+  editMode?: boolean;
+  /** Called when the duplicate button is clicked (edit mode only) */
+  onDuplicate?: () => void;
+  /** Called when the delete button is clicked (edit mode only) */
+  onDelete?: () => void;
   /** Extra Tailwind classes on the root element */
   className?: string;
 }
@@ -78,6 +86,9 @@ const UnitListEntry = ({
   unitType,
   avatarSrc,
   onClick,
+  editMode  = false,
+  onDuplicate,
+  onDelete,
   className = '',
 }: UnitListEntryProps) => {
 
@@ -99,12 +110,14 @@ const UnitListEntry = ({
   // Container border
   const borderClass = active ? 'border-green-500' : 'border-gray-700 hover:border-gray-600';
 
+  const Tag = editMode ? 'div' : 'button';
+
   return (
-    <button
-      type="button"
+    <Tag
+      {...(!editMode && { type: 'button' as const })}
       onClick={onClick}
       className={[
-        'w-full flex items-center gap-[9px] pr-1 rounded overflow-hidden border transition-colors text-left',
+        'w-full flex items-center gap-[9px] pr-1 rounded overflow-hidden border transition-colors text-left cursor-pointer',
         active ? 'bg-gray-800' : 'bg-gray-900',
         borderClass,
         className,
@@ -137,9 +150,30 @@ const UnitListEntry = ({
         )}
       </div>
 
-      {/* Status icon */}
-      <StatusIcon status={status} active={active} />
-    </button>
+      {/* Trailing icons */}
+      {editMode ? (
+        <>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDuplicate?.(); }}
+            className="shrink-0 p-0.5 rounded hover:bg-gray-700 transition-colors text-blue-400 hover:text-blue-300"
+            title="Duplicate card"
+          >
+            <Copy className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+            className="shrink-0 p-0.5 rounded hover:bg-gray-700 transition-colors text-red-400 hover:text-red-300"
+            title="Delete card"
+          >
+            <TrashBinMinimalistic className="size-4" />
+          </button>
+        </>
+      ) : (
+        <StatusIcon status={status} active={active} />
+      )}
+    </Tag>
   );
 };
 

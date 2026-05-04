@@ -50,7 +50,7 @@ export type TextAlign = 'left' | 'center' | 'right';
  * Semantic colour roles.
  * 'default' defers to each variant's built-in light/dark colours.
  */
-export type TextColor = 'default' | 'brand' | 'success' | 'danger' | 'purple' | 'teal';
+export type TextColor = 'default' | 'secondary' | 'brand' | 'success' | 'danger' | 'purple' | 'teal';
 
 /** Tailwind letter-spacing (tracking) scale */
 export type TextSpacing =
@@ -133,8 +133,9 @@ const alignClasses: Record<TextAlign, string> = {
  * 'default' is intentionally empty — each variant handles its own default colour.
  */
 const colorClasses: Record<TextColor, string> = {
-  default: '',
-  brand:   'text-blue-600 dark:text-blue-400',
+  default:   '',
+  secondary: 'text-gray-400',
+  brand:     'text-blue-600 dark:text-blue-400',
   success: 'text-green-600 dark:text-green-400',
   danger:  'text-red-600 dark:text-red-400',
   purple:  'text-purple-600 dark:text-purple-400',

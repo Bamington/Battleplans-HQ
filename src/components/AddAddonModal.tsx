@@ -31,7 +31,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import AddonListItem from './AddonListItem';
 import Button from './Button';
+import Input from './Input';
 import AddCircle from '../icons/AddCircle';
+import Magnifer from '../icons/Magnifer';
 import CheckCircle from '../icons/CheckCircle';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
@@ -104,6 +106,8 @@ const AddAddonModal = ({
   const [selectedId, setSelectedId]     = useState<string | null>(null);
   const [editingAddon, setEditingAddon] = useState<Addon | null>(null);
   const [saving, setSaving]             = useState(false);
+  const [searchQuery, setSearchQuery]   = useState('');
+  const [unfilteredCount, setUnfilteredCount] = useState(0);
 
   // Resolved Supabase IDs — stored in refs so fetchPage can always read
   // the latest value without being included in effect dependencies.
@@ -117,11 +121,14 @@ const AddAddonModal = ({
 
   // ── Fetch a page of eligible addons ───────────────────────────────────────
 
-  const fetchPage = useCallback(async (p: number) => {
+  const fetchPage = useCallback(async (p: number, search = '') => {
     const addonTypeId = addonTypeIdRef.current;
     const userId      = userIdRef.current;
     if (!addonTypeId || !userId) return;
 
+    const excluded = excludeRef.current;
+
+    // Build the filtered query
     let query = supabase
       .from('addons')
       .select('*', { count: 'exact' })
@@ -130,19 +137,32 @@ const AddAddonModal = ({
       .order('name')
       .range(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE - 1);
 
-    const excluded = excludeRef.current;
     if (excluded.length > 0) {
       query = query.not('id', 'in', `(${excluded.join(',')})`);
     }
+    if (search.trim()) {
+      query = query.ilike('name', `%${search.trim()}%`);
+    }
 
-    const { data, count, error } = await query;
+    // Also fetch unfiltered count to decide whether to show search bar
+    let unfilteredQuery = supabase
+      .from('addons')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('addon_type_id', addonTypeId);
+    if (excluded.length > 0) {
+      unfilteredQuery = unfilteredQuery.not('id', 'in', `(${excluded.join(',')})`);
+    }
+
+    const [filtered, unfiltered] = await Promise.all([query, unfilteredQuery]);
     if (!openRef.current) return;
-    if (error) { console.error('[AddAddonModal] fetch error:', error); return; }
+    if (filtered.error) { console.error('[AddAddonModal] fetch error:', filtered.error); return; }
 
-    const total = count ?? 0;
-    setAddons((data as Addon[]) ?? []);
+    const total = filtered.count ?? 0;
+    setAddons((filtered.data as Addon[]) ?? []);
     setTotalCount(total);
-    setStep(total === 0 ? 'create' : 'pick');
+    setUnfilteredCount(unfiltered.count ?? 0);
+    setStep(total === 0 && !search.trim() ? 'create' : 'pick');
   }, []);
 
   // ── Initialise when modal opens ────────────────────────────────────────────
@@ -157,6 +177,8 @@ const AddAddonModal = ({
       setSelectedId(null);
       setEditingAddon(null);
       setSaving(false);
+      setSearchQuery('');
+      setUnfilteredCount(0);
       addonTypeIdRef.current = null;
       userIdRef.current      = null;
       return;
@@ -197,9 +219,9 @@ const AddAddonModal = ({
   // ── Re-fetch when the page changes ────────────────────────────────────────
 
   useEffect(() => {
-    if (step === 'pick') fetchPage(page);
+    if (step === 'pick') fetchPage(page, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, searchQuery]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -227,7 +249,7 @@ const AddAddonModal = ({
       setTotalCount(0);
       setStep('create');
     } else {
-      await fetchPage(newPage);
+      await fetchPage(newPage, searchQuery);
     }
   };
 
@@ -252,7 +274,7 @@ const AddAddonModal = ({
 
         const id = editingAddon.id;
         setEditingAddon(null);
-        await fetchPage(page);
+        await fetchPage(page, searchQuery);
         setStep('pick');
         return id;
       } else {
@@ -338,6 +360,19 @@ const AddAddonModal = ({
           <h5 className="font-heading text-xl text-white">
             Add Existing {addonTypeName}
           </h5>
+
+          {/* Search — shown only when there are more than 5 possible addons */}
+          {unfilteredCount > 5 && (
+            <Input
+              leftIcon={<Magnifer className="size-4" />}
+              placeholder={`Search for a ${addonTypeName}`}
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setPage(0);
+              }}
+            />
+          )}
 
           {/* List */}
           <div className="flex flex-col gap-1.5">

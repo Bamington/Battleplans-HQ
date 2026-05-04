@@ -78,7 +78,27 @@
       "Bash(curl -s http://localhost:5173/)",
       "Bash(npx vite:*)",
       "Bash(find /c/Users/Bam/OneDrive/Documents/BattleCards/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
-      "Bash(ls /c/Users/Bam/OneDrive/Documents/BattleCards/src/components/*.tsx)"
+      "Bash(ls /c/Users/Bam/OneDrive/Documents/BattleCards/src/components/*.tsx)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)",
+      "Bash(npx eslint *)",
+      "mcp__d8b86caa-1885-4a88-87f3-c44311d5eadd__get_design_context",
+      "mcp__d8b86caa-1885-4a88-87f3-c44311d5eadd__get_screenshot",
+      "Bash(mkdir -p /tmp/figma)",
+      "Bash(curl -s -o /tmp/figma/edit-panel.png \"https://www.figma.com/api/mcp/asset/ed0a7643-1607-4e8c-91ae-28ada5f935ac\")",
+      "Bash(curl -s -o ./assault-phase-figma.png \"https://www.figma.com/api/mcp/asset/5c53a38e-6fb3-46cc-a64b-bb06147d1d30\")",
+      "Bash(node -e ' *)",
+      "Bash(mkdir -p \"src/assets/games/card assets/starcraft/phase-chrome\")",
+      "Bash(curl -s -o \"heading-left-cap.svg\" \"https://www.figma.com/api/mcp/asset/651c782a-790f-4e17-9812-614b42a9d54f\")",
+      "Bash(curl -s -o \"heading-icon.svg\" \"https://www.figma.com/api/mcp/asset/764801dd-c597-46dc-8a37-f9559df0fe42\")",
+      "Bash(curl -s -o \"heading-right-cap.svg\" \"https://www.figma.com/api/mcp/asset/3f0be772-0fc0-451a-877e-7e93018e6aef\")",
+      "Bash(curl -s -o \"upgrade-icon.svg\" \"https://www.figma.com/api/mcp/asset/79485ae7-fb55-422d-84a7-f3f595c84cef\")",
+      "Bash(curl -s -o \"upgrade-icon-union.svg\" \"https://www.figma.com/api/mcp/asset/397ba4ad-8c0a-4d0a-8a17-1374b56a7ddc\")",
+      "Bash(curl -s -o ./supply-tiers-modal.png \"https://www.figma.com/api/mcp/asset/18a24f12-549c-4778-8086-dfda033d146e\")",
+      "Bash(awk 'NR==1, NR==EOF {if \\(NR<=1\\) print \"Halo builder lines:\", NR}' src/pages/CardBuilderHaloFlashpoint.tsx)",
+      "Bash(curl -s -o ./create-ability-modal.png \"https://www.figma.com/api/mcp/asset/9b1fb38a-2aa4-4ee5-96e2-93861c52ea0a\")",
+      "Bash(grep -n \"tags:.*Tags:\\\\|StarcraftCard;\\\\s*$\\\\|export default StarcraftCard\\\\|^};\" src/components/StarcraftCard.tsx)",
+      "Bash(awk -v RS='\\\\\\\\\\\\\\\\n' '/Movement|Assault|Combat|left-\\\\[315/' \"C:/Users/Bam/.claude/projects/C--Users-Bam-OneDrive-Documents-BattleCards/e5d8d650-d25f-4c98-b443-db99bb4d40cf/tool-results/mcp-d8b86caa-1885-4a88-87f3-c44311d5eadd-get_design_context-1777447161881.txt\")"
     ]
   }
 }

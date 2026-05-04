@@ -28,6 +28,7 @@ import Button from './Button';
 import UnitListEntry from './UnitListEntry';
 import HaloFlashpointCard from './HaloFlashpointCard';
 import BloodBowlCard from './BloodBowlCard';
+import StarcraftCard from './StarcraftCard';
 import Camera from '../icons/Camera';
 import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
@@ -46,7 +47,7 @@ const CROP_ASPECT_AVATAR = 1; // square
 
 // ── Per-game config ──────────────────────────────────────────────────────────
 
-type GameSlug = 'halo-flashpoint' | 'blood-bowl';
+type GameSlug = 'halo-flashpoint' | 'blood-bowl' | 'starcraft';
 
 interface GameConfig {
   /** Default crop aspect ratio (no frame) */
@@ -76,13 +77,28 @@ const GAME_CONFIG: Record<GameSlug, GameConfig> = {
     recommendation:   'For Halo: Flashpoint, we recommend a photo with a white background.',
   },
   'blood-bowl': {
-    cropAspect:       393 / 407,
+    cropAspect:       593 / 614,
     cropAspectFramed: null,
     hasFrame:         false,
-    cardW:            556,
-    cardH:            779,
-    previewVisibleW:  556,
+    cardW:            750,
+    cardH:            1100,
+    previewVisibleW:  750,
     recommendation:   'For Blood Bowl, we recommend a player portrait with a clean background.',
+  },
+  // StarCraft: the portrait's final placement on the card is still TBD, so the
+  // crop aspect here is a provisional 4:5 headshot ratio. When the final chrome
+  // design is locked, update cropAspect (and cardW/cardH/previewVisibleW if the
+  // portrait appears at a different scale).  The upload plumbing itself
+  // (storage bucket, card_images rows, avatar flow) is identical to the other
+  // games.
+  'starcraft': {
+    cropAspect:       4 / 5,
+    cropAspectFramed: null,
+    hasFrame:         false,
+    cardW:            1270,
+    cardH:            890,
+    previewVisibleW:  600,
+    recommendation:   'For StarCraft, we recommend a unit portrait with a clean background.',
   },
 };
 
@@ -397,6 +413,36 @@ const UploadPhotoModal = ({
           portrait={portraitSrc}
           portraitStyle={showFrame ? 'portraitFramed' : null}
         />
+      );
+    }
+
+    if (game === 'starcraft') {
+      // Placeholder preview — StarcraftCard doesn't render portraits yet, so
+      // we show the cropped image as a lightly-framed image on top of the
+      // (currently transparent) card layout. When portrait placement is
+      // designed, replace this with a `portrait`-prop pass-through to
+      // StarcraftCard.
+      return (
+        <div style={{ position: 'relative', width: 1270, height: 890 }}>
+          <StarcraftCard />
+          {portraitSrc && (
+            <img
+              src={portraitSrc}
+              alt=""
+              style={{
+                position:   'absolute',
+                top:        '50%',
+                left:       '50%',
+                transform:  'translate(-50%, -50%)',
+                maxWidth:   '40%',
+                maxHeight:  '70%',
+                objectFit:  'contain',
+                borderRadius: 8,
+                boxShadow:  '0 4px 18px rgba(0,0,0,0.25)',
+              }}
+            />
+          )}
+        </div>
       );
     }
 
