@@ -973,6 +973,57 @@ const CardBuilderHaloFlashpoint = () => {
     }
   };
 
+  const deleteCard = async (cardId: string) => {
+    const cardToDelete = cards.find(c => c.id === cardId);
+
+    setCardState(s => {
+      if (s.cards.length <= 1) return s;
+
+      const deleteIndex = s.cards.findIndex(c => c.id === cardId);
+      if (deleteIndex === -1) return s;
+
+      const nextCards = s.cards.filter(c => c.id !== cardId);
+      const nextActiveCardId = s.activeCardId === cardId
+        ? nextCards[Math.min(deleteIndex, nextCards.length - 1)].id
+        : s.activeCardId;
+
+      return {
+        cards: nextCards,
+        activeCardId: nextActiveCardId,
+      };
+    });
+
+    dirtyCardsRef.current.delete(cardId);
+
+    if (cardToDelete?.dbId) {
+      const { error } = await supabase.from('cards').delete().eq('id', cardToDelete.dbId);
+      if (error) {
+        console.error('[BattleCards] Failed to delete card:', error);
+      }
+    }
+  };
+
+  const [deleteCardConfirmOpen, setDeleteCardConfirmOpen] = useState(false);
+  const [cardPendingDelete, setCardPendingDelete] = useState<HaloCardData | null>(null);
+  const [deletingCard, setDeletingCard] = useState(false);
+
+  const requestDeleteCard = (card: HaloCardData) => {
+    setCardPendingDelete(card);
+    setDeleteCardConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteCard = async () => {
+    if (!cardPendingDelete) return;
+    setDeletingCard(true);
+    try {
+      await deleteCard(cardPendingDelete.id);
+      setDeleteCardConfirmOpen(false);
+      setCardPendingDelete(null);
+    } finally {
+      setDeletingCard(false);
+    }
+  };
+
   /** Propagate a keyword definition update (name/description) across ALL cards. */
   const propagateKeywordUpdate = useCallback((keywordId: string, newName: string, newDescription: string, newHasParams: boolean) => {
     setCardState(s => ({
@@ -1779,6 +1830,21 @@ const CardBuilderHaloFlashpoint = () => {
                     onClick={() => selectCard(card.id)}
                   />
                 </div>
+                {editMode && (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${card.unitName || 'unit'}`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      requestDeleteCard(card);
+                    }}
+                    disabled={cards.length <= 1}
+                    className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
+                  >
+                    <TrashBinMinimalistic className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             ))}
 
@@ -2462,6 +2528,42 @@ const CardBuilderHaloFlashpoint = () => {
               onClick={handleDeletePortrait}
             >
               Yes, Delete this portrait image
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Delete card confirmation modal ─────────────────────────────── */}
+      <Modal
+        open={deleteCardConfirmOpen}
+        onClose={() => !deletingCard && setDeleteCardConfirmOpen(false)}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-3">
+          <TrashBinMinimalistic className="w-8 h-8 text-blue-500" />
+          <h3 className="font-heading text-xl text-white tracking-tight">
+            Delete this unit?
+          </h3>
+          <p className="font-body text-base text-gray-300">
+            This will permanently delete {cardPendingDelete?.unitName ? `“${cardPendingDelete.unitName}”` : 'this unit'}.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={deletingCard}
+              onClick={() => setDeleteCardConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="danger"
+              size="sm"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              loading={deletingCard}
+              onClick={handleConfirmDeleteCard}
+            >
+              Yes, Delete Unit
             </Button>
           </div>
         </div>

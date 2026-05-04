@@ -10,7 +10,7 @@ const ArrowDown = ({ className }: Props) => (
     className={className}
     aria-hidden="true"
   >
-    <path d="M12 4L12 20M12 20L18 14M12 20L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 4L12 20M12 20L18 14M12 20L6 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 

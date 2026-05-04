@@ -257,6 +257,42 @@ const CardBuilderBloodBowl = () => {
     setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
   };
 
+  const deleteCard = async (cardId: string) => {
+    const cardToDelete = cards.find(c => c.id === cardId);
+
+    setCardState(s => {
+      if (s.cards.length <= 1) return s;
+
+      const deleteIndex = s.cards.findIndex(c => c.id === cardId);
+      if (deleteIndex === -1) return s;
+
+      const nextCards = s.cards.filter(c => c.id !== cardId);
+      const nextActiveCardId = s.activeCardId === cardId
+        ? nextCards[Math.min(deleteIndex, nextCards.length - 1)].id
+        : s.activeCardId;
+
+      return {
+        cards: nextCards,
+        activeCardId: nextActiveCardId,
+      };
+    });
+
+    dirtyCardsRef.current.delete(cardId);
+
+    if (cardToDelete?.dbId) {
+      const { error } = await supabase.from('cards').delete().eq('id', cardToDelete.dbId);
+      if (error) {
+        console.error('[BattleCards] Failed to delete card:', error);
+      }
+    }
+  };
+
+  // ── Deck name inline rename ─────────────────────────────────────────────────
+  const startDeckNameEdit = useCallback(() => {
+    setEditingDeckName(true);
+    // Focus the input after it renders
+    requestAnimationFrame(() => deckNameInputRef.current?.select());
+  }, []);
   // ── New Card modal (shown when templates exist) ─────────────────────────────
   const [newCardModalOpen, setNewCardModalOpen] = useState(false);
   const [newCardTemplates, setNewCardTemplates] = useState<NewCardModalTemplate[]>([]);
@@ -775,6 +811,30 @@ const CardBuilderBloodBowl = () => {
   const [photoModalOpen, setPhotoModalOpen]           = useState(false);
   const [deletePortraitConfirm, setDeletePortraitConfirm] = useState(false);
   const [deletingPortrait, setDeletingPortrait]           = useState(false);
+  const [deleteCardConfirmOpen, setDeleteCardConfirmOpen] = useState(false);
+  const [cardPendingDelete, setCardPendingDelete] = useState<BloodBowlCardData | null>(null);
+  const [deletingCard, setDeletingCard] = useState(false);
+
+  const requestDeleteCard = (card: BloodBowlCardData) => {
+    setCardPendingDelete(card);
+    setDeleteCardConfirmOpen(true);
+  };
+
+  const closeDeleteCardConfirm = () => {
+    setDeleteCardConfirmOpen(false);
+    setCardPendingDelete(null);
+  };
+
+  const handleConfirmDeleteCard = async () => {
+    if (!cardPendingDelete) return;
+    setDeletingCard(true);
+    try {
+      await deleteCard(cardPendingDelete.id);
+      closeDeleteCardConfirm();
+    } finally {
+      setDeletingCard(false);
+    }
+  };
 
   const handleDeletePortrait = async () => {
     if (!activeCard.dbId) return;
@@ -1305,6 +1365,108 @@ const CardBuilderBloodBowl = () => {
             editorOpen={editorOpen}
             onToggleEditor={toggleEditor}
           />
+          <div className="flex-1 text-left min-w-0">
+            <p className="font-body text-sm font-semibold text-white truncate">
+              {activeCard.unitName || 'New Unit'}
+            </p>
+            <p className="font-body text-xs text-gray-500 uppercase tracking-wide truncate">
+              {activeCard.playerRole || 'No Role'}
+            </p>
+          </div>
+          {unitListOpen
+            ? <AltArrowUp   className="w-4 h-4 text-gray-400 shrink-0" />
+            : <AltArrowDown className="w-4 h-4 text-gray-400 shrink-0" />}
+        </button>
+
+        {unitListOpen && (
+          <div className="absolute top-full left-0 right-0 bg-gray-900 border-b border-gray-700 shadow-xl z-10">
+            <div className="px-4 py-3 border-b border-gray-700 flex items-center gap-2">
+              {editingDeckName ? (
+                <input
+                  ref={deckNameInputRef}
+                  type="text"
+                  defaultValue={deckName ?? ''}
+                  className="flex-1 min-w-0 bg-gray-800 border border-gray-600 rounded px-2 py-0.5
+                             font-heading text-xs font-bold text-white uppercase tracking-wide
+                             outline-none focus:border-blue-500"
+                  onBlur={e => commitDeckName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitDeckName(e.currentTarget.value);
+                    if (e.key === 'Escape') setEditingDeckName(false);
+                  }}
+                />
+              ) : (
+                <p
+                  className="flex-1 min-w-0 font-heading text-xs font-bold text-white uppercase tracking-wide truncate cursor-pointer"
+                  onDoubleClick={startDeckNameEdit}
+                  title="Double-click to rename"
+                >
+                  {deckName ?? '—'}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
+                className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+              >
+                {editMode
+                  ? <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  : <Pen2 className="w-3.5 h-3.5" />
+                }
+              </button>
+            </div>
+            <nav className="px-3 py-2 space-y-1">
+              {cards.map((card, i) => (
+                <div
+                  key={card.id}
+                  className={`flex items-center gap-1 ${
+                    editMode && dragOverIndex === i ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
+                  }`}
+                  onDragOver={editMode ? (e) => handleDragOver(e, i) : undefined}
+                  onDrop={editMode ? handleDrop : undefined}
+                >
+                  {editMode && (
+                    <div
+                      draggable
+                      onDragStart={() => handleDragStart(i)}
+                      onDragEnd={handleDragEnd}
+                      className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
+                    >
+                      <HamburgerMenu className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
+                    <UnitListEntry
+                      status={card.dbId ? 'complete' : 'blank'}
+                      unitName={card.unitName || undefined}
+                      unitType={card.playerRole || undefined}
+                      avatarSrc={card.avatarUrl ?? iconBloodBowl}
+                      active={card.id === activeCardId}
+                      onClick={() => {
+                        setCardState(s => ({ ...s, activeCardId: card.id }));
+                        if (!editMode) setUnitListOpen(false);
+                      }}
+                    />
+                  </div>
+                  {editMode && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${card.unitName || 'unit'}`}
+                      onClick={e => {
+                        e.stopPropagation();
+                        requestDeleteCard(card);
+                      }}
+                      disabled={cards.length <= 1}
+                      className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
+                    >
+                      <TrashBinMinimalistic className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </nav>
+            <div className="px-3 pb-3 space-y-3">
         ) : null
       }
       leftPanelOpen={cardListOpen}
@@ -1357,6 +1519,189 @@ const CardBuilderBloodBowl = () => {
             </>
           }
         >
+          <div
+            style={{
+              position:        'absolute',
+              top:             0,
+              left:            0,
+              transform:       `scale(${mobileScale})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <BloodBowlCard
+              teamName={activeCard.teamName     || 'Team Name'}
+              unitName={activeCard.unitName     || 'Unit Name'}
+              playerRole={activeCard.playerRole || 'Player Role'}
+              cost={activeCard.cost             || '?'}
+              skills={skillsString}
+              skillData={activeCard.unitKeywords.map(k => ({
+                label: k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
+                name: k.keywordName,
+                description: k.description,
+              }))}
+              portrait={activeCard.portraitUrl ?? undefined}
+              primaryAttribute={activeCard.primaryAttr.length   ? activeCard.primaryAttr.join(', ')   : '—'}
+              secondaryAttribute={activeCard.secondaryAttr.length ? activeCard.secondaryAttr.join(', ') : '—'}
+              ma={activeCard.move}
+              st={activeCard.strength}
+              ag={activeCard.agility}
+              pa={activeCard.passing}
+              av={activeCard.armor}
+              onTeamNameChange={v   => updateActiveCard({ teamName:   v })}
+              onUnitNameChange={v   => updateActiveCard({ unitName:   v })}
+              onPlayerRoleChange={v => updateActiveCard({ playerRole: v })}
+              onCostChange={v       => updateActiveCard({ cost:       v })}
+              onMaChange={v         => updateActiveCard({ move:       v })}
+              onStChange={v         => updateActiveCard({ strength:   v })}
+              onAgChange={v         => updateActiveCard({ agility:    v })}
+              onPaChange={v         => updateActiveCard({ passing:    v })}
+              onAvChange={v         => updateActiveCard({ armor:      v })}
+              onEditSkill={(sk) => {
+                const match = activeCard.unitKeywords.find(k => k.keywordName === sk.name);
+                if (match) setEditingSkill(match);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="shrink-0 bg-gray-900 border-t border-gray-700 z-20 relative">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-700"
+          onClick={() => setEditPanelOpen(o => !o)}
+        >
+          <h2 className="font-heading text-sm font-bold text-white uppercase tracking-wide">
+            Edit Card
+          </h2>
+          {editPanelOpen
+            ? <AltArrowDown className="w-4 h-4 text-gray-400" />
+            : <AltArrowUp   className="w-4 h-4 text-gray-400" />}
+        </button>
+
+        {editPanelOpen && (
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(50vh - 53px)' }}>
+            {editorForm}
+          </div>
+        )}
+      </div>
+
+      {/* Delete portrait confirmation modal */}
+      <Modal
+        open={deletePortraitConfirm}
+        onClose={() => !deletingPortrait && setDeletePortraitConfirm(false)}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-3">
+          <TrashBinMinimalistic className="w-8 h-8 text-blue-500" />
+          <h3 className="font-heading text-xl text-white tracking-tight">Delete this image?</h3>
+          <p className="font-body text-base text-gray-300">
+            This can't be undone, but you can upload a different image.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="ghost" size="sm" disabled={deletingPortrait} onClick={() => setDeletePortraitConfirm(false)}>
+              Cancel
+            </Button>
+            <Button color="danger" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}
+              loading={deletingPortrait} onClick={handleDeletePortrait}
+            >
+              Yes, Delete this portrait image
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete card confirmation modal */}
+      <Modal
+        open={deleteCardConfirmOpen}
+        onClose={() => !deletingCard && closeDeleteCardConfirm()}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-3">
+          <TrashBinMinimalistic className="w-8 h-8 text-blue-500" />
+          <h3 className="font-heading text-xl text-white tracking-tight">Delete this unit?</h3>
+          <p className="font-body text-base text-gray-300">
+            This will permanently delete {cardPendingDelete?.unitName ? `“${cardPendingDelete.unitName}”` : 'this unit'}.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="ghost" size="sm" disabled={deletingCard} onClick={closeDeleteCardConfirm}>
+              Cancel
+            </Button>
+            <Button color="danger" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}
+              loading={deletingCard} onClick={handleConfirmDeleteCard}
+            >
+              Yes, Delete Unit
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Upload Photo modal */}
+      <UploadPhotoModal
+        open={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
+        game="blood-bowl"
+        cardDbId={activeCard.dbId}
+        unitName={activeCard.unitName || undefined}
+        onImageUploaded={(url, _pStyle) => updateActiveCard({ portraitUrl: url })}
+        onAvatarUploaded={url => updateActiveCard({ avatarUrl: url })}
+      />
+
+    </div>
+  );
+
+  // ── Desktop layout (≥ 768px) ──────────────────────────────────────────────────
+  return (
+    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
+      <Navbar fixed={false} />
+
+      <div
+        className="flex flex-1 overflow-hidden"
+      >
+
+        {/* Left panel */}
+        <aside className="w-64 shrink-0 flex flex-col bg-gray-900
+                          border-r border-gray-700 overflow-hidden">
+          {/* Deck name header */}
+          <div className="px-4 py-4 border-b border-gray-700 shrink-0 flex items-center gap-2">
+            {editingDeckName ? (
+              <input
+                ref={deckNameInputRef}
+                type="text"
+                defaultValue={deckName ?? ''}
+                className="flex-1 min-w-0 bg-gray-800 border border-gray-600 rounded px-2 py-0.5
+                           font-heading text-sm font-bold text-white uppercase tracking-wide
+                           outline-none focus:border-blue-500"
+                onBlur={e => commitDeckName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') commitDeckName(e.currentTarget.value);
+                  if (e.key === 'Escape') setEditingDeckName(false);
+                }}
+              />
+            ) : (
+              <p
+                className="flex-1 min-w-0 font-heading text-sm font-bold text-white uppercase tracking-wide truncate cursor-pointer"
+                onDoubleClick={startDeckNameEdit}
+                title="Double-click to rename"
+              >
+                {deckName ?? '—'}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
+              className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+              title={editMode ? 'Done editing' : 'Edit deck'}
+            >
+              {editMode
+                ? <CheckCircle className="w-4 h-4 text-green-400" />
+                : <Pen2 className="w-4 h-4" />
+              }
+            </button>
+          </div>
+
+          {/* Card list */}
+          <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
             {cards.map((card, i) => (
               <div
                 key={card.id}
@@ -1389,6 +1734,21 @@ const CardBuilderBloodBowl = () => {
                     onClick={() => setCardState(s => ({ ...s, activeCardId: card.id }))}
                   />
                 </div>
+                {editMode && (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${card.unitName || 'unit'}`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      requestDeleteCard(card);
+                    }}
+                    disabled={cards.length <= 1}
+                    className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
+                  >
+                    <TrashBinMinimalistic className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             ))}
         </CardListPanel>
@@ -1737,6 +2097,31 @@ const CardBuilderBloodBowl = () => {
               loading={deletingPortrait} onClick={handleDeletePortrait}
             >
               Yes, Delete this portrait image
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete card confirmation modal */}
+      <Modal
+        open={deleteCardConfirmOpen}
+        onClose={() => !deletingCard && closeDeleteCardConfirm()}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-3">
+          <TrashBinMinimalistic className="w-8 h-8 text-blue-500" />
+          <h3 className="font-heading text-xl text-white tracking-tight">Delete this unit?</h3>
+          <p className="font-body text-base text-gray-300">
+            This will permanently delete {cardPendingDelete?.unitName ? `“${cardPendingDelete.unitName}”` : 'this unit'}.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="ghost" size="sm" disabled={deletingCard} onClick={closeDeleteCardConfirm}>
+              Cancel
+            </Button>
+            <Button color="danger" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}
+              loading={deletingCard} onClick={handleConfirmDeleteCard}
+            >
+              Yes, Delete Unit
             </Button>
           </div>
         </div>
