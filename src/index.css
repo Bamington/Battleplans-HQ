@@ -8,6 +8,9 @@
 /* ── Tailwind v4 ────────────────────────────────────────────────────────────── */
 @import "tailwindcss";
 
+/* ── Print styles ──────────────────────────────────────────────────────────── */
+@import "./print.css";
+
 /*
  * Dark mode strategy: class-based
  * Tailwind's dark: utilities activate when a .dark class is present on
@@ -77,6 +80,144 @@
   font-weight: 900;
   font-style: normal;
   font-display: swap;
+}
+
+/*
+ * Eurostile Pro — used for headings, stat labels, and phase headers on the
+ * StarCraft card. Kept as two families: the default proportional cut, and a
+ * 'Eurostile Pro Condensed' variant for tight headings (unit name, stat
+ * labels, column headers).
+ */
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Medium Italic.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Bold Italic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Black.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro';
+  src: url('./assets/games/fonts/Eurostile Pro Black Italic.otf') format('opentype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Eurostile Pro Condensed';
+  src: url('./assets/games/fonts/Eurostile Pro Condensed.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro Condensed';
+  src: url('./assets/games/fonts/Eurostile Pro Condensed Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro Condensed';
+  src: url('./assets/games/fonts/Eurostile Pro Condensed Black.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Eurostile Pro Condensed';
+  src: url('./assets/games/fonts/Eurostile Pro Condensed Black Italic.otf') format('opentype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/*
+ * Source Sans 3 — used for body text on the StarCraft card (rule descriptions,
+ * weapon keyword text, tags).
+ */
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('./assets/games/fonts/SourceSans3-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('./assets/games/fonts/SourceSans3-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('./assets/games/fonts/SourceSans3-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('./assets/games/fonts/SourceSans3-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('./assets/games/fonts/SourceSans3-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Play-mode keyword card cascade animation ─────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @theme {

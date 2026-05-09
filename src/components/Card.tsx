@@ -51,6 +51,8 @@ export interface CardProps {
   shadow?: boolean;
   /** Extra Tailwind classes on the card container */
   className?: string;
+  /** Inline styles for one-off overrides (e.g. animation) */
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }
 
@@ -85,6 +87,7 @@ const Card = ({
   horizontal = false,
   shadow     = true,
   className  = '',
+  style,
   children,
 }: CardProps) => {
   const classes = [
@@ -95,7 +98,7 @@ const Card = ({
     className,
   ].filter(Boolean).join(' ');
 
-  return <div className={classes}>{children}</div>;
+  return <div className={classes} style={style}>{children}</div>;
 };
 
 // ── CardImage ─────────────────────────────────────────────────────────────────

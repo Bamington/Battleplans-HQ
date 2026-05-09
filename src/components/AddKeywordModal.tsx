@@ -34,10 +34,12 @@ import Checkbox from './Checkbox';
 import AddCircle from '../icons/AddCircle';
 import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
+import Magnifer from '../icons/Magnifer';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
 import { supabase } from '../lib/supabase';
-import type { Keyword } from '../lib/database.types';
+import { getMaxLength } from '../lib/constraints';
+import type { Keyword, EntityConstraints } from '../lib/database.types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,8 @@ export interface AddKeywordModalProps {
   typeName?: string;
   /** Examples shown in the "has a value" checkbox label. Defaults to "Blast (X), Weight of Fire (X)". */
   valueExamples?: string;
+  /** DB-driven constraints for keyword fields (name maxLength, description maxLength, etc.) */
+  constraints?: EntityConstraints;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -86,6 +90,7 @@ const AddKeywordModal = ({
   onKeywordUpdated,
   typeName = 'Keyword',
   valueExamples = 'Blast (X), Weight of Fire (X)',
+  constraints = {},
 }: AddKeywordModalProps) => {
   const [step, setStep]               = useState<Step>('loading');
   const [keywords, setKeywords]       = useState<Keyword[]>([]);
@@ -93,6 +98,8 @@ const AddKeywordModal = ({
   const [page, setPage]               = useState(0);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [saving, setSaving]           = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unfilteredCount, setUnfilteredCount] = useState(0);
 
   // Create form state
   const [newName, setNewName]           = useState('');
@@ -116,11 +123,14 @@ const AddKeywordModal = ({
 
   // ── Fetch a page of keywords ──────────────────────────────────────────────
 
-  const fetchPage = useCallback(async (p: number) => {
+  const fetchPage = useCallback(async (p: number, search = '') => {
     const gameId = gameIdRef.current;
     const userId = userIdRef.current;
     if (!gameId || !userId) return;
 
+    const excluded = excludeRef.current;
+
+    // Build the filtered query
     let query = supabase
       .from('keywords')
       .select('*', { count: 'exact' })
@@ -129,17 +139,30 @@ const AddKeywordModal = ({
       .order('name')
       .range(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE - 1);
 
-    const excluded = excludeRef.current;
     if (excluded.length > 0) {
       query = query.not('id', 'in', `(${excluded.join(',')})`);
     }
+    if (search.trim()) {
+      query = query.ilike('name', `%${search.trim()}%`);
+    }
 
-    const { data, count, error } = await query;
+    // Also fetch unfiltered count (no search filter) to decide whether to show search bar
+    let unfilteredQuery = supabase
+      .from('keywords')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('game_id', gameId);
+    if (excluded.length > 0) {
+      unfilteredQuery = unfilteredQuery.not('id', 'in', `(${excluded.join(',')})`);
+    }
+
+    const [filtered, unfiltered] = await Promise.all([query, unfilteredQuery]);
     if (!openRef.current) return;
-    if (error) { console.error('[AddKeywordModal] fetch error:', error); return; }
+    if (filtered.error) { console.error('[AddKeywordModal] fetch error:', filtered.error); return; }
 
-    setKeywords((data as Keyword[]) ?? []);
-    setTotalCount(count ?? 0);
+    setKeywords((filtered.data as Keyword[]) ?? []);
+    setTotalCount(filtered.count ?? 0);
+    setUnfilteredCount(unfiltered.count ?? 0);
     setStep('pick');
   }, []);
 
@@ -159,6 +182,8 @@ const AddKeywordModal = ({
       setNewHasValue(false);
       setPendingKeyword(null);
       setParamValue(1);
+      setSearchQuery('');
+      setUnfilteredCount(0);
       gameIdRef.current = null;
       userIdRef.current = null;
       return;
@@ -203,9 +228,9 @@ const AddKeywordModal = ({
   // ── Re-fetch when the page changes ────────────────────────────────────────
 
   useEffect(() => {
-    if (step === 'pick') fetchPage(page);
+    if (step === 'pick') fetchPage(page, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, searchQuery]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -325,7 +350,7 @@ const AddKeywordModal = ({
     // Go back to pick — always, since the user might want to pick an existing one
     setStep('pick');
     // Re-fetch in case the list changed
-    fetchPage(page);
+    fetchPage(page, searchQuery);
   };
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -380,6 +405,19 @@ const AddKeywordModal = ({
           <h5 className="font-heading text-xl text-white">
             Add Existing {typeName}
           </h5>
+
+          {/* Search — shown only when there are more than 5 possible keywords */}
+          {unfilteredCount > 5 && (
+            <Input
+              leftIcon={<Magnifer className="size-4" />}
+              placeholder={`Search for a ${typeName}`}
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setPage(0);
+              }}
+            />
+          )}
 
           {/* List */}
           <div className="flex flex-col gap-1.5">
@@ -480,6 +518,7 @@ const AddKeywordModal = ({
             required
             placeholder="eg. Ranged, Poison, etc"
             value={newName}
+            maxLength={getMaxLength(constraints, 'name')}
             onChange={e => setNewName(e.target.value)}
           />
 
@@ -491,6 +530,7 @@ const AddKeywordModal = ({
               rows={4}
               placeholder="The rules for this keyword"
               value={newDescription}
+              maxLength={getMaxLength(constraints, 'description')}
               onChange={e => setNewDescription(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg bg-gray-700 border border-gray-600 font-body text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none overflow-y-auto"
             />

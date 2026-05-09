@@ -156,16 +156,6 @@ const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
                         {initials}
                       </span>
                     </div>
-
-                    {/* Name + email */}
-                    <div className="flex flex-col text-xs leading-4 pb-0.5 text-left">
-                      <span className="font-body font-medium text-gray-300">
-                        {displayName ?? 'User'}
-                      </span>
-                      {email && (
-                        <span className="font-body text-gray-500">{email}</span>
-                      )}
-                    </div>
                   </button>
                 }
               >

@@ -27,6 +27,9 @@
 import { useState, useRef } from 'react';
 import { createPortal }    from 'react-dom';
 import KeywordInfoModal    from './KeywordInfoModal';
+import TokenOverlay        from './TokenOverlay';
+import { clampNumber, getMaxLength } from '../lib/constraints';
+import type { EntityConstraints, TokenDefinition } from '../lib/database.types';
 import bgSvg               from '../assets/games/card assets/halo/BG.svg';
 import portraitPlaceholder from '../assets/games/card assets/halo/example-image.png';
 import portraitFrameSvg    from '../assets/games/card assets/halo/portrait-frame.svg';
@@ -57,11 +60,24 @@ const COL_KEYWORDS = { left: 833, width: 298 } as const;
 
 const TABLE_LEFT      = 62;
 const TABLE_WIDTH     = 1103;
-const WEAPON_ROW_H    = 86;
+const WEAPON_ROW_H_BASE = 86;   // default row height when keywords fit one line
 const WEAPON_HEADER_H = 58;
 const TABLE_BOTTOM    = 838;  // bottom of last row (above bottom inserts)
 const MAX_WEAPON_ROWS = 3;
 const ROW_BG_COLORS   = ['white', '#B4CDCD', 'white'] as const; // alternating
+
+/**
+ * Estimate how tall a weapon row needs to be based on its keywords text.
+ * At font-size 30 with ~298 px column width minus padding, roughly 18 chars
+ * fit per line. Each extra line adds ~36 px (font-size 30 × 1.2 line-height).
+ */
+const estimateRowHeight = (keywordsText: string): number => {
+  if (!keywordsText) return WEAPON_ROW_H_BASE;
+  const charsPerLine = 18;
+  const lines = Math.ceil(keywordsText.length / charsPerLine);
+  if (lines <= 2) return WEAPON_ROW_H_BASE; // two lines fit in the default height
+  return WEAPON_ROW_H_BASE + (lines - 2) * 36;
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -165,6 +181,16 @@ export interface HaloFlashpointCardProps {
   onEditKeyword?:       (kw: CardKeywordInfo) => void;
   /** Called when user clicks a weapon name in the weapon table */
   onWeaponClick?:       (weapon: HaloWeapon) => void;
+  /** DB-driven validation constraints — when omitted, falls back to 0–9 for numbers. */
+  constraints?:         EntityConstraints;
+  // ── Token overlay (play mode) ─────────────────────────────────────────
+  /** When provided, renders the play-mode token overlay over the card. */
+  tokenOverlay?: {
+    definitions: TokenDefinition[];
+    unitKeywords: { keywordName: string; paramValue: number | null }[];
+    state: Record<string, number>;
+    onChange?: (tokenDefId: string, newValue: number) => void;
+  };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -195,12 +221,27 @@ const HaloFlashpointCard = ({
   onHpChange,
   onEditKeyword,
   onWeaponClick,
+  constraints = {},
+  tokenOverlay,
 }: HaloFlashpointCardProps) => {
   // Dynamic weapon table: always at least 1 row, max 3
   const rowCount = Math.max(1, Math.min(weapons.length, MAX_WEAPON_ROWS));
-  const tableTopY   = TABLE_BOTTOM - rowCount * WEAPON_ROW_H - WEAPON_HEADER_H;
+
+  // Compute per-row heights so rows with many keywords grow taller
+  const rowHeights = Array.from({ length: rowCount }, (_, i) => {
+    const w = weapons[i];
+    return estimateRowHeight(w?.keywords ?? '');
+  });
+  const totalRowsH  = rowHeights.reduce((sum, h) => sum + h, 0);
+  const tableTopY   = TABLE_BOTTOM - totalRowsH - WEAPON_HEADER_H;
   const headerTopY  = tableTopY;
   const firstRowTopY = headerTopY + WEAPON_HEADER_H;
+
+  // Cumulative top offsets for each row
+  const rowTopOffsets = rowHeights.reduce<number[]>((acc, _h, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + rowHeights[i - 1]);
+    return acc;
+  }, []);
 
   // ── Keyword info modal state ─────────────────────────────────────────────────
   const [viewingCardKeyword, setViewingCardKeyword] = useState<CardKeywordInfo | null>(null);
@@ -222,10 +263,10 @@ const HaloFlashpointCard = ({
     setEditingField(null);
   };
 
-  const commitNumber = (onChange?: (v: number) => void) => {
+  const commitNumber = (statKey: string, onChange?: (v: number) => void) => {
     if (!cancellingRef.current) {
       const n = parseInt(editValue, 10);
-      onChange?.(isNaN(n) ? 0 : Math.max(0, Math.min(9, n)));
+      onChange?.(isNaN(n) ? 0 : clampNumber(n, constraints, statKey));
     }
     cancellingRef.current = false;
     setEditingField(null);
@@ -257,7 +298,11 @@ const HaloFlashpointCard = ({
 
   return (
     <div
-      className={`relative overflow-clip shrink-0 ${className}`}
+      className={`relative shrink-0 ${className}`}
+      style={{ width: 1270, height: 890 }}
+    >
+    <div
+      className="relative overflow-clip"
       style={{ width: 1270, height: 890 }}
     >
 
@@ -358,6 +403,7 @@ const HaloFlashpointCard = ({
             autoFocus
             type="text"
             value={editValue}
+            maxLength={getMaxLength(constraints, 'name')}
             onChange={e => setEditValue(e.target.value)}
             onBlur={() => commitText(onUnitNameChange)}
             onKeyDown={onKeyDown}
@@ -493,7 +539,7 @@ const HaloFlashpointCard = ({
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onRaChange)}
+              onBlur={() => commitNumber('ra', onRaChange)}
               onKeyDown={onKeyDown}
               style={{ ...INPUT_BASE, ...ALLER, fontSize: 38, letterSpacing: '1.14px', color: 'black', borderBottom: '1.5px solid rgba(0,0,0,0.3)', width: 40, textAlign: 'center' }}
             />
@@ -514,7 +560,7 @@ const HaloFlashpointCard = ({
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onFiChange)}
+              onBlur={() => commitNumber('fi', onFiChange)}
               onKeyDown={onKeyDown}
               style={{ ...INPUT_BASE, ...ALLER, fontSize: 38, letterSpacing: '1.14px', color: 'black', borderBottom: '1.5px solid rgba(0,0,0,0.3)', width: 40, textAlign: 'center' }}
             />
@@ -535,7 +581,7 @@ const HaloFlashpointCard = ({
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onSvChange)}
+              onBlur={() => commitNumber('sv', onSvChange)}
               onKeyDown={onKeyDown}
               style={{ ...INPUT_BASE, ...ALLER, fontSize: 38, letterSpacing: '1.14px', color: 'black', borderBottom: '1.5px solid rgba(0,0,0,0.3)', width: 40, textAlign: 'center' }}
             />
@@ -584,7 +630,7 @@ const HaloFlashpointCard = ({
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onAdvanceValueChange)}
+              onBlur={() => commitNumber('advanceValue', onAdvanceValueChange)}
               onKeyDown={onKeyDown}
               style={{ ...INPUT_BASE, ...ALLER, fontSize: 30, color: 'white', borderBottom: '1.5px solid rgba(255,255,255,0.5)', width: 22, textAlign: 'center' }}
             />
@@ -604,7 +650,7 @@ const HaloFlashpointCard = ({
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onSprintValueChange)}
+              onBlur={() => commitNumber('sprintValue', onSprintValueChange)}
               onKeyDown={onKeyDown}
               style={{ ...INPUT_BASE, ...ALLER, fontSize: 30, color: 'white', borderBottom: '1.5px solid rgba(255,255,255,0.5)', width: 22, textAlign: 'center' }}
             />
@@ -653,7 +699,7 @@ const HaloFlashpointCard = ({
             <input
               autoFocus type="text" value={editValue}
               onChange={onDigitChange}
-              onBlur={() => commitNumber(onArChange)}
+              onBlur={() => commitNumber('ar', onArChange)}
               onKeyDown={onKeyDown}
               style={{ ...INPUT_BASE, ...ALLER, fontSize: 30, color: 'white', borderBottom: '1.5px solid rgba(255,255,255,0.5)', width: 22, textAlign: 'center' }}
             />
@@ -687,7 +733,7 @@ const HaloFlashpointCard = ({
           <input
             autoFocus type="text" value={editValue}
             onChange={onDigitChange}
-            onBlur={() => commitNumber(onHpChange)}
+            onBlur={() => commitNumber('hp', onHpChange)}
             onKeyDown={onKeyDown}
             style={{
               ...INPUT_BASE,
@@ -726,9 +772,9 @@ const HaloFlashpointCard = ({
           style={{
             position:   'absolute',
             left:       TABLE_LEFT,
-            top:        firstRowTopY + i * WEAPON_ROW_H,
+            top:        firstRowTopY + rowTopOffsets[i],
             width:      TABLE_WIDTH,
-            height:     WEAPON_ROW_H,
+            height:     rowHeights[i],
             background: ROW_BG_COLORS[i] ?? 'white',
           }}
         />
@@ -756,10 +802,11 @@ const HaloFlashpointCard = ({
       {/* Weapon data rows */}
       {Array.from({ length: rowCount }, (_, i) => {
         const w = weapons[i];
-        const rowTop = firstRowTopY + i * WEAPON_ROW_H;
+        const rowTop = firstRowTopY + rowTopOffsets[i];
+        const rowH   = rowHeights[i];
         return (
           <div key={`row-${i}`}>
-            <WeaponCell col={COL_TYPE}     top={rowTop} height={WEAPON_ROW_H} text={w?.type     ?? '—'} />
+            <WeaponCell col={COL_TYPE}     top={rowTop} height={rowH} text={w?.type     ?? '—'} />
             {w && onWeaponClick ? (
               <div
                 style={{
@@ -767,7 +814,7 @@ const HaloFlashpointCard = ({
                   left:     COL_WEAPON.left,
                   top:      rowTop,
                   width:    COL_WEAPON.width,
-                  height:   WEAPON_ROW_H,
+                  height:   rowH,
                   display:  'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -795,10 +842,10 @@ const HaloFlashpointCard = ({
                 </span>
               </div>
             ) : (
-              <WeaponCell col={COL_WEAPON}   top={rowTop} height={WEAPON_ROW_H} text={w?.name     ?? '—'} />
+              <WeaponCell col={COL_WEAPON}   top={rowTop} height={rowH} text={w?.name     ?? '—'} />
             )}
-            <WeaponCell col={COL_RANGE}    top={rowTop} height={WEAPON_ROW_H} text={w?.range    ?? '—'} />
-            <WeaponCell col={COL_AP}       top={rowTop} height={WEAPON_ROW_H} text={w?.ap       ?? '—'} />
+            <WeaponCell col={COL_RANGE}    top={rowTop} height={rowH} text={w?.range    ?? '—'} />
+            <WeaponCell col={COL_AP}       top={rowTop} height={rowH} text={w?.ap       ?? '—'} />
             {w?.keywordData && w.keywordData.length > 0 ? (
               <div
                 style={{
@@ -806,7 +853,7 @@ const HaloFlashpointCard = ({
                   left:     COL_KEYWORDS.left,
                   top:      rowTop,
                   width:    COL_KEYWORDS.width,
-                  height:   WEAPON_ROW_H,
+                  height:   rowH,
                   display:  'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -821,7 +868,6 @@ const HaloFlashpointCard = ({
                     lineHeight: 'normal',
                     color: 'black',
                     textAlign: 'center',
-                    overflow: 'hidden',
                   }}
                 >
                   {w.keywordData.map((kw, ki) => (
@@ -841,7 +887,7 @@ const HaloFlashpointCard = ({
                 </span>
               </div>
             ) : (
-              <WeaponCell col={COL_KEYWORDS} top={rowTop} height={WEAPON_ROW_H} text={w?.keywords ?? '—'} />
+              <WeaponCell col={COL_KEYWORDS} top={rowTop} height={rowH} text={w?.keywords ?? '—'} />
             )}
           </div>
         );
@@ -863,6 +909,16 @@ const HaloFlashpointCard = ({
         document.body,
       )}
 
+    </div>
+    {/* ── Token overlay (play mode) — outside overflow-clip so tokens can extend past card bounds ── */}
+    {tokenOverlay && tokenOverlay.definitions.length > 0 && (
+      <TokenOverlay
+        tokenDefinitions={tokenOverlay.definitions}
+        card={{ hp, unitKeywords: tokenOverlay.unitKeywords }}
+        tokenState={tokenOverlay.state}
+        onTokenChange={tokenOverlay.onChange}
+      />
+    )}
     </div>
   );
 };
