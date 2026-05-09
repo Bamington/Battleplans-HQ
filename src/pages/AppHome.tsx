@@ -59,8 +59,12 @@ import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import iconHalo from '../assets/games/card assets/halo/icon.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
+import logoKillTeam from '../assets/games/logo-kill-team.png';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
 // Keyed by the game's slug (matches the value seeded into public.games).
@@ -80,6 +84,13 @@ const GAMES = [
     logoSrc: logoBloodBowl,
     thumbnailSrc: iconBloodBowl as string,
     thumbnailBg: 'bg-[#15417e]',
+  },
+  {
+    id: 'kill-team',
+    name: 'Kill Team',
+    logoSrc: logoKillTeam,
+    thumbnailSrc: iconKillTeam as string,
+    thumbnailBg: 'bg-gray-800',
   },
 ] as const;
 

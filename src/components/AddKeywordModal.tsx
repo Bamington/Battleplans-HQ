@@ -478,7 +478,7 @@ const AddKeywordModal = ({
           <Input
             label={`${typeName} Name`}
             required
-            placeholder="Closed Combat or Ranged"
+            placeholder="eg. Ranged, Poison, etc"
             value={newName}
             onChange={e => setNewName(e.target.value)}
           />
@@ -489,7 +489,7 @@ const AddKeywordModal = ({
             </div>
             <textarea
               rows={4}
-              placeholder="Eg. Fists, Battle Rifle, etc."
+              placeholder="The rules for this keyword"
               value={newDescription}
               onChange={e => setNewDescription(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg bg-gray-700 border border-gray-600 font-body text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none overflow-y-auto"

@@ -28,6 +28,7 @@ import Button from './Button';
 import UnitListEntry from './UnitListEntry';
 import HaloFlashpointCard from './HaloFlashpointCard';
 import BloodBowlCard from './BloodBowlCard';
+import KillTeamCard from './KillTeamCard';
 import Camera from '../icons/Camera';
 import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
@@ -46,7 +47,7 @@ const CROP_ASPECT_AVATAR = 1; // square
 
 // ── Per-game config ──────────────────────────────────────────────────────────
 
-type GameSlug = 'halo-flashpoint' | 'blood-bowl';
+type GameSlug = 'halo-flashpoint' | 'blood-bowl' | 'kill-team';
 
 interface GameConfig {
   /** Default crop aspect ratio (no frame) */
@@ -83,6 +84,15 @@ const GAME_CONFIG: Record<GameSlug, GameConfig> = {
     cardH:            779,
     previewVisibleW:  556,
     recommendation:   'For Blood Bowl, we recommend a player portrait with a clean background.',
+  },
+  'kill-team': {
+    cropAspect:       1,
+    cropAspectFramed: null,
+    hasFrame:         false,
+    cardW:            1270,
+    cardH:            890,
+    previewVisibleW:  1270,
+    recommendation:   'For Kill Team, we recommend a square operative portrait with a clean background.',
   },
 };
 
@@ -398,6 +408,10 @@ const UploadPhotoModal = ({
           portraitStyle={showFrame ? 'portraitFramed' : null}
         />
       );
+    }
+
+    if (game === 'kill-team') {
+      return <KillTeamCard portrait={portraitSrc} />;
     }
 
     return <BloodBowlCard portrait={portraitSrc} />;

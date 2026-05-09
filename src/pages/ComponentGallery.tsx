@@ -36,6 +36,8 @@ import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors'
 import heroImage from '../assets/hero.png';
 import BloodBowlCard from '../components/BloodBowlCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import KillTeamCard from '../components/KillTeamCard';
+import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import Card3DWrapper from '../components/Card3DWrapper';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import VR from '../components/VR';
@@ -49,6 +51,7 @@ import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal'
 import AddKeywordModal from '../components/AddKeywordModal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import WeaponInfoModal from '../components/WeaponInfoModal';
+import AddonInfoModal from '../components/AddonInfoModal';
 import BlogEntryPreview from '../components/BlogEntryPreview';
 import Modal from '../components/Modal';
 import UploadPhotoModal from '../components/UploadPhotoModal';
@@ -244,6 +247,8 @@ const ComponentGallery = () => {
   const [keywordModalOpen,   setKeywordModalOpen]   = useState(false);
   const [keywordInfoOpen,    setKeywordInfoOpen]    = useState(false);
   const [weaponInfoOpen,     setWeaponInfoOpen]     = useState(false);
+  const [addonInfoWeapon,    setAddonInfoWeapon]    = useState(false);
+  const [addonInfoAbility,   setAddonInfoAbility]   = useState(false);
   const [selectedAddonId,    setSelectedAddonId]    = useState<string | null>(null);
   const [pickedGame,     setPickedGame]     = useState<string | null>(null);
   return (
@@ -2025,6 +2030,122 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Kill Team Card ─────────────────────────────────────────── */}
+      <GallerySection id="nav-kill-team-card" title="Kill Team Card / Default">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          v1 placeholder layout — schema-driven, will be restyled when a final design is available.
+        </p>
+        <div className="flex flex-wrap gap-8 items-start">
+
+          {/* Empty / placeholder state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filled state
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamCard
+                  operativeName="Ravener Venomspitter"
+                  tags="Ravener, Great Devourer, Tyranid, Venomspitter"
+                  actions={3}
+                  movement={3}
+                  save={3}
+                  wounds={20}
+                  weapons={[
+                    { name: 'Pincer Tail',           meleeOrRanged: 'ranged', attack: 4, hit: '3+', damage: '3/4', keywords: 'Range 8", Blast 2, Poison*',
+                      keywordData: [
+                        { label: 'Range 8"', name: 'Range', description: 'This weapon can target operatives within 8" of the firing operative.' },
+                        { label: 'Blast 2',  name: 'Blast', description: 'Each successful hit also affects all operatives within 2" of the target.' },
+                        { label: 'Poison',   name: 'Poison', description: 'On a successful hit, the target gains a Poison token. Operatives with a Poison token take D3 damage when activated.' },
+                      ] },
+                    { name: 'Venom bolt (blast)',    meleeOrRanged: 'ranged', attack: 4, hit: '3+', damage: '3/5', keywords: 'Range 8", Blast 2, Poison*' },
+                    { name: 'Venom bolt (Focused)',  meleeOrRanged: 'ranged', attack: 4, hit: '3+', damage: '3/5', keywords: 'Range 8", Piercing 1, Poison*' },
+                    { name: 'Scything Talons',       meleeOrRanged: 'melee',  attack: 5, hit: '3+', damage: '4/5', keywords: '-' },
+                  ]}
+                  abilities={[
+                    { name: 'Hypersensory Hunter', apCost: 0, keywords: '', description: 'This operative can perform the Charge action while it has a Conceal order if it performed the Burrow action during the same activation/ counteraction.' },
+                    { name: 'Ability 2',           apCost: 1, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
+                    { name: 'Ability 3',           apCost: 1, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
+                    { name: 'Ability 4',           apCost: 0, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ── Kill Team Rule Card ───────────────────────────────────── */}
+      <GallerySection id="nav-kill-team-rule-card" title="Kill Team Rule Card / Default">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Faction Rule layout — title + description, with an optional attached ability.
+        </p>
+        <div className="flex flex-wrap gap-8 items-start">
+
+          {/* Empty state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 350, height: Math.round(1200 * (350 / 700)) }}>
+              <div style={{ transform: `scale(${350 / 700})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamRuleCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled — title + description only */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Title + description
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 350, height: Math.round(1200 * (350 / 700)) }}>
+              <div style={{ transform: `scale(${350 / 700})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamRuleCard
+                  title="Rule Title"
+                  description={`Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.`}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled — with attached ability */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              With attached ability
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 350, height: Math.round(1200 * (350 / 700)) }}>
+              <div style={{ transform: `scale(${350 / 700})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamRuleCard
+                  title="Rule Title"
+                  description={`Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.`}
+                  ability={{
+                    name:        'Rule Ability',
+                    apCost:      1,
+                    keywords:    '',
+                    description: `Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
       {/* ── Card 3D Wrapper ───────────────────────────────────────── */}
       <GallerySection id="nav-card-3d" title="Card 3D Wrapper">
         <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -2572,6 +2693,61 @@ const ComponentGallery = () => {
             }}
             onEdit={() => setWeaponInfoOpen(false)}
             onKeywordClick={() => {}}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ADDON INFO MODAL — universal, schema-driven
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-addon-info-modal" title="Addon Info Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Universal read-only modal for any addon (weapons, abilities, skills, …).
+            Caller passes a list of game-specific stat rows + optional description and
+            keywords. The Edit button label is parameterised by <code>addonTypeName</code>.
+          </p>
+
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => setAddonInfoWeapon(true)}>
+              Open as Weapon (Kill Team)
+            </Button>
+            <Button onClick={() => setAddonInfoAbility(true)} variant="outline">
+              Open as Ability (Kill Team)
+            </Button>
+          </div>
+
+          <AddonInfoModal
+            open={addonInfoWeapon}
+            onClose={() => setAddonInfoWeapon(false)}
+            name="Bolt Rifle"
+            addonTypeName="Weapon"
+            statRows={[
+              { label: 'Type',   value: 'Ranged' },
+              { label: 'Attack', value: 4 },
+              { label: 'Hit',    value: '3+' },
+              { label: 'Damage', value: '3/4' },
+            ]}
+            keywords={[
+              { keywordId: 'demo-pierce', keywordName: 'Pierce', description: 'Reduces target save.', hasParams: true,  paramValue: 1 },
+              { keywordId: 'demo-lethal', keywordName: 'Lethal', description: 'Critical on a 5+.',     hasParams: true,  paramValue: 5 },
+            ]}
+            onEdit={() => setAddonInfoWeapon(false)}
+            onKeywordClick={() => {}}
+          />
+
+          <AddonInfoModal
+            open={addonInfoAbility}
+            onClose={() => setAddonInfoAbility(false)}
+            name="Astartes"
+            description="During friendly operative activation, perform two Shoot or two Fight actions; bolt weapon must feature in at least one Shoot."
+            addonTypeName="Ability"
+            statRows={[
+              { label: 'AP Cost', value: 'Free' },
+            ]}
+            onEdit={() => setAddonInfoAbility(false)}
           />
 
         </div>

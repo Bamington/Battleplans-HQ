@@ -32,6 +32,9 @@ import Modal from '../components/Modal';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddKeywordModal from '../components/AddKeywordModal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
+// TODO: migrate to the universal `AddonInfoModal` (src/components/AddonInfoModal.tsx).
+// Same shape, just data-driven via `statRows` instead of hardcoded weapon fields.
+// Kill Team already uses the universal modal for weapons + abilities.
 import WeaponInfoModal from '../components/WeaponInfoModal';
 import Badge from '../components/Badge';
 import UploadPhotoModal from '../components/UploadPhotoModal';
@@ -56,6 +59,10 @@ const CARD_W = 1270;
 const CARD_H = 890;
 
 // ── Carousel constants ────────────────────────────────────────────────────────
+// TODO: migrate this builder to the universal `CardCarousel` component
+// (src/components/CardCarousel.tsx). All the carousel + zoom + fit-scale logic
+// below duplicates what CardCarousel now owns. Kill Team and Starcraft already
+// use it; this builder still has the inline copy.
 const ADJACENT_SCALE = 0.7;
 const CARD_GAP       = 40;
 

@@ -41,6 +41,10 @@ create table public.cards (
   id         uuid        primary key default gen_random_uuid(),
   deck_id    uuid        not null references public.decks (id) on delete cascade,
   name       text        not null,
+  -- Discriminator for the card layout. 'operative' is the default game-piece
+  -- card; 'rule' is a faction-rule / ploy / mission style card.
+  card_type  text        not null default 'operative'
+                              check (card_type in ('operative', 'rule')),
   -- Game-specific stats stored as a flexible JSON object.
   -- Shape is defined by the parent game's stat_schema.
   stats      jsonb       not null default '{}'::jsonb,
@@ -451,6 +455,21 @@ insert into public.games (name, slug, stat_schema) values (
   ]'::jsonb
 );
 
+insert into public.games (name, slug, stat_schema) values (
+  'Kill Team',
+  'kill-team',
+  '[
+    {"key": "role",     "label": "Role",     "type": "text"},
+    {"key": "teamName", "label": "Team Name","type": "text"},
+    {"key": "tags",     "label": "Tags",     "type": "text"},
+    {"key": "actions",  "label": "A",        "type": "number"},
+    {"key": "movement", "label": "M",        "type": "number"},
+    {"key": "save",     "label": "S",        "type": "number"},
+    {"key": "wounds",   "label": "W",        "type": "number"},
+    {"key": "baseSize", "label": "Base Size","type": "number"}
+  ]'::jsonb
+);
+
 
 -- ── Seed: addon_types ─────────────────────────────────────────────────────────
 
@@ -471,3 +490,21 @@ select id, 'Weapons', 'weapons',
     {"key": "pointsCost", "label": "Points Cost", "type": "text"}
   ]'::jsonb
 from public.games where slug = 'halo-flashpoint';
+
+insert into public.addon_types (game_id, name, slug, stat_schema)
+select id, 'Weapons', 'weapons',
+  '[
+    {"key": "meleeOrRanged", "label": "Melee or Ranged", "type": "text"},
+    {"key": "attack",        "label": "Attack",          "type": "number"},
+    {"key": "hit",           "label": "Hit",             "type": "number"},
+    {"key": "baseDamage",    "label": "Base Damage",     "type": "number"},
+    {"key": "critDamage",    "label": "Crit Damage",     "type": "number"}
+  ]'::jsonb
+from public.games where slug = 'kill-team';
+
+insert into public.addon_types (game_id, name, slug, stat_schema)
+select id, 'Abilities', 'abilities',
+  '[
+    {"key": "apCost", "label": "AP Cost", "type": "number"}
+  ]'::jsonb
+from public.games where slug = 'kill-team';

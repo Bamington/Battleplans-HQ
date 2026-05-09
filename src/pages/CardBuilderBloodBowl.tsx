@@ -70,6 +70,10 @@ const CARD_W = 556;
 const CARD_H = 779;
 
 // ── Carousel constants ────────────────────────────────────────────────────────
+// TODO: migrate this builder to the universal `CardCarousel` component
+// (src/components/CardCarousel.tsx). All the carousel + zoom + fit-scale logic
+// below duplicates what CardCarousel now owns. Kill Team and Starcraft already
+// use it; this builder still has the inline copy.
 const ADJACENT_SCALE = 0.7;  // Adjacent cards are 70 % of the active card's scale
 const CARD_GAP       = 40;   // Gap in px between carousel card slots
 

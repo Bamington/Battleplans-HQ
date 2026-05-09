@@ -42,6 +42,19 @@ export interface HaloFlashpointStats {
   pointsCost?:   number
 }
 
+export interface KillTeamStats {
+  role?:     string
+  teamName?: string
+  tags?:     string
+  actions?:  number
+  movement?: number
+  save?:     number
+  wounds?:   number
+  /** Base size in millimetres (e.g. 25, 32, 40). Rendered in the
+   *  bottom-right corner of the operative card. */
+  baseSize?: number
+}
+
 // ── Addon-specific stat shapes ────────────────────────────────────────────────
 
 export interface BloodBowlSkillStats {
@@ -54,6 +67,18 @@ export interface HaloWeaponStats {
   ap?:         string
   keywords?:   string
   pointsCost?: string
+}
+
+export interface KillTeamWeaponStats {
+  meleeOrRanged?: 'melee' | 'ranged' | ''
+  attack?:        number
+  hit?:           number
+  baseDamage?:    number
+  critDamage?:    number
+}
+
+export interface KillTeamAbilityStats {
+  apCost?: number
 }
 
 // ── Database row types ────────────────────────────────────────────────────────
@@ -110,10 +135,15 @@ export interface Deck {
   created_at: string
 }
 
+/** Layout discriminator for a card row. */
+export type CardType = 'operative' | 'rule'
+
 export interface Card {
   id:             string
   deck_id:        string
   name:           string
+  /** 'operative' = default game-piece layout; 'rule' = rule / ploy card. */
+  card_type:      CardType
   stats:          Record<string, Json>
   sort_order:     number | null
   /** null = default layout; 'portraitFramed' = show portrait frame overlay */
