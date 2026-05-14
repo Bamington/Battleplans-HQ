@@ -913,8 +913,9 @@ const HaloFlashpointCard = ({
     {/* ── Token overlay (play mode) — outside overflow-clip so tokens can extend past card bounds ── */}
     {tokenOverlay && tokenOverlay.definitions.length > 0 && (
       <TokenOverlay
+        gameSlug="halo-flashpoint"
         tokenDefinitions={tokenOverlay.definitions}
-        card={{ hp, unitKeywords: tokenOverlay.unitKeywords }}
+        card={{ stats: { hp }, unitKeywords: tokenOverlay.unitKeywords }}
         tokenState={tokenOverlay.state}
         onTokenChange={tokenOverlay.onChange}
       />

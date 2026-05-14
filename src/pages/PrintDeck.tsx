@@ -21,9 +21,11 @@ import type {
   PaperSize,
   PrintableBloodBowlCard,
   PrintableHaloCard,
+  PrintableKillTeamCard,
+  PrintableKillTeamRule,
   PrintableRule,
 } from '../components/PrintCardGrid';
-import type { BloodBowlStats, HaloFlashpointStats } from '../lib/database.types';
+import type { BloodBowlStats, HaloFlashpointStats, KillTeamStats } from '../lib/database.types';
 
 // ── Keyword display helper (duplicated from builders — small pure fn) ────────
 
@@ -40,6 +42,45 @@ const buildKeywordsDisplayString = (kws: LocalKeywordAttachment[]) =>
     .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
     .join(', ');
 
+// ── Per-game print-size fallbacks ────────────────────────────────────────────
+//
+// `print_size` and `bleed_size` are stored on the `games` table as JSONB
+// arrays in mm. If those columns are empty/missing (e.g. the DB seed pre-dates
+// the print_size migration, or the kill-team game row was inserted with an
+// older `migration_kill_team.sql` that didn't include them), the layout slot
+// collapses to 0×0 and the preview goes blank. We hardcode the canonical
+// dimensions here so the page works even when the DB hasn't caught up.
+//
+// Keep these in sync with `schema.sql` + the per-game `migration_*.sql`.
+const GAME_PRINT_FALLBACKS: Record<string, { print: [number, number]; bleed: [number, number] }> = {
+  'blood-bowl':      { print: [63,  88], bleed: [69,  94] },
+  'halo-flashpoint': { print: [127, 89], bleed: [133, 95] },
+  'kill-team':       { print: [127, 89], bleed: [133, 95] },
+};
+
+/** Pick a valid [w, h] mm pair: prefer DB value, fall back to the per-game
+ *  canonical size. Logs a warning when the DB value looks unusable so the
+ *  underlying schema gap is visible in dev tools. */
+const resolvePrintDim = (
+  fromDb:      unknown,
+  fallback:    [number, number],
+  label:       string,
+  slug:        string,
+): [number, number] => {
+  if (Array.isArray(fromDb) && fromDb.length === 2 &&
+      typeof fromDb[0] === 'number' && typeof fromDb[1] === 'number' &&
+      fromDb[0] > 0 && fromDb[1] > 0) {
+    return [fromDb[0], fromDb[1]];
+  }
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[BattleCards] games.${label} missing or invalid for slug="${slug}"; ` +
+    `falling back to ${fallback.join('×')} mm. Run the print_size migration ` +
+    `or update the kill-team game row to fix this permanently.`
+  );
+  return fallback;
+};
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 const PrintDeck = () => {
@@ -50,7 +91,7 @@ const PrintDeck = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setDeckName] = useState('');
-  const [gameSlug, setGameSlug] = useState<'blood-bowl' | 'halo-flashpoint' | null>(null);
+  const [gameSlug, setGameSlug] = useState<'blood-bowl' | 'halo-flashpoint' | 'kill-team' | null>(null);
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [showBleed, setShowBleed] = useState(true);
@@ -64,6 +105,8 @@ const PrintDeck = () => {
   const [bloodBowlCards, setBloodBowlCards] = useState<PrintableBloodBowlCard[]>([]);
   const [haloCards, setHaloCards] = useState<PrintableHaloCard[]>([]);
   const [rules, setRules] = useState<PrintableRule[]>([]);
+  const [killTeamCards, setKillTeamCards] = useState<PrintableKillTeamCard[]>([]);
+  const [killTeamRules, setKillTeamRules] = useState<PrintableKillTeamRule[]>([]);
 
   // ── Dynamic @page size injection ─────────────────────────────────────────
   useEffect(() => {
@@ -91,24 +134,26 @@ const PrintDeck = () => {
       const slug = game?.slug as string;
       setDeckName(deck.name);
 
-      // Store print dimensions from game
-      if (Array.isArray(game?.print_size) && game.print_size.length === 2) {
-        setPrintSize(game.print_size as [number, number]);
-      }
-      if (Array.isArray(game?.bleed_size) && game.bleed_size.length === 2) {
-        setBleedSize(game.bleed_size as [number, number]);
-      }
-
-      if (slug !== 'blood-bowl' && slug !== 'halo-flashpoint') {
+      if (slug !== 'blood-bowl' && slug !== 'halo-flashpoint' && slug !== 'kill-team') {
         setError(`Unsupported game: ${slug}`);
         setLoading(false);
         return;
       }
+
+      // Store print dimensions from game, with a per-game fallback so the
+      // preview still renders if the DB seed is stale or the kill-team game
+      // row pre-dates the print_size migration.
+      const fb = GAME_PRINT_FALLBACKS[slug];
+      setPrintSize(resolvePrintDim(game?.print_size, fb.print, 'print_size', slug));
+      setBleedSize(resolvePrintDim(game?.bleed_size, fb.bleed, 'bleed_size', slug));
+
       setGameSlug(slug);
 
       // 2. Fetch cards based on game
       if (slug === 'blood-bowl') {
         await loadBloodBowlCards(deckId);
+      } else if (slug === 'kill-team') {
+        await loadKillTeamCards(deckId);
       } else {
         await Promise.all([
           loadHaloCards(deckId),
@@ -299,6 +344,159 @@ const PrintDeck = () => {
     setRules(loaded);
   };
 
+  // ── Kill Team loader ─────────────────────────────────────────────────────
+  // Pulls operative cards (card_type='operative') AND rule cards
+  // (card_type='rule') in one go so the print sheet can render both.
+  const loadKillTeamCards = async (deckId: string) => {
+    type AddonKwRow = {
+      keyword_id: string;
+      params: Record<string, unknown>;
+      sort_order: number | null;
+      keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null;
+    };
+    type CardRow = {
+      id: string; name: string; card_type: 'operative' | 'rule' | null;
+      stats: KillTeamStats & { description?: string };
+      card_addons: {
+        addon_id: string;
+        sort_order: number | null;
+        addons: {
+          name: string;
+          description: string | null;
+          stats: Record<string, unknown>;
+          addon_type_id: string;
+          addon_keywords: AddonKwRow[];
+        } | null;
+      }[];
+      card_images: { file_path: string; sort_order: number; image_type: string }[];
+    };
+
+    // Resolve addon-type-id → slug so we can split card_addons into weapons
+    // vs abilities the same way CardBuilderKillTeam does.
+    const { data: addonTypes } = await supabase
+      .from('addon_types')
+      .select('id, slug, games!inner(slug)')
+      .eq('games.slug', 'kill-team');
+    const typeIdToSlug: Record<string, string> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (addonTypes as any[] | null)?.forEach(t => { typeIdToSlug[t.id] = t.slug; });
+
+    const { data, error } = await supabase
+      .from('cards')
+      .select('id, name, card_type, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema)))), card_images(file_path, sort_order, image_type)')
+      .eq('deck_id', deckId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error || !data) return;
+
+    const num = (v: unknown): number => {
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+      const n = parseInt(String(v ?? ''), 10);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const formatHit = (h: unknown): string => {
+      const n = num(h);
+      return n > 0 ? `${n}+` : '—';
+    };
+    const formatDamage = (s: Record<string, unknown>): string => {
+      const base = num(s.baseDamage);
+      const crit = num(s.critDamage);
+      if (base > 0 || crit > 0) return `${base}/${crit}`;
+      const raw = String(s.damage ?? '');
+      return raw || '—';
+    };
+
+    const operatives: PrintableKillTeamCard[] = [];
+    const ruleCards:  PrintableKillTeamRule[] = [];
+
+    for (const row of (data as unknown as CardRow[])) {
+      const s = row.stats ?? {};
+      const sortedAddons = [...(row.card_addons ?? [])]
+        .filter(ca => ca.addons != null)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+      const allImages = row.card_images ?? [];
+      const portraitImg = allImages.find(i => i.image_type === 'portrait');
+      const avatarImg   = allImages.find(i => i.image_type === 'avatar');
+      const portraitUrl = portraitImg
+        ? supabase.storage.from('card-images').getPublicUrl(portraitImg.file_path).data.publicUrl
+        : null;
+      const avatarUrl = avatarImg
+        ? supabase.storage.from('card-images').getPublicUrl(avatarImg.file_path).data.publicUrl
+        : null;
+
+      type Weapon = NonNullable<PrintableKillTeamCard['weapons']>[number];
+      type Ability = NonNullable<PrintableKillTeamCard['abilities']>[number];
+      const weapons:   Weapon[]  = [];
+      const abilities: Ability[] = [];
+
+      for (const ca of sortedAddons) {
+        const addon = ca.addons!;
+        const slug = typeIdToSlug[addon.addon_type_id];
+        const ws = addon.stats;
+        const addonKws = [...(addon.addon_keywords ?? [])]
+          .filter(ak => ak.keywords != null)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+        if (slug === 'weapons') {
+          const mr = ws.meleeOrRanged === 'melee' || ws.meleeOrRanged === 'ranged' ? ws.meleeOrRanged : '';
+          const kwList = addonKws.map(ak => ({
+            label:       ak.params?.X != null ? `${ak.keywords!.name} (${ak.params.X})` : ak.keywords!.name,
+            name:        ak.keywords!.name,
+            description: ak.keywords!.description ?? '',
+          }));
+          weapons.push({
+            name:          addon.name,
+            meleeOrRanged: mr as 'melee' | 'ranged' | '',
+            attack:        num(ws.attack),
+            hit:           formatHit(ws.hit),
+            damage:        formatDamage(ws),
+            keywords:      kwList.map(k => k.label).join(', '),
+            keywordData:   kwList,
+          });
+        } else if (slug === 'abilities') {
+          abilities.push({
+            name:        addon.name,
+            description: addon.description ?? '',
+            apCost:      num(ws.apCost),
+            keywords:    '',
+          });
+        }
+      }
+
+      if (row.card_type === 'rule') {
+        // Rule cards take at most one ability (matches the builder)
+        ruleCards.push({
+          id:          row.id,
+          title:       row.name,
+          description: s.description ?? '',
+          ability:     abilities[0] ?? null,
+        });
+      } else {
+        operatives.push({
+          id:            row.id,
+          operativeName: row.name,
+          role:          s.role     ?? '',
+          teamName:      s.teamName ?? '',
+          tags:          s.tags     ?? '',
+          actions:       num(s.actions),
+          movement:      num(s.movement),
+          save:          num(s.save),
+          wounds:        num(s.wounds),
+          baseSize:      num(s.baseSize),
+          weapons,
+          abilities,
+          portraitUrl,
+          avatarUrl,
+        });
+      }
+    }
+
+    setKillTeamCards(operatives);
+    setKillTeamRules(ruleCards);
+  };
+
   // ── Toggle helpers ────────────────────────────────────────────────────────
   const toggleExclude = (id: string) => {
     setExcludedIds(prev => {
@@ -310,9 +508,10 @@ const PrintDeck = () => {
   };
 
   // ── Determine builder back-link ──────────────────────────────────────────
-  const builderPath = gameSlug === 'blood-bowl'
-    ? `/app/builder/blood-bowl?deckId=${deckId}`
-    : `/app/builder/halo-flashpoint?deckId=${deckId}`;
+  const builderPath =
+    gameSlug === 'blood-bowl'      ? `/app/builder/blood-bowl?deckId=${deckId}`      :
+    gameSlug === 'kill-team'       ? `/app/builder/kill-team?deckId=${deckId}`       :
+    `/app/builder/halo-flashpoint?deckId=${deckId}`;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -342,13 +541,15 @@ const PrintDeck = () => {
 
   // ── Build sidebar card list data ───────────────────────────────────────
   type SidebarItem = { id: string; name: string; subtitle: string; avatarUrl: string | null };
-  const sidebarUnits: SidebarItem[] = gameSlug === 'blood-bowl'
-    ? bloodBowlCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.playerRole || c.teamName || '', avatarUrl: c.avatarUrl }))
-    : haloCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.keywords || '', avatarUrl: c.avatarUrl }));
+  const sidebarUnits: SidebarItem[] =
+    gameSlug === 'blood-bowl' ? bloodBowlCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.playerRole || c.teamName || '', avatarUrl: c.avatarUrl })) :
+    gameSlug === 'kill-team'  ? killTeamCards.map(c => ({ id: c.id, name: c.operativeName || 'New Operative', subtitle: c.role || c.teamName || '', avatarUrl: c.avatarUrl })) :
+    haloCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.keywords || '', avatarUrl: c.avatarUrl }));
 
-  const sidebarRules: SidebarItem[] = rules.map(r => ({
-    id: r.id, name: r.title || 'New Rule', subtitle: 'Rule', avatarUrl: null,
-  }));
+  const sidebarRules: SidebarItem[] =
+    gameSlug === 'kill-team'
+      ? killTeamRules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Faction Rule', avatarUrl: null }))
+      : rules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Rule', avatarUrl: null }));
 
   return (
     <div className="h-screen flex bg-gray-950 overflow-hidden">
@@ -473,6 +674,8 @@ const PrintDeck = () => {
           bloodBowlCards={bloodBowlCards}
           haloCards={haloCards}
           rules={rules}
+          killTeamCards={killTeamCards}
+          killTeamRules={killTeamRules}
         />
       </div>
     </div>

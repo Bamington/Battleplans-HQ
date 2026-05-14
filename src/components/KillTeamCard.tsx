@@ -27,6 +27,8 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import KeywordInfoModal from './KeywordInfoModal';
+import TokenOverlay from './TokenOverlay';
+import type { TokenDefinition } from '../lib/database.types';
 import bgSvg         from '../assets/games/card assets/kill-team/bg.svg';
 import bgPortraitSvg from '../assets/games/card assets/kill-team/bg-portrait.svg';
 import iconAPL       from '../assets/games/card assets/kill-team/kt-icon-APL.svg';
@@ -174,6 +176,17 @@ export interface KillTeamCardProps {
   /** Click handlers — invoked when a row is clicked on the card itself. */
   onWeaponClick?:  (w: KillTeamWeapon) => void;
   onAbilityClick?: (a: KillTeamAbility) => void;
+
+  // ── Token overlay (play mode) ─────────────────────────────────────────
+  /** When provided, renders the play-mode token overlay over the card.
+   *  Mirrors `HaloFlashpointCard`'s `tokenOverlay` prop so any game using
+   *  the shared TokenOverlay component plumbs in tokens the same way. */
+  tokenOverlay?: {
+    definitions:  TokenDefinition[];
+    unitKeywords: { keywordName: string; paramValue: number | null }[];
+    state:        Record<string, number>;
+    onChange?:    (tokenDefId: string, newValue: number) => void;
+  };
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -198,6 +211,7 @@ const KillTeamCard = ({
   onWoundsChange,
   onWeaponClick,
   onAbilityClick,
+  tokenOverlay,
 }: KillTeamCardProps) => {
 
   // ── Inline edit state ──────────────────────────────────────────────────────
@@ -255,8 +269,12 @@ const KillTeamCard = ({
 
   return (
     <div
-      className={`relative overflow-hidden ${className}`}
+      className={`relative ${className}`}
       style={{ width: CARD_W, height: CARD_H, ...CONDUIT }}
+    >
+    <div
+      className="relative overflow-hidden"
+      style={{ width: CARD_W, height: CARD_H }}
     >
 
       {/* ── Layer 1: SVG chrome ──────────────────────────────────────────────
@@ -567,7 +585,21 @@ const KillTeamCard = ({
         document.body,
       )}
 
-    </div>
+    </div>{/* end overflow-hidden inner wrapper */}
+
+    {/* ── Token overlay (play mode) — outside the overflow-clip so tokens
+          can extend past the card bounds, matching Halo's pattern. */}
+    {tokenOverlay && tokenOverlay.definitions.length > 0 && (
+      <TokenOverlay
+        gameSlug="kill-team"
+        tokenDefinitions={tokenOverlay.definitions}
+        card={{ stats: { wounds }, unitKeywords: tokenOverlay.unitKeywords }}
+        tokenState={tokenOverlay.state}
+        onTokenChange={tokenOverlay.onChange}
+      />
+    )}
+
+    </div>{/* end outer wrapper */}
   );
 };
 

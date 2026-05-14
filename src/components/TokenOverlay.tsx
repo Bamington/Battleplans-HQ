@@ -1,63 +1,47 @@
 /**
- * TokenOverlay.tsx — Visual token display overlaid on a Halo Flashpoint card
+ * TokenOverlay.tsx — Visual token display overlaid on a play-mode card
  *
- * Renders token icons in three zones, positioned absolutely at the card's
- * native 1270×890 coordinate space. Intended to sit inside the active card
- * container div as a sibling to Card3DWrapper, scaling with the card.
+ * Renders token icons in three zones at the card's native pixel coordinate
+ * space. Sits inside the active card container as a sibling to the card
+ * itself, scaling with it via the parent's transform.
  *
  * Three zones:
- *   1. Other Tokens (top-left)  — single-instance toggles: Activated, Crouch, Pinned
+ *   1. Other Tokens (top-left)   — single-instance toggles: Activated, Crouch
  *   2. Shield Area  (top-centre) — multi-instance toggles: Shield
- *   3. Damage Area  (right/HP)   — stacking counters: Damage
+ *   3. Damage Area  (right/HP)   — stacking counters: Damage / Wounds
+ *
+ * Game-agnostic: zone origins come from `TOKEN_OVERLAY_CONFIG` keyed by
+ * `gameSlug`, icons resolve via `resolveTokenIcon`, and stats resolve via
+ * a generic `stats: Record<string, number>` map.
  *
  * USAGE:
  *   <TokenOverlay
+ *     gameSlug="halo-flashpoint"
  *     tokenDefinitions={tokenDefs}
- *     card={{ hp: 4, unitKeywords: [...] }}
+ *     card={{ stats: { hp: 4 }, unitKeywords: [...] }}
  *     tokenState={{ 'uuid-1': 2, 'uuid-2': 1 }}
  *   />
  */
 
 import { useMemo } from 'react';
 import type { TokenDefinition } from '../lib/database.types';
+import { resolveTokenIcon } from '../lib/tokenIcons';
+import {
+  TOKEN_OVERLAY_CONFIG,
+  DEFAULT_OVERLAY_CONFIG,
+  type OverlayZoneConfig,
+} from '../lib/tokenOverlayConfig';
 
-// ── SVG icon imports (same set as TokenMenu) ─────────────────────────────────
-
-import iconDamage       from '../assets/games/card assets/halo/tokens/Token Type=Damage, State=Default.svg';
-import iconShield       from '../assets/games/card assets/halo/tokens/Token Type=Shield, State=Default.svg';
-import iconShieldOff    from '../assets/games/card assets/halo/tokens/Token Type=Shield, State=Off.svg';
-import iconCrouch       from '../assets/games/card assets/halo/tokens/Token Type=Crouch, State=Default.svg';
-import iconPinned       from '../assets/games/card assets/halo/tokens/Token Type=Pinned, State=Default.svg';
-import iconActivated    from '../assets/games/card assets/halo/tokens/Token Type=Activated, State=Default.svg';
-import iconActivatedOff from '../assets/games/card assets/halo/tokens/Token Type=Activated, State=Off.svg';
-
-const ICON_MAP: Record<string, string> = {
-  'Token Type=Damage, State=Default':    iconDamage,
-  'Token Type=Shield, State=Default':    iconShield,
-  'Token Type=Shield, State=Off':        iconShieldOff,
-  'Token Type=Crouch, State=Default':    iconCrouch,
-  'Token Type=Pinned, State=Default':    iconPinned,
-  'Token Type=Activated, State=Default': iconActivated,
-  'Token Type=Activated, State=Off':     iconActivatedOff,
-};
-
-const resolveIcon = (path: string | null): string | undefined => {
-  if (!path) return undefined;
-  for (const [key, url] of Object.entries(ICON_MAP)) {
-    if (path.includes(key)) return url;
-  }
-  return undefined;
-};
-
-// ── Token size at native card scale (40px Figma × 2.104) ────────────────────
+// ── Token visuals ───────────────────────────────────────────────────────────
 const TOKEN_SIZE = 84;
 const TOKEN_SHADOW = 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))';
-const DAMAGE_OFFSET = 30;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface CardInfo {
-  hp: number;
+  /** Numeric stats keyed by stat key (e.g. {hp: 3} for Halo, {wounds: 12}
+   *  for Kill Team). Used to resolve `token_definitions.stat_key` limits. */
+  stats:        Record<string, number>;
   unitKeywords: { keywordName: string; paramValue: number | null }[];
 }
 
@@ -70,19 +54,19 @@ interface ResolvedToken {
 }
 
 export interface TokenOverlayProps {
+  /** Game slug — used to look up zone positions in TOKEN_OVERLAY_CONFIG. */
+  gameSlug:         string;
   tokenDefinitions: TokenDefinition[];
-  card: CardInfo;
-  tokenState: Record<string, number>;
+  card:             CardInfo;
+  tokenState:       Record<string, number>;
   /** Called when a toggle token is clicked directly on the overlay. */
-  onTokenChange?: (tokenDefId: string, newValue: number) => void;
+  onTokenChange?:   (tokenDefId: string, newValue: number) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const resolveStatValue = (card: CardInfo, statKey: string): number | null => {
-  const map: Record<string, number> = { hp: card.hp };
-  return map[statKey] ?? null;
-};
+const resolveStatValue = (card: CardInfo, statKey: string): number | null =>
+  card.stats[statKey] ?? null;
 
 /** Categorise a resolved token into its display zone. */
 type Zone = 'other' | 'shield' | 'damage';
@@ -128,7 +112,16 @@ const TokenIcon = ({ src, alt, title, size = TOKEN_SIZE, opacity = 1, style, onC
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-const TokenOverlay = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenOverlayProps) => {
+const TokenOverlay = ({
+  gameSlug,
+  tokenDefinitions,
+  card,
+  tokenState,
+  onTokenChange,
+}: TokenOverlayProps) => {
+  const zoneConfig: OverlayZoneConfig =
+    TOKEN_OVERLAY_CONFIG[gameSlug] ?? DEFAULT_OVERLAY_CONFIG;
+
   const resolved = useMemo<ResolvedToken[]>(() => {
     return tokenDefinitions
       .filter(def => {
@@ -156,8 +149,8 @@ const TokenOverlay = ({ tokenDefinitions, card, tokenState, onTokenChange }: Tok
         return {
           def,
           effectiveMax,
-          iconOn: resolveIcon(def.icon),
-          iconOff: resolveIcon(def.icon_off),
+          iconOn:  resolveTokenIcon(def.icon),
+          iconOff: resolveTokenIcon(def.icon_off),
           current: tokenState[def.id] ?? def.starting_value ?? 0,
         };
       });
@@ -175,15 +168,15 @@ const TokenOverlay = ({ tokenDefinitions, card, tokenState, onTokenChange }: Tok
         pointerEvents: 'none',
       }}
     >
-      {/* ── Other Tokens Area (top-left) ─────────────────────────── */}
+      {/* ── Other Tokens Area ───────────────────────────────────── */}
       {zones.other.length > 0 && (
         <div
           style={{
             position: 'absolute',
-            left: 42,
-            top: -70,
+            left: zoneConfig.other.x,
+            top:  zoneConfig.other.y,
             display: 'flex',
-            gap: 57,
+            gap: zoneConfig.other.gap,
           }}
         >
           {zones.other.map(tok => {
@@ -207,15 +200,15 @@ const TokenOverlay = ({ tokenDefinitions, card, tokenState, onTokenChange }: Tok
         </div>
       )}
 
-      {/* ── Shield Area (top-centre, above header) ───────────────── */}
+      {/* ── Shield Area ──────────────────────────────────────────── */}
       {zones.shield.length > 0 && (
         <div
           style={{
             position: 'absolute',
-            left: 695,
-            top: -70,
+            left: zoneConfig.shield.x,
+            top:  zoneConfig.shield.y,
             display: 'flex',
-            gap: 57,
+            gap: zoneConfig.shield.gap,
           }}
         >
           {zones.shield.map(tok => {
@@ -245,19 +238,20 @@ const TokenOverlay = ({ tokenDefinitions, card, tokenState, onTokenChange }: Tok
         </div>
       )}
 
-      {/* ── Damage Area (right side, around HP) ──────────────────── */}
+      {/* ── Damage Area (stacking counters) ──────────────────────── */}
       {zones.damage.length > 0 && (
         <div
           style={{
             position: 'absolute',
-            left: 935,
-            top: 160,
+            left: zoneConfig.damage.x,
+            top:  zoneConfig.damage.y,
           }}
         >
           {zones.damage.map(tok => {
             const count = tok.current;
             if (count === 0 || !tok.iconOn) return null;
-            const lastOffset = (count - 1) * DAMAGE_OFFSET;
+            const offset = zoneConfig.damage.offset;
+            const lastOffset = (count - 1) * offset;
             return (
               <div
                 key={tok.def.id}
@@ -275,8 +269,8 @@ const TokenOverlay = ({ tokenDefinitions, card, tokenState, onTokenChange }: Tok
                     title={tok.def.name}
                     style={{
                       position: 'absolute',
-                      left: i * DAMAGE_OFFSET,
-                      top: i * DAMAGE_OFFSET,
+                      left: i * offset,
+                      top: i * offset,
                     }}
                   />
                 ))}

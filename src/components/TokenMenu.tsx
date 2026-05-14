@@ -8,48 +8,27 @@
  * USAGE:
  *   <TokenMenu
  *     tokenDefinitions={tokenDefs}
- *     card={{ hp: 3, unitKeywords: [...] }}
+ *     card={{ stats: { hp: 3, ... }, unitKeywords: [...] }}
  *     tokenState={{ 'uuid-1': 0, 'uuid-2': 1 }}
  *     onTokenChange={(defId, val) => ...}
  *   />
+ *
+ * Game-agnostic: token icons resolve via `resolveTokenIcon`, which loads
+ * SVGs from any game's `tokens/` folder. Stats resolve via a generic
+ * `stats: Record<string, number>` map keyed by `token_definitions.stat_key`.
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { TokenDefinition } from '../lib/database.types';
-
-// ── SVG icon imports (eager — small fixed set) ───────────────────────────────
-
-import iconDamage       from '../assets/games/card assets/halo/tokens/Token Type=Damage, State=Default.svg';
-import iconShield       from '../assets/games/card assets/halo/tokens/Token Type=Shield, State=Default.svg';
-import iconShieldOff    from '../assets/games/card assets/halo/tokens/Token Type=Shield, State=Off.svg';
-import iconCrouch       from '../assets/games/card assets/halo/tokens/Token Type=Crouch, State=Default.svg';
-import iconPinned       from '../assets/games/card assets/halo/tokens/Token Type=Pinned, State=Default.svg';
-import iconActivated    from '../assets/games/card assets/halo/tokens/Token Type=Activated, State=Default.svg';
-import iconActivatedOff from '../assets/games/card assets/halo/tokens/Token Type=Activated, State=Off.svg';
-
-/** Maps asset path substrings to eagerly imported URLs. */
-const ICON_MAP: Record<string, string> = {
-  'Token Type=Damage, State=Default':    iconDamage,
-  'Token Type=Shield, State=Default':    iconShield,
-  'Token Type=Shield, State=Off':        iconShieldOff,
-  'Token Type=Crouch, State=Default':    iconCrouch,
-  'Token Type=Pinned, State=Default':    iconPinned,
-  'Token Type=Activated, State=Default': iconActivated,
-  'Token Type=Activated, State=Off':     iconActivatedOff,
-};
-
-const resolveIcon = (path: string | null): string | undefined => {
-  if (!path) return undefined;
-  for (const [key, url] of Object.entries(ICON_MAP)) {
-    if (path.includes(key)) return url;
-  }
-  return undefined;
-};
+import { resolveTokenIcon } from '../lib/tokenIcons';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface CardInfo {
-  hp: number;
+  /** Numeric stats for this card keyed by stat key (e.g. {hp: 3} for Halo,
+   *  {wounds: 12} for Kill Team). Used to resolve `token_definitions.stat_key`
+   *  limits at runtime. */
+  stats:        Record<string, number>;
   unitKeywords: { keywordName: string; paramValue: number | null }[];
 }
 
@@ -74,10 +53,8 @@ export interface TokenMenuProps {
 
 // ── Stat resolver ────────────────────────────────────────────────────────────
 
-const resolveStatValue = (card: CardInfo, statKey: string): number | null => {
-  const map: Record<string, number> = { hp: card.hp };
-  return map[statKey] ?? null;
-};
+const resolveStatValue = (card: CardInfo, statKey: string): number | null =>
+  card.stats[statKey] ?? null;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -138,7 +115,7 @@ const TokenMenu = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenM
           def,
           effectiveMin,
           effectiveMax,
-          iconUrl: resolveIcon(def.icon),
+          iconUrl: resolveTokenIcon(def.icon),
         };
       });
   }, [tokenDefinitions, card]);
@@ -169,7 +146,7 @@ const TokenMenu = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenM
             }}
           >
             <img
-              src={isOn ? resolveIcon(tok.def.icon_off) || tok.iconUrl : tok.iconUrl}
+              src={isOn ? resolveTokenIcon(tok.def.icon_off) || tok.iconUrl : tok.iconUrl}
               alt=""
               className="w-5 h-5 shrink-0"
             />
@@ -201,7 +178,7 @@ const TokenMenu = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenM
                          hover:bg-gray-700 rounded transition-colors text-left"
               onClick={() => onTokenChange(tok.def.id, current - 1)}
             >
-              <img src={resolveIcon(tok.def.icon_off) || tok.iconUrl} alt="" className="w-5 h-5 shrink-0" />
+              <img src={resolveTokenIcon(tok.def.icon_off) || tok.iconUrl} alt="" className="w-5 h-5 shrink-0" />
               <span>Reduce {tok.def.name}s</span>
             </button>
           );

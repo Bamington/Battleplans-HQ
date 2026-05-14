@@ -18,8 +18,13 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import ModeToggle, { type Mode } from '../components/ModeToggle';
+import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
+import Dropdown, { DropdownItem } from '../components/Dropdown';
+import AltArrowDown from '../icons/AltArrowDown';
+import Play from '../icons/Play';
 import UnitListEntry from '../components/UnitListEntry';
 import Input from '../components/Input';
 import Select from '../components/Select';
@@ -29,6 +34,7 @@ import HR from '../components/HR';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import CardCarousel from '../components/CardCarousel';
+import TokenMenu from '../components/TokenMenu';
 import Modal from '../components/Modal';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddonInfoModal from '../components/AddonInfoModal';
@@ -45,7 +51,7 @@ import ArrowRight from '../icons/ArrowRight';
 import Pen2 from '../icons/Pen2';
 import HamburgerMenu from '../icons/HamburgerMenu';
 import { supabase } from '../lib/supabase';
-import type { Addon, KillTeamStats } from '../lib/database.types';
+import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
 import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 
@@ -183,6 +189,9 @@ interface KillTeamCardData {
   portraitUrl:   string | null;
   portraitStyle: string | null;
   avatarUrl:     string | null;
+  /** Transient per-card token values keyed by `token_definitions.id`.
+   *  In-memory only — Play mode resets it on reload (matches Halo). */
+  tokenState:    Record<string, number>;
 }
 
 const defaultOperativeCard = (): KillTeamCardData => ({
@@ -206,6 +215,7 @@ const defaultOperativeCard = (): KillTeamCardData => ({
   portraitUrl:     null,
   portraitStyle:   null,
   avatarUrl:       null,
+  tokenState:      {},
 });
 
 const defaultRuleCard = (): KillTeamCardData => ({
@@ -229,6 +239,7 @@ const defaultRuleCard = (): KillTeamCardData => ({
   portraitUrl:     null,
   portraitStyle:   null,
   avatarUrl:       null,
+  tokenState:      {},
 });
 
 // ── Persistence helpers ───────────────────────────────────────────────────────
@@ -775,7 +786,15 @@ const KillTeamAbilityForm = ({ editingAddon, onSave, onCancel, saving }: AddonFo
 
 const CardBuilderKillTeam = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const deckId = searchParams.get('deckId');
+
+  // ── App mode (Edit / Play) — matches the pattern used by Halo / Starcraft.
+  // Play mode hides the editor + add controls. Per-card play state is stored
+  // as a generic `tokenState: Record<string, number>` keyed by token-definition
+  // ID — same shape Halo uses. In-memory only; no DB persistence yet. */
+  const [appMode, setAppMode] = useState<Mode>('edit');
+  const [playTab, setPlayTab] = useState<PlayTab>('units');
 
   // ── Deck name ──────────────────────────────────────────────────────────────
   const [deckName, setDeckName] = useState<string | null>(null);
@@ -807,6 +826,136 @@ const CardBuilderKillTeam = () => {
       cards: s.cards.map(c => c.id === s.activeCardId ? { ...c, ...patch } : c),
     }));
   };
+
+  // ── Token state (Play mode) — mirrors Halo's generic system ────────────
+  // Token definitions come from the DB (token_definitions table). Per-card
+  // tokenState is a Record<defId, number> on each LocalCard. Same handlers
+  // and helpers as Halo so the carousel TokenMenu / TokenOverlay components
+  // work without modification.
+
+  const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: game } = await supabase
+        .from('games').select('id').eq('slug', 'kill-team').single();
+      if (!game) return;
+      const { data } = await supabase
+        .from('token_definitions').select('*')
+        .eq('game_id', game.id).order('sort_order');
+      if (data) setTokenDefinitions(data as TokenDefinition[]);
+    })();
+  }, []);
+
+  /** Update a token value for the active card. */
+  const handleTokenChange = (tokenDefId: string, newValue: number) => {
+    setCardState(prev => ({
+      ...prev,
+      cards: prev.cards.map(c =>
+        c.id === prev.activeCardId
+          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
+          : c
+      ),
+    }));
+  };
+
+  /** Update a token for a specific card (used by direct overlay clicks). */
+  const handleTokenChangeForCard = (cardId: string, tokenDefId: string, newValue: number) => {
+    setCardState(prev => ({
+      ...prev,
+      cards: prev.cards.map(c =>
+        c.id === cardId
+          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
+          : c
+      ),
+    }));
+  };
+
+  /** Build the tokenOverlay prop for a card — only in play mode with tokens loaded. */
+  const buildTokenOverlayProp = (c: KillTeamCardData) => {
+    if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
+    if (c.cardType !== 'operative') return undefined;
+    return {
+      definitions:  tokenDefinitions,
+      unitKeywords: c.weapons.flatMap(w => w.weaponKeywords).map(k => ({
+        keywordName: k.keywordName,
+        paramValue:  k.paramValue,
+      })),
+      state:        c.tokenState,
+      onChange:     (tokenDefId: string, newValue: number) =>
+        handleTokenChangeForCard(c.id, tokenDefId, newValue),
+    };
+  };
+
+  /** When switching to Play mode, seed `tokenState` from each definition's
+   *  `starting_value` for any card that hasn't been touched yet. */
+  const handleModeChange = useCallback((next: Mode) => {
+    if (next === 'play' && tokenDefinitions.length > 0) {
+      setCardState(prev => ({
+        ...prev,
+        cards: prev.cards.map(c => {
+          if (Object.keys(c.tokenState).length > 0) return c;
+          const ts: Record<string, number> = {};
+          for (const def of tokenDefinitions) {
+            if (def.starting_value != null) ts[def.id] = def.starting_value;
+          }
+          return { ...c, tokenState: ts };
+        }),
+      }));
+    }
+    setAppMode(next);
+  }, [tokenDefinitions]);
+
+  // ── Token turn helpers (New Turn button) ──────────────────────────────────
+  /** Resolve effective max for a token on a given card — mirrors TokenOverlay's
+   *  precedence: stat_role='max' or keyword_value_role='max' override max_value. */
+  const resolveTokenMax = (def: TokenDefinition, card: KillTeamCardData): number | null => {
+    let effMax: number | null = def.max_value ?? null;
+    if (def.stat_key && def.stat_role === 'max') {
+      // KT cards expose `wounds` to tokens. Add more stat mappings here if
+      // other KT tokens need them later (e.g. movement-based caps).
+      const statMap: Record<string, number> = { wounds: card.wounds };
+      const v = statMap[def.stat_key];
+      if (v != null) effMax = v;
+    }
+    return effMax;
+  };
+
+  /** "New Turn" handler: apply each token's refresh_on_turn delta to every
+   *  card, clamped to [min_value ?? 0, effectiveMax]. */
+  const handleNewTurn = () => {
+    const turnDefs = tokenDefinitions.filter(d => d.refresh_on_turn !== 0);
+    if (turnDefs.length === 0) return;
+    setCardState(prev => ({
+      ...prev,
+      cards: prev.cards.map(card => {
+        if (card.cardType !== 'operative') return card;
+        const ts = { ...card.tokenState };
+        for (const def of turnDefs) {
+          const current = ts[def.id] ?? def.starting_value ?? 0;
+          const effMax = resolveTokenMax(def, card);
+          const lo = def.min_value ?? 0;
+          const hi = effMax ?? Number.POSITIVE_INFINITY;
+          ts[def.id] = Math.max(lo, Math.min(hi, current + def.refresh_on_turn));
+        }
+        return { ...card, tokenState: ts };
+      }),
+    }));
+  };
+
+  /** Primary-styled when every operative has all activation tokens fully on. */
+  const allActivated = (() => {
+    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
+    const ops = cards.filter(c => c.cardType === 'operative');
+    if (actDefs.length === 0 || ops.length === 0) return false;
+    return ops.every(card =>
+      actDefs.every(def => {
+        const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
+        const effMax = resolveTokenMax(def, card);
+        return effMax != null ? current >= effMax : current >= 1;
+      })
+    );
+  })();
 
   const addOperativeCard = () => {
     const card = defaultOperativeCard();
@@ -1174,6 +1323,7 @@ const CardBuilderKillTeam = () => {
                   portraitUrl,
                   portraitStyle:   row.portrait_style ?? null,
                   avatarUrl,
+                  tokenState:      {},
                 } as KillTeamCardData;
               }
 
@@ -1198,6 +1348,7 @@ const CardBuilderKillTeam = () => {
                 portraitUrl,
                 portraitStyle:   row.portrait_style ?? null,
                 avatarUrl,
+                tokenState:      {},
               } as KillTeamCardData;
             });
             setCardState({ cards: loaded, activeCardId: loaded[0].id });
@@ -1412,7 +1563,50 @@ const CardBuilderKillTeam = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
-      <Navbar fixed={false} />
+      <Navbar fixed={false}>
+        {/* Desktop (lg+): full mode toggle + Print link */}
+        <div className="hidden lg:flex items-center gap-3">
+          {deckId && (
+            <Link to={`/app/print?deckId=${deckId}`}>
+              <Button variant="ghost" color="secondary" size="xs">Print</Button>
+            </Link>
+          )}
+          <ModeToggle mode={appMode} onModeChange={handleModeChange} />
+        </div>
+
+        {/* Tablet/Mobile (<lg): collapsed mode dropdown */}
+        <Dropdown
+          align="right"
+          className="lg:hidden"
+          menuClassName="w-32"
+          trigger={
+            <Button color="primary" size="xs" rightIcon={<AltArrowDown className="w-4 h-4" />}>
+              {appMode === 'edit' ? 'Edit' : 'Play'}
+            </Button>
+          }
+        >
+          {appMode !== 'edit' && (
+            <DropdownItem icon={<Pen2 className="w-4 h-4" />} onClick={() => handleModeChange('edit')}>
+              Edit
+            </DropdownItem>
+          )}
+          {appMode !== 'play' && (
+            <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => handleModeChange('play')}>
+              Play
+            </DropdownItem>
+          )}
+          {deckId && (
+            <DropdownItem onClick={() => navigate(`/app/print?deckId=${deckId}`)}>
+              Print
+            </DropdownItem>
+          )}
+        </Dropdown>
+      </Navbar>
+
+      {/* Play-mode subnav (Units / Rules) */}
+      {appMode === 'play' && (
+        <PlaySubnav tab={playTab} onTabChange={setPlayTab} />
+      )}
 
       <div className="flex flex-1 overflow-hidden">
 
@@ -1443,17 +1637,19 @@ const CardBuilderKillTeam = () => {
                 {deckName ?? '—'}
               </p>
             )}
-            <button
-              type="button"
-              onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
-              className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
-              title={editMode ? 'Done editing' : 'Edit deck'}
-            >
-              {editMode
-                ? <CheckCircle className="w-4 h-4 text-green-400" />
-                : <Pen2 className="w-4 h-4" />
-              }
-            </button>
+            {appMode === 'edit' && (
+              <button
+                type="button"
+                onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
+                className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+                title={editMode ? 'Done editing' : 'Edit deck'}
+              >
+                {editMode
+                  ? <CheckCircle className="w-4 h-4 text-green-400" />
+                  : <Pen2 className="w-4 h-4" />
+                }
+              </button>
+            )}
           </div>
 
           {/* Card list */}
@@ -1514,7 +1710,9 @@ const CardBuilderKillTeam = () => {
             ))}
           </nav>
 
-          {/* Footer */}
+          {/* Footer (edit mode only — play mode keeps the unit list for
+              navigation but hides deck-mutation buttons) */}
+          {appMode === 'edit' && (
           <div className="px-3 pb-3 shrink-0 flex flex-col gap-3">
             <HR className="!my-0" />
             {editMode ? (
@@ -1551,6 +1749,7 @@ const CardBuilderKillTeam = () => {
               </div>
             )}
           </div>
+          )}
         </aside>
 
         {/* ── Center: card display ──────────────────────────────────────────
@@ -1568,6 +1767,42 @@ const CardBuilderKillTeam = () => {
             cardHeight={CAROUSEL_BBOX_H}
             getItemDimensions={dimsForCard}
             initialZoom={0.85}
+            bottomLeftSlot={
+              appMode === 'play' && playTab === 'units' && tokenDefinitions.some(d => d.refresh_on_turn !== 0) ? (
+                <Button
+                  variant={allActivated ? 'filled' : 'outline'}
+                  color="primary"
+                  shape="pill"
+                  size="sm"
+                  onClick={handleNewTurn}
+                  leftIcon={
+                    <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-3-6.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M21 4v5h-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                >
+                  New Turn
+                </Button>
+              ) : null
+            }
+            bottomRightSlot={
+              appMode === 'play' && playTab === 'units' &&
+              activeCard.cardType === 'operative' && tokenDefinitions.length > 0 ? (
+                <TokenMenu
+                  tokenDefinitions={tokenDefinitions}
+                  card={{
+                    stats: { wounds: activeCard.wounds },
+                    unitKeywords: activeCard.weapons.flatMap(w => w.weaponKeywords).map(k => ({
+                      keywordName: k.keywordName,
+                      paramValue:  k.paramValue,
+                    })),
+                  }}
+                  tokenState={activeCard.tokenState}
+                  onTokenChange={handleTokenChange}
+                />
+              ) : null
+            }
             renderItem={(card, role) => {
               const isActive = role === 'active';
 
@@ -1641,6 +1876,7 @@ const CardBuilderKillTeam = () => {
                       if (match) setViewingAbility(match);
                     },
                   } : {})}
+                  tokenOverlay={buildTokenOverlayProp(card)}
                 />
               );
             }}
@@ -1648,7 +1884,8 @@ const CardBuilderKillTeam = () => {
           />
         </main>
 
-        {/* ── Right panel: editor ─────────────────────────────────────────── */}
+        {/* ── Right panel: editor (edit mode only) ─────────────────────── */}
+        {appMode === 'edit' && (
         <aside className="w-64 shrink-0 flex flex-col bg-gray-900 border-l border-gray-700 overflow-hidden">
           <div className="px-4 py-4 border-b border-gray-700 shrink-0">
             <h2 className="font-heading text-sm font-bold text-white uppercase tracking-wide">
@@ -1958,6 +2195,11 @@ const CardBuilderKillTeam = () => {
 
           </div>
         </aside>
+        )}
+
+        {/* No right panel in play mode — token controls live in the
+            carousel's TokenMenu (bottom-right) and TokenOverlay (on-card),
+            matching Halo Flashpoint's play-mode UX. */}
 
       </div>
 

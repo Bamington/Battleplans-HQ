@@ -1952,7 +1952,7 @@ const CardBuilderHaloFlashpoint = () => {
                 <TokenMenu
                   tokenDefinitions={tokenDefinitions}
                   card={{
-                    hp: activeCard.hp,
+                    stats: { hp: activeCard.hp },
                     unitKeywords: activeCard.unitKeywords.map(k => ({
                       keywordName: k.keywordName,
                       paramValue: k.paramValue,

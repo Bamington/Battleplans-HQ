@@ -907,7 +907,7 @@ insert into public.games (name, slug, stat_schema) values (
   ]'::jsonb
 );
 
-insert into public.games (name, slug, stat_schema) values (
+insert into public.games (name, slug, stat_schema, print_size, bleed_size) values (
   'Kill Team',
   'kill-team',
   '[
@@ -919,7 +919,9 @@ insert into public.games (name, slug, stat_schema) values (
     {"key": "save",     "label": "S",        "type": "number"},
     {"key": "wounds",   "label": "W",        "type": "number"},
     {"key": "baseSize", "label": "Base Size","type": "number"}
-  ]'::jsonb
+  ]'::jsonb,
+  '[127, 89]'::jsonb,
+  '[133, 95]'::jsonb
 );
 
 
