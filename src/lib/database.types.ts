@@ -320,6 +320,14 @@ export interface TokenDefinition {
   /** True if this token represents unit activation — drives the "New Turn" button styling. */
   is_activation_token: boolean
   sort_order:          number | null
+  /** Set on User-Created Tokens (UCTs) — scopes the row to a single deck.
+   *  Null = built-in game token, visible to every user. */
+  deck_id:             string | null
+  /** Hex colour for badge-rendered tokens (UCTs). When set, the renderer
+   *  paints a colored circle + glyph instead of looking up `icon`. */
+  display_color:       string | null
+  /** Up to 2 characters drawn on the badge for UCTs. */
+  display_glyph:       string | null
   created_at:          string
 }
 

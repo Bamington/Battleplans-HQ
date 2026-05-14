@@ -14,14 +14,14 @@ insert into public.games (name, slug, stat_schema, print_size, bleed_size) value
   'Kill Team',
   'kill-team',
   '[
-    {"key": "role",     "label": "Role",     "type": "text"},
-    {"key": "teamName", "label": "Team Name","type": "text"},
-    {"key": "tags",     "label": "Tags",     "type": "text"},
-    {"key": "actions",  "label": "A",        "type": "number"},
-    {"key": "movement", "label": "M",        "type": "number"},
-    {"key": "save",     "label": "S",        "type": "number"},
-    {"key": "wounds",   "label": "W",        "type": "number"},
-    {"key": "baseSize", "label": "Base Size","type": "number"}
+    {"key": "role",     "label": "Operative Type", "type": "text"},
+    {"key": "teamName", "label": "Team Name",      "type": "text"},
+    {"key": "tags",     "label": "Tags",           "type": "text"},
+    {"key": "actions",  "label": "A",              "type": "number"},
+    {"key": "movement", "label": "M",              "type": "number"},
+    {"key": "save",     "label": "S",              "type": "number"},
+    {"key": "wounds",   "label": "W",              "type": "number"},
+    {"key": "baseSize", "label": "Base Size",      "type": "number"}
   ]'::jsonb,
   '[127, 89]'::jsonb,
   '[133, 95]'::jsonb

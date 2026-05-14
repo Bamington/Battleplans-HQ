@@ -35,6 +35,8 @@ import iconAPL       from '../assets/games/card assets/kill-team/kt-icon-APL.svg
 import iconMove      from '../assets/games/card assets/kill-team/kt-icon-move.svg';
 import iconSave      from '../assets/games/card assets/kill-team/kt-icon-save.svg';
 import iconWounds    from '../assets/games/card assets/kill-team/kt-icon-wounds.svg';
+import iconMelee     from '../assets/games/card assets/kill-team/kt-icon-melee.svg';
+import iconRanged    from '../assets/games/card assets/kill-team/kt-icon-ranged.svg';
 
 // ── Native size ──────────────────────────────────────────────────────────────
 const CARD_W = 1270;
@@ -141,7 +143,10 @@ export interface KillTeamAbility {
 
 export interface KillTeamCardProps {
   operativeName?: string;
-  /** Stored on the card but not rendered in the current design. */
+  /** Operative Type — sub-title rendered right-aligned beneath the operative
+   *  name (e.g. "Intercessor Sergeant"). Field is stored as `role` in the
+   *  data model for historical reasons, but the user-facing label is
+   *  "Operative Type". */
   role?:          string;
   /** Stored on the card but not rendered in the current design. */
   teamName?:      string;
@@ -167,6 +172,8 @@ export interface KillTeamCardProps {
 
   // ── Inline-edit callbacks (omit to keep field read-only) ──
   onOperativeNameChange?: (v: string) => void;
+  /** Inline-edit callback for the Operative Type sub-title. */
+  onRoleChange?:          (v: string) => void;
   onTagsChange?:          (v: string) => void;
   onActionsChange?:       (v: number) => void;
   onMovementChange?:      (v: number) => void;
@@ -176,6 +183,13 @@ export interface KillTeamCardProps {
   /** Click handlers — invoked when a row is clicked on the card itself. */
   onWeaponClick?:  (w: KillTeamWeapon) => void;
   onAbilityClick?: (a: KillTeamAbility) => void;
+
+  /** Click handler for the "Edit Keyword" button shown inside a keyword's
+   *  info modal (after a user clicks a blue-underlined keyword chip on a
+   *  weapon row). The builder uses this to find the matching keyword in
+   *  the active card's weapons / abilities and open the AddKeywordModal
+   *  in edit mode. Omit to hide the Edit button entirely. */
+  onEditKeyword?:  (kw: CardKeywordInfo) => void;
 
   // ── Token overlay (play mode) ─────────────────────────────────────────
   /** When provided, renders the play-mode token overlay over the card.
@@ -193,6 +207,7 @@ export interface KillTeamCardProps {
 
 const KillTeamCard = ({
   operativeName = 'Operative Name',
+  role          = '',
   tags          = '',
   actions       = 0,
   movement      = 0,
@@ -204,6 +219,7 @@ const KillTeamCard = ({
   abilities     = [],
   className     = '',
   onOperativeNameChange,
+  onRoleChange,
   onTagsChange,
   onActionsChange,
   onMovementChange,
@@ -211,6 +227,7 @@ const KillTeamCard = ({
   onWoundsChange,
   onWeaponClick,
   onAbilityClick,
+  onEditKeyword,
   tokenOverlay,
 }: KillTeamCardProps) => {
 
@@ -289,27 +306,78 @@ const KillTeamCard = ({
       />
 
       {/* ── Layer 2: dynamic chrome + interactive text ────────────────────
-            Operative name with an orange underline that hugs the name's
-            text width (via `width: max-content` on the inner wrapper). */}
-      <div className="absolute" style={{ left: 30, top: 37 }}>
-        <div style={{ width: 'max-content' }}>
+            Fixed-width 465px container at the top-left. Three rows, all
+            content right-aligned:
+              1. Operative name (52px bold, uppercase, white)
+              2. Full-width orange separator line (5px)
+              3. Operative Type sub-title (24px, uppercase, white) — only
+                 rendered when set OR when the field is inline-editable. */}
+      <div className="absolute" style={{ left: 30, top: 12, width: 465 }}>
+        {/* Operative name — right-aligned within the 465px container. */}
+        <div
+          className="flex items-center justify-end"
+          style={{ height: 48 }}
+        >
+          {editingField === 'operativeName' ? (
+            <input
+              autoFocus
+              type="text"
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onBlur={() => commitText(onOperativeNameChange)}
+              onKeyDown={onKeyDown}
+              style={{
+                ...INPUT_BASE, ...CONDUIT_BOLD,
+                fontSize: 52, lineHeight: 1, color: 'white',
+                letterSpacing: '-2.08px', textTransform: 'uppercase',
+                width: '100%', textAlign: 'right',
+                borderBottom: '1.5px solid rgba(255,255,255,0.4)',
+              }}
+            />
+          ) : (
+            <p
+              className="whitespace-nowrap"
+              style={{
+                ...CONDUIT_BOLD,
+                fontSize: 52, lineHeight: 1, color: 'white',
+                letterSpacing: '-2.08px', textTransform: 'uppercase',
+                textAlign: 'right',
+                ...editCursor(!!onOperativeNameChange),
+              }}
+              onDoubleClick={e => {
+                e.stopPropagation();
+                startEdit('operativeName', operativeName, !!onOperativeNameChange);
+              }}
+            >
+              {operativeName}
+            </p>
+          )}
+        </div>
+
+        {/* Orange separator — spans the full 465px container width. */}
+        <div style={{ height: 5, background: ORANGE, width: '100%' }} />
+
+        {/* Operative Type — right-aligned beneath the orange line. Only
+            rendered when there's content OR an inline-edit handler so
+            empty cards aren't visually cluttered. */}
+        {(role || onRoleChange) && (
           <div
-            className="flex items-center"
-            style={{ height: 48 }}
+            className="flex items-center justify-end"
+            style={{ height: 30, marginTop: 4 }}
           >
-            {editingField === 'operativeName' ? (
+            {editingField === 'role' ? (
               <input
                 autoFocus
                 type="text"
                 value={editValue}
                 onChange={e => setEditValue(e.target.value)}
-                onBlur={() => commitText(onOperativeNameChange)}
+                onBlur={() => commitText(onRoleChange)}
                 onKeyDown={onKeyDown}
                 style={{
-                  ...INPUT_BASE, ...CONDUIT_BOLD,
-                  fontSize: 52, lineHeight: 1, color: 'white',
-                  letterSpacing: '-2.08px', textTransform: 'uppercase',
-                  width: 600,
+                  ...INPUT_BASE, ...CONDUIT_REG,
+                  fontSize: 24, lineHeight: 1, color: 'white',
+                  letterSpacing: '-0.5px', textTransform: 'uppercase',
+                  width: '100%', textAlign: 'right',
                   borderBottom: '1.5px solid rgba(255,255,255,0.4)',
                 }}
               />
@@ -317,24 +385,22 @@ const KillTeamCard = ({
               <p
                 className="whitespace-nowrap"
                 style={{
-                  ...CONDUIT_BOLD,
-                  fontSize: 52, lineHeight: 1, color: 'white',
-                  letterSpacing: '-2.08px', textTransform: 'uppercase',
-                  ...editCursor(!!onOperativeNameChange),
+                  ...CONDUIT_REG,
+                  fontSize: 24, lineHeight: 1, color: 'white',
+                  letterSpacing: '-0.5px', textTransform: 'uppercase',
+                  textAlign: 'right',
+                  ...editCursor(!!onRoleChange),
                 }}
                 onDoubleClick={e => {
                   e.stopPropagation();
-                  startEdit('operativeName', operativeName, !!onOperativeNameChange);
+                  startEdit('role', role, !!onRoleChange);
                 }}
               >
-                {operativeName}
+                {role || 'Operative Type'}
               </p>
             )}
           </div>
-          {/* Orange underline — fills the wrapper, which is sized to the
-              name's max-content width. */}
-          <div style={{ height: 5, background: ORANGE, width: '100%' }} />
-        </div>
+        )}
       </div>
 
       {/* ── Layer 3: Portrait image — masked to a parallelogram (kt-mask.svg
@@ -461,7 +527,11 @@ const KillTeamCard = ({
             onClick={() => onWeaponClick?.(w)}
           >
             <WeaponCell col={COL_RANGE}>
-              {w.meleeOrRanged === 'melee' ? 'M' : w.meleeOrRanged === 'ranged' ? 'R' : ''}
+              {w.meleeOrRanged === 'melee' ? (
+                <img src={iconMelee}  alt="Melee"  width={47} height={24} draggable={false} />
+              ) : w.meleeOrRanged === 'ranged' ? (
+                <img src={iconRanged} alt="Ranged" width={37} height={22} draggable={false} />
+              ) : ''}
             </WeaponCell>
             <WeaponCell col={COL_NAME} align="left">{w.name}</WeaponCell>
             <WeaponCell col={COL_ATK}>{w.attack || '—'}</WeaponCell>
@@ -574,13 +644,19 @@ const KillTeamCard = ({
       </div>
 
       {/* ── Keyword info modal — portaled to body so the card's CSS scaling
-            (via CardCarousel) doesn't shrink the modal text. */}
+            (via CardCarousel) doesn't shrink the modal text. "Edit Keyword"
+            only renders when the builder supplied an `onEditKeyword` handler. */}
       {viewingCardKeyword && createPortal(
         <KeywordInfoModal
           open
           onClose={() => setViewingCardKeyword(null)}
           name={viewingCardKeyword.name}
           description={viewingCardKeyword.description}
+          onEdit={onEditKeyword ? () => {
+            const kw = viewingCardKeyword;
+            setViewingCardKeyword(null);
+            onEditKeyword(kw);
+          } : undefined}
         />,
         document.body,
       )}
@@ -688,17 +764,20 @@ const WeaponCell = ({ col, align = 'center', children }: {
   align?: 'center' | 'left';
   children: React.ReactNode;
 }) => (
+  // overflow stays visible so descenders (y, g, p) and ascenders aren't
+  // clipped by the row's tight 48px height. `whitespace-nowrap` keeps the
+  // text on a single line so cells still align across rows.
   <div
     className="absolute flex items-center"
     style={{
       left: col.left, top: 0, width: col.width, height: ROW_H,
       paddingLeft: align === 'left' ? 14 : 0,
       justifyContent: align === 'left' ? 'flex-start' : 'center',
-      overflow: 'hidden',
+      overflow: 'visible',
     }}
   >
     <span
-      className="truncate"
+      className="whitespace-nowrap"
       style={{
         ...CONDUIT_BOLD, fontSize: 30, color: 'black',
         letterSpacing: '-1.2px', lineHeight: 1,

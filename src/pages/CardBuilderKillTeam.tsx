@@ -22,6 +22,12 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ModeToggle, { type Mode } from '../components/ModeToggle';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
+import EditSubnav from '../components/EditSubnav';
+import BuilderShell from '../components/BuilderShell';
+import CenterViewport from '../components/CenterViewport';
+import CardListPanel from '../components/CardListPanel';
+import EditorPanel from '../components/EditorPanel';
+import { useCardBuilder } from '../hooks/useCardBuilder';
 import Dropdown, { DropdownItem } from '../components/Dropdown';
 import AltArrowDown from '../icons/AltArrowDown';
 import Play from '../icons/Play';
@@ -31,13 +37,19 @@ import Select from '../components/Select';
 import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
+import Markdown from 'react-markdown';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
+import Card, { CardBody } from '../components/Card';
+import Magnifer from '../icons/Magnifer';
 import CardCarousel from '../components/CardCarousel';
 import TokenMenu from '../components/TokenMenu';
 import Modal from '../components/Modal';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddonInfoModal from '../components/AddonInfoModal';
+import SaveTemplateModal from '../components/SaveTemplateModal';
+import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
+import CustomTokenModal, { CustomTokenSaveError } from '../components/CustomTokenModal';
 import AddKeywordModal from '../components/AddKeywordModal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import Badge from '../components/Badge';
@@ -50,6 +62,7 @@ import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import ArrowRight from '../icons/ArrowRight';
 import Pen2 from '../icons/Pen2';
 import HamburgerMenu from '../icons/HamburgerMenu';
+import Diskette from '../icons/Diskette';
 import { supabase } from '../lib/supabase';
 import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
@@ -795,10 +808,23 @@ const CardBuilderKillTeam = () => {
   const [appMode, setAppMode] = useState<Mode>('edit');
   const [playTab, setPlayTab] = useState<PlayTab>('units');
 
-  // ── Deck name ──────────────────────────────────────────────────────────────
-  const [deckName, setDeckName] = useState<string | null>(null);
-  const [editingDeckName, setEditingDeckName] = useState(false);
-  const deckNameInputRef = useRef<HTMLInputElement>(null);
+  // Search query for the play-mode Rules tab. Cleared whenever the user
+  // leaves the Rules tab so the next visit starts fresh.
+  const [ruleSearchQuery, setRuleSearchQuery] = useState('');
+
+  // ── Shared builder chrome (panel toggles, responsive, deck name) ────────
+  // Universal hook used by every game's builder. Owns the mobile slide-in
+  // panel state, the matchMedia listeners that drive responsive behaviour,
+  // and the inline-rename plumbing for the deck name. The Halo / Blood Bowl
+  // / Starcraft builders share the same surface so the EditSubnav toggle
+  // buttons + carousel relayout work identically here.
+  const builder = useCardBuilder({ deckId });
+  const {
+    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    isMobile, isShortHeight, mobilePanelOpen, layoutDeps,
+    deckName, setDeckName, editingDeckName, setEditingDeckName,
+    deckNameInputRef, startDeckNameEdit, commitDeckName,
+  } = builder;
 
   // ── Edit mode (reorder + rename) ───────────────────────────────────────────
   const [editMode, setEditMode] = useState(false);
@@ -831,20 +857,46 @@ const CardBuilderKillTeam = () => {
   // tokenState is a Record<defId, number> on each LocalCard. Same handlers
   // and helpers as Halo so the carousel TokenMenu / TokenOverlay components
   // work without modification.
+  //
+  // The fetch combines two sets:
+  //   • Game tokens (deck_id IS NULL, filtered by game_id) — seeded by
+  //     migration_kill_team_tokens.sql.
+  //   • Deck UCTs (deck_id = current deck) — user-created via the
+  //     "Add Custom Token" flow.
+  // Both share the same TokenDefinition shape, so TokenMenu / TokenOverlay
+  // render them through a single pipeline.
 
   const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const { data: game } = await supabase
-        .from('games').select('id').eq('slug', 'kill-team').single();
-      if (!game) return;
+  /** Pull both game tokens and this deck's UCTs in one go. Called on mount
+   *  and after any UCT mutation so the menu/overlay reflect changes
+   *  immediately. */
+  const reloadTokenDefinitions = useCallback(async () => {
+    const { data: game } = await supabase
+      .from('games').select('id').eq('slug', 'kill-team').single();
+    if (!game) return;
+
+    // Game tokens.
+    const { data: gameTokens } = await supabase
+      .from('token_definitions').select('*')
+      .eq('game_id', game.id)
+      .is('deck_id', null)
+      .order('sort_order');
+
+    // Deck UCTs (if we're in a deck).
+    let deckTokens: TokenDefinition[] = [];
+    if (deckId) {
       const { data } = await supabase
         .from('token_definitions').select('*')
-        .eq('game_id', game.id).order('sort_order');
-      if (data) setTokenDefinitions(data as TokenDefinition[]);
-    })();
-  }, []);
+        .eq('deck_id', deckId)
+        .order('created_at');
+      if (data) deckTokens = data as TokenDefinition[];
+    }
+
+    setTokenDefinitions([...(gameTokens as TokenDefinition[] ?? []), ...deckTokens]);
+  }, [deckId]);
+
+  useEffect(() => { void reloadTokenDefinitions(); }, [reloadTokenDefinitions]);
 
   /** Update a token value for the active card. */
   const handleTokenChange = (tokenDefId: string, newValue: number) => {
@@ -887,7 +939,8 @@ const CardBuilderKillTeam = () => {
   };
 
   /** When switching to Play mode, seed `tokenState` from each definition's
-   *  `starting_value` for any card that hasn't been touched yet. */
+   *  `starting_value` for any card that hasn't been touched yet. Also
+   *  resets the Rules-tab search query so re-entering play starts fresh. */
   const handleModeChange = useCallback((next: Mode) => {
     if (next === 'play' && tokenDefinitions.length > 0) {
       setCardState(prev => ({
@@ -902,8 +955,16 @@ const CardBuilderKillTeam = () => {
         }),
       }));
     }
+    setRuleSearchQuery('');
     setAppMode(next);
   }, [tokenDefinitions]);
+
+  /** Tab switch handler — also resets the Rules-tab search when the user
+   *  navigates away so a stale query never lingers on the next visit. */
+  const handlePlayTabChange = (next: PlayTab) => {
+    if (next !== 'rules') setRuleSearchQuery('');
+    setPlayTab(next);
+  };
 
   // ── Token turn helpers (New Turn button) ──────────────────────────────────
   /** Resolve effective max for a token on a given card — mirrors TokenOverlay's
@@ -956,9 +1017,303 @@ const CardBuilderKillTeam = () => {
     );
   })();
 
-  const addOperativeCard = () => {
+  /** Play-mode Rules tab: all rule cards in the deck, plus a deduplicated
+   *  list of every keyword that appears on any weapon, ability, or
+   *  rule-card ability. Rules are sorted alphabetically and shown first;
+   *  keywords follow, also alphabetised. Mirrors Halo's pattern. */
+  const playRulesAndKeywords = (() => {
+    type Item = { key: string; title: string; description: string };
+
+    // Rule cards (alphabetical by title).
+    const ruleItems: Item[] = cards
+      .filter(c => c.cardType === 'rule')
+      .map(c => ({
+        key:         `rule-${c.id}`,
+        title:       c.ruleTitle || 'Untitled Rule',
+        description: c.ruleDescription || '',
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+
+    // Keywords across weapons, abilities, and rule abilities (dedupe by
+    // keywordId so the same keyword from multiple cards only shows once).
+    const kwMap = new Map<string, { name: string; description: string }>();
+    const collect = (kws: LocalKeywordAttachment[]) => {
+      for (const k of kws) {
+        if (!kwMap.has(k.keywordId)) {
+          kwMap.set(k.keywordId, { name: k.keywordName, description: k.description });
+        }
+      }
+    };
+    for (const c of cards) {
+      for (const w of c.weapons)   collect(w.weaponKeywords);
+      for (const a of c.abilities) collect(a.abilityKeywords);
+      if (c.ruleAbility) collect(c.ruleAbility.abilityKeywords);
+    }
+    const kwItems: Item[] = [...kwMap.values()]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(k => ({ key: `kw-${k.name}`, title: k.name, description: k.description }));
+
+    return [...ruleItems, ...kwItems];
+  })();
+
+  // ── Operative templates (Save-as-Template + NewCardModal picker) ───────
+  // Operative cards (not rule cards) can be saved as user templates, then
+  // reused when adding a new operative. Mirrors Halo's pattern exactly:
+  // backed by `cards.is_template = true`, copies `card_addons` from the
+  // source card. Rule cards intentionally stay one-offs (matches Halo).
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [newCardModalOpen,  setNewCardModalOpen]  = useState(false);
+  const [newCardTemplates,  setNewCardTemplates]  = useState<NewCardModalTemplate[]>([]);
+
+  /** Local fallback when there are no templates (or the lookup fails). */
+  const addBlankOperativeCard = () => {
     const card = defaultOperativeCard();
     setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
+  };
+
+  /** Add operative — if the user has operative templates for this game,
+   *  open the NewCardModal picker; otherwise create a blank operative. */
+  const addOperativeCard = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { addBlankOperativeCard(); return; }
+
+      const { data: game } = await supabase
+        .from('games').select('id').eq('slug', 'kill-team').single();
+      if (!game) { addBlankOperativeCard(); return; }
+
+      const { data: templates } = await supabase
+        .from('cards')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .eq('game_id', game.id)
+        .eq('is_template', true)
+        .eq('card_type', 'operative')
+        .order('name');
+
+      if (!templates || templates.length === 0) { addBlankOperativeCard(); return; }
+
+      setNewCardTemplates(templates);
+      setNewCardModalOpen(true);
+    } catch (err) {
+      console.error('[BattleCards] Failed to load templates:', err);
+      addBlankOperativeCard();
+    }
+  };
+
+  /** Save the active operative card as a reusable template. */
+  const saveAsTemplate = async (templateName: string) => {
+    if (activeCard.cardType !== 'operative') return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: game, error: gameErr } = await supabase
+        .from('games').select('id').eq('slug', 'kill-team').single();
+      if (gameErr || !game) throw gameErr ?? new Error('Game lookup failed');
+
+      // Make sure the source card has a dbId so we can read its addons.
+      const sourceDbId = await ensureCardSaved();
+
+      const { data: tmpl, error: insertErr } = await supabase
+        .from('cards')
+        .insert({
+          user_id:     user.id,
+          game_id:     game.id,
+          is_template: true,
+          card_type:   'operative',
+          name:        templateName,
+          stats:       toKillTeamStats(activeCard),
+        })
+        .select('id')
+        .single();
+      if (insertErr) throw insertErr;
+
+      // Copy card_addons (weapons + abilities) from the source card.
+      if (sourceDbId) {
+        const { data: srcAddons } = await supabase
+          .from('card_addons')
+          .select('addon_id, sort_order')
+          .eq('card_id', sourceDbId);
+
+        if (srcAddons && srcAddons.length > 0) {
+          await supabase.from('card_addons').insert(
+            srcAddons.map(a => ({
+              card_id:    tmpl.id,
+              addon_id:   a.addon_id,
+              sort_order: a.sort_order,
+            })),
+          );
+        }
+      }
+
+      setTemplateModalOpen(false);
+    } catch (err) {
+      console.error('[BattleCards] Failed to save template:', err);
+    }
+  };
+
+  /** Create a new deck operative from a saved template — inserts the row,
+   *  duplicates card_addons, then hydrates the local in-memory state so
+   *  the carousel shows the new card with its weapons/abilities populated. */
+  const createOperativeFromTemplate = async (templateId: string) => {
+    if (!deckId) return;
+
+    type AddonKeywordRow = {
+      keyword_id: string;
+      params: Record<string, unknown>;
+      sort_order: number | null;
+      keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null;
+    };
+    type TemplateRow = {
+      name: string;
+      stats: KillTeamStats;
+      card_addons: {
+        addon_id:   string;
+        sort_order: number | null;
+        addons: {
+          name: string;
+          description: string | null;
+          stats: Record<string, unknown>;
+          addon_type_id: string;
+          addon_keywords: AddonKeywordRow[];
+        } | null;
+      }[];
+    };
+
+    const { data: tmpl, error } = await supabase
+      .from('cards')
+      .select('name, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema))))')
+      .eq('id', templateId)
+      .single();
+    if (error || !tmpl) { console.error('[BattleCards] Template fetch failed:', error); return; }
+
+    const src = tmpl as unknown as TemplateRow;
+
+    // Insert the new deck card.
+    const { data: newRow, error: insertErr } = await supabase
+      .from('cards')
+      .insert({
+        deck_id:    deckId,
+        name:       src.name,
+        card_type:  'operative',
+        stats:      src.stats,
+        sort_order: cards.length,
+      })
+      .select('id')
+      .single();
+    if (insertErr || !newRow) { console.error('[BattleCards] Card insert failed:', insertErr); return; }
+
+    // Copy card_addons.
+    const addons = src.card_addons ?? [];
+    if (addons.length > 0) {
+      await supabase.from('card_addons').insert(
+        addons.map(a => ({ card_id: newRow.id, addon_id: a.addon_id, sort_order: a.sort_order })),
+      );
+    }
+
+    // Resolve addon-type-id → slug so we can split addons into weapons vs
+    // abilities the same way the loader does.
+    const typeIdToSlug: Record<string, string> = {};
+    {
+      const { data: addonTypes } = await supabase
+        .from('addon_types')
+        .select('id, slug, games!inner(slug)')
+        .eq('games.slug', 'kill-team');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (addonTypes as any[] | null)?.forEach(t => { typeIdToSlug[t.id] = t.slug; });
+    }
+
+    // Hydrate the local in-memory state with weapons + abilities.
+    const sortedAddons = [...addons]
+      .filter(ca => ca.addons != null)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    const weapons:   LocalWeapon[]   = [];
+    const abilities: LocalAbility[]  = [];
+
+    for (const ca of sortedAddons) {
+      const addon = ca.addons!;
+      const slug  = typeIdToSlug[addon.addon_type_id];
+      const ws    = addon.stats;
+      const addonKws = [...(addon.addon_keywords ?? [])]
+        .filter(ak => ak.keywords != null)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const kws: LocalKeywordAttachment[] = addonKws.map(ak => ({
+        keywordId:   ak.keyword_id,
+        keywordName: ak.keywords!.name,
+        description: ak.keywords!.description ?? '',
+        hasParams:   Array.isArray(ak.keywords!.params_schema) && ak.keywords!.params_schema.length > 0,
+        paramValue:  ak.params?.X != null ? Number(ak.params.X) : null,
+      }));
+
+      if (slug === 'weapons') {
+        const mr = ws.meleeOrRanged === 'melee' || ws.meleeOrRanged === 'ranged' ? ws.meleeOrRanged : '';
+        weapons.push({
+          addonId:        ca.addon_id,
+          name:           addon.name,
+          meleeOrRanged:  mr as 'melee' | 'ranged' | '',
+          attack:         Number(ws.attack) || 0,
+          hit:            Number(ws.hit) || 0,
+          baseDamage:     Number(ws.baseDamage) || 0,
+          critDamage:     Number(ws.critDamage) || 0,
+          keywords:       buildKeywordsDisplayString(kws),
+          weaponKeywords: kws,
+        });
+      } else if (slug === 'abilities') {
+        abilities.push({
+          addonId:         ca.addon_id,
+          name:            addon.name,
+          description:     addon.description ?? '',
+          apCost:          Number(ws.apCost) || 0,
+          keywords:        buildKeywordsDisplayString(kws),
+          abilityKeywords: kws,
+        });
+      }
+    }
+
+    const s = (src.stats ?? {}) as KillTeamStats;
+    const localCard: KillTeamCardData = {
+      id:              crypto.randomUUID(),
+      dbId:            newRow.id,
+      cardType:        'operative',
+      operativeName:   src.name,
+      role:            s.role     ?? '',
+      teamName:        s.teamName ?? '',
+      tags:            s.tags     ?? '',
+      actions:         Number(s.actions)  || 0,
+      movement:        Number(s.movement) || 0,
+      save:            Number(s.save)     || 0,
+      wounds:          Number(s.wounds)   || 0,
+      baseSize:        Number(s.baseSize) || 0,
+      weapons,
+      abilities,
+      ruleTitle:       '',
+      ruleDescription: '',
+      ruleAbility:     null,
+      portraitUrl:     null,
+      portraitStyle:   null,
+      avatarUrl:       null,
+      tokenState:      {},
+    };
+
+    setCardState(s2 => ({ cards: [...s2.cards, localCard], activeCardId: localCard.id }));
+    setNewCardModalOpen(false);
+  };
+
+  /** Delete a template row (called from the NewCardModal item ⋯ menu). */
+  const deleteTemplate = async (templateId: string) => {
+    try {
+      const { error } = await supabase.from('cards').delete().eq('id', templateId);
+      if (error) throw error;
+      setNewCardTemplates(list => {
+        const next = list.filter(t => t.id !== templateId);
+        if (next.length === 0) setNewCardModalOpen(false);
+        return next;
+      });
+    } catch (err) {
+      console.error('[BattleCards] Failed to delete template:', err);
+    }
   };
 
   const addRuleCard = () => {
@@ -1097,24 +1452,9 @@ const CardBuilderKillTeam = () => {
     return () => { _onAddonKeywordsSaved = null; };
   }, [handleAddonKeywordsSaved]);
 
-  // ── Deck name inline rename ────────────────────────────────────────────────
-  const startDeckNameEdit = useCallback(() => {
-    setEditingDeckName(true);
-    requestAnimationFrame(() => deckNameInputRef.current?.select());
-  }, []);
-
-  const commitDeckName = useCallback(async (newName: string) => {
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === deckName) {
-      setEditingDeckName(false);
-      return;
-    }
-    setDeckName(trimmed);
-    setEditingDeckName(false);
-    if (!editMode && deckId) {
-      await supabase.from('decks').update({ name: trimmed }).eq('id', deckId);
-    }
-  }, [deckName, editMode, deckId]);
+  // Deck-name inline rename is owned by useCardBuilder (above). The hook's
+  // commitDeckName persists by default; we pass `{ persist: !editMode }` at
+  // the call site so the "Done" button keeps batching saves itself.
 
   // ── Drag reorder handlers ──────────────────────────────────────────────────
   const handleDragStart = useCallback((index: number) => { dragItemRef.current = index; }, []);
@@ -1467,6 +1807,125 @@ const CardBuilderKillTeam = () => {
   const [savingWeaponEdit,     setSavingWeaponEdit]     = useState(false);
   const [savingAbilityEdit,    setSavingAbilityEdit]    = useState(false);
 
+  /** Keyword being edited via the card's KeywordInfoModal "Edit Keyword"
+   *  button. Resolved from the active card's weapons / abilities by name
+   *  and fed to a builder-level <AddKeywordModal>. Edits propagate to
+   *  every card via propagateKeywordUpdate (already wired). */
+  const [editingCardKeyword, setEditingCardKeyword] = useState<LocalKeywordAttachment | null>(null);
+
+  // ── Custom token (UCT) modal state ─────────────────────────────────────
+  // null = create flow, TokenDefinition = edit flow. Opening the modal
+  // either way uses the same component (`CustomTokenModal`).
+  const [customTokenModalOpen, setCustomTokenModalOpen] = useState(false);
+  const [editingCustomToken, setEditingCustomToken]     = useState<TokenDefinition | null>(null);
+
+  /** Open the create flow — clean slate. */
+  const openCreateCustomToken = () => {
+    setEditingCustomToken(null);
+    setCustomTokenModalOpen(true);
+  };
+
+  /** Open the edit flow pre-filled with an existing UCT. */
+  const openEditCustomToken = (def: TokenDefinition) => {
+    setEditingCustomToken(def);
+    setCustomTokenModalOpen(true);
+  };
+
+  /** Save (insert or update) a UCT and refresh the definitions list.
+   *
+   *  Throws a `CustomTokenSaveError` on validation failures so the modal
+   *  can surface them inline (matches the existing form-error pattern via
+   *  Input's `state="error"` + `helperText`). Postgres unique-violations
+   *  (code 23505) on the (deck_id, name) index get translated to a "name
+   *  already in use" message; everything else falls through with a
+   *  generic message. */
+  const saveCustomToken = async (value: {
+    name: string; description: string; color: string; glyph: string;
+  }) => {
+    if (!deckId) return;
+    const { data: game } = await supabase
+      .from('games').select('id').eq('slug', 'kill-team').single();
+    if (!game) throw new CustomTokenSaveError('Game lookup failed.');
+
+    let dbErr: { code?: string; message?: string } | null = null;
+    if (editingCustomToken) {
+      const { error } = await supabase
+        .from('token_definitions')
+        .update({
+          name:          value.name,
+          description:   value.description || null,
+          display_color: value.color,
+          display_glyph: value.glyph,
+        })
+        .eq('id', editingCustomToken.id);
+      dbErr = error;
+    } else {
+      const { error } = await supabase
+        .from('token_definitions')
+        .insert({
+          game_id:        game.id,
+          deck_id:        deckId,
+          name:           value.name,
+          description:    value.description || null,
+          // UCTs are always stacking counters in v1 — leave the toggle /
+          // stat-link / refresh-on-turn fields at their defaults.
+          is_toggle:      false,
+          starting_value: 0,
+          min_value:      0,
+          display_color:  value.color,
+          display_glyph:  value.glyph,
+        });
+      dbErr = error;
+    }
+
+    if (dbErr) {
+      console.error('[BattleCards] Failed to save custom token:', dbErr);
+      if (dbErr.code === '23505') {
+        // The partial unique index on (deck_id, name) fires when the user
+        // tries to create or rename a UCT to a name that already exists
+        // in this deck. Surface it under the Name field.
+        throw new CustomTokenSaveError(
+          'A token with this name already exists in this deck.',
+          'name',
+        );
+      }
+      throw new CustomTokenSaveError(dbErr.message || 'Failed to save token.');
+    }
+
+    await reloadTokenDefinitions();
+    setCustomTokenModalOpen(false);
+    setEditingCustomToken(null);
+  };
+
+  /** Delete a UCT — also clears its per-card state so orphaned values
+   *  don't linger in tokenState records. */
+  const deleteCustomToken = async () => {
+    if (!editingCustomToken) return;
+    try {
+      const tokenId = editingCustomToken.id;
+      const { error } = await supabase
+        .from('token_definitions').delete().eq('id', tokenId);
+      if (error) throw error;
+
+      // Strip the now-orphaned state from every card.
+      setCardState(s => ({
+        ...s,
+        cards: s.cards.map(c => {
+          if (!(tokenId in c.tokenState)) return c;
+          const next = { ...c.tokenState };
+          delete next[tokenId];
+          return { ...c, tokenState: next };
+        }),
+      }));
+
+      await reloadTokenDefinitions();
+      setCustomTokenModalOpen(false);
+      setEditingCustomToken(null);
+    } catch (err) {
+      console.error('[BattleCards] Failed to delete custom token:', err);
+    }
+  };
+
   const handleWeaponAdded = (addon: Addon) => {
     const s = addon.stats as Record<string, unknown>;
     const mr = s.meleeOrRanged === 'melee' || s.meleeOrRanged === 'ranged' ? s.meleeOrRanged : '';
@@ -1561,86 +2020,79 @@ const CardBuilderKillTeam = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
-      <Navbar fixed={false}>
-        {/* Desktop (lg+): full mode toggle + Print link */}
-        <div className="hidden lg:flex items-center gap-3">
-          {deckId && (
-            <Link to={`/app/print?deckId=${deckId}`}>
-              <Button variant="ghost" color="secondary" size="xs">Print</Button>
-            </Link>
-          )}
-          <ModeToggle mode={appMode} onModeChange={handleModeChange} />
-        </div>
-
-        {/* Tablet/Mobile (<lg): collapsed mode dropdown */}
-        <Dropdown
-          align="right"
-          className="lg:hidden"
-          menuClassName="w-32"
-          trigger={
-            <Button color="primary" size="xs" rightIcon={<AltArrowDown className="w-4 h-4" />}>
-              {appMode === 'edit' ? 'Edit' : 'Play'}
-            </Button>
-          }
-        >
-          {appMode !== 'edit' && (
-            <DropdownItem icon={<Pen2 className="w-4 h-4" />} onClick={() => handleModeChange('edit')}>
-              Edit
-            </DropdownItem>
-          )}
-          {appMode !== 'play' && (
-            <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => handleModeChange('play')}>
-              Play
-            </DropdownItem>
-          )}
-          {deckId && (
-            <DropdownItem onClick={() => navigate(`/app/print?deckId=${deckId}`)}>
-              Print
-            </DropdownItem>
-          )}
-        </Dropdown>
-      </Navbar>
-
-      {/* Play-mode subnav (Units / Rules) */}
-      {appMode === 'play' && (
-        <PlaySubnav tab={playTab} onTabChange={setPlayTab} />
-      )}
-
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* ── Left panel: unit list ───────────────────────────────────────── */}
-        <aside className="w-64 shrink-0 flex flex-col bg-gray-900 border-r border-gray-700 overflow-hidden">
-          {/* Deck name header */}
-          <div className="px-4 py-4 border-b border-gray-700 shrink-0 flex items-center gap-2">
-            {editingDeckName ? (
-              <input
-                ref={deckNameInputRef}
-                type="text"
-                defaultValue={deckName ?? ''}
-                className="flex-1 min-w-0 bg-gray-800 border border-gray-600 rounded px-2 py-0.5
-                           font-heading text-sm font-bold text-white uppercase tracking-wide
-                           outline-none focus:border-blue-500"
-                onBlur={e => commitDeckName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitDeckName(e.currentTarget.value);
-                  if (e.key === 'Escape') setEditingDeckName(false);
-                }}
-              />
-            ) : (
-              <p
-                className="flex-1 min-w-0 font-heading text-sm font-bold text-white uppercase tracking-wide truncate cursor-pointer"
-                onDoubleClick={startDeckNameEdit}
-                title="Double-click to rename"
-              >
-                {deckName ?? '—'}
-              </p>
+    <BuilderShell
+      navbar={
+        <Navbar fixed={false}>
+          {/* Desktop (lg+): full mode toggle + Print link */}
+          <div className="hidden lg:flex items-center gap-3">
+            {deckId && (
+              <Link to={`/app/print?deckId=${deckId}`}>
+                <Button variant="ghost" color="secondary" size="xs">Print</Button>
+              </Link>
             )}
-            {appMode === 'edit' && (
+            <ModeToggle mode={appMode} onModeChange={handleModeChange} />
+          </div>
+
+          {/* Tablet/Mobile (<lg): collapsed mode dropdown */}
+          <Dropdown
+            align="right"
+            className="lg:hidden"
+            menuClassName="w-32"
+            trigger={
+              <Button color="primary" size="xs" rightIcon={<AltArrowDown className="w-4 h-4" />}>
+                {appMode === 'edit' ? 'Edit' : 'Play'}
+              </Button>
+            }
+          >
+            {appMode !== 'edit' && (
+              <DropdownItem icon={<Pen2 className="w-4 h-4" />} onClick={() => handleModeChange('edit')}>
+                Edit
+              </DropdownItem>
+            )}
+            {appMode !== 'play' && (
+              <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => handleModeChange('play')}>
+                Play
+              </DropdownItem>
+            )}
+            {deckId && (
+              <DropdownItem onClick={() => navigate(`/app/print?deckId=${deckId}`)}>
+                Print
+              </DropdownItem>
+            )}
+          </Dropdown>
+        </Navbar>
+      }
+      topBar={
+        // Play mode → Units/Rules tabs. Edit mode → mobile-only panel
+        // toggles (Open Card List / Open Editor). Both feed the universal
+        // responsive collapse behaviour from useCardBuilder.
+        appMode === 'play' ? (
+          <PlaySubnav tab={playTab} onTabChange={handlePlayTabChange} />
+        ) : appMode === 'edit' ? (
+          <EditSubnav
+            className="lg:hidden"
+            cardListOpen={cardListOpen}
+            onToggleCardList={toggleCardList}
+            editorOpen={editorOpen}
+            onToggleEditor={toggleEditor}
+          />
+        ) : null
+      }
+      leftPanelOpen={cardListOpen}
+      leftPanel={
+        <CardListPanel
+          deckName={deckName}
+          editingDeckName={editingDeckName}
+          inputRef={deckNameInputRef}
+          onStartEdit={startDeckNameEdit}
+          onCommit={(n) => commitDeckName(n, { persist: !editMode })}
+          onCancelEdit={() => setEditingDeckName(false)}
+          headerAction={
+            appMode === 'edit' ? (
               <button
                 type="button"
                 onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
-                className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+                className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
                 title={editMode ? 'Done editing' : 'Edit deck'}
               >
                 {editMode
@@ -1648,11 +2100,47 @@ const CardBuilderKillTeam = () => {
                   : <Pen2 className="w-4 h-4" />
                 }
               </button>
-            )}
-          </div>
-
-          {/* Card list */}
-          <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+            ) : undefined
+          }
+          footer={
+            appMode === 'edit' ? (
+              editMode ? (
+                <Button
+                  leftIcon={<CheckCircle className="w-4 h-4" />}
+                  color="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleDoneEditing}
+                  loading={savingEdits}
+                >
+                  Done
+                </Button>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    leftIcon={<AddCircle className="w-4 h-4" />}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={addOperativeCard}
+                  >
+                    Add Operative
+                  </Button>
+                  <Button
+                    leftIcon={<AddCircle className="w-4 h-4" />}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={addRuleCard}
+                  >
+                    Add Rule Card
+                  </Button>
+                </div>
+              )
+            ) : undefined
+          }
+        >
+          <nav className="flex flex-col gap-1">
             {cards.map((card, i) => (
               <div
                 key={card.id}
@@ -1708,56 +2196,53 @@ const CardBuilderKillTeam = () => {
               </div>
             ))}
           </nav>
-
-          {/* Footer (edit mode only — play mode keeps the unit list for
-              navigation but hides deck-mutation buttons) */}
-          {appMode === 'edit' && (
-          <div className="px-3 pb-3 shrink-0 flex flex-col gap-3">
-            <HR className="!my-0" />
-            {editMode ? (
-              <Button
-                leftIcon={<CheckCircle className="w-4 h-4" />}
-                color="primary"
-                size="sm"
-                className="w-full"
-                onClick={handleDoneEditing}
-                loading={savingEdits}
-              >
-                Done
-              </Button>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <Button
-                  leftIcon={<AddCircle className="w-4 h-4" />}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={addOperativeCard}
-                >
-                  Add Operative
-                </Button>
-                <Button
-                  leftIcon={<AddCircle className="w-4 h-4" />}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={addRuleCard}
-                >
-                  Add Rule Card
-                </Button>
+        </CardListPanel>
+      }
+      center={
+        /* ── Center: card display ──────────────────────────────────────────
+            • Play mode + Rules tab → replace the carousel with a searchable
+              list of every rule card + deduplicated keyword in the deck.
+            • Everything else (edit, play+units) → the universal
+              `CardCarousel` (3D tilt + zoom + swipe + fit). */
+        appMode === 'play' && playTab === 'rules' ? (
+          <main className="order-1 md:order-2 flex-1 flex flex-col overflow-hidden bg-gray-950">
+            <div className="flex-1 overflow-y-auto py-5 px-5">
+              <Input
+                leftIcon={<Magnifer className="w-4 h-4" />}
+                placeholder="Search for a Rule"
+                value={ruleSearchQuery}
+                onChange={e => setRuleSearchQuery(e.target.value)}
+                className="mb-4"
+              />
+              <div className="flex flex-col gap-2.5">
+                {playRulesAndKeywords
+                  .filter(item => {
+                    if (!ruleSearchQuery) return true;
+                    const q = ruleSearchQuery.toLowerCase();
+                    return item.title.toLowerCase().includes(q)
+                        || item.description.toLowerCase().includes(q);
+                  })
+                  .map(item => (
+                    <Card key={item.key} className="!bg-gray-800 !border-gray-700">
+                      <CardBody className="p-5 space-y-3">
+                        <h5 className="font-heading text-xl text-white">
+                          {item.title}
+                        </h5>
+                        <div className="font-body text-base text-gray-300">
+                          <Markdown>{item.description}</Markdown>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
               </div>
-            )}
-          </div>
-          )}
-        </aside>
-
-        {/* ── Center: card display ──────────────────────────────────────────
-            Uses the universal `CardCarousel` (3D tilt + zoom + swipe + fit). */}
-        <main className="flex-1 flex flex-col items-center overflow-hidden bg-gray-950">
-          <div className="flex items-center justify-center w-full shrink-0 py-3">
-            <img src={logoKillTeam} alt="Kill Team" className="h-10 w-auto" />
-          </div>
-
+            </div>
+          </main>
+        ) : (
+        <CenterViewport
+          logo={<img src={logoKillTeam} alt="Kill Team" className="h-10 w-auto" />}
+          mobilePanelOpen={mobilePanelOpen}
+          isShortHeight={isShortHeight}
+        >
           <CardCarousel
             items={cards}
             activeId={activeCardId}
@@ -1786,8 +2271,11 @@ const CardBuilderKillTeam = () => {
               ) : null
             }
             bottomRightSlot={
+              // Show the menu whenever we have a deck (so the user can
+              // create UCTs) AND the active card is an operative. The
+              // menu hides itself if there's nothing to do.
               appMode === 'play' && playTab === 'units' &&
-              activeCard.cardType === 'operative' && tokenDefinitions.length > 0 ? (
+              activeCard.cardType === 'operative' ? (
                 <TokenMenu
                   tokenDefinitions={tokenDefinitions}
                   card={{
@@ -1799,6 +2287,8 @@ const CardBuilderKillTeam = () => {
                   }}
                   tokenState={activeCard.tokenState}
                   onTokenChange={handleTokenChange}
+                  onAddCustomToken={deckId ? openCreateCustomToken : undefined}
+                  onEditCustomToken={openEditCustomToken}
                 />
               ) : null
             }
@@ -1830,7 +2320,7 @@ const CardBuilderKillTeam = () => {
               return (
                 <KillTeamCard
                   operativeName={card.operativeName || 'Operative Name'}
-                  role={card.role         || 'Role'}
+                  role={card.role}
                   teamName={card.teamName || 'Team Name'}
                   tags={card.tags}
                   actions={card.actions}
@@ -1861,6 +2351,7 @@ const CardBuilderKillTeam = () => {
                   // Inline-edit + click handlers only on the active slot
                   {...(isActive ? {
                     onOperativeNameChange: (v: string) => updateActiveCard({ operativeName: v }),
+                    onRoleChange:          (v: string) => updateActiveCard({ role: v }),
                     onTagsChange:          (v: string) => updateActiveCard({ tags: v }),
                     onActionsChange:       (v: number) => updateActiveCard({ actions: v }),
                     onMovementChange:      (v: number) => updateActiveCard({ movement: v }),
@@ -1874,25 +2365,33 @@ const CardBuilderKillTeam = () => {
                       const match = card.abilities.find(x => x.name === a.name);
                       if (match) setViewingAbility(match);
                     },
+                    onEditKeyword: (kw: { name: string; description: string }) => {
+                      // Look for the keyword across weapons + abilities of
+                      // the active card. First match wins — propagation
+                      // covers the rest of the deck.
+                      for (const w of card.weapons) {
+                        const found = w.weaponKeywords.find(k => k.keywordName === kw.name);
+                        if (found) { setEditingCardKeyword(found); return; }
+                      }
+                      for (const a of card.abilities) {
+                        const found = a.abilityKeywords.find(k => k.keywordName === kw.name);
+                        if (found) { setEditingCardKeyword(found); return; }
+                      }
+                    },
                   } : {})}
                   tokenOverlay={buildTokenOverlayProp(card)}
                 />
               );
             }}
             className="w-full flex-1 min-h-0"
+            layoutDeps={[...layoutDeps, appMode, playTab]}
           />
-        </main>
-
-        {/* ── Right panel: editor (edit mode only) ─────────────────────── */}
-        {appMode === 'edit' && (
-        <aside className="w-64 shrink-0 flex flex-col bg-gray-900 border-l border-gray-700 overflow-hidden">
-          <div className="px-4 py-4 border-b border-gray-700 shrink-0">
-            <h2 className="font-heading text-sm font-bold text-white uppercase tracking-wide">
-              Edit Card
-            </h2>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        </CenterViewport>
+        )
+      }
+      rightPanelOpen={editorOpen}
+      rightPanel={appMode === 'edit' ? (
+        <EditorPanel title="Edit Card">
 
             {activeCard.cardType === 'rule' ? (
               <>
@@ -1982,8 +2481,8 @@ const CardBuilderKillTeam = () => {
                 onChange={e => updateActiveCard({ operativeName: e.target.value })}
               />
               <Input
-                label="Role"
-                placeholder="e.g. LEADER, WARRIOR, SNIPER"
+                label="Operative Type"
+                placeholder="e.g. Intercessor Sergeant, Sniper, Warrior"
                 value={activeCard.role}
                 onChange={e => updateActiveCard({ role: e.target.value })}
               />
@@ -2189,18 +2688,31 @@ const CardBuilderKillTeam = () => {
                 Add Ability
               </Button>
             </section>
+
+            {/* ── Save as Template (operative cards only) ─────────────────
+                Persists the active operative — stats + weapons + abilities
+                — as a reusable template that appears in the Add Operative
+                picker. Delete is reachable from the unit-list edit mode, so
+                no extra Delete button here. */}
+            <HR />
+            <section className="space-y-3">
+              <Button
+                variant="outline"
+                color="primary"
+                size="sm"
+                leftIcon={<Diskette className="w-4 h-4" />}
+                className="w-full"
+                onClick={() => setTemplateModalOpen(true)}
+              >
+                Save as Template
+              </Button>
+            </section>
               </>
             )}
 
-          </div>
-        </aside>
-        )}
-
-        {/* No right panel in play mode — token controls live in the
-            carousel's TokenMenu (bottom-right) and TokenOverlay (on-card),
-            matching Halo Flashpoint's play-mode UX. */}
-
-      </div>
+        </EditorPanel>
+      ) : undefined}
+      modals={<>
 
       {/* ── Delete portrait confirmation modal ─────────────────────────────── */}
       <Modal
@@ -2297,6 +2809,62 @@ const CardBuilderKillTeam = () => {
         onDeleted={handleAbilityDeleted}
         getSubtitle={getAbilitySubtitle}
         CreateFormComponent={KillTeamAbilityForm}
+      />
+
+      {/* ── Edit Keyword modal (opened from a keyword chip on the card) ────
+          The card's KeywordInfoModal shows an "Edit Keyword" button when
+          the builder supplies `onEditKeyword`; clicking it resolves the
+          attachment and lands here. Saving propagates via
+          propagateKeywordUpdate so every card refreshes. */}
+      <AddKeywordModal
+        open={!!editingCardKeyword}
+        onClose={() => setEditingCardKeyword(null)}
+        gameSlug="kill-team"
+        editingKeyword={editingCardKeyword ? {
+          id:          editingCardKeyword.keywordId,
+          name:        editingCardKeyword.keywordName,
+          description: editingCardKeyword.description,
+          hasParams:   editingCardKeyword.hasParams,
+        } : null}
+        onKeywordSelected={() => {}}
+        onKeywordUpdated={(updated) => {
+          propagateKeywordUpdate(updated.keywordId, updated.keywordName, updated.description, updated.hasParams);
+          setEditingCardKeyword(null);
+        }}
+      />
+
+      {/* ── Save-as-Template modal (operative cards) ──────────────────────── */}
+      <SaveTemplateModal
+        open={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        defaultName={activeCard.cardType === 'operative' ? activeCard.operativeName : ''}
+        onSave={saveAsTemplate}
+        description="You'll be able to use this template to create new operatives in the future. Templates remember the stats, weapons, abilities, and keywords."
+        namePlaceholder="This replaces the operative's name."
+      />
+
+      {/* ── New Card modal (operative templates picker) ───────────────────── */}
+      <NewCardModal
+        open={newCardModalOpen}
+        onClose={() => setNewCardModalOpen(false)}
+        templates={newCardTemplates}
+        onNewBlank={() => { setNewCardModalOpen(false); addBlankOperativeCard(); }}
+        onPickTemplate={createOperativeFromTemplate}
+        onDeleteTemplate={deleteTemplate}
+      />
+
+      {/* ── Custom Token modal (create / edit a deck-scoped UCT) ──────────── */}
+      <CustomTokenModal
+        open={customTokenModalOpen}
+        onClose={() => { setCustomTokenModalOpen(false); setEditingCustomToken(null); }}
+        editing={editingCustomToken ? {
+          name:        editingCustomToken.name,
+          description: editingCustomToken.description ?? '',
+          color:       editingCustomToken.display_color ?? '#f85908',
+          glyph:       editingCustomToken.display_glyph ?? '',
+        } : null}
+        onSave={saveCustomToken}
+        onDelete={editingCustomToken ? deleteCustomToken : undefined}
       />
 
       {/* ── Weapon detail modal ──────────────────────────────────────────────
@@ -2442,7 +3010,8 @@ const CardBuilderKillTeam = () => {
         </Modal>
       )}
 
-    </div>
+      </>}
+    />
   );
 };
 

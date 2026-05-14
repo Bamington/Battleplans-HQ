@@ -26,6 +26,7 @@
 import { useMemo } from 'react';
 import type { TokenDefinition } from '../lib/database.types';
 import { resolveTokenIcon } from '../lib/tokenIcons';
+import TokenBadge from './TokenBadge';
 import {
   TOKEN_OVERLAY_CONFIG,
   DEFAULT_OVERLAY_CONFIG,
@@ -69,9 +70,12 @@ const resolveStatValue = (card: CardInfo, statKey: string): number | null =>
   card.stats[statKey] ?? null;
 
 /** Categorise a resolved token into its display zone. */
-type Zone = 'other' | 'shield' | 'damage';
+type Zone = 'other' | 'shield' | 'damage' | 'badge';
 
 const getZone = (tok: ResolvedToken): Zone => {
+  // UCTs (user-created tokens) render as colored badges with a count chip,
+  // in a dedicated zone separate from the game's built-in tokens.
+  if (tok.def.display_color) return 'badge';
   // Non-toggle counters with a stat link → damage zone
   if (!tok.def.is_toggle && tok.def.stat_key) return 'damage';
   // Toggle with max > 1 → shield zone
@@ -156,7 +160,7 @@ const TokenOverlay = ({
       });
   }, [tokenDefinitions, card, tokenState]);
 
-  const zones: Record<Zone, ResolvedToken[]> = { other: [], shield: [], damage: [] };
+  const zones: Record<Zone, ResolvedToken[]> = { other: [], shield: [], damage: [], badge: [] };
   for (const tok of resolved) zones[getZone(tok)].push(tok);
 
   return (
@@ -274,6 +278,49 @@ const TokenOverlay = ({
                     }}
                   />
                 ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Badge Zone (User-Created Tokens) ─────────────────────────
+          Colored circle + glyph for each active UCT, with a small count
+          chip when > 1. Click toggles +/- when an onTokenChange is
+          provided (reduce by 1, or remove when at 1). */}
+      {zones.badge.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: zoneConfig.badge.x,
+            top:  zoneConfig.badge.y,
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: zoneConfig.badge.gap,
+            flexWrap: 'wrap',
+            maxWidth: 1100,
+          }}
+        >
+          {zones.badge.map(tok => {
+            if (tok.current <= 0 || !tok.def.display_color) return null;
+            const glyph = tok.def.display_glyph ?? tok.def.name.slice(0, 2);
+            const canClick = !!onTokenChange;
+            return (
+              <div
+                key={tok.def.id}
+                title={tok.def.name}
+                onClick={canClick ? () => onTokenChange(tok.def.id, tok.current - 1) : undefined}
+                style={{
+                  cursor: canClick ? 'pointer' : 'default',
+                  pointerEvents: canClick ? 'auto' : 'none',
+                }}
+              >
+                <TokenBadge
+                  color={tok.def.display_color}
+                  glyph={glyph}
+                  size={TOKEN_SIZE}
+                  count={tok.current}
+                />
               </div>
             );
           })}
