@@ -15,6 +15,7 @@
 <path d="M620.5 -88H902.5V30H573L620.5 -88Z" fill="#F85908"/>
 <path d="M583 30H855V148H535.5L583 30Z" fill="#110F11"/>
 <path d="M630.5 -88H902.5V30H583L630.5 -88Z" fill="#110F11"/>
+<circle cx="1256" cy="870" r="24.5" stroke="white"/>
 </g>
 <defs>
 <linearGradient id="paint0_linear_871_2171" x1="0" y1="0" x2="1347.02" y2="943.306" gradientUnits="userSpaceOnUse">

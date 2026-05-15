@@ -101,6 +101,6 @@ from public.games g,
    'src/assets/games/card assets/halo/tokens/Token Type=Activated, State=Off.svg', true,
    null::text, null::text,
    null::text, null::text,
-   1, 0, 1, 5)
+   0, 0, 1, 5)
 ) as v(name, description, icon, icon_off, is_toggle, keyword_name, keyword_value_role, stat_key, stat_role, starting_value, min_value, max_value, sort_order)
 where g.slug = 'halo-flashpoint';

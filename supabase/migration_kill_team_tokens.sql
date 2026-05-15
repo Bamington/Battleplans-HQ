@@ -48,29 +48,18 @@ from public.games g,
    0, 0, 1,
    0, false, 2),
 
-  -- Activated — single toggle. On at start of turn, off when activated.
-  -- Wait — we want Activated to behave like Halo's: starts on (ready),
-  -- player flips it off when they activate. refresh_on_turn = -1 walks it
-  -- back from ready (1) to activated (0)? No: in Halo, starting_value=1,
-  -- "all activated" means all === max (which is 1). refresh_on_turn=-1
-  -- moves them from 1 → 0 each turn. Hmm — let me match Halo's semantics:
-  -- starting_value=1 (ready), max=1, refresh=-1 so New Turn marks everyone
-  -- ready again after each turn (because allActivated triggers a turn
-  -- where current >= max, so refresh -1 moves them all to 0… reading the
-  -- code: handleNewTurn applies refresh_on_turn delta clamped. With
-  -- starting=1, refresh=-1, current=1, new value=0. So token starts
-  -- "Ready" (1), player toggles to "Activated" (0), end of turn the
-  -- player hits New Turn which sets them back to 1.
-  -- But Halo's Activated has starting=1 and the "Mark Activated"/"Mark
-  -- Ready" labels flip based on isOn. Whatever the convention says, the
-  -- TokenMenu UX is fine. Keep parity with Halo.
+  -- Activated — single toggle. starting_value = 0 means operatives come
+  -- up "ready / not yet activated" at the start of each turn. Clicking
+  -- "Mark Activated" sets current=1. New Turn applies refresh_on_turn=-1
+  -- to walk activated units back to 0 (ready) — units already at 0 stay
+  -- at 0 (min clamp).
   ('Activated', 'Indicates the operative has been activated this turn.',
    'src/assets/games/card assets/kill-team/tokens/Token Type=Activated, State=Default.svg',
    'src/assets/games/card assets/kill-team/tokens/Token Type=Activated, State=Off.svg',
    true,
    null::text, null::text,
    null::text, null::text,
-   1, 0, 1,
+   0, 0, 1,
    -1, true, 5),
 
   -- Status tokens (single-instance toggles)

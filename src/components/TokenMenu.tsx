@@ -11,16 +11,26 @@
  *     card={{ stats: { hp: 3, ... }, unitKeywords: [...] }}
  *     tokenState={{ 'uuid-1': 0, 'uuid-2': 1 }}
  *     onTokenChange={(defId, val) => ...}
+ *     onAddCustomToken={() => openCreateModal()}
+ *     onEditCustomToken={(tok) => openEditModal(tok)}
  *   />
  *
  * Game-agnostic: token icons resolve via `resolveTokenIcon`, which loads
  * SVGs from any game's `tokens/` folder. Stats resolve via a generic
  * `stats: Record<string, number>` map keyed by `token_definitions.stat_key`.
+ *
+ * UCT (User-Created Token) support: tokens with `display_color` set render
+ * as a colored badge via `<TokenBadge>` and get a ⋯ Edit menu when
+ * `onEditCustomToken` is supplied. The "Add Custom Token" entry at the
+ * bottom triggers `onAddCustomToken`.
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { TokenDefinition } from '../lib/database.types';
 import { resolveTokenIcon } from '../lib/tokenIcons';
+import TokenBadge from './TokenBadge';
+import AddCircle from '../icons/AddCircle';
+import Pen2 from '../icons/Pen2';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,7 +59,29 @@ export interface TokenMenuProps {
   tokenState: Record<string, number>;
   /** Called when a token value should change. */
   onTokenChange: (tokenDefId: string, newValue: number) => void;
+  /** When provided, shows an "Add Custom Token" entry at the bottom of
+   *  the dropdown. Called with no args; the caller opens the creation
+   *  modal. */
+  onAddCustomToken?: () => void;
+  /** When provided, deck-scoped (UCT) tokens get a ⋯ Edit menu in the
+   *  dropdown. The caller opens the edit modal with the token pre-filled. */
+  onEditCustomToken?: (tokenDef: TokenDefinition) => void;
 }
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+/** Shared className for every TokenMenu action button.
+ *
+ *  Buttons stay mounted at min/max instead of being hidden — we set the
+ *  HTML `disabled` attribute and rely on Tailwind's `disabled:` modifiers
+ *  to grey them out, suppress hover, and switch the cursor. Keeping the
+ *  buttons rendered avoids the menu layout jumping as the user steps
+ *  through tokens. */
+const ACTION_BUTTON_CLASS =
+  'flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white ' +
+  'rounded transition-colors text-left ' +
+  'enabled:hover:bg-gray-700 enabled:cursor-pointer ' +
+  'disabled:opacity-40 disabled:cursor-not-allowed';
 
 // ── Stat resolver ────────────────────────────────────────────────────────────
 
@@ -58,7 +90,14 @@ const resolveStatValue = (card: CardInfo, statKey: string): number | null =>
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-const TokenMenu = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenMenuProps) => {
+const TokenMenu = ({
+  tokenDefinitions,
+  card,
+  tokenState,
+  onTokenChange,
+  onAddCustomToken,
+  onEditCustomToken,
+}: TokenMenuProps) => {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -120,9 +159,57 @@ const TokenMenu = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenM
       });
   }, [tokenDefinitions, card]);
 
-  if (eligible.length === 0) return null;
+  // Hide the menu entirely only if there's nothing for it to do — no
+  // eligible tokens AND no "Add Custom Token" capability.
+  if (eligible.length === 0 && !onAddCustomToken) return null;
 
   // ── Render menu items ────────────────────────────────────────────────────
+
+  /** Render the 20px visual for a token row — picks the right element
+   *  based on the token's display_style:
+   *    - 'badge' → coloured TokenBadge (UCTs)
+   *    - any other → icon asset via <img>, falling back to nothing if
+   *      the row has no icon set.
+   *  Bar / pip rendering only affects the on-card visual via TokenOverlay;
+   *  in the menu we still show a small icon so the row reads clearly. */
+  const renderTokenVisual = (tok: ResolvedToken, opts?: { offState?: boolean }) => {
+    if (tok.def.display_style === 'badge') {
+      return (
+        <TokenBadge
+          color={tok.def.display_color ?? '#f85908'}
+          glyph={tok.def.display_glyph ?? tok.def.name.slice(0, 2)}
+          size={20}
+          shadow={false}
+        />
+      );
+    }
+    const src = opts?.offState
+      ? (resolveTokenIcon(tok.def.icon_off) || tok.iconUrl)
+      : tok.iconUrl;
+    if (!src) return null;
+    return <img src={src} alt="" className="w-5 h-5 shrink-0" />;
+  };
+
+  const isUct = (tok: ResolvedToken) =>
+    tok.def.deck_id != null && onEditCustomToken != null;
+
+  /** Resolve the user-facing label for a TokenMenu action button.
+   *
+   *  Each token row can override either direction via `label_on` /
+   *  `label_off`. When set, the override replaces the entire string
+   *  including the verb — no name suffix, no pluralisation. When null,
+   *  fall back to the per-shape default templates ("Add X" / "Mark as X"
+   *  / "Add Xs" / etc).
+   *
+   *  `direction` is the SEMANTIC direction:
+   *    - 'on'  → user is increasing the token count (Add / Mark as)
+   *    - 'off' → user is decreasing it (Reduce / Remove)
+   *
+   *  `fallback` is the default template to use when the override is null. */
+  const labelFor = (tok: ResolvedToken, direction: 'on' | 'off', fallback: string) => {
+    const override = direction === 'on' ? tok.def.label_on : tok.def.label_off;
+    return override ?? fallback;
+  };
 
   const renderItems = () => {
     const items: React.ReactNode[] = [];
@@ -133,87 +220,123 @@ const TokenMenu = ({ tokenDefinitions, card, tokenState, onTokenChange }: TokenM
       const atMin   = current <= tok.effectiveMin;
 
       if (tok.def.is_toggle && tok.effectiveMax === 1) {
-        // Single toggle: "Mark as X" / "Remove X"
+        // Single toggle: "Mark as X" / "Remove X". Toggles its own state
+        // each click, so never disabled — but we still use the shared
+        // class for consistent hover styling.
         const isOn = current >= 1;
         items.push(
           <button
             key={tok.def.id}
             type="button"
-            className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white
-                       hover:bg-gray-700 rounded transition-colors text-left"
+            className={ACTION_BUTTON_CLASS}
             onClick={() => {
               onTokenChange(tok.def.id, isOn ? 0 : 1);
             }}
           >
-            <img
-              src={isOn ? resolveTokenIcon(tok.def.icon_off) || tok.iconUrl : tok.iconUrl}
-              alt=""
-              className="w-5 h-5 shrink-0"
-            />
-            <span>{isOn ? `Remove ${tok.def.name}` : `Mark as ${tok.def.name}`}</span>
+            {renderTokenVisual(tok, { offState: !isOn })}
+            <span>
+              {isOn
+                ? labelFor(tok, 'off', `Remove ${tok.def.name}`)
+                : labelFor(tok, 'on',  `Mark as ${tok.def.name}`)}
+            </span>
           </button>
         );
       } else if (tok.def.is_toggle && tok.effectiveMax != null && tok.effectiveMax > 1) {
-        // Multi-toggle: "Add Xs" / "Reduce Xs"
-        if (!atMax) {
-          items.push(
-            <button
-              key={`${tok.def.id}-add`}
-              type="button"
-              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white
-                         hover:bg-gray-700 rounded transition-colors text-left"
-              onClick={() => onTokenChange(tok.def.id, current + 1)}
-            >
-              <img src={tok.iconUrl} alt="" className="w-5 h-5 shrink-0" />
-              <span>Add {tok.def.name}s</span>
-            </button>
-          );
-        }
-        if (!atMin) {
-          items.push(
-            <button
-              key={`${tok.def.id}-reduce`}
-              type="button"
-              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white
-                         hover:bg-gray-700 rounded transition-colors text-left"
-              onClick={() => onTokenChange(tok.def.id, current - 1)}
-            >
-              <img src={resolveTokenIcon(tok.def.icon_off) || tok.iconUrl} alt="" className="w-5 h-5 shrink-0" />
-              <span>Reduce {tok.def.name}s</span>
-            </button>
-          );
-        }
+        // Multi-toggle: "Add Xs" / "Reduce Xs". Both buttons always render
+        // so the dropdown layout doesn't shift as the user steps through;
+        // the inactive direction is disabled instead.
+        items.push(
+          <button
+            key={`${tok.def.id}-add`}
+            type="button"
+            disabled={atMax}
+            className={ACTION_BUTTON_CLASS}
+            onClick={() => onTokenChange(tok.def.id, current + 1)}
+          >
+            {renderTokenVisual(tok)}
+            <span>{labelFor(tok, 'on', `Add ${tok.def.name}s`)}</span>
+          </button>
+        );
+        items.push(
+          <button
+            key={`${tok.def.id}-reduce`}
+            type="button"
+            disabled={atMin}
+            className={ACTION_BUTTON_CLASS}
+            onClick={() => onTokenChange(tok.def.id, current - 1)}
+          >
+            {renderTokenVisual(tok, { offState: true })}
+            <span>{labelFor(tok, 'off', `Reduce ${tok.def.name}s`)}</span>
+          </button>
+        );
       } else {
-        // Non-toggle counter: "Add X" / "Reduce X"
-        if (!atMax) {
-          items.push(
-            <button
-              key={`${tok.def.id}-add`}
-              type="button"
-              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white
-                         hover:bg-gray-700 rounded transition-colors text-left"
-              onClick={() => onTokenChange(tok.def.id, current + 1)}
-            >
-              <img src={tok.iconUrl} alt="" className="w-5 h-5 shrink-0" />
-              <span>Add {tok.def.name}</span>
-            </button>
-          );
-        }
-        if (!atMin) {
-          items.push(
-            <button
-              key={`${tok.def.id}-reduce`}
-              type="button"
-              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white
-                         hover:bg-gray-700 rounded transition-colors text-left"
-              onClick={() => onTokenChange(tok.def.id, current - 1)}
-            >
-              <img src={tok.iconUrl} alt="" className="w-5 h-5 shrink-0" />
-              <span>Reduce {tok.def.name}</span>
-            </button>
-          );
-        }
+        // Non-toggle counter: "Add X" / "Reduce X". Same always-render +
+        // disable pattern as the multi-toggle case above.
+        items.push(
+          <button
+            key={`${tok.def.id}-add`}
+            type="button"
+            disabled={atMax}
+            className={ACTION_BUTTON_CLASS}
+            onClick={() => onTokenChange(tok.def.id, current + 1)}
+          >
+            {renderTokenVisual(tok)}
+            <span>{labelFor(tok, 'on', `Add ${tok.def.name}`)}</span>
+          </button>
+        );
+        items.push(
+          <button
+            key={`${tok.def.id}-reduce`}
+            type="button"
+            disabled={atMin}
+            className={ACTION_BUTTON_CLASS}
+            onClick={() => onTokenChange(tok.def.id, current - 1)}
+          >
+            {renderTokenVisual(tok)}
+            <span>{labelFor(tok, 'off', `Reduce ${tok.def.name}`)}</span>
+          </button>
+        );
       }
+
+      // UCT management row — "Edit Token" sits beneath the action buttons
+      // for any deck-scoped token, when an edit handler is provided. The
+      // edit modal hosts the Delete action so we don't need a separate
+      // delete button here.
+      if (isUct(tok)) {
+        items.push(
+          <button
+            key={`${tok.def.id}-edit`}
+            type="button"
+            className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-gray-300
+                       hover:bg-gray-700 hover:text-white rounded transition-colors text-left"
+            onClick={() => onEditCustomToken?.(tok.def)}
+          >
+            <Pen2 className="w-4 h-4 shrink-0" />
+            <span>Edit {tok.def.name}</span>
+          </button>
+        );
+      }
+    }
+
+    // ── Add Custom Token ────────────────────────────────────────────────
+    if (onAddCustomToken) {
+      if (items.length > 0) {
+        items.push(
+          <div key="uct-divider" className="my-1 border-t border-gray-700" />
+        );
+      }
+      items.push(
+        <button
+          key="uct-add"
+          type="button"
+          className="flex items-center gap-3 w-full px-3 py-2 text-sm font-body text-white
+                     hover:bg-gray-700 rounded transition-colors text-left"
+          onClick={() => onAddCustomToken()}
+        >
+          <AddCircle className="w-4 h-4 shrink-0 text-blue-400" />
+          <span>Add Custom Token</span>
+        </button>
+      );
     }
 
     return items;
