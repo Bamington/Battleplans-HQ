@@ -1747,7 +1747,11 @@ const CardBuilderHaloFlashpoint = () => {
         ) : null
       }
       leftPanelOpen={cardListOpen}
-      leftPanel={appMode === 'edit' ? (
+      leftPanel={
+        // Panel renders in BOTH edit and play modes — play mode needs it
+        // for the activation/rules grouping. Edit-only chrome (header
+        // action, add/done footer) is gated internally so play mode just
+        // shows the read-only list.
         <CardListPanel
           deckName={deckName}
           editingDeckName={editingDeckName}
@@ -1755,7 +1759,7 @@ const CardBuilderHaloFlashpoint = () => {
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
           onCancelEdit={() => setEditingDeckName(false)}
-          headerAction={
+          headerAction={appMode === 'edit' ? (
             <button
               type="button"
               onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
@@ -1767,8 +1771,8 @@ const CardBuilderHaloFlashpoint = () => {
                 : <Pen2 className="w-4 h-4" />
               }
             </button>
-          }
-          footer={
+          ) : undefined}
+          footer={appMode === 'edit' ? (
             <>
               <HR className="!my-0" />
               {editMode ? (
@@ -1806,7 +1810,7 @@ const CardBuilderHaloFlashpoint = () => {
                 </>
               )}
             </>
-          }
+          ) : undefined}
         >
             {(() => {
               // Render a single unit row. `dragIndex` is the card's index
@@ -1934,7 +1938,7 @@ const CardBuilderHaloFlashpoint = () => {
               </div>
             ))}
         </CardListPanel>
-      ) : undefined}
+      }
       center={
         appMode === 'play' && playTab === 'rules' ? (
           <main className="flex-1 flex flex-col overflow-hidden bg-gray-950">

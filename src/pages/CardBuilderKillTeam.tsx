@@ -820,7 +820,7 @@ const CardBuilderKillTeam = () => {
   const builder = useCardBuilder({ deckId });
   const {
     cardListOpen, editorOpen, toggleCardList, toggleEditor,
-    isMobile, isShortHeight, mobilePanelOpen, layoutDeps,
+    isShortHeight, mobilePanelOpen, layoutDeps,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
   } = builder;
