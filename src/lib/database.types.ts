@@ -323,11 +323,31 @@ export interface TokenDefinition {
   /** Set on User-Created Tokens (UCTs) — scopes the row to a single deck.
    *  Null = built-in game token, visible to every user. */
   deck_id:             string | null
-  /** Hex colour for badge-rendered tokens (UCTs). When set, the renderer
-   *  paints a colored circle + glyph instead of looking up `icon`. */
+  /** Hex colour for badge-rendered tokens (UCTs) and the fill colour for
+   *  bar-rendered tokens. Null = renderer falls back to icon assets, or
+   *  resolves via `color_set` when set. */
   display_color:       string | null
   /** Up to 2 characters drawn on the badge for UCTs. */
   display_glyph:       string | null
+  /** Name of a palette in `src/lib/tokenColorSets.ts` (e.g. 'Green',
+   *  'Amber'). When set, the renderer uses the palette's active/inactive
+   *  states instead of deriving from `display_color`. Used by bars and
+   *  (eventually) badges when an SVG asset isn't available. */
+  color_set:           string | null
+  /** Per-row discriminator for how the token paints on the card.
+   *  'icon' (default) — uses `icon` / `icon_off` asset paths.
+   *  'badge'          — coloured circle + glyph (UCTs).
+   *  'bar'            — vertical bar with the centred remaining count.
+   *  'pips'           — reserved; renderer not yet wired. */
+  display_style:       'icon' | 'badge' | 'bar' | 'pips'
+  /** Optional custom label for the TokenMenu's increment action. When
+   *  set, replaces the entire default ("Add X", "Mark as X", "Add Xs")
+   *  with this string verbatim. Null = use the default template. */
+  label_on:            string | null
+  /** Optional custom label for the TokenMenu's decrement action. When
+   *  set, replaces the entire default ("Reduce X", "Remove X",
+   *  "Reduce Xs") with this string verbatim. Null = use the default. */
+  label_off:           string | null
   created_at:          string
 }
 

@@ -41,6 +41,11 @@ import iconRanged    from '../assets/games/card assets/kill-team/kt-icon-ranged.
 // ── Native size ──────────────────────────────────────────────────────────────
 const CARD_W = 1270;
 const CARD_H = 890;
+// Outer wrapper width when play-mode bars are rendered to the right of the
+// card. Kept in sync with `tokenOverlayConfig.KILL_TEAM.bar.x + bar.width`
+// so the bar fits within the wrapper without extending past it. Exported
+// for the builder so the carousel allocates a matching slot.
+export const CARD_OUTER_W_WITH_BARS = 1370;
 
 // ── Portrait mask (matches kt-mask.svg, attached by user) ───────────────────
 // Parallelogram clipped to the right side of the operative-name band:
@@ -284,10 +289,15 @@ const KillTeamCard = ({
   const movementDisplay = movement > 0 ? `${movement}"` : '—';
   const saveDisplay     = save     > 0 ? `${save}+`    : '—';
 
+  // When a tokenOverlay is supplied (play mode), grow the outer wrapper
+  // to include the bar zone on the right so the carousel can allocate
+  // matching slot width and bars never overlap the next card.
+  const outerWidth = tokenOverlay ? CARD_OUTER_W_WITH_BARS : CARD_W;
+
   return (
     <div
       className={`relative ${className}`}
-      style={{ width: CARD_W, height: CARD_H, ...CONDUIT }}
+      style={{ width: outerWidth, height: CARD_H, ...CONDUIT }}
     >
     <div
       className="relative overflow-hidden"

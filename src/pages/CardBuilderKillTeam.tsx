@@ -38,7 +38,7 @@ import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
 import Markdown from 'react-markdown';
-import KillTeamCard from '../components/KillTeamCard';
+import KillTeamCard, { CARD_OUTER_W_WITH_BARS } from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import Card, { CardBody } from '../components/Card';
 import Magnifer from '../icons/Magnifer';
@@ -71,18 +71,17 @@ import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 // ── Card native dimensions ────────────────────────────────────────────────────
 // Operative cards are landscape (matches KillTeamCard); rule cards are
 // taller and narrower (matches KillTeamRuleCard / Figma 848:4770).
-const OPERATIVE_W = 1270;
-const OPERATIVE_H = 890;
-const RULE_W      = 700;
-const RULE_H      = 1200;
-// Bounding box passed to the carousel: max dims across all card types so
-// the global fit-scale stays constant when navigating between sizes.
-const CAROUSEL_BBOX_W = Math.max(OPERATIVE_W, RULE_W);
-const CAROUSEL_BBOX_H = Math.max(OPERATIVE_H, RULE_H);
-const dimsForCard = (c: { cardType: 'operative' | 'rule' }) =>
-  c.cardType === 'rule'
-    ? { width: RULE_W, height: RULE_H }
-    : { width: OPERATIVE_W, height: OPERATIVE_H };
+//
+// In play mode, operatives reserve extra room on the right of the slot
+// for the wound bar (see CARD_OUTER_W_WITH_BARS in KillTeamCard.tsx).
+// That makes operatives ~8% wider in play mode; the carousel reflows
+// (everything shrinks slightly) so adjacent cards never overlap the bar.
+const OPERATIVE_W            = 1270;
+const OPERATIVE_W_WITH_BARS  = CARD_OUTER_W_WITH_BARS;  // 1370
+const OPERATIVE_H            = 890;
+const RULE_W                 = 700;
+const RULE_H                 = 1200;
+const CAROUSEL_BBOX_H        = Math.max(OPERATIVE_H, RULE_H);
 
 // ── Keyword update propagation ────────────────────────────────────────────────
 // Module-scoped ref so addon forms (which can't receive extra props via
@@ -1003,19 +1002,44 @@ const CardBuilderKillTeam = () => {
     }));
   };
 
+  /** True when this specific card has all its activation tokens at their
+   *  effective max — i.e. the operative has been activated this turn.
+   *  Drives the unit-list "filled in" treatment in play mode. Returns
+   *  false for non-operative cards (rules) and for cards with no
+   *  activation tokens at all. */
+  const isCardActivated = (card: KillTeamCardData): boolean => {
+    if (card.cardType !== 'operative') return false;
+    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
+    if (actDefs.length === 0) return false;
+    return actDefs.every(def => {
+      const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
+      const effMax = resolveTokenMax(def, card);
+      return effMax != null ? current >= effMax : current >= 1;
+    });
+  };
+
   /** Primary-styled when every operative has all activation tokens fully on. */
   const allActivated = (() => {
-    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
     const ops = cards.filter(c => c.cardType === 'operative');
-    if (actDefs.length === 0 || ops.length === 0) return false;
-    return ops.every(card =>
-      actDefs.every(def => {
-        const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
-        const effMax = resolveTokenMax(def, card);
-        return effMax != null ? current >= effMax : current >= 1;
-      })
-    );
+    if (ops.length === 0) return false;
+    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
+    if (actDefs.length === 0) return false;
+    return ops.every(isCardActivated);
   })();
+
+  // ── Carousel slot dimensions ──────────────────────────────────────────
+  // Per-item width depends on appMode for operatives — in play mode each
+  // operative reserves a wound-bar slot on the right. The bounding box
+  // (used for the carousel's global fit-scale) follows the same rule.
+  const operativeSlotW = appMode === 'play' ? OPERATIVE_W_WITH_BARS : OPERATIVE_W;
+  const dimsForCard = useCallback(
+    (c: { cardType: 'operative' | 'rule' }) =>
+      c.cardType === 'rule'
+        ? { width: RULE_W, height: RULE_H }
+        : { width: operativeSlotW, height: OPERATIVE_H },
+    [operativeSlotW],
+  );
+  const carouselBboxW = Math.max(operativeSlotW, RULE_W);
 
   /** Play-mode Rules tab: all rule cards in the deck, plus a deduplicated
    *  list of every keyword that appears on any weapon, ability, or
@@ -1874,6 +1898,9 @@ const CardBuilderKillTeam = () => {
           min_value:      0,
           display_color:  value.color,
           display_glyph:  value.glyph,
+          // Explicit display style so the renderer routes off this
+          // column alone (vs inferring from display_color presence).
+          display_style:  'badge',
         });
       dbErr = error;
     }
@@ -2141,60 +2168,116 @@ const CardBuilderKillTeam = () => {
           }
         >
           <nav className="flex flex-col gap-1">
-            {cards.map((card, i) => (
-              <div
-                key={card.id}
-                className={`flex items-center gap-1 ${
-                  editMode && dragOverIndex === i ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
-                }`}
-                onDragOver={editMode ? (e) => handleDragOver(e, i) : undefined}
-                onDrop={editMode ? handleDrop : undefined}
-              >
-                {editMode && (
-                  <div
-                    draggable
-                    onDragStart={() => handleDragStart(i)}
-                    onDragEnd={handleDragEnd}
-                    className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
-                  >
-                    <HamburgerMenu className="w-4 h-4" />
+            {(() => {
+              // Render a single card row. `dragIndex` is the card's index
+              // in the full `cards` array (used by edit-mode drag handlers);
+              // pass -1 in play mode where drag handlers don't fire anyway.
+              const renderRow = (card: KillTeamCardData, dragIndex: number) => (
+                <div
+                  key={card.id}
+                  className={`flex items-center gap-1 ${
+                    editMode && dragOverIndex === dragIndex ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
+                  }`}
+                  onDragOver={editMode ? (e) => handleDragOver(e, dragIndex) : undefined}
+                  onDrop={editMode ? handleDrop : undefined}
+                >
+                  {editMode && (
+                    <div
+                      draggable
+                      onDragStart={() => handleDragStart(dragIndex)}
+                      onDragEnd={handleDragEnd}
+                      className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
+                    >
+                      <HamburgerMenu className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
+                    <UnitListEntry
+                      status={card.dbId ? 'complete' : 'blank'}
+                      unitName={
+                        card.cardType === 'rule'
+                          ? (card.ruleTitle || undefined)
+                          : (card.operativeName || undefined)
+                      }
+                      unitType={
+                        card.cardType === 'rule'
+                          ? 'Faction Rule'
+                          : (card.role || undefined)
+                      }
+                      avatarSrc={card.avatarUrl ?? iconKillTeam}
+                      active={card.id === activeCardId}
+                      activated={appMode === 'play' && isCardActivated(card)}
+                      onClick={() => setCardState(s => ({ ...s, activeCardId: card.id }))}
+                    />
                   </div>
-                )}
-                <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
-                  <UnitListEntry
-                    status={card.dbId ? 'complete' : 'blank'}
-                    unitName={
-                      card.cardType === 'rule'
-                        ? (card.ruleTitle || undefined)
-                        : (card.operativeName || undefined)
-                    }
-                    unitType={
-                      card.cardType === 'rule'
-                        ? 'Faction Rule'
-                        : (card.role || undefined)
-                    }
-                    avatarSrc={card.avatarUrl ?? iconKillTeam}
-                    active={card.id === activeCardId}
-                    onClick={() => setCardState(s => ({ ...s, activeCardId: card.id }))}
-                  />
+                  {editMode && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${cardDisplayName(card)}`}
+                      onClick={e => {
+                        e.stopPropagation();
+                        requestDeleteCard(card);
+                      }}
+                      disabled={cards.length <= 1}
+                      className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      title={cards.length <= 1 ? 'At least one card is required' : 'Delete card'}
+                    >
+                      <TrashBinMinimalistic className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-                {editMode && (
-                  <button
-                    type="button"
-                    aria-label={`Delete ${cardDisplayName(card)}`}
-                    onClick={e => {
-                      e.stopPropagation();
-                      requestDeleteCard(card);
-                    }}
-                    disabled={cards.length <= 1}
-                    className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    title={cards.length <= 1 ? 'At least one card is required' : 'Delete card'}
-                  >
-                    <TrashBinMinimalistic className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+
+              // Edit mode (and any non-play state): flat deck order so drag
+              // reordering tracks the user's intended position.
+              if (appMode !== 'play') {
+                return cards.map((card, i) => renderRow(card, i));
+              }
+
+              // Play mode: three groups — non-activated operatives, then an
+              // Activated sub-section (only when populated), then rule
+              // cards pinned to the very bottom of the list.
+              const nonActivatedOps: KillTeamCardData[] = [];
+              const activatedOps:    KillTeamCardData[] = [];
+              const ruleCards:       KillTeamCardData[] = [];
+              for (const c of cards) {
+                if (c.cardType === 'rule') ruleCards.push(c);
+                else if (isCardActivated(c)) activatedOps.push(c);
+                else nonActivatedOps.push(c);
+              }
+
+              return (
+                <>
+                  {nonActivatedOps.map(card => renderRow(card, -1))}
+
+                  {activatedOps.length > 0 && (
+                    <>
+                      <h3
+                        key="activated-header"
+                        className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
+                      >
+                        <span>Activated</span>
+                        <span className="flex-1 h-px bg-gray-700" />
+                      </h3>
+                      {activatedOps.map(card => renderRow(card, -1))}
+                    </>
+                  )}
+
+                  {ruleCards.length > 0 && (
+                    <>
+                      <h3
+                        key="rules-header"
+                        className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
+                      >
+                        <span>Rules</span>
+                        <span className="flex-1 h-px bg-gray-700" />
+                      </h3>
+                      {ruleCards.map(card => renderRow(card, -1))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </nav>
         </CardListPanel>
       }
@@ -2247,7 +2330,7 @@ const CardBuilderKillTeam = () => {
             items={cards}
             activeId={activeCardId}
             onActiveChange={(id) => setCardState(s => ({ ...s, activeCardId: id }))}
-            cardWidth={CAROUSEL_BBOX_W}
+            cardWidth={carouselBboxW}
             cardHeight={CAROUSEL_BBOX_H}
             getItemDimensions={dimsForCard}
             initialZoom={0.85}

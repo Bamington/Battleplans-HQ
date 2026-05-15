@@ -26,7 +26,9 @@
 import { useMemo } from 'react';
 import type { TokenDefinition } from '../lib/database.types';
 import { resolveTokenIcon } from '../lib/tokenIcons';
+import { resolveTokenPalette, paletteFromColorSet } from '../lib/tokenColorSets';
 import TokenBadge from './TokenBadge';
+import TokenBar from './TokenBar';
 import {
   TOKEN_OVERLAY_CONFIG,
   DEFAULT_OVERLAY_CONFIG,
@@ -70,12 +72,15 @@ const resolveStatValue = (card: CardInfo, statKey: string): number | null =>
   card.stats[statKey] ?? null;
 
 /** Categorise a resolved token into its display zone. */
-type Zone = 'other' | 'shield' | 'damage' | 'badge';
+type Zone = 'other' | 'shield' | 'damage' | 'badge' | 'bar';
 
 const getZone = (tok: ResolvedToken): Zone => {
-  // UCTs (user-created tokens) render as colored badges with a count chip,
-  // in a dedicated zone separate from the game's built-in tokens.
-  if (tok.def.display_color) return 'badge';
+  // Explicit display style wins — these are the cases where the token row
+  // tells us exactly how to render. Anything left falls through to the
+  // legacy icon-based routing below.
+  if (tok.def.display_style === 'bar')   return 'bar';
+  if (tok.def.display_style === 'badge') return 'badge';
+
   // Non-toggle counters with a stat link → damage zone
   if (!tok.def.is_toggle && tok.def.stat_key) return 'damage';
   // Toggle with max > 1 → shield zone
@@ -160,7 +165,9 @@ const TokenOverlay = ({
       });
   }, [tokenDefinitions, card, tokenState]);
 
-  const zones: Record<Zone, ResolvedToken[]> = { other: [], shield: [], damage: [], badge: [] };
+  const zones: Record<Zone, ResolvedToken[]> = {
+    other: [], shield: [], damage: [], badge: [], bar: [],
+  };
   for (const tok of resolved) zones[getZone(tok)].push(tok);
 
   return (
@@ -322,6 +329,46 @@ const TokenOverlay = ({
                   count={tok.current}
                 />
               </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Bar Zone (stat-linked counters) ─────────────────────────
+          Vertical bars stacked left-to-right, positioned to the right
+          of the card via the per-game zone config. Each bar gets a
+          fill colour from `display_color` and a max from the token's
+          effectiveMax (resolved from stat_key/stat_role). */}
+      {zones.bar.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: zoneConfig.bar.x,
+            top:  zoneConfig.bar.y,
+            display: 'flex',
+            flexDirection: 'row',
+            gap: zoneConfig.bar.gap,
+          }}
+        >
+          {zones.bar.map(tok => {
+            // Resolve the palette: color_set wins, falls back to deriving
+            // from display_color, then to a sensible green default so the
+            // bar always renders something legible.
+            const palette = resolveTokenPalette(tok.def)
+                         ?? paletteFromColorSet('Green')!;
+            const max     = tok.effectiveMax ?? 0;
+            return (
+              <TokenBar
+                key={tok.def.id}
+                max={max}
+                current={tok.current}
+                palette={palette}
+                width={zoneConfig.bar.width}
+                height={zoneConfig.bar.height}
+                onChange={onTokenChange
+                  ? (newCurrent) => onTokenChange(tok.def.id, newCurrent)
+                  : undefined}
+              />
             );
           })}
         </div>

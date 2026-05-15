@@ -707,6 +707,19 @@ const CardBuilderHaloFlashpoint = () => {
     }));
   };
 
+  /** True when this specific card has all its activation tokens at their
+   *  effective max — i.e. the unit has been activated this turn. Drives
+   *  the unit-list "filled in" treatment in play mode. */
+  const isCardActivated = (card: HaloCardData): boolean => {
+    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
+    if (actDefs.length === 0) return false;
+    return actDefs.every(def => {
+      const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
+      const effMax = resolveTokenMax(def, card);
+      return effMax != null ? current >= effMax : current >= 1;
+    });
+  };
+
   /**
    * Primary-styled when every card has all of its activation tokens fully on
    * (current value equals effective max, or ≥ 1 when no max is set).
@@ -714,13 +727,7 @@ const CardBuilderHaloFlashpoint = () => {
   const allActivated = (() => {
     const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
     if (actDefs.length === 0 || cards.length === 0) return false;
-    return cards.every(card =>
-      actDefs.every(def => {
-        const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
-        const effMax = resolveTokenMax(def, card);
-        return effMax != null ? current >= effMax : current >= 1;
-      })
-    );
+    return cards.every(isCardActivated);
   })();
 
   const [ruleModalOpen, setRuleModalOpen]             = useState(false);
@@ -1801,54 +1808,108 @@ const CardBuilderHaloFlashpoint = () => {
             </>
           }
         >
-            {cards.map((card, i) => (
-              <div
-                key={card.id}
-                className={`flex items-center gap-1 ${
-                  editMode && dragOverIndex === i ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
-                }`}
-                onDragOver={editMode ? (e) => handleDragOver(e, i) : undefined}
-                onDrop={editMode ? handleDrop : undefined}
-              >
-                {editMode && (
-                  <div
-                    draggable
-                    onDragStart={() => handleDragStart(i)}
-                    onDragEnd={handleDragEnd}
-                    className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
-                  >
-                    <HamburgerMenu className="w-4 h-4" />
+            {(() => {
+              // Render a single unit row. `dragIndex` is the card's index
+              // in the full `cards` array (used by edit-mode drag handlers);
+              // pass -1 in play mode where drag handlers don't fire.
+              const renderRow = (card: HaloCardData, dragIndex: number) => (
+                <div
+                  key={card.id}
+                  className={`flex items-center gap-1 ${
+                    editMode && dragOverIndex === dragIndex ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
+                  }`}
+                  onDragOver={editMode ? (e) => handleDragOver(e, dragIndex) : undefined}
+                  onDrop={editMode ? handleDrop : undefined}
+                >
+                  {editMode && (
+                    <div
+                      draggable
+                      onDragStart={() => handleDragStart(dragIndex)}
+                      onDragEnd={handleDragEnd}
+                      className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
+                    >
+                      <HamburgerMenu className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
+                    <UnitListEntry
+                      status={card.dbId ? 'complete' : 'blank'}
+                      unitName={card.unitName || undefined}
+                      avatarSrc={card.avatarUrl ?? iconHaloFlashpoint}
+                      active={card.id === activeCardId && !activeRuleId}
+                      activated={appMode === 'play' && isCardActivated(card)}
+                      editMode={editMode}
+                      onDuplicate={() => duplicateCard(card.id)}
+                      onDelete={() => setConfirmDeleteCardId(card.id)}
+                      onClick={() => selectCard(card.id)}
+                    />
                   </div>
-                )}
-                <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
-                  <UnitListEntry
-                    status={card.dbId ? 'complete' : 'blank'}
-                    unitName={card.unitName || undefined}
-                    avatarSrc={card.avatarUrl ?? iconHaloFlashpoint}
-                    active={card.id === activeCardId && !activeRuleId}
-                    editMode={editMode}
-                    onDuplicate={() => duplicateCard(card.id)}
-                    onDelete={() => setConfirmDeleteCardId(card.id)}
-                    onClick={() => selectCard(card.id)}
-                  />
+                  {editMode && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${card.unitName || 'unit'}`}
+                      onClick={e => {
+                        e.stopPropagation();
+                        requestDeleteCard(card);
+                      }}
+                      disabled={cards.length <= 1}
+                      className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
+                    >
+                      <TrashBinMinimalistic className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-                {editMode && (
-                  <button
-                    type="button"
-                    aria-label={`Delete ${card.unitName || 'unit'}`}
-                    onClick={e => {
-                      e.stopPropagation();
-                      requestDeleteCard(card);
-                    }}
-                    disabled={cards.length <= 1}
-                    className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
-                  >
-                    <TrashBinMinimalistic className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+
+              // Edit mode (and any non-play state): deck order so drag
+              // reordering tracks the user's intended position.
+              if (appMode !== 'play') {
+                return cards.map((card, i) => renderRow(card, i));
+              }
+
+              // Play mode: non-activated units first, then an Activated
+              // sub-section (only when populated) pinned beneath them.
+              // Rules continue to render in the separate block below.
+              const nonActivated: HaloCardData[] = [];
+              const activated:    HaloCardData[] = [];
+              for (const c of cards) {
+                if (isCardActivated(c)) activated.push(c);
+                else                    nonActivated.push(c);
+              }
+
+              return (
+                <>
+                  {nonActivated.map(card => renderRow(card, -1))}
+
+                  {activated.length > 0 && (
+                    <>
+                      <h3
+                        key="activated-header"
+                        className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
+                      >
+                        <span>Activated</span>
+                        <span className="flex-1 h-px bg-gray-700" />
+                      </h3>
+                      {activated.map(card => renderRow(card, -1))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Rules sub-header — only in play mode, only when there are
+                rules to list. Matches the "Activated" header styling so
+                the play-mode list reads as clearly-grouped sections. */}
+            {appMode === 'play' && deckRules.length > 0 && (
+              <h3
+                key="rules-header"
+                className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
+              >
+                <span>Rules</span>
+                <span className="flex-1 h-px bg-gray-700" />
+              </h3>
+            )}
 
             {/* Rules — listed after units, sorted alphabetically */}
             {[...deckRules].sort((a, b) => a.title.localeCompare(b.title)).map(rule => (

@@ -36,6 +36,14 @@ export interface UnitListEntryProps {
    * Applies a green border and highlights the name in success green.
    */
   active?: boolean;
+  /**
+   * Whether this unit has been activated this turn (its activation token
+   * is at its effective max). Renders a green-tinted background + border
+   * so the row reads as "filled in / done". Stacks with `active` — both
+   * can be true simultaneously and stay visually distinguishable.
+   * Used in play mode only; edit mode callers should leave it false.
+   */
+  activated?: boolean;
   /** Primary label — the unit's display name */
   unitName?: string;
   /** Secondary label — unit faction or type (e.g. "Spartan ZVEZDA") */
@@ -82,6 +90,7 @@ const StatusIcon = ({ status, active }: { status: UnitStatus; active: boolean })
 const UnitListEntry = ({
   status    = 'blank',
   active    = false,
+  activated = false,
   unitName,
   unitType,
   avatarSrc,
@@ -107,8 +116,22 @@ const UnitListEntry = ({
   const subtitle = active && status === 'blank' ? 'currently editing' : (unitType ?? null);
   const subtitleColor = active && status === 'blank' ? 'text-green-700' : 'text-gray-500';
 
-  // Container border
-  const borderClass = active ? 'border-green-500' : 'border-gray-700 hover:border-gray-600';
+  // Background — `active` (selected) wins over `activated` so the
+  // currently-viewed card stays clearly highlighted; activated unselected
+  // rows pick up a green tint so a quick glance shows what's been used.
+  const bgClass = active
+    ? 'bg-gray-800'
+    : activated
+    ? 'bg-green-900/40'
+    : 'bg-gray-900';
+
+  // Border — `active` wins (bright green ring); activated unselected gets
+  // a dimmer green border. Default is the existing gray with hover lift.
+  const borderClass = active
+    ? 'border-green-500'
+    : activated
+    ? 'border-green-800'
+    : 'border-gray-700 hover:border-gray-600';
 
   const Tag = editMode ? 'div' : 'button';
 
@@ -118,7 +141,7 @@ const UnitListEntry = ({
       onClick={onClick}
       className={[
         'w-full flex items-center gap-[9px] pr-1 rounded overflow-hidden border transition-colors text-left cursor-pointer',
-        active ? 'bg-gray-800' : 'bg-gray-900',
+        bgClass,
         borderClass,
         className,
       ].join(' ')}
