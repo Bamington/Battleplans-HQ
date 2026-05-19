@@ -133,8 +133,9 @@ const M_NAME_WIDTH  = 600;    // wide enough for long operative names
 const M_ROLE_TOP    = 71;     // 84.5 centre - 13.5 half-height
 const M_ROLE_HEIGHT = 27;
 
-// Stats row (y=104 → 222, baked into bg-mobile.svg with labels)
-const M_STATS_ROW_TOP    = 104;
+// Stats row (y=104 → 222, baked into bg-mobile.svg with labels). Block
+// label text and the dark band are part of the SVG; we only render the
+// dynamic values on top using M_STAT_VALUE_TOP below.
 const M_STAT_BLOCKS = [
   { left: 0,   width: 96  },  // APL
   { left: 142, width: 96  },  // Move
