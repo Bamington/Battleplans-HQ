@@ -60,6 +60,7 @@ import FileText from '../icons/FileText';
 import Star from '../icons/Star';
 import Settings from '../icons/Settings';
 import { supabase } from '../lib/supabase';
+import { duplicateDeck } from '../lib/duplicateDeck';
 import type { DeckWithGame, PackWithGame } from '../lib/database.types';
 
 /** Deck with nested game + aggregated card count from Supabase. */
@@ -166,6 +167,12 @@ export default function AppHome() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting,        setDeleting]        = useState(false);
 
+  // ── Duplicate state ────────────────────────────────────────────────────────
+  // ID of the deck currently being duplicated (guards against concurrent
+  // clicks) + inline error from the most recent failed duplication.
+  const [duplicatingId,  setDuplicatingId]  = useState<string | null>(null);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
   // ── Import modal state ──────────────────────────────────────────────────────
   const [showImport,   setShowImport]   = useState(false);
 
@@ -205,13 +212,7 @@ export default function AppHome() {
       setGameIdMap(idMap);
 
       // Fetch the user's decks, joined with their game row + card count
-      const { data: decksData, error: decksError } = await supabase
-        .from('decks')
-        .select('*, game:games(id, name, slug, stat_schema, created_at), cards(count)')
-        .order('created_at', { ascending: false });
-      if (decksError) throw decksError;
-
-      setDecks((decksData ?? []) as DeckWithCards[]);
+      await reloadDecks();
 
       // Packs fetch runs independently so deck rendering isn't blocked
       // by pack errors (and vice versa).
@@ -221,6 +222,18 @@ export default function AppHome() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Fetch the user's decks (joined with game + card count) into state.
+  // Throws on error so loadData's catch can surface the failure; callers
+  // refreshing in the background can ignore the rejection.
+  async function reloadDecks() {
+    const { data, error } = await supabase
+      .from('decks')
+      .select('*, game:games(id, name, slug, stat_schema, created_at), cards(count)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    setDecks((data ?? []) as DeckWithCards[]);
   }
 
   // ── Load packs ─────────────────────────────────────────────────────────────
@@ -350,6 +363,28 @@ export default function AppHome() {
     await supabase.from('decks').delete().eq('id', confirmDeleteId);
     setDeleting(false);
     setConfirmDeleteId(null);
+  };
+
+  // ── Duplicate deck ────────────────────────────────────────────────────────
+  //
+  // Deep-clones the deck (cards + their addons/keywords/images, deck rules and
+  // deck-scoped tokens) via duplicateDeck, then refreshes the list so the copy
+  // appears. duplicatingId guards against concurrent clicks; failures surface
+  // inline above the list.
+
+  const handleDuplicate = async (deckId: string) => {
+    if (duplicatingId) return; // ignore concurrent clicks
+    setDuplicatingId(deckId);
+    setDuplicateError(null);
+    try {
+      await duplicateDeck(deckId);
+      await reloadDecks();
+    } catch {
+      const source = decks.find(d => d.id === deckId);
+      setDuplicateError(`Couldn't duplicate "${source?.name ?? 'deck'}". Please try again.`);
+    } finally {
+      setDuplicatingId(null);
+    }
   };
 
   // ── Open modal (reset form state each time) ────────────────────────────────
@@ -615,6 +650,12 @@ export default function AppHome() {
                     <p className="font-body text-base text-gray-300 text-center">
                       Manage your decks and cards.
                     </p>
+
+                    {/* Surface the most recent duplicate failure inline. */}
+                    {duplicateError && (
+                      <p className="font-body text-sm text-red-400 text-center">{duplicateError}</p>
+                    )}
+
                     <div className="flex flex-col gap-3 w-full">
                       {decks.map(deck => {
                         const assets = gameAssets(deck.game.slug);
@@ -630,6 +671,7 @@ export default function AppHome() {
                                 : undefined
                             }
                             onClick={() => navigate(`/app/builder/${deck.game.slug}?deckId=${deck.id}`)}
+                            onDuplicate={() => handleDuplicate(deck.id)}
                             onDelete={() => confirmDelete(deck.id)}
                           />
                         );
@@ -690,6 +732,31 @@ export default function AppHome() {
         </div>
 
       </div>
+
+      {/* ── Duplicating progress modal ───────────────────────────────────── */}
+      {/* Non-dismissible: stays up for the whole clone (which can be slow for
+          large decks with images) and closes itself when duplicatingId clears. */}
+      <Modal
+        open={duplicatingId !== null}
+        onClose={() => {}}
+        className="max-w-xs"
+      >
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <svg
+            className="animate-spin size-8 text-blue-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="Loading"
+          >
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+            <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <h2 className="font-heading text-xl text-white">Duplicating Deck</h2>
+          <p className="font-body text-sm text-gray-300">
+            Copying your cards — this may take a moment for large decks.
+          </p>
+        </div>
+      </Modal>
 
       {/* ── Delete confirmation modal ────────────────────────────────────── */}
       <Modal

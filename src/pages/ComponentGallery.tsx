@@ -2934,6 +2934,18 @@ const ComponentGallery = () => {
             />
           </div>
 
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With duplicate + delete actions (⋯ menu)</p>
+            <DeckListItem
+              name="Imperial Nobility 11's Team"
+              cardCount={3}
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+              onDuplicate={() => {}}
+              onDelete={() => {}}
+            />
+          </div>
+
         </div>
       </GallerySection>
 
