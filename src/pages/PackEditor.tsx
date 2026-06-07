@@ -27,6 +27,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
+import AddToPackModal from '../components/AddToPackModal';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
@@ -42,9 +43,22 @@ import type {
 
 type RuleType = { value: string; label: string; plural: string };
 
-// ── "Add * is not built yet" stub ────────────────────────────────────────────
-// Centralised so it's easy to swap out when the real flows arrive.
-function stubAdd(what: string) {
+/** Everything AddToPackModal needs to render itself. PackEditor keeps one
+ *  of these in state to drive which Add picker is currently open. */
+type AddModalCtx = {
+  entityType:     'card' | 'addon' | 'keyword';
+  cardType?:      'operative' | 'rule';
+  addonTypeId?:   string;
+  title:          string;
+  description?:   string;
+  newButtonLabel: string;
+};
+
+// ── Stub for actions still awaiting their own flow ───────────────────────────
+// Covers the "New X" button inside AddToPackModal (user said don't worry
+// about that yet) and the Edit / Delete actions on existing pack rows
+// (need confirmation modals + edit forms to be designed).
+function stubNotImplemented(what: string) {
   alert(`${what} — coming soon`);
 }
 
@@ -69,6 +83,10 @@ export default function PackEditor() {
   const [nameDraft,   setNameDraft]   = useState('');
   const [savingName,  setSavingName]  = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // The AddToPackModal is reused for every "Add X" button. Null when closed;
+  // a context object describing what to show otherwise.
+  const [addModal, setAddModal] = useState<AddModalCtx | null>(null);
 
   // ── Load everything in parallel ──────────────────────────────────────────
 
@@ -285,7 +303,13 @@ export default function PackEditor() {
               title="Unit Cards"
               subtitle="Cards that represent units on the battlefield."
               addLabel="Add Unit"
-              onAdd={() => stubAdd('Add Unit')}
+              onAdd={() => setAddModal({
+                entityType:    'card',
+                cardType:      'operative',
+                title:         'Add Unit to Pack',
+                description:   'Adding this card will also add all the addons and keywords associated with it to the pack.',
+                newButtonLabel:'New Unit',
+              })}
             >
               {operativeCards.length === 0 ? (
                 <EmptyPanelState message="No units yet. Click Add Unit to create one." />
@@ -301,7 +325,13 @@ export default function PackEditor() {
                 title="Rule Cards"
                 subtitle="Faction rules, ploys, equipment and other rule cards."
                 addLabel="Add Rule Card"
-                onAdd={() => stubAdd('Add Rule Card')}
+                onAdd={() => setAddModal({
+                  entityType:    'card',
+                  cardType:      'rule',
+                  title:         'Add Rule Card to Pack',
+                  description:   'Adding this card will also add all the addons and keywords associated with it to the pack.',
+                  newButtonLabel:'New Rule Card',
+                })}
               >
                 {ruleCards.length === 0 ? (
                   <EmptyPanelState message="No rule cards yet. Click Add Rule Card to create one." />
@@ -316,41 +346,50 @@ export default function PackEditor() {
                 Abilities, Keywords) and the third wraps onto a new row. */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-              {addonTypes.map(at => (
-                <PackPanel
-                  key={at.id}
-                  icon={<Star className="size-12 text-blue-400" />}
-                  title={at.name}
-                  subtitle={`All ${at.name.toLowerCase()} in this pack.`}
-                  addLabel={`Add ${singularise(at.name)}`}
-                  onAdd={() => stubAdd(`Add ${singularise(at.name)}`)}
-                >
-                  {(() => {
-                    const list = addonsByType.get(at.id) ?? [];
-                    if (list.length === 0) {
-                      return (
-                        <EmptyPanelState
-                          message={`No ${at.name.toLowerCase()} yet. Click Add ${singularise(at.name)} to create one.`}
-                        />
-                      );
-                    }
-                    return (
-                      <div className="flex flex-col gap-2 w-full">
-                        {list.map(a => (
-                          <AddonListItem
-                            key={a.id}
-                            name={a.name}
-                            subtitle={addonSubtitle(a, at)}
-                            addonTypeName={singularise(at.name)}
-                            onEdit={() => stubAdd(`Edit ${singularise(at.name)}`)}
-                            onDelete={() => stubAdd(`Delete ${singularise(at.name)}`)}
+              {addonTypes.map(at => {
+                const singular = singularise(at.name);
+                return (
+                  <PackPanel
+                    key={at.id}
+                    icon={<Star className="size-12 text-blue-400" />}
+                    title={at.name}
+                    subtitle={`All ${at.name.toLowerCase()} in this pack.`}
+                    addLabel={`Add ${singular}`}
+                    onAdd={() => setAddModal({
+                      entityType:    'addon',
+                      addonTypeId:   at.id,
+                      title:         `Add ${singular} to Pack`,
+                      description:   `Adding this ${singular.toLowerCase()} will also add all keywords associated with it to the pack.`,
+                      newButtonLabel:`New ${singular}`,
+                    })}
+                  >
+                    {(() => {
+                      const list = addonsByType.get(at.id) ?? [];
+                      if (list.length === 0) {
+                        return (
+                          <EmptyPanelState
+                            message={`No ${at.name.toLowerCase()} yet. Click Add ${singular} to create one.`}
                           />
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </PackPanel>
-              ))}
+                        );
+                      }
+                      return (
+                        <div className="flex flex-col gap-2 w-full">
+                          {list.map(a => (
+                            <AddonListItem
+                              key={a.id}
+                              name={a.name}
+                              subtitle={addonSubtitle(a, at)}
+                              addonTypeName={singular}
+                              onEdit={() => stubNotImplemented(`Edit ${singular}`)}
+                              onDelete={() => stubNotImplemented(`Delete ${singular}`)}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </PackPanel>
+                );
+              })}
 
               {/* Keywords panel — always present, sits in the same grid. */}
               <PackPanel
@@ -358,7 +397,11 @@ export default function PackEditor() {
                 title="Keywords"
                 subtitle="Keywords from units and addons."
                 addLabel="Add Keyword"
-                onAdd={() => stubAdd('Add Keyword')}
+                onAdd={() => setAddModal({
+                  entityType:    'keyword',
+                  title:         'Add Keyword to Pack',
+                  newButtonLabel:'New Keyword',
+                })}
               >
                 {keywords.length === 0 ? (
                   <EmptyPanelState message="No keywords yet. Click Add Keyword to create one." />
@@ -370,8 +413,8 @@ export default function PackEditor() {
                         name={k.name}
                         subtitle={k.description ?? ''}
                         addonTypeName="Keyword"
-                        onEdit={() => stubAdd('Edit Keyword')}
-                        onDelete={() => stubAdd('Delete Keyword')}
+                        onEdit={() => stubNotImplemented('Edit Keyword')}
+                        onDelete={() => stubNotImplemented('Delete Keyword')}
                       />
                     ))}
                   </div>
@@ -385,6 +428,27 @@ export default function PackEditor() {
         )}
 
       </div>
+
+      {/* AddToPackModal — one instance, driven by addModal state. */}
+      {pack && addModal && (
+        <AddToPackModal
+          open={true}
+          onClose={() => setAddModal(null)}
+          entityType={addModal.entityType}
+          cardType={addModal.cardType}
+          addonTypeId={addModal.addonTypeId}
+          gameId={pack.game_id}
+          targetPackId={pack.id}
+          title={addModal.title}
+          description={addModal.description}
+          newButtonLabel={addModal.newButtonLabel}
+          onCreateNew={() => stubNotImplemented(addModal.newButtonLabel)}
+          onAdded={() => {
+            setAddModal(null);
+            loadAll();
+          }}
+        />
+      )}
     </div>
   );
 }
