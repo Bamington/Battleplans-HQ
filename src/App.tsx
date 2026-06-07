@@ -12,7 +12,7 @@
  * - /app                           → App home
  * - /app/packs                     → Manage packs (placeholder until built)
  * - /app/packs/new                 → Create pack (placeholder; in-app flow uses a modal)
- * - /app/packs/:packId/edit        → Pack editor (placeholder until built)
+ * - /app/packs/:packId/edit        → Pack editor
  * - /app/builder/blood-bowl        → Blood Bowl card builder
  * - /app/builder/halo-flashpoint   → Halo Flashpoint card builder
  * - /app/builder/kill-team         → Kill Team card builder
@@ -36,6 +36,7 @@ import Login from './pages/Login';
 import AppHome from './pages/AppHome';
 import AuthCallback from './pages/AuthCallback';
 import PacksPlaceholder from './pages/PacksPlaceholder';
+import PackEditor from './pages/PackEditor';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -77,10 +78,10 @@ function App() {
         {/* ── App home ── */}
         <Route path="/app" element={<AppHome />} />
 
-        {/* ── Packs (placeholders until create / manage flows are built) ── */}
+        {/* ── Packs — manage + create remain placeholders; edit is the real editor ── */}
         <Route path="/app/packs"               element={<PacksPlaceholder mode="manage" />} />
         <Route path="/app/packs/new"           element={<PacksPlaceholder mode="create" />} />
-        <Route path="/app/packs/:packId/edit"  element={<PacksPlaceholder mode="edit" />} />
+        <Route path="/app/packs/:packId/edit"  element={<PackEditor />} />
 
         {/* ── OAuth callback — handles Google redirect ── */}
         <Route path="/auth/callback" element={<AuthCallback />} />

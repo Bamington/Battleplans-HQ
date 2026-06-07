@@ -1,0 +1,495 @@
+/**
+ * PackEditor.tsx — The pack-editing page
+ *
+ * Layout:
+ *   Navbar                                       (plain — no mode switcher)
+ *   Pack name title                              (centered; double-click to edit inline)
+ *   Units panel                                  (full width)
+ *   Rules panel                                  (full width; only when game.rule_types non-empty)
+ *   Addon panel × N                              (one per game's addon_types; 2-col grid)
+ *   Keywords panel                               (in the same grid as the addon panels)
+ *
+ * Add buttons are currently stubbed (console.log + alert) — the Add Unit / Add
+ * Rule flows are awaiting design; the Add Addon / Add Keyword flows need the
+ * existing AddAddonModal / AddKeywordModal to be adapted for pack context
+ * (those modals currently pick from the user's library and attach to a card,
+ * which doesn't translate directly). Both will land in a follow-up tranche.
+ *
+ * Game-specific card preview rendering in the Unit / Rule panels is also
+ * deferred — each card currently renders as a "name plate" tile until there's
+ * a way to test it with real data via the Add Unit flow.
+ *
+ * Route: /app/packs/:packId/edit
+ */
+
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import Button from '../components/Button';
+import AddonListItem from '../components/AddonListItem';
+import AddCircle from '../icons/AddCircle';
+import UserRounded from '../icons/UserRounded';
+import FileText from '../icons/FileText';
+import Star from '../icons/Star';
+import Bookmark from '../icons/Bookmark';
+import AltArrowLeft from '../icons/AltArrowLeft';
+import { supabase } from '../lib/supabase';
+import type {
+  PackWithGame, Card, Addon, Keyword, AddonType, Json,
+} from '../lib/database.types';
+
+// ── Local types ──────────────────────────────────────────────────────────────
+
+type RuleType = { value: string; label: string; plural: string };
+
+// ── "Add * is not built yet" stub ────────────────────────────────────────────
+// Centralised so it's easy to swap out when the real flows arrive.
+function stubAdd(what: string) {
+  alert(`${what} — coming soon`);
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+export default function PackEditor() {
+  const { packId } = useParams<{ packId: string }>();
+  const navigate = useNavigate();
+
+  // ── State ────────────────────────────────────────────────────────────────
+
+  const [pack,        setPack]        = useState<PackWithGame | null>(null);
+  const [addonTypes,  setAddonTypes]  = useState<AddonType[]>([]);
+  const [cards,       setCards]       = useState<Card[]>([]);
+  const [addons,      setAddons]      = useState<Addon[]>([]);
+  const [keywords,    setKeywords]    = useState<Keyword[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [loadError,   setLoadError]   = useState<string | null>(null);
+
+  // Pack-name inline-edit state
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft,   setNameDraft]   = useState('');
+  const [savingName,  setSavingName]  = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Load everything in parallel ──────────────────────────────────────────
+
+  useEffect(() => {
+    if (!packId) return;
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packId]);
+
+  async function loadAll() {
+    setLoading(true);
+    setLoadError(null);
+
+    try {
+      // Pack + nested game. The game's rule_types tells us whether to show
+      // the Rules panel; its slug drives per-game card rendering later.
+      const { data: packData, error: packError } = await supabase
+        .from('packs')
+        .select('*, game:games(*)')
+        .eq('id', packId!)
+        .single();
+      if (packError || !packData) throw packError ?? new Error('Pack not found');
+
+      const fetchedPack = packData as PackWithGame;
+      setPack(fetchedPack);
+
+      // Everything else fetched in parallel for snappy first paint.
+      const [atRes, cardsRes, addonsRes, keywordsRes] = await Promise.all([
+        supabase
+          .from('addon_types')
+          .select('*')
+          .eq('game_id', fetchedPack.game_id)
+          .order('name'),
+        supabase
+          .from('cards')
+          .select('*')
+          .eq('pack_id', packId!)
+          .order('created_at'),
+        supabase
+          .from('addons')
+          .select('*')
+          .eq('pack_id', packId!)
+          .order('created_at'),
+        supabase
+          .from('keywords')
+          .select('*')
+          .eq('pack_id', packId!)
+          .order('name'),
+      ]);
+
+      setAddonTypes((atRes.data ?? []) as AddonType[]);
+      setCards((cardsRes.data ?? []) as Card[]);
+      setAddons((addonsRes.data ?? []) as Addon[]);
+      setKeywords((keywordsRes.data ?? []) as Keyword[]);
+    } catch (e) {
+      setLoadError(
+        (e as { message?: string })?.message
+          ?? 'Failed to load this pack. It may have been deleted or you may not have access.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Pack name inline edit ────────────────────────────────────────────────
+
+  function startEditingName() {
+    if (!pack || savingName) return;
+    setNameDraft(pack.name);
+    setEditingName(true);
+    // Focus + select after the input mounts.
+    setTimeout(() => {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }, 0);
+  }
+
+  function cancelEditingName() {
+    setEditingName(false);
+    setNameDraft('');
+  }
+
+  async function commitName() {
+    const trimmed = nameDraft.trim();
+    if (!pack) return;
+    if (trimmed.length === 0 || trimmed === pack.name) {
+      cancelEditingName();
+      return;
+    }
+    setSavingName(true);
+    const { error } = await supabase
+      .from('packs')
+      .update({ name: trimmed, updated_at: new Date().toISOString() })
+      .eq('id', pack.id);
+    setSavingName(false);
+    if (error) {
+      // Soft-fail: keep editing so the user can retry / cancel.
+      alert("Couldn't save the new name. Please try again.");
+      return;
+    }
+    setPack({ ...pack, name: trimmed });
+    setEditingName(false);
+  }
+
+  // ── Derived data per panel ───────────────────────────────────────────────
+
+  const operativeCards = useMemo(
+    () => cards.filter(c => c.card_type === 'operative'),
+    [cards],
+  );
+  const ruleCards = useMemo(
+    () => cards.filter(c => c.card_type === 'rule'),
+    [cards],
+  );
+  const addonsByType = useMemo(() => {
+    const grouped = new Map<string, Addon[]>();
+    for (const at of addonTypes) grouped.set(at.id, []);
+    for (const a of addons) {
+      const list = grouped.get(a.addon_type_id);
+      if (list) list.push(a);
+    }
+    return grouped;
+  }, [addons, addonTypes]);
+
+  // games.rule_types is a jsonb column added by the rule-types feature
+  // branch — on content-packs alone the column may not exist yet, in which
+  // case the property is just absent on the returned row. Cast through
+  // unknown and treat absent / empty as "no rule cards for this game."
+  const gameHasRules = Boolean(
+    (pack?.game as unknown as { rule_types?: RuleType[] } | undefined)
+      ?.rule_types?.length,
+  );
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-950">
+
+      {/* No mode switcher in the pack editor — pass no children to Navbar. */}
+      <Navbar fixed={false} />
+
+      <div className="flex-1 flex flex-col px-3 py-6 md:px-9 md:py-9 gap-8">
+
+        {loading ? (
+
+          // ── Loading ────────────────────────────────────────────────────
+          <div className="flex-1 flex items-center justify-center">
+            <svg
+              className="animate-spin size-8 text-blue-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-label="Loading"
+            >
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+              <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+
+        ) : loadError || !pack ? (
+
+          // ── Error / not found ──────────────────────────────────────────
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 max-w-md mx-auto text-center">
+            <h1 className="font-heading text-2xl text-white">
+              We couldn't load this pack
+            </h1>
+            <p className="font-body text-base text-gray-300">{loadError}</p>
+            <Button
+              variant="outline"
+              color="secondary"
+              leftIcon={<AltArrowLeft className="size-4" />}
+              onClick={() => navigate('/app')}
+              className="mt-2"
+            >
+              Back to home
+            </Button>
+          </div>
+
+        ) : (
+
+          // ── Loaded ─────────────────────────────────────────────────────
+          <>
+
+            {/* Pack name — centered, double-click to edit inline */}
+            <div className="flex justify-center">
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={nameDraft}
+                  maxLength={99}
+                  disabled={savingName}
+                  onChange={e => setNameDraft(e.target.value)}
+                  onBlur={commitName}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter')  { e.preventDefault(); commitName(); }
+                    if (e.key === 'Escape') { e.preventDefault(); cancelEditingName(); }
+                  }}
+                  className="font-heading text-[24px] leading-8 text-white text-center bg-gray-800 border border-blue-500 rounded px-3 py-1 outline-none min-w-[300px]"
+                />
+              ) : (
+                <h1
+                  onDoubleClick={startEditingName}
+                  title="Double-click to rename"
+                  className="font-heading text-[24px] leading-8 text-white text-center cursor-text select-none"
+                >
+                  {pack.name}
+                </h1>
+              )}
+            </div>
+
+            {/* Units panel — full width */}
+            <PackPanel
+              icon={<UserRounded className="size-12 text-blue-400" />}
+              title="Unit Cards"
+              subtitle="Cards that represent units on the battlefield."
+              addLabel="Add Unit"
+              onAdd={() => stubAdd('Add Unit')}
+            >
+              {operativeCards.length === 0 ? (
+                <EmptyPanelState message="No units yet. Click Add Unit to create one." />
+              ) : (
+                <CardNameplateRow cards={operativeCards} />
+              )}
+            </PackPanel>
+
+            {/* Rules panel — full width, only when the game has rule_types */}
+            {gameHasRules && (
+              <PackPanel
+                icon={<FileText className="size-12 text-blue-400" />}
+                title="Rule Cards"
+                subtitle="Faction rules, ploys, equipment and other rule cards."
+                addLabel="Add Rule Card"
+                onAdd={() => stubAdd('Add Rule Card')}
+              >
+                {ruleCards.length === 0 ? (
+                  <EmptyPanelState message="No rule cards yet. Click Add Rule Card to create one." />
+                ) : (
+                  <CardNameplateRow cards={ruleCards} />
+                )}
+              </PackPanel>
+            )}
+
+            {/* Addon + Keyword panels in a responsive 2-col grid.
+                Kill Team has 2 addon types → 3 panels total (Weapons,
+                Abilities, Keywords) and the third wraps onto a new row. */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+              {addonTypes.map(at => (
+                <PackPanel
+                  key={at.id}
+                  icon={<Star className="size-12 text-blue-400" />}
+                  title={at.name}
+                  subtitle={`All ${at.name.toLowerCase()} in this pack.`}
+                  addLabel={`Add ${singularise(at.name)}`}
+                  onAdd={() => stubAdd(`Add ${singularise(at.name)}`)}
+                >
+                  {(() => {
+                    const list = addonsByType.get(at.id) ?? [];
+                    if (list.length === 0) {
+                      return (
+                        <EmptyPanelState
+                          message={`No ${at.name.toLowerCase()} yet. Click Add ${singularise(at.name)} to create one.`}
+                        />
+                      );
+                    }
+                    return (
+                      <div className="flex flex-col gap-2 w-full">
+                        {list.map(a => (
+                          <AddonListItem
+                            key={a.id}
+                            name={a.name}
+                            subtitle={addonSubtitle(a, at)}
+                            addonTypeName={singularise(at.name)}
+                            onEdit={() => stubAdd(`Edit ${singularise(at.name)}`)}
+                            onDelete={() => stubAdd(`Delete ${singularise(at.name)}`)}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </PackPanel>
+              ))}
+
+              {/* Keywords panel — always present, sits in the same grid. */}
+              <PackPanel
+                icon={<Bookmark className="size-12 text-blue-400" />}
+                title="Keywords"
+                subtitle="Keywords from units and addons."
+                addLabel="Add Keyword"
+                onAdd={() => stubAdd('Add Keyword')}
+              >
+                {keywords.length === 0 ? (
+                  <EmptyPanelState message="No keywords yet. Click Add Keyword to create one." />
+                ) : (
+                  <div className="flex flex-col gap-2 w-full">
+                    {keywords.map(k => (
+                      <AddonListItem
+                        key={k.id}
+                        name={k.name}
+                        subtitle={k.description ?? ''}
+                        addonTypeName="Keyword"
+                        onEdit={() => stubAdd('Edit Keyword')}
+                        onDelete={() => stubAdd('Delete Keyword')}
+                      />
+                    ))}
+                  </div>
+                )}
+              </PackPanel>
+
+            </div>
+
+          </>
+
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Local helpers / sub-components
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Shared chrome for every section in the pack editor. Renders a
+ *  card-style container with a header row (icon + title + subtitle + Add)
+ *  and a content slot below. */
+interface PackPanelProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  addLabel: string;
+  onAdd: () => void;
+  children: React.ReactNode;
+}
+
+function PackPanel({ icon, title, subtitle, addLabel, onAdd, children }: PackPanelProps) {
+  return (
+    <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden">
+      <div className="flex flex-col gap-5 p-5">
+
+        {/* Header — icon (48) on the left, title+subtitle in the middle,
+            Add button on the right. Wraps on narrow viewports. */}
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="shrink-0">{icon}</div>
+          <div className="flex-1 min-w-0 flex flex-col">
+            <h2 className="font-heading text-[20px] leading-7 text-white">
+              {title}
+            </h2>
+            <p className="font-body text-base leading-6 text-gray-300">
+              {subtitle}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            color="primary"
+            leftIcon={<AddCircle className="size-4" />}
+            onClick={onAdd}
+          >
+            {addLabel}
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div>{children}</div>
+
+      </div>
+    </div>
+  );
+}
+
+/** Inline empty-state message used by every panel. */
+function EmptyPanelState({ message }: { message: string }) {
+  return (
+    <p className="font-body text-base text-gray-400 text-center py-8">
+      {message}
+    </p>
+  );
+}
+
+/** Placeholder for the unit / rule card previews shown in the top panels.
+ *  The Figma renders the actual game-specific card here, scaled down. That
+ *  rendering will be added when the Add Unit flow exists and we have
+ *  testable card data; in the meantime this shows a name-plate tile so the
+ *  panel reads correctly without crashing on incomplete card data. */
+function CardNameplateRow({ cards }: { cards: Card[] }) {
+  return (
+    <div className="flex gap-3 overflow-x-auto">
+      {cards.map(c => (
+        <div
+          key={c.id}
+          className="shrink-0 w-[237px] aspect-[237/188] rounded-lg border border-gray-700 bg-gray-800 flex items-center justify-center p-3"
+        >
+          <p className="font-heading text-base text-white text-center truncate">
+            {c.name}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Crude but readable subtitle for an addon row. The real subtitle would
+ *  come from a per-game formatter (Halo formats weapons "Ranged, R5, AP 1");
+ *  for v1 we list the stat values present, in stat-schema order. */
+function addonSubtitle(addon: Addon, addonType: AddonType): string {
+  const parts: string[] = [];
+  for (const f of addonType.stat_schema) {
+    const v = (addon.stats as Record<string, Json>)[f.key];
+    if (v === undefined || v === null || v === '') continue;
+    parts.push(String(v));
+  }
+  if (addon.description) parts.push(addon.description);
+  return parts.join(', ');
+}
+
+/** Map plural addon-type names to a singular label for button copy:
+ *  "Weapons" → "Weapon", "Skills" → "Skill", "Abilities" → "Ability".
+ *  Falls back to the original string when nothing matches. */
+function singularise(name: string): string {
+  if (name.endsWith('ies')) return name.slice(0, -3) + 'y';
+  if (name.endsWith('s'))   return name.slice(0, -1);
+  return name;
+}
