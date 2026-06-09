@@ -37,7 +37,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import DeckListItem from '../components/DeckListItem';
@@ -152,10 +152,18 @@ export default function AppHome() {
   // Packs displayed here are: is_public = true AND owner != current user AND
   // not yet imported by current user. The Manage button below the list is
   // shown only when the user has authored or imported at least one pack.
+  // The home screen shows two sections:
+  //   yourPacks: every pack the user owns or has imported — these
+  //              navigate to the editor on click instead of showing a
+  //              download button.
+  //   packs:     the public browse list (excludes the above).
+  const [yourPacks,         setYourPacks]         = useState<PackForList[]>([]);
   const [packs,             setPacks]             = useState<PackForList[]>([]);
   const [packsLoading,      setPacksLoading]      = useState(true);
   const [packsError,        setPacksError]        = useState<string | null>(null);
-  const [hasOwnOrImported,  setHasOwnOrImported]  = useState(false);
+  // Derived value used by the Manage CTA — true when the user has any
+  // pack content of their own (whether authored or imported).
+  const hasOwnOrImported = yourPacks.length > 0;
   // While a download is in flight: ID of the pack being imported (used to
   // ignore concurrent clicks and show a spinner) + inline error from the
   // most recent failed import. Cleared on next successful import or refresh.
@@ -250,72 +258,100 @@ export default function AppHome() {
   //    (addon_type) — used to build the content badges. N+1 is fine at
   //    early-stage data volume; revisit with a view if packs grow large.
 
+  /** Build the per-pack content-summary badges (Units / per addon-type /
+   *  Rules) by counting joined rows. Shared by both lists. */
+  async function enrichPackWithBadges(pack: PackWithGame): Promise<PackForList> {
+    const [cardsRes, addonsRes] = await Promise.all([
+      supabase.from('cards').select('card_type').eq('pack_id', pack.id),
+      supabase
+        .from('addons')
+        .select('addon_type:addon_types(id, name)')
+        .eq('pack_id', pack.id),
+    ]);
+    const cards  = cardsRes.data ?? [];
+    const addons = addonsRes.data ?? [];
+
+    const operatives = cards.filter(c => c.card_type === 'operative').length;
+    const rules      = cards.filter(c => c.card_type === 'rule').length;
+
+    // Bucket addons by type name (per-game, e.g. "Skills", "Weapons", "Abilities").
+    // Supabase types the nested select as an array (it can't infer many-to-one
+    // from the column metadata alone), but the FK is many-to-one so we know
+    // it's either a single object or wrapped in a one-element array. Handle both.
+    const byType = new Map<string, number>();
+    for (const a of addons) {
+      const raw = (a as unknown as { addon_type: { name: string } | { name: string }[] | null }).addon_type;
+      const name = Array.isArray(raw) ? raw[0]?.name : raw?.name;
+      if (!name) continue;
+      byType.set(name, (byType.get(name) ?? 0) + 1);
+    }
+
+    const badges: PackBadge[] = [];
+    if (operatives > 0) badges.push({ label: `${operatives} Units`, icon: <UserRounded className="size-3.5" /> });
+    for (const [name, count] of byType) {
+      badges.push({ label: `${count} ${name}`, icon: <Star className="size-3.5" /> });
+    }
+    if (rules > 0) badges.push({ label: `${rules} Rules`, icon: <FileText className="size-3.5" /> });
+
+    return { ...pack, badges };
+  }
+
   async function loadPacks(uid: string | null) {
     setPacksLoading(true);
     setPacksError(null);
     try {
-      // Public packs not authored by me.
-      let publicQuery = supabase
-        .from('packs')
-        .select('*, game:games(id, name, slug, stat_schema, print_size, bleed_size, created_at)')
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-      if (uid) publicQuery = publicQuery.neq('owner_user_id', uid);
-      const { data: publicData, error: publicError } = await publicQuery;
-      if (publicError) throw publicError;
+      const packSelect = '*, game:games(id, name, slug, stat_schema, print_size, bleed_size, created_at)';
 
-      // Anything the user has already imported, and any packs they own.
-      // These power the "exclude from browse" filter and the Manage CTA visibility.
-      const [importsRes, ownPacksRes] = await Promise.all([
-        supabase.from('pack_imports').select('pack_id'),
+      // Three parallel fetches:
+      //   a) Public packs not owned by me — candidates for the browse list.
+      //   b) Packs I own — first half of "Your Packs".
+      //   c) My pack_imports — second half of "Your Packs".
+      const [publicRes, ownRes, importsRes] = await Promise.all([
+        (uid
+          ? supabase.from('packs').select(packSelect).eq('is_public', true).neq('owner_user_id', uid)
+          : supabase.from('packs').select(packSelect).eq('is_public', true)
+        ).order('created_at', { ascending: false }),
         uid
-          ? supabase.from('packs').select('id').eq('owner_user_id', uid)
-          : Promise.resolve({ data: [] as { id: string }[], error: null }),
+          ? supabase.from('packs').select(packSelect).eq('owner_user_id', uid).order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] as PackWithGame[], error: null }),
+        supabase.from('pack_imports').select('pack_id'),
       ]);
+      if (publicRes.error) throw publicRes.error;
+      if (ownRes.error)    throw ownRes.error;
+      if (importsRes.error) throw importsRes.error;
+
       const importedIds = new Set((importsRes.data ?? []).map(r => r.pack_id));
-      const ownPackIds  = (ownPacksRes.data ?? []) as { id: string }[];
-      setHasOwnOrImported((ownPackIds.length + importedIds.size) > 0);
 
-      const browseable = (publicData ?? []).filter(p => !importedIds.has(p.id));
+      // Fetch the full pack rows for imported packs (separate query — can't
+      // join through pack_imports cleanly, and the in() filter skips empty).
+      let importedPacks: PackWithGame[] = [];
+      if (importedIds.size > 0) {
+        const { data, error } = await supabase
+          .from('packs')
+          .select(packSelect)
+          .in('id', Array.from(importedIds))
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        importedPacks = (data ?? []) as PackWithGame[];
+      }
 
-      // Per-pack content counts — runs in parallel so we don't block on the slowest pack.
-      const enriched = await Promise.all(browseable.map(async (pack) => {
-        const [cardsRes, addonsRes] = await Promise.all([
-          supabase.from('cards').select('card_type').eq('pack_id', pack.id),
-          supabase
-            .from('addons')
-            .select('addon_type:addon_types(id, name)')
-            .eq('pack_id', pack.id),
-        ]);
-        const cards  = cardsRes.data ?? [];
-        const addons = addonsRes.data ?? [];
+      // "Your Packs" = own + imported, dedup by id.
+      const yourMap = new Map<string, PackWithGame>();
+      for (const p of (ownRes.data ?? []) as PackWithGame[]) yourMap.set(p.id, p);
+      for (const p of importedPacks)                        yourMap.set(p.id, p);
 
-        const operatives = cards.filter(c => c.card_type === 'operative').length;
-        const rules      = cards.filter(c => c.card_type === 'rule').length;
+      // Browse list excludes anything already in Your Packs (own + imported).
+      const browseable = ((publicRes.data ?? []) as PackWithGame[])
+        .filter(p => !yourMap.has(p.id));
 
-        // Bucket addons by type name (per-game, e.g. "Skills", "Weapons", "Abilities").
-        // Supabase types the nested select as an array (it can't infer many-to-one
-        // from the column metadata alone), but the FK is many-to-one so we know
-        // it's either a single object or wrapped in a one-element array. Handle both.
-        const byType = new Map<string, number>();
-        for (const a of addons) {
-          const raw = (a as unknown as { addon_type: { name: string } | { name: string }[] | null }).addon_type;
-          const name = Array.isArray(raw) ? raw[0]?.name : raw?.name;
-          if (!name) continue;
-          byType.set(name, (byType.get(name) ?? 0) + 1);
-        }
+      // Enrich both lists with badges in parallel.
+      const [yourEnriched, browseEnriched] = await Promise.all([
+        Promise.all(Array.from(yourMap.values()).map(enrichPackWithBadges)),
+        Promise.all(browseable.map(enrichPackWithBadges)),
+      ]);
 
-        const badges: PackBadge[] = [];
-        if (operatives > 0) badges.push({ label: `${operatives} Units`, icon: <UserRounded className="size-3.5" /> });
-        for (const [name, count] of byType) {
-          badges.push({ label: `${count} ${name}`, icon: <Star className="size-3.5" /> });
-        }
-        if (rules > 0) badges.push({ label: `${rules} Rules`, icon: <FileText className="size-3.5" /> });
-
-        return { ...(pack as PackWithGame), badges };
-      }));
-
-      setPacks(enriched);
+      setYourPacks(yourEnriched);
+      setPacks(browseEnriched);
     } catch {
       setPacksError('Failed to load packs. Please refresh and try again.');
     } finally {
@@ -337,20 +373,18 @@ export default function AppHome() {
     setImportingId(pack.id);
     setImportError(null);
 
-    // Snapshot prior state so we can revert on failure.
-    const prevHadAny = hasOwnOrImported;
-
-    // Optimistic update.
+    // Optimistic update: remove from browse, add to "Your Packs". The
+    // derived hasOwnOrImported flips automatically once yourPacks > 0.
     setPacks(prev => prev.filter(p => p.id !== pack.id));
-    setHasOwnOrImported(true);
+    setYourPacks(prev => [pack, ...prev]);
 
     const { error } = await supabase.rpc('import_pack', { p_pack_id: pack.id });
     setImportingId(null);
 
     if (error) {
-      // Revert.
+      // Revert both lists.
       setPacks(prev => [pack, ...prev]);
-      setHasOwnOrImported(prevHadAny);
+      setYourPacks(prev => prev.filter(p => p.id !== pack.id));
       setImportError(`Couldn't import "${pack.name}". Please try again.`);
     }
   };
@@ -530,9 +564,11 @@ export default function AppHome() {
                 ) : (
 
                   // ── Populated or Empty ────────────────────────────────
-                  // Subtitle + (list or empty copy) + Create/Manage CTAs.
-                  // Subtitle and CTAs are always present; the middle block
-                  // swaps between list and empty state.
+                  // Two stacked sections: Your Packs (owned + imported,
+                  // click to open editor) and More Packs (public browse,
+                  // download button). Section headers only show when
+                  // both sections have content, so a fresh user just
+                  // sees one list. Empty state covers "nothing anywhere".
                   <>
                     <p className="font-body text-base text-gray-300 text-center">
                       Sets of rules or homebrew cards that you can use in your own decks.
@@ -544,9 +580,9 @@ export default function AppHome() {
                       <p className="font-body text-sm text-red-400 text-center">{importError}</p>
                     )}
 
-                    {packs.length === 0 ? (
+                    {yourPacks.length === 0 && packs.length === 0 ? (
 
-                      // Empty
+                      // Empty — neither own/imported nor anything to browse.
                       <p className="font-body text-base text-gray-400 text-center flex-1">
                         No packs available yet.
                         <br />
@@ -555,27 +591,75 @@ export default function AppHome() {
 
                     ) : (
 
-                      // Populated
-                      <div className="flex flex-col gap-3 w-full flex-1">
-                        {packs.map(pack => {
-                          const assets = gameAssets(pack.game.slug);
-                          return (
-                            <PackListItem
-                              key={pack.id}
-                              name={pack.name}
-                              gameName={pack.game.name}
-                              thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
-                              thumbnail={
-                                assets?.thumbnailSrc
-                                  ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
-                                  : undefined
-                              }
-                              badges={pack.badges}
-                              description={pack.description ?? undefined}
-                              onDownload={() => handleImport(pack)}
-                            />
-                          );
-                        })}
+                      <div className="flex flex-col gap-4 w-full flex-1">
+
+                        {/* Your Packs section — own + imported. Rows
+                            navigate to the editor instead of showing
+                            a download button. */}
+                        {yourPacks.length > 0 && (
+                          <div className="flex flex-col gap-2 w-full">
+                            {packs.length > 0 && (
+                              <p className="font-body font-bold text-xs text-gray-400 uppercase tracking-[1.2px] px-1">
+                                Your Packs
+                              </p>
+                            )}
+                            {yourPacks.map(pack => {
+                              const assets = gameAssets(pack.game.slug);
+                              return (
+                                <Link
+                                  key={pack.id}
+                                  to={`/app/packs/${pack.id}/edit`}
+                                  className="block w-full text-left"
+                                >
+                                  <PackListItem
+                                    name={pack.name}
+                                    gameName={pack.game.name}
+                                    thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
+                                    thumbnail={
+                                      assets?.thumbnailSrc
+                                        ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
+                                        : undefined
+                                    }
+                                    badges={pack.badges}
+                                    description={pack.description ?? undefined}
+                                  />
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* More Packs section — public browse list with
+                            the download CTA. */}
+                        {packs.length > 0 && (
+                          <div className="flex flex-col gap-2 w-full">
+                            {yourPacks.length > 0 && (
+                              <p className="font-body font-bold text-xs text-gray-400 uppercase tracking-[1.2px] px-1">
+                                More Packs
+                              </p>
+                            )}
+                            {packs.map(pack => {
+                              const assets = gameAssets(pack.game.slug);
+                              return (
+                                <PackListItem
+                                  key={pack.id}
+                                  name={pack.name}
+                                  gameName={pack.game.name}
+                                  thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
+                                  thumbnail={
+                                    assets?.thumbnailSrc
+                                      ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
+                                      : undefined
+                                  }
+                                  badges={pack.badges}
+                                  description={pack.description ?? undefined}
+                                  onDownload={() => handleImport(pack)}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+
                       </div>
 
                     )}
