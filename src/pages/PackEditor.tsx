@@ -29,6 +29,10 @@ import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import BloodBowlCard from '../components/BloodBowlCard';
+import KillTeamCard from '../components/KillTeamCard';
+import KillTeamRuleCard from '../components/KillTeamRuleCard';
+import StarcraftCard from '../components/StarcraftCard';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
@@ -43,14 +47,32 @@ import {
   dbRowsToHaloFlashpointProps,
   type HaloCardDbRow,
 } from '../lib/cardShape/haloFlashpoint';
+import {
+  dbRowsToBloodBowlProps,
+  type BloodBowlCardDbRow,
+} from '../lib/cardShape/bloodBowl';
+import {
+  dbRowsToKillTeamProps,
+  dbRowsToKillTeamRuleProps,
+  type KillTeamCardDbRow,
+} from '../lib/cardShape/killTeam';
+import {
+  dbRowsToStarcraftProps,
+  type StarcraftCardDbRow,
+} from '../lib/cardShape/starcraft';
 
 // ── Local types ──────────────────────────────────────────────────────────────
 
 type RuleType = { value: string; label: string; plural: string };
 
 /** A pack card with its addon + keyword joins materialised, so the
- *  per-game card preview can render without extra round-trips. */
-type CardWithJoins = Card & HaloCardDbRow;
+ *  per-game card preview can render without extra round-trips.
+ *  The joins are kept as `unknown[]` here — each per-game shaper has
+ *  its own DbRow type and casts through unknown at the call site. */
+type CardWithJoins = Card & {
+  card_addons?:   unknown[];
+  card_keywords?: unknown[];
+};
 
 /** Everything AddToPackModal needs to render itself. PackEditor keeps one
  *  of these in state to drive which Add picker is currently open. */
@@ -130,15 +152,17 @@ export default function PackEditor() {
           .eq('game_id', fetchedPack.game_id)
           .order('name'),
         // Cards select pulls the full join graph so the preview can render
-        // without follow-up fetches. The same shape feeds the Halo card
-        // shaper (dbRowsToHaloFlashpointProps).
+        // without follow-up fetches. The shape feeds every per-game shaper
+        // in src/lib/cardShape/ — each one picks the fields it needs and
+        // ignores the rest, so we can keep a single select for all games.
         supabase
           .from('cards')
           .select(`
             *,
-            card_addons(addon_id, sort_order, addons(name, stats,
+            card_addons(addon_id, sort_order, addons(id, name, description,
+              stats, parent_addon_id, addon_type:addon_types(slug),
               addon_keywords(keyword_id, params, sort_order,
-                keywords(name, description, params_schema)))),
+                keywords(id, name, description, params_schema)))),
             card_keywords(keyword_id, params, sort_order,
               keywords(name, description, params_schema))
           `)
@@ -536,67 +560,158 @@ function EmptyPanelState({ message }: { message: string }) {
 
 /** Horizontal row of card previews for the Unit / Rule panels.
  *
- *  Halo Flashpoint cards render as the actual <HaloFlashpointCard>,
- *  CSS-scaled down to a thumbnail size. Other games still use a
- *  name-plate tile until each gets its own DB→props shaper and
- *  per-game render arm added here. */
+ *  Each per-game arm renders the actual game card component (the same
+ *  one used in the deck builder) inside a CSS-scaled wrapper, so the
+ *  preview is pixel-faithful and stays in sync with any future card
+ *  layout tweaks. All tiles are sized so their long edge is ~237px,
+ *  matching the Figma "Unit List Item" cell. */
 
-// Halo's card renders at native 1270×890. The preview tile width is
-// chosen to match the Figma "Unit List Item" cell (~237px); the height
-// follows from the native aspect ratio so the card doesn't squash.
-const HALO_NATIVE_W = 1270;
-const HALO_NATIVE_H = 890;
-const PREVIEW_W     = 237;
-const HALO_SCALE    = PREVIEW_W / HALO_NATIVE_W;
-const PREVIEW_H     = Math.round(HALO_NATIVE_H * HALO_SCALE);
+const PREVIEW_LONG_EDGE = 237;
+
+interface PreviewDims {
+  nativeW: number;
+  nativeH: number;
+  scale:   number;
+  /** Final on-screen width of the preview tile. */
+  w:       number;
+  /** Final on-screen height of the preview tile. */
+  h:       number;
+}
+
+/** Compute scale + final on-screen size so the longer edge fits
+ *  PREVIEW_LONG_EDGE while preserving aspect ratio. */
+function dimsFor(nativeW: number, nativeH: number): PreviewDims {
+  const longEdge = Math.max(nativeW, nativeH);
+  const scale = PREVIEW_LONG_EDGE / longEdge;
+  return {
+    nativeW,
+    nativeH,
+    scale,
+    w: Math.round(nativeW * scale),
+    h: Math.round(nativeH * scale),
+  };
+}
+
+// Native dimensions per card component. Sourced from each card file's
+// CARD_W / CARD_H constants. Halo / Kill Team operative / Starcraft are
+// landscape; Blood Bowl + Kill Team rule are portrait.
+const HALO_DIMS           = dimsFor(1270, 890);
+const BLOOD_BOWL_DIMS     = dimsFor(750, 1100);
+const KILL_TEAM_DIMS      = dimsFor(1270, 890);
+const KILL_TEAM_RULE_DIMS = dimsFor(700, 1200);
+const STARCRAFT_DIMS      = dimsFor(1270, 890);
+
+/** Shared wrapper that draws the card-shaped bounding box and applies
+ *  the CSS transform that scales the native-size card into the tile. */
+function PreviewTile({
+  dims,
+  title,
+  children,
+}: {
+  dims:   PreviewDims;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="shrink-0 rounded-lg border border-gray-700 overflow-hidden bg-gray-950"
+      style={{ width: dims.w, height: dims.h }}
+      title={title}
+    >
+      <div
+        style={{
+          width:           dims.nativeW,
+          height:          dims.nativeH,
+          transform:       `scale(${dims.scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Per-card preview render — switches on game slug + card_type and
+ *  delegates to the right shaper + card component. */
+function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
+  if (gameSlug === 'halo-flashpoint') {
+    return (
+      <PreviewTile key={c.id} dims={HALO_DIMS} title={c.name}>
+        <HaloFlashpointCard
+          {...dbRowsToHaloFlashpointProps(c as unknown as HaloCardDbRow)}
+        />
+      </PreviewTile>
+    );
+  }
+
+  if (gameSlug === 'blood-bowl') {
+    return (
+      <PreviewTile key={c.id} dims={BLOOD_BOWL_DIMS} title={c.name}>
+        <BloodBowlCard
+          {...dbRowsToBloodBowlProps(c as unknown as BloodBowlCardDbRow)}
+        />
+      </PreviewTile>
+    );
+  }
+
+  if (gameSlug === 'kill-team') {
+    if (c.card_type === 'rule') {
+      return (
+        <PreviewTile key={c.id} dims={KILL_TEAM_RULE_DIMS} title={c.name}>
+          <KillTeamRuleCard
+            {...dbRowsToKillTeamRuleProps(c as unknown as KillTeamCardDbRow)}
+          />
+        </PreviewTile>
+      );
+    }
+    return (
+      <PreviewTile key={c.id} dims={KILL_TEAM_DIMS} title={c.name}>
+        {/* Force the desktop (landscape) layout so the scale assumption
+            holds — without this the card flips to a portrait mobile
+            layout on narrow viewports. */}
+        <KillTeamCard
+          {...dbRowsToKillTeamProps(c as unknown as KillTeamCardDbRow)}
+          forceLayout="desktop"
+        />
+      </PreviewTile>
+    );
+  }
+
+  if (gameSlug === 'starcraft') {
+    return (
+      <PreviewTile key={c.id} dims={STARCRAFT_DIMS} title={c.name}>
+        <StarcraftCard
+          {...dbRowsToStarcraftProps(c as unknown as StarcraftCardDbRow)}
+        />
+      </PreviewTile>
+    );
+  }
+
+  // Fallback for any future game that lands before its shaper does.
+  return (
+    <div
+      key={c.id}
+      className="shrink-0 rounded-lg border border-gray-700 bg-gray-800 flex items-center justify-center p-3"
+      style={{ width: HALO_DIMS.w, height: HALO_DIMS.h }}
+    >
+      <p className="font-heading text-base text-white text-center truncate">
+        {c.name}
+      </p>
+    </div>
+  );
+}
 
 function CardPreviewRow({
   cards,
   gameSlug,
 }: {
-  cards: CardWithJoins[];
+  cards:    CardWithJoins[];
   gameSlug: string;
 }) {
   return (
     <div className="flex gap-3 overflow-x-auto">
-      {cards.map(c => {
-        if (gameSlug === 'halo-flashpoint') {
-          const props = dbRowsToHaloFlashpointProps(c);
-          return (
-            <div
-              key={c.id}
-              className="shrink-0 rounded-lg border border-gray-700 overflow-hidden bg-gray-950"
-              style={{ width: PREVIEW_W, height: PREVIEW_H }}
-              title={c.name}
-            >
-              <div
-                style={{
-                  width:           HALO_NATIVE_W,
-                  height:          HALO_NATIVE_H,
-                  transform:       `scale(${HALO_SCALE})`,
-                  transformOrigin: 'top left',
-                }}
-              >
-                <HaloFlashpointCard {...props} />
-              </div>
-            </div>
-          );
-        }
-        // Fallback: name-plate tile. Per-game previews land in follow-up
-        // tranches (Blood Bowl, Kill Team, Starcraft each need their own
-        // shaper + render arm here).
-        return (
-          <div
-            key={c.id}
-            className="shrink-0 rounded-lg border border-gray-700 bg-gray-800 flex items-center justify-center p-3"
-            style={{ width: PREVIEW_W, height: PREVIEW_H }}
-          >
-            <p className="font-heading text-base text-white text-center truncate">
-              {c.name}
-            </p>
-          </div>
-        );
-      })}
+      {cards.map(c => renderPreview(c, gameSlug))}
     </div>
   );
 }
