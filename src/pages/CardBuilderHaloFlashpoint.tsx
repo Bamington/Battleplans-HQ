@@ -32,7 +32,6 @@ import { useCardBuilder } from '../hooks/useCardBuilder';
 import Dropdown, { DropdownItem } from '../components/Dropdown';
 import UnitListEntry from '../components/UnitListEntry';
 import Input from '../components/Input';
-import Select from '../components/Select';
 import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
@@ -41,7 +40,8 @@ import CardCarousel from '../components/CardCarousel';
 import AttachedAddonRow from '../components/AttachedAddonRow';
 import Modal from '../components/Modal';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
-import AddKeywordModal from '../components/AddKeywordModal';
+import AddKeywordModal, { type KeywordSelection } from '../components/AddKeywordModal';
+import HaloWeaponForm from '../components/HaloWeaponForm';
 import AddRuleModal, { type RuleSelection } from '../components/AddRuleModal';
 import RichTextEditor from '../components/RichTextEditor';
 import KeywordInfoModal from '../components/KeywordInfoModal';
@@ -59,7 +59,6 @@ import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardMo
 import UserRounded from '../icons/UserRounded';
 import AddCircle from '../icons/AddCircle';
 import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import Diskette from '../icons/Diskette';
 import ArrowRight from '../icons/ArrowRight';
@@ -81,19 +80,12 @@ import iconHaloFlashpoint from '../assets/games/card assets/halo/icon.png';
 const CARD_W = 1270;
 const CARD_H = 890;
 
-// ── Keyword update propagation ────────────────────────────────────────────────
-// Module-scoped ref so HaloWeaponForm (which can't receive extra props via
-// AddonFormProps) can propagate keyword edits across all cards.
-let _propagateKeywordUpdate: ((keywordId: string, name: string, desc: string, hasParams: boolean) => void) | null = null;
-
-
-// Module-scoped refs so HaloWeaponForm can read constraints
-// without requiring changes to AddonFormProps.
-let _weaponConstraints: EntityConstraints = {};
-let _keywordConstraints: EntityConstraints = {};
-
 // ── Local weapon shape ────────────────────────────────────────────────────────
 // Mirrors HaloWeapon but carries the Supabase addon ID for edit/delete.
+
+// Same shape as the keyword-selection contract exposed by AddKeywordModal /
+// HaloWeaponForm. Aliased so the rest of this file keeps its older name.
+type LocalKeywordAttachment = KeywordSelection;
 
 interface LocalWeapon {
   addonId:    string;
@@ -196,287 +188,6 @@ const getWeaponSubtitle = (addon: Addon): string => {
   return parts.join(', ') || addon.name;
 };
 
-// ── Weapon type options ───────────────────────────────────────────────────────
-
-const WEAPON_TYPE_OPTIONS = [
-  { value: '',             label: 'Closed Combat or Ranged', disabled: true },
-  { value: 'Close Combat', label: 'Close Combat' },
-  { value: 'Ranged',       label: 'Ranged'       },
-  { value: 'Grenade',      label: 'Grenade'      },
-];
-
-// ── HaloWeaponForm — create / edit form rendered inside AddAddonModal ─────────
-
-interface LocalKeywordAttachment {
-  keywordId: string;
-  keywordName: string;
-  description: string;
-  hasParams: boolean;
-  paramValue: number | null;
-}
-
-// Module-scoped ref so HaloWeaponForm can pass attached keywords to
-// handleWeaponAdded when creating a new weapon (keywords are synced to DB
-// after onAdd, so the handler can't fetch them from DB yet).
-let _pendingWeaponKeywords: LocalKeywordAttachment[] | null = null;
-
-const HaloWeaponForm = ({ editingAddon, onSave, onCancel, saving }: AddonFormProps) => {
-  const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
-
-  const [type,       setType]       = useState(String(s.type  ?? ''));
-  const [name,       setName]       = useState(editingAddon?.name ?? '');
-  const [range,      setRange]      = useState(Number(s.range) || 0);
-  const [ap,         setAp]         = useState(Number(s.ap)    || 0);
-  const [pointsCost, setPointsCost] = useState(Number(s.pointsCost) || 0);
-
-  const [attachedKeywords, setAttachedKeywords] = useState<LocalKeywordAttachment[]>([]);
-  const [keywordModalOpen, setKeywordModalOpen] = useState(false);
-  const [viewingKeyword, setViewingKeyword]     = useState<LocalKeywordAttachment | null>(null);
-  const [editingKw, setEditingKw]               = useState<LocalKeywordAttachment | null>(null);
-
-  // Load existing keyword attachments when editing
-  useEffect(() => {
-    if (!editingAddon) return;
-    let cancelled = false;
-
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('addon_keywords')
-        .select('keyword_id, params, sort_order, keywords(name, description, params_schema)')
-        .eq('addon_id', editingAddon.id)
-        .order('sort_order');
-
-      if (cancelled || error || !data) return;
-
-      setAttachedKeywords(
-        (data as any[]).map(ak => ({
-          keywordId: ak.keyword_id,
-          keywordName: ak.keywords.name,
-          description: ak.keywords.description ?? '',
-          hasParams: Array.isArray(ak.keywords.params_schema) && ak.keywords.params_schema.length > 0,
-          paramValue: ak.params?.X != null ? Number(ak.params.X) : null,
-        })),
-      );
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [editingAddon]);
-
-  const isCC      = type === 'Close Combat';
-  const isEditing = !!editingAddon;
-  const canSave   = type.trim() !== '' && name.trim() !== '' && !saving;
-
-  const handleSave = async () => {
-    if (!canSave) return;
-    // Stash keywords so handleWeaponAdded can read them synchronously
-    _pendingWeaponKeywords = [...attachedKeywords];
-    const addonId = await onSave(
-      name.trim(),
-      null,
-      {
-        type:     type.trim(),
-        range:      isCC ? null : String(range),
-        ap:         String(ap),
-        pointsCost: String(pointsCost),
-        keywords:   buildKeywordsDisplayString(attachedKeywords),
-      },
-    );
-
-    // Sync addon_keywords after the addon is persisted
-    if (addonId) {
-      await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
-      if (attachedKeywords.length > 0) {
-        await supabase.from('addon_keywords').insert(
-          attachedKeywords.map((k, i) => ({
-            addon_id: addonId,
-            keyword_id: k.keywordId,
-            params: k.paramValue != null ? { X: k.paramValue } : {},
-            sort_order: i,
-          })),
-        );
-      }
-    }
-  };
-
-  return (
-    <div className="p-5 flex flex-col gap-3">
-
-      {/* Title */}
-      <h5 className="font-heading text-xl text-white">
-        {isEditing ? `Edit Weapon` : 'Create Weapon'}
-      </h5>
-
-      {/* Subtitle */}
-      <p className="font-body text-sm text-gray-300">
-        Once created, you can add this weapon to other units from the same game.
-      </p>
-
-      {/* ── Basic Details ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Basic Details</p>
-
-        <Select
-          label="Weapon Type"
-          required
-          options={WEAPON_TYPE_OPTIONS}
-          value={type}
-          onChange={e => setType(e.target.value)}
-        />
-        <Input
-          label="Weapon Name"
-          required
-          placeholder="Eg. Fists, Battle Rifle, etc."
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-
-        {/* Weapon Keywords */}
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium font-body text-gray-900 dark:text-white">
-            Weapon Keywords
-          </p>
-          {attachedKeywords.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {attachedKeywords.map(k => (
-                <Badge
-                  key={k.keywordId}
-                  onDismiss={() =>
-                    setAttachedKeywords(prev => prev.filter(x => x.keywordId !== k.keywordId))
-                  }
-                >
-                  <button
-                    type="button"
-                    className="underline text-blue-600 dark:text-blue-400 hover:text-blue-500"
-                    onClick={() => setViewingKeyword(k)}
-                  >
-                    {k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName}
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<AddCircle className="size-4" />}
-              disabled={isAtLimit(attachedKeywords.length, getMaxKeywords(_weaponConstraints))}
-              onClick={() => setKeywordModalOpen(true)}
-            >
-              Add Keyword
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      {/* ── Weapon Stats ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Weapon Stats</p>
-
-        <div className="flex gap-4">
-          {!isCC && (
-            <Counter
-              label="Weapon Range"
-              required
-              min={0}
-              value={range}
-              onChange={setRange}
-            />
-          )}
-          <Counter
-            label="AP Value"
-            required
-            min={0}
-            value={ap}
-            onChange={setAp}
-          />
-          <Counter
-            label="Points Cost"
-            min={0}
-            value={pointsCost}
-            onChange={setPointsCost}
-          />
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      {/* CTAs */}
-      <div className="flex items-center gap-1 flex-wrap">
-        <Button
-          leftIcon={<CheckCircle className="size-4" />}
-          disabled={!canSave}
-          loading={saving}
-          onClick={handleSave}
-        >
-          {isEditing ? 'Update Weapon' : 'Save Weapon'}
-        </Button>
-        <Button
-          variant="ghost"
-          color="danger"
-          leftIcon={<CloseCircle className="size-4" />}
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancel
-        </Button>
-      </div>
-
-      {/* Keyword modal (nested inside weapon form) */}
-      <AddKeywordModal
-        open={keywordModalOpen}
-        onClose={() => setKeywordModalOpen(false)}
-        gameSlug="halo-flashpoint"
-        onKeywordSelected={(kw) => {
-          setAttachedKeywords(prev => [...prev, kw]);
-          setKeywordModalOpen(false);
-        }}
-        excludeKeywordIds={attachedKeywords.map(k => k.keywordId)}
-        constraints={_keywordConstraints}
-      />
-
-      {/* Keyword info modal */}
-      <KeywordInfoModal
-        open={!!viewingKeyword}
-        onClose={() => setViewingKeyword(null)}
-        name={viewingKeyword?.keywordName ?? ''}
-        description={viewingKeyword?.description ?? ''}
-        onEdit={() => {
-          setEditingKw(viewingKeyword);
-          setViewingKeyword(null);
-        }}
-      />
-
-      {/* Edit keyword modal */}
-      <AddKeywordModal
-        open={!!editingKw}
-        onClose={() => setEditingKw(null)}
-        gameSlug="halo-flashpoint"
-        editingKeyword={editingKw ? {
-          id: editingKw.keywordId,
-          name: editingKw.keywordName,
-          description: editingKw.description,
-          hasParams: editingKw.hasParams,
-        } : null}
-        onKeywordSelected={() => {}}
-        onKeywordUpdated={(updated) => {
-          setAttachedKeywords(prev => prev.map(k =>
-            k.keywordId === updated.keywordId
-              ? { ...k, keywordName: updated.keywordName, description: updated.description, hasParams: updated.hasParams }
-              : k,
-          ));
-          _propagateKeywordUpdate?.(updated.keywordId, updated.keywordName, updated.description, updated.hasParams);
-          setEditingKw(null);
-        }}
-        constraints={_keywordConstraints}
-      />
-
-    </div>
-  );
-};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -587,13 +298,13 @@ const CardBuilderHaloFlashpoint = () => {
 
   // ── DB-driven constraints ─────────────────────────────────────────────────────
   const [cardConstraints, setCardConstraints] = useState<EntityConstraints>({});
-  const [_weaponConstraintsState, setWeaponConstraints] = useState<EntityConstraints>({});
+  const [weaponConstraints, setWeaponConstraints] = useState<EntityConstraints>({});
   const [keywordConstraints, setKeywordConstraints] = useState<EntityConstraints>({});
   const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
   useEffect(() => {
     fetchConstraints('halo-flashpoint', 'card').then(setCardConstraints);
-    fetchConstraints('halo-flashpoint', 'addon', 'weapons').then(c => { setWeaponConstraints(c); _weaponConstraints = c; });
-    fetchConstraints('halo-flashpoint', 'keyword').then(c => { setKeywordConstraints(c); _keywordConstraints = c; });
+    fetchConstraints('halo-flashpoint', 'addon', 'weapons').then(setWeaponConstraints);
+    fetchConstraints('halo-flashpoint', 'keyword').then(setKeywordConstraints);
     // Fetch token definitions for play mode
     (async () => {
       const { data: game } = await supabase
@@ -1065,12 +776,6 @@ const CardBuilderHaloFlashpoint = () => {
       }),
     }));
   }, []);
-
-  // Expose propagateKeywordUpdate to HaloWeaponForm via module-scoped ref
-  useEffect(() => {
-    _propagateKeywordUpdate = propagateKeywordUpdate;
-    return () => { _propagateKeywordUpdate = null; };
-  }, [propagateKeywordUpdate]);
 
   // ── Deck name inline rename ─────────────────────────────────────────────────
   // `startDeckNameEdit` comes from useCardBuilder. `commitDeckName` skips the
@@ -1594,12 +1299,39 @@ const CardBuilderHaloFlashpoint = () => {
   const [editingWeaponAddon, setEditingWeaponAddon]      = useState<Addon | null>(null);
   const [savingWeaponEdit, setSavingWeaponEdit]          = useState(false);
 
+  // Snapshot of the weapon-form's keyword selection at save-time. HaloWeaponForm
+  // hands these over via the `onPendingKeywords` callback right before its
+  // onSave fires; handleWeaponAdded (which runs AFTER onSave resolves) reads
+  // them here so the new weapon's in-memory `weaponKeywords` matches what the
+  // user just picked, without re-querying addon_keywords for a row we just
+  // wrote.
+  const pendingWeaponKeywordsRef = useRef<LocalKeywordAttachment[] | null>(null);
+
+  // Bind HaloWeaponForm to this builder's context (constraints, the
+  // pending-keywords side-channel, and the cross-card propagation hook)
+  // so AddAddonModal — which only knows the bare AddonFormProps contract —
+  // can render it without each call-site re-supplying these. Stable
+  // identity via useCallback so AddAddonModal doesn't re-mount the form
+  // on every render.
+  const WeaponFormWithContext = useCallback(
+    (props: AddonFormProps) => (
+      <HaloWeaponForm
+        {...props}
+        weaponConstraints={weaponConstraints}
+        keywordConstraints={keywordConstraints}
+        onPendingKeywords={(kws) => { pendingWeaponKeywordsRef.current = kws; }}
+        onPropagateKeywordUpdate={propagateKeywordUpdate}
+      />
+    ),
+    [weaponConstraints, keywordConstraints, propagateKeywordUpdate],
+  );
+
   const handleWeaponAdded = async (addon: Addon) => {
     const s = addon.stats as Record<string, unknown>;
 
     // Use pending keywords from the create form if available
-    let wkws = _pendingWeaponKeywords;
-    _pendingWeaponKeywords = null;
+    let wkws = pendingWeaponKeywordsRef.current;
+    pendingWeaponKeywordsRef.current = null;
 
     // For existing weapons picked from the list, fetch from DB
     if (!wkws) {
@@ -2687,7 +2419,7 @@ const CardBuilderHaloFlashpoint = () => {
         onAdd={handleWeaponAdded}
         onDeleted={handleWeaponDeleted}
         getSubtitle={getWeaponSubtitle}
-        CreateFormComponent={HaloWeaponForm}
+        CreateFormComponent={WeaponFormWithContext}
       />
 
       {/* ── Weapon detail modal ────────────────────────────────────────────── */}
@@ -2717,7 +2449,7 @@ const CardBuilderHaloFlashpoint = () => {
       {/* ── Edit Weapon modal (direct form, skips picker) ──────────────────── */}
       {editingWeaponAddon && (
         <Modal open onClose={() => setEditingWeaponAddon(null)} className="max-w-md">
-          <HaloWeaponForm
+          <WeaponFormWithContext
             editingAddon={editingWeaponAddon}
             onSave={async (name, description, stats) => {
               setSavingWeaponEdit(true);

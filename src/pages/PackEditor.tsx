@@ -29,6 +29,7 @@ import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
 import AddKeywordModal from '../components/AddKeywordModal';
+import HaloWeaponForm from '../components/HaloWeaponForm';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
 import BloodBowlCard from '../components/BloodBowlCard';
 import KillTeamCard from '../components/KillTeamCard';
@@ -130,6 +131,13 @@ export default function PackEditor() {
   // RLS allows pack owners to UPDATE keywords with pack_id matching one
   // they own, so the modal's update path works without changes.
   const [editingKeyword, setEditingKeyword] = useState<Keyword | null>(null);
+
+  // The Halo weapon addon to edit. When non-null, a Modal renders
+  // HaloWeaponForm directly (no picker step). Other game/addon
+  // combinations don't have per-game forms extracted yet, so they
+  // omit the Edit menu item entirely.
+  const [editingWeaponAddon, setEditingWeaponAddon] = useState<Addon | null>(null);
+  const [savingWeaponEdit,   setSavingWeaponEdit]   = useState(false);
 
   // Delete-confirmation state. One shared modal for every entity type;
   // `kind` picks the supabase table and the "this cannot be undone"
@@ -471,6 +479,11 @@ export default function PackEditor() {
 
               {addonTypes.map(at => {
                 const singular = singularise(at.name);
+                // Only Halo weapons have an extracted edit form so far.
+                // Other game/addon-type combos will gain Edit menu items
+                // as their forms get extracted in follow-up tranches.
+                const canEdit =
+                  pack.game.slug === 'halo-flashpoint' && at.slug === 'weapons';
                 return (
                   <PackPanel
                     key={at.id}
@@ -503,6 +516,7 @@ export default function PackEditor() {
                               name={a.name}
                               subtitle={addonSubtitle(a, at)}
                               addonTypeName={singular}
+                              onEdit={canEdit ? () => setEditingWeaponAddon(a) : undefined}
                               onDelete={() => requestDelete('addon', a.id, a.name, singular)}
                             />
                           ))}
@@ -596,6 +610,46 @@ export default function PackEditor() {
             loadAll();
           }}
         />
+      )}
+
+      {/* Edit Halo weapon modal — renders HaloWeaponForm directly inside a
+          Modal (no picker step needed when editing one specific row). The
+          form writes addon row + addon_keywords joins, then we reload the
+          pack so the subtitle / keyword counts refresh. The pack editor
+          doesn't have in-memory weapon-keyword caches the way builders do,
+          so it ignores the form's onPendingKeywords /
+          onPropagateKeywordUpdate side-channels. */}
+      {editingWeaponAddon && (
+        <Modal
+          open
+          onClose={() => !savingWeaponEdit && setEditingWeaponAddon(null)}
+          className="max-w-md"
+        >
+          <HaloWeaponForm
+            editingAddon={editingWeaponAddon}
+            saving={savingWeaponEdit}
+            onCancel={() => setEditingWeaponAddon(null)}
+            onSave={async (name, description, stats) => {
+              setSavingWeaponEdit(true);
+              try {
+                const { error } = await supabase
+                  .from('addons')
+                  .update({ name, description, stats: stats as Json })
+                  .eq('id', editingWeaponAddon.id);
+                if (error) throw error;
+                const savedId = editingWeaponAddon.id;
+                setEditingWeaponAddon(null);
+                await loadAll();
+                return savedId;
+              } catch (err) {
+                console.error('[BattleCards] weapon edit error:', err);
+                return '';
+              } finally {
+                setSavingWeaponEdit(false);
+              }
+            }}
+          />
+        </Modal>
       )}
 
       {/* Shared delete confirmation modal — used by every ⋯ menu. */}
