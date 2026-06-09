@@ -1584,14 +1584,15 @@ security definer
 set search_path = public
 as $$
 declare
-  v_user_id     uuid := auth.uid();
-  v_target      record;
-  v_keyword_map jsonb := '{}'::jsonb;
-  v_addon_map   jsonb := '{}'::jsonb;
-  v_src         record;
-  v_existing    uuid;
-  v_new_id      uuid;
-  v_count       integer := 0;
+  v_user_id       uuid := auth.uid();
+  v_target        record;
+  v_keyword_map   jsonb := '{}'::jsonb;
+  v_addon_map     jsonb := '{}'::jsonb;
+  v_new_addon_ids jsonb := '{}'::jsonb;   -- ids inserted in this call
+  v_src           record;
+  v_existing      uuid;
+  v_new_id        uuid;
+  v_count         integer := 0;
 begin
   if v_user_id is null then
     raise exception 'Not authenticated' using errcode = '42501';
@@ -1655,30 +1656,51 @@ begin
     v_keyword_map := v_keyword_map || jsonb_build_object(v_src.id::text, v_new_id::text);
   end loop;
 
-  -- Clone the addons (parent_addon_id deferred to second pass).
+  -- Clone the addons with content-match dedup against the target pack.
+  -- Fingerprint is (addon_type_id, name, description, stats); see
+  -- migration_packs_addon_dedup.sql for why parent_addon_id and
+  -- addon_keywords aren't part of the fingerprint.
   for v_src in
     select * from public.addons where id = any(p_source_ids)
   loop
-    insert into public.addons (
-      user_id, addon_type_id, game_id, name, description, stats,
-      parent_addon_id, pack_id
-    ) values (
-      v_user_id, v_src.addon_type_id, v_src.game_id, v_src.name,
-      v_src.description, v_src.stats, null, p_target_pack_id
-    ) returning id into v_new_id;
+    select id into v_existing
+    from public.addons
+    where pack_id        = p_target_pack_id
+      and addon_type_id  = v_src.addon_type_id
+      and name           = v_src.name
+      and coalesce(description, '') = coalesce(v_src.description, '')
+      and coalesce(stats, '{}'::jsonb) = coalesce(v_src.stats, '{}'::jsonb)
+    limit 1;
+
+    if v_existing is not null then
+      v_new_id := v_existing;
+    else
+      insert into public.addons (
+        user_id, addon_type_id, game_id, name, description, stats,
+        parent_addon_id, pack_id
+      ) values (
+        v_user_id, v_src.addon_type_id, v_src.game_id, v_src.name,
+        v_src.description, v_src.stats, null, p_target_pack_id
+      ) returning id into v_new_id;
+      v_new_addon_ids := v_new_addon_ids || jsonb_build_object(v_new_id::text, true);
+      v_count := v_count + 1;
+    end if;
 
     v_addon_map := v_addon_map || jsonb_build_object(v_src.id::text, v_new_id::text);
-    v_count := v_count + 1;
   end loop;
 
+  -- Parent remap only for newly-inserted addons.
   update public.addons clone
      set parent_addon_id = (v_addon_map ->> src.parent_addon_id::text)::uuid
   from public.addons src
   where src.id = any(p_source_ids)
     and src.parent_addon_id is not null
     and v_addon_map ? src.parent_addon_id::text
-    and clone.id = (v_addon_map ->> src.id::text)::uuid;
+    and clone.id = (v_addon_map ->> src.id::text)::uuid
+    and v_new_addon_ids ? clone.id::text;
 
+  -- addon_keywords joins only for newly-inserted addons; reused ones
+  -- keep their own existing joins.
   insert into public.addon_keywords (addon_id, keyword_id, params, sort_order)
   select
     (v_addon_map   ->> ak.addon_id::text)::uuid,
@@ -1686,6 +1708,7 @@ begin
     ak.params, ak.sort_order
   from public.addon_keywords ak
   where ak.addon_id = any(p_source_ids)
+    and v_new_addon_ids ? (v_addon_map ->> ak.addon_id::text)
   on conflict (addon_id, keyword_id) do nothing;
 
   return v_count;
@@ -1713,6 +1736,7 @@ declare
   v_user_keys      text[];
   v_keyword_map    jsonb := '{}'::jsonb;
   v_addon_map      jsonb := '{}'::jsonb;
+  v_new_addon_ids  jsonb := '{}'::jsonb;   -- addons inserted in this call
   v_card_map       jsonb := '{}'::jsonb;
   v_src            record;
   v_existing       uuid;
@@ -1814,20 +1838,36 @@ begin
     v_keyword_map := v_keyword_map || jsonb_build_object(v_src.id::text, v_new_id::text);
   end loop;
 
-  -- Addons attached to the selected cards (always cloned, no dedup).
+  -- Addons attached to the selected cards, with content-match dedup
+  -- against the target pack. Reused addons keep their existing joins;
+  -- only newly-inserted addons get parent remap + addon_keywords.
   for v_src in
     select distinct a.*
     from public.addons a
     join public.card_addons ca on ca.addon_id = a.id
     where ca.card_id = any(p_source_ids)
   loop
-    insert into public.addons (
-      user_id, addon_type_id, game_id, name, description, stats,
-      parent_addon_id, pack_id
-    ) values (
-      v_user_id, v_src.addon_type_id, v_src.game_id, v_src.name,
-      v_src.description, v_src.stats, null, p_target_pack_id
-    ) returning id into v_new_id;
+    select id into v_existing
+    from public.addons
+    where pack_id        = p_target_pack_id
+      and addon_type_id  = v_src.addon_type_id
+      and name           = v_src.name
+      and coalesce(description, '') = coalesce(v_src.description, '')
+      and coalesce(stats, '{}'::jsonb) = coalesce(v_src.stats, '{}'::jsonb)
+    limit 1;
+
+    if v_existing is not null then
+      v_new_id := v_existing;
+    else
+      insert into public.addons (
+        user_id, addon_type_id, game_id, name, description, stats,
+        parent_addon_id, pack_id
+      ) values (
+        v_user_id, v_src.addon_type_id, v_src.game_id, v_src.name,
+        v_src.description, v_src.stats, null, p_target_pack_id
+      ) returning id into v_new_id;
+      v_new_addon_ids := v_new_addon_ids || jsonb_build_object(v_new_id::text, true);
+    end if;
 
     v_addon_map := v_addon_map || jsonb_build_object(v_src.id::text, v_new_id::text);
   end loop;
@@ -1838,7 +1878,8 @@ begin
   where src.id::text in (select jsonb_object_keys(v_addon_map))
     and src.parent_addon_id is not null
     and v_addon_map ? src.parent_addon_id::text
-    and clone.id = (v_addon_map ->> src.id::text)::uuid;
+    and clone.id = (v_addon_map ->> src.id::text)::uuid
+    and v_new_addon_ids ? clone.id::text;
 
   insert into public.addon_keywords (addon_id, keyword_id, params, sort_order)
   select
@@ -1847,6 +1888,7 @@ begin
     ak.params, ak.sort_order
   from public.addon_keywords ak
   where ak.addon_id::text in (select jsonb_object_keys(v_addon_map))
+    and v_new_addon_ids ? (v_addon_map ->> ak.addon_id::text)
   on conflict (addon_id, keyword_id) do nothing;
 
   -- Clone the cards as templates. Use the resolved game_id (cards.game_id
