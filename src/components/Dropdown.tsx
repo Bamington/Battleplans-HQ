@@ -23,6 +23,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
@@ -112,6 +113,8 @@ export const DropdownHeader = ({ className = '', children }: DropdownHeaderProps
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const MENU_OFFSET_Y = 8; // matches the previous mt-2
+
 const Dropdown = ({
   trigger,
   align     = 'left',
@@ -120,21 +123,55 @@ const Dropdown = ({
   children,
 }: DropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef        = useRef<HTMLDivElement>(null);
+  // Menu is rendered via a portal so it escapes any clipping ancestor
+  // (overflow-hidden, overflow-x-auto with implicit y-auto, etc.). We
+  // recompute its viewport position from the trigger's bounding rect
+  // every time it opens, and close on scroll/resize so it doesn't
+  // float away from the trigger.
+  const [menuPos, setMenuPos] = useState<{
+    top:    number;
+    left?:  number;
+    right?: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef    = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside the dropdown
+  // Compute the menu position synchronously on toggle so it's correct
+  // on first paint without a useLayoutEffect cascade. Reads the trigger
+  // wrapper's viewport rect; the menu is then rendered with
+  // position:fixed at the matching coordinates.
+  const toggleOpen = () => {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const top = rect.bottom + MENU_OFFSET_Y;
+      setMenuPos(
+        align === 'right'
+          ? { top, right: window.innerWidth - rect.right }
+          : { top, left:  rect.left }
+      );
+    }
+    setIsOpen(true);
+  };
+
+  // Close on outside click. The menu lives in a portal so it's NOT
+  // inside triggerRef — we have to check both refs.
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
+      const t = e.target as Node;
+      const inTrigger = triggerRef.current?.contains(t);
+      const inMenu    = menuRef.current?.contains(t);
+      if (!inTrigger && !inMenu) setIsOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen]);
 
-  // Close on Escape key
+  // Close on Escape.
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -144,32 +181,49 @@ const Dropdown = ({
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen]);
 
-  const alignClass = align === 'right' ? 'right-0' : 'left-0';
+  // Close on scroll / resize so the menu doesn't float away from the
+  // trigger when the page moves. The capture phase catches scroll on
+  // any ancestor (including the overflow-x-auto row that triggered
+  // the original bug).
+  useEffect(() => {
+    if (!isOpen) return;
+    const close = () => setIsOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [isOpen]);
 
   return (
-    <div ref={containerRef} className={`relative inline-block ${className}`}>
+    <div ref={triggerRef} className={`inline-block ${className}`.trim()}>
 
-      {/* Trigger — wrapped in a div to capture clicks without overriding the trigger element */}
-      <div className="cursor-pointer" onClick={() => setIsOpen((o) => !o)}>
+      {/* Trigger — wrapped in a div to capture clicks without overriding
+          the trigger element */}
+      <div className="cursor-pointer" onClick={toggleOpen}>
         {trigger}
       </div>
 
-      {/* Menu */}
-      {isOpen && (
+      {/* Menu — portaled to document.body so no overflow ancestor can
+          clip it. position:fixed coordinates from menuPos. */}
+      {isOpen && menuPos && createPortal(
         <div
+          ref={menuRef}
           className={[
-            'absolute z-50 mt-2 rounded-lg shadow-lg',
+            'fixed z-50 rounded-lg shadow-lg',
             'bg-white dark:bg-gray-700',
             'border border-gray-100 dark:border-gray-600',
-            alignClass,
             menuClassName,
           ].join(' ')}
+          style={menuPos}
           role="menu"
         >
           <ul className="py-1 text-sm" onClick={() => setIsOpen(false)}>
             {children}
           </ul>
-        </div>
+        </div>,
+        document.body,
       )}
 
     </div>
