@@ -149,6 +149,13 @@ export default function AddToPackModal({
   const [search,   setSearch]   = useState('');
   const [adding,   setAdding]   = useState(false);
 
+  // Two-step modal: 'picker' shows the list to choose from, 'rename'
+  // shows one editable name input per selected card before commit.
+  // The rename step is only used for entityType='card'; addons and
+  // keywords commit directly from 'picker'.
+  const [step,           setStep]           = useState<'picker' | 'rename'>('picker');
+  const [renameDrafts,   setRenameDrafts]   = useState<Record<string, string>>({});
+
   // ── Fetch picker items each time the modal opens ───────────────────────
   // Source scope:
   //   - Cards: caller's other packs (same game) + caller's decks (same game) +
@@ -167,6 +174,8 @@ export default function AddToPackModal({
     // Reset every open so the user gets a fresh list and no stale selection.
     setItems([]);
     setSelected(new Set());
+    setStep('picker');
+    setRenameDrafts({});
     setSearch('');
     setError(null);
     loadItems();
@@ -368,15 +377,59 @@ export default function AddToPackModal({
     });
   }
 
+  // Selected items in their `items` order — used by the rename step.
+  const selectedItems = useMemo(
+    () => items.filter(i => selected.has(i.id)),
+    [items, selected],
+  );
+
+  /** Footer CTA from the picker step:
+   *   - Cards: advance to rename step (pre-populate drafts from source names)
+   *   - Addons / keywords: commit directly via the RPC
+   */
   async function handleSubmit() {
     if (!canSubmit) return;
+
+    if (entityType === 'card') {
+      const drafts: Record<string, string> = {};
+      for (const it of selectedItems) drafts[it.id] = it.name;
+      setRenameDrafts(drafts);
+      setStep('rename');
+      setError(null);
+      return;
+    }
+
+    await commit(undefined);
+  }
+
+  /** Footer CTA from the rename step: commit with the user's edited names
+   *  packed into the RPC's p_card_overrides param. */
+  async function handleCommitRenames() {
+    // Block submit if any draft is blank (after trim).
+    for (const it of selectedItems) {
+      if (!(renameDrafts[it.id] ?? '').trim()) return;
+    }
+    const overrides: Record<string, { name: string }> = {};
+    for (const it of selectedItems) {
+      overrides[it.id] = { name: renameDrafts[it.id].trim() };
+    }
+    await commit(overrides);
+  }
+
+  /** Shared submit path. `overrides` is only sent for the card RPC. */
+  async function commit(overrides: Record<string, { name: string }> | undefined) {
     setAdding(true);
     setError(null);
 
-    const { data, error: rpcErr } = await supabase.rpc(RPC_NAME[entityType], {
+    const args: Record<string, unknown> = {
       p_target_pack_id: targetPackId,
       p_source_ids:     Array.from(selected),
-    });
+    };
+    if (entityType === 'card' && overrides) {
+      args.p_card_overrides = overrides;
+    }
+
+    const { data, error: rpcErr } = await supabase.rpc(RPC_NAME[entityType], args);
 
     setAdding(false);
 
@@ -389,6 +442,11 @@ export default function AddToPackModal({
     onAdded(Number(data ?? selected.size));
   }
 
+  // True only on the rename step when every input has trimmed content.
+  const renamesValid = selectedItems.every(
+    i => (renameDrafts[i.id] ?? '').trim().length > 0,
+  );
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -397,91 +455,160 @@ export default function AddToPackModal({
 
         <h2 className="font-heading text-xl text-white">{title}</h2>
 
-        {description && (
-          <p className="font-body text-base text-gray-300">{description}</p>
-        )}
+        {step === 'picker' ? (
 
-        {/* "New X" button — full width, outlined. Calling code handles the
-            actual create flow (currently stubbed). */}
-        <Button
-          variant="outline"
-          color="primary"
-          className="w-full"
-          leftIcon={<AddCircle className="size-4" />}
-          onClick={onCreateNew}
-        >
-          {newButtonLabel}
-        </Button>
+          // ── Step 1: pick existing entities ─────────────────────────────
+          <>
+            {description && (
+              <p className="font-body text-base text-gray-300">{description}</p>
+            )}
 
-        {/* OR divider. HR's "text" variant has my-8 baked in which is too
-            much for a modal — render the same visual inline. */}
-        <div className="flex items-center gap-3 py-1">
-          <hr className="flex-1 h-px border-0 bg-gray-700" />
-          <span className="font-body text-xs font-medium text-gray-400 uppercase tracking-wider">
-            or
-          </span>
-          <hr className="flex-1 h-px border-0 bg-gray-700" />
-        </div>
+            {/* "New X" button — full width, outlined. Calling code handles
+                the actual create flow (currently stubbed). */}
+            <Button
+              variant="outline"
+              color="primary"
+              className="w-full"
+              leftIcon={<AddCircle className="size-4" />}
+              onClick={onCreateNew}
+            >
+              {newButtonLabel}
+            </Button>
 
-        {/* Search — purely client-side filter over the loaded list. */}
-        <Input
-          placeholder={`Search ${title.replace(/^Add /, '').replace(/ to Pack$/, '').toLowerCase()}s`}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          leftIcon={<Magnifer className="size-4" />}
-          disabled={loading || adding}
-        />
+            {/* OR divider. HR's "text" variant has my-8 baked in which is
+                too much for a modal — render the same visual inline. */}
+            <div className="flex items-center gap-3 py-1">
+              <hr className="flex-1 h-px border-0 bg-gray-700" />
+              <span className="font-body text-xs font-medium text-gray-400 uppercase tracking-wider">
+                or
+              </span>
+              <hr className="flex-1 h-px border-0 bg-gray-700" />
+            </div>
 
-        {/* Picker list — fixed height + scroll so the modal doesn't
-            jump around as the user filters. */}
-        <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
-          {loading ? (
-            <p className="font-body text-sm text-gray-400 text-center py-6">
-              Loading…
-            </p>
-          ) : filtered.length === 0 ? (
-            <p className="font-body text-sm text-gray-400 text-center py-6">
-              {items.length === 0
-                ? "Nothing in your other packs to copy from yet."
-                : "No matches."}
-            </p>
-          ) : (
-            filtered.map(item => (
-              <SelectableListItem
-                key={item.id}
-                name={item.name}
-                subtitle={item.subtitle}
-                checked={selected.has(item.id)}
-                onCheckedChange={c => toggle(item.id, c)}
+            {/* Search — purely client-side filter over the loaded list. */}
+            <Input
+              placeholder={`Search ${title.replace(/^Add /, '').replace(/ to Pack$/, '').toLowerCase()}s`}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              leftIcon={<Magnifer className="size-4" />}
+              disabled={loading || adding}
+            />
+
+            {/* Picker list — fixed height + scroll so the modal doesn't
+                jump around as the user filters. */}
+            <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
+              {loading ? (
+                <p className="font-body text-sm text-gray-400 text-center py-6">
+                  Loading…
+                </p>
+              ) : filtered.length === 0 ? (
+                <p className="font-body text-sm text-gray-400 text-center py-6">
+                  {items.length === 0
+                    ? "Nothing in your other packs to copy from yet."
+                    : "No matches."}
+                </p>
+              ) : (
+                filtered.map(item => (
+                  <SelectableListItem
+                    key={item.id}
+                    name={item.name}
+                    subtitle={item.subtitle}
+                    checked={selected.has(item.id)}
+                    onCheckedChange={c => toggle(item.id, c)}
+                    disabled={adding}
+                  />
+                ))
+              )}
+            </div>
+
+            {error && (
+              <p className="font-body text-sm text-red-400">{error}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="ghost"
+                color="danger"
                 disabled={adding}
-              />
-            ))
-          )}
-        </div>
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!canSubmit}
+                loading={adding && entityType !== 'card'}
+                rightIcon={<AltArrowRight className="size-4" />}
+                onClick={handleSubmit}
+              >
+                Add Selected
+              </Button>
+            </div>
+          </>
 
-        {error && (
-          <p className="font-body text-sm text-red-400">{error}</p>
+        ) : (
+
+          // ── Step 2: review names before commit (cards only) ────────────
+          // The user-specific stat fields (game.stat_schema entries with
+          // userSpecific: true) are stripped server-side; portraits aren't
+          // copied at all. This step lets the user rename each card so
+          // their personal "Bam's MK VIII" can become a generic
+          // "Spartan Mark VII" before going into the pack.
+          <>
+            <p className="font-body text-base text-gray-300">
+              {selectedItems.length === 1
+                ? `This ${cardType === 'rule' ? 'card' : 'unit'}'s portrait and other custom information (if any) will be removed before being added to this pack.`
+                : `Each card's portrait and other custom information (if any) will be removed before being added to this pack.`}
+            </p>
+            <p className="font-body text-base text-gray-300">
+              {selectedItems.length === 1
+                ? `You should update this ${cardType === 'rule' ? 'card' : 'unit'}'s name to be generic, if it's not already.`
+                : `Update each name to be generic, if it's not already.`}
+            </p>
+
+            <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto">
+              {selectedItems.map((item, idx) => (
+                <Input
+                  key={item.id}
+                  label={selectedItems.length === 1
+                    ? (cardType === 'rule' ? 'Card Name' : 'Unit Name')
+                    : `${cardType === 'rule' ? 'Card' : 'Unit'} ${idx + 1} Name`}
+                  required
+                  value={renameDrafts[item.id] ?? ''}
+                  onChange={e => setRenameDrafts(prev => ({
+                    ...prev, [item.id]: e.target.value,
+                  }))}
+                  maxLength={99}
+                  disabled={adding}
+                  autoFocus={idx === 0}
+                />
+              ))}
+            </div>
+
+            {error && (
+              <p className="font-body text-sm text-red-400">{error}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="ghost"
+                color="danger"
+                disabled={adding}
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!renamesValid || adding}
+                loading={adding}
+                rightIcon={<AltArrowRight className="size-4" />}
+                onClick={handleCommitRenames}
+              >
+                Add to Pack
+              </Button>
+            </div>
+          </>
+
         )}
-
-        {/* Footer CTAs */}
-        <div className="flex justify-end gap-2 pt-1">
-          <Button
-            variant="ghost"
-            color="danger"
-            disabled={adding}
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            disabled={!canSubmit}
-            loading={adding}
-            rightIcon={<AltArrowRight className="size-4" />}
-            onClick={handleSubmit}
-          >
-            Add Selected
-          </Button>
-        </div>
 
       </div>
     </Modal>

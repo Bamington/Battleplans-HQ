@@ -13,6 +13,12 @@ export interface StatField {
   key:   string
   label: string
   type:  StatFieldType
+  /** When true, this stat field carries the player's personal customization
+   *  (e.g. their team's name, their hero's name) and should be stripped
+   *  when the row is copied into a shareable pack. The pack-copy RPCs
+   *  read this flag off the game's stat_schema and remove matching keys
+   *  from the cloned stats object. */
+  userSpecific?: boolean
 }
 
 // ── Game-specific stat shapes ─────────────────────────────────────────────────

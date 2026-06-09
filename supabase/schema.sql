@@ -1134,7 +1134,7 @@ insert into public.games (name, slug, stat_schema) values (
   'Blood Bowl',
   'blood-bowl',
   '[
-    {"key": "teamName",           "label": "Team Name",           "type": "text"},
+    {"key": "teamName",           "label": "Team Name",           "type": "text", "userSpecific": true},
     {"key": "playerRole",         "label": "Player Role",         "type": "text"},
     {"key": "cost",               "label": "Cost (GP)",           "type": "text"},
     {"key": "primaryAttribute",   "label": "Primary Attribute",   "type": "text"},
@@ -1168,7 +1168,7 @@ insert into public.games (name, slug, stat_schema, print_size, bleed_size) value
   'kill-team',
   '[
     {"key": "role",     "label": "Operative Type", "type": "text"},
-    {"key": "teamName", "label": "Team Name",      "type": "text"},
+    {"key": "teamName", "label": "Team Name",      "type": "text", "userSpecific": true},
     {"key": "tags",     "label": "Tags",           "type": "text"},
     {"key": "actions",  "label": "A",              "type": "number"},
     {"key": "movement", "label": "M",              "type": "number"},
@@ -1698,7 +1698,8 @@ grant  execute on function public.copy_addons_to_pack(uuid, uuid[]) to authentic
 
 create or replace function public.copy_cards_to_pack(
   p_target_pack_id uuid,
-  p_source_ids     uuid[]
+  p_source_ids     uuid[],
+  p_card_overrides jsonb default '{}'::jsonb
 )
 returns integer
 language plpgsql
@@ -1706,25 +1707,42 @@ security definer
 set search_path = public
 as $$
 declare
-  v_user_id     uuid := auth.uid();
-  v_target      record;
-  v_keyword_map jsonb := '{}'::jsonb;
-  v_addon_map   jsonb := '{}'::jsonb;
-  v_card_map    jsonb := '{}'::jsonb;
-  v_src         record;
-  v_existing    uuid;
-  v_new_id      uuid;
-  v_count       integer := 0;
+  v_user_id        uuid := auth.uid();
+  v_target         record;
+  v_target_schema  jsonb;
+  v_user_keys      text[];
+  v_keyword_map    jsonb := '{}'::jsonb;
+  v_addon_map      jsonb := '{}'::jsonb;
+  v_card_map       jsonb := '{}'::jsonb;
+  v_src            record;
+  v_existing       uuid;
+  v_new_id         uuid;
+  v_count          integer := 0;
+  v_override_name  text;
+  v_clean_stats    jsonb;
+  v_k              text;
 begin
   if v_user_id is null then
     raise exception 'Not authenticated' using errcode = '42501';
   end if;
 
-  select id, owner_user_id, game_id into v_target
-  from public.packs where id = p_target_pack_id;
+  select p.id, p.owner_user_id, p.game_id, g.stat_schema
+    into v_target
+  from public.packs p
+  join public.games g on g.id = p.game_id
+  where p.id = p_target_pack_id;
   if v_target.id is null or v_target.owner_user_id <> v_user_id then
     raise exception 'Target pack not found or not owned by you' using errcode = '42501';
   end if;
+  v_target_schema := v_target.stat_schema;
+
+  -- Collect userSpecific keys from the game's stat_schema; cards copied
+  -- into the pack get these keys stripped from their cloned stats blob.
+  v_user_keys := array(
+    select coalesce(field->>'key', '')
+    from jsonb_array_elements(coalesce(v_target_schema, '[]'::jsonb)) as field
+    where (field->>'userSpecific')::boolean = true
+  );
 
   if array_length(p_source_ids, 1) is null then return 0; end if;
 
@@ -1832,8 +1850,10 @@ begin
   on conflict (addon_id, keyword_id) do nothing;
 
   -- Clone the cards as templates. Use the resolved game_id (cards.game_id
-  -- may be null for deck cards) so the cloned template satisfies the
-  -- "game_id not null when is_template" check.
+  -- may be null for deck cards), and apply two transforms before insert:
+  --   1. Substitute the override name from p_card_overrides if present
+  --      (used by the pack editor's rename modal).
+  --   2. Strip every userSpecific key from the cloned stats blob.
   for v_src in
     select c.*,
            coalesce(c.game_id, d.game_id) as resolved_game_id
@@ -1841,12 +1861,30 @@ begin
     left join public.decks d on d.id = c.deck_id
     where c.id = any(p_source_ids)
   loop
+    v_override_name := nullif(
+      trim(coalesce(p_card_overrides #>> array[v_src.id::text, 'name'], '')),
+      ''
+    );
+
+    v_clean_stats := coalesce(v_src.stats, '{}'::jsonb);
+    if v_user_keys is not null then
+      foreach v_k in array v_user_keys loop
+        v_clean_stats := v_clean_stats - v_k;
+      end loop;
+    end if;
+
     insert into public.cards (
       deck_id, user_id, game_id, name, card_type, stats,
       is_template, pack_id
     ) values (
-      null, v_user_id, v_src.resolved_game_id, v_src.name, v_src.card_type,
-      v_src.stats, true, p_target_pack_id
+      null,
+      v_user_id,
+      v_src.resolved_game_id,
+      coalesce(v_override_name, v_src.name),
+      v_src.card_type,
+      v_clean_stats,
+      true,
+      p_target_pack_id
     ) returning id into v_new_id;
 
     v_card_map := v_card_map || jsonb_build_object(v_src.id::text, v_new_id::text);
@@ -1873,5 +1911,5 @@ begin
 end;
 $$;
 
-revoke all on function public.copy_cards_to_pack(uuid, uuid[]) from public;
-grant  execute on function public.copy_cards_to_pack(uuid, uuid[]) to authenticated;
+revoke all on function public.copy_cards_to_pack(uuid, uuid[], jsonb) from public;
+grant  execute on function public.copy_cards_to_pack(uuid, uuid[], jsonb) to authenticated;
