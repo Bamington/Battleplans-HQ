@@ -2993,12 +2993,12 @@ const ComponentGallery = () => {
                 { label: '14 Skills', icon: <Star        className="size-3.5" /> },
               ]}
               description="All the Black Orc players from Season 3 of Blood Bowl, including all skills and traits."
-              onDownload={() => {}}
+              cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => {} }}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Owned pack — ⋯ menu with Delete, no Download CTA</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Owned pack — Edit CTA + ⋯ menu with Delete</p>
             <PackListItem
               name="My Custom Spartans"
               gameName="Halo: Flashpoint"
@@ -3011,11 +3011,12 @@ const ComponentGallery = () => {
               description="A custom Spartan strike team I made for our home league."
               onDelete={() => {}}
               deleteLabel="Delete Pack"
+              cta={{ label: 'Edit Pack', icon: <Pen2 className="size-4" />, onClick: () => {} }}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Imported pack — ⋯ menu with Uninstall</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Imported pack — ⋯ menu with Uninstall, no CTA</p>
             <PackListItem
               name="Spartan Strike Team"
               gameName="Halo: Flashpoint"
@@ -3042,7 +3043,7 @@ const ComponentGallery = () => {
               badges={[
                 { label: '4 Skills', icon: <Star className="size-3.5" /> },
               ]}
-              onDownload={() => {}}
+              cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => {} }}
             />
           </div>
 
@@ -3054,7 +3055,7 @@ const ComponentGallery = () => {
               thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
               thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
               description="Background lore for every faction in Halo: Flashpoint. No game content — just flavour text."
-              onDownload={() => {}}
+              cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => {} }}
             />
           </div>
 

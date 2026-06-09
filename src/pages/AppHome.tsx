@@ -37,7 +37,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import DeckListItem from '../components/DeckListItem';
@@ -49,6 +49,7 @@ import Input from '../components/Input';
 import HR from '../components/HR';
 import ImportListModal from '../components/ImportListModal';
 import AddCircle from '../icons/AddCircle';
+import Pen2 from '../icons/Pen2';
 import Box from '../icons/Box';
 import Widget2 from '../icons/Widget2';
 import Layers from '../icons/Layers';
@@ -675,29 +676,33 @@ export default function AppHome() {
                             {yourPacks.map(pack => {
                               const assets = gameAssets(pack.game.slug);
                               return (
-                                <Link
+                                <PackListItem
                                   key={pack.id}
-                                  to={`/app/packs/${pack.id}/edit`}
-                                  className="block w-full text-left"
-                                >
-                                  <PackListItem
-                                    name={pack.name}
-                                    gameName={pack.game.name}
-                                    thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
-                                    thumbnail={
-                                      assets?.thumbnailSrc
-                                        ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
-                                        : undefined
-                                    }
-                                    badges={pack.badges}
-                                    description={pack.description ?? undefined}
-                                    // PackListItem stops event propagation
-                                    // at the menu wrapper, so this click
-                                    // doesn't also navigate via the Link.
-                                    onDelete={() => requestDeletePack(pack)}
-                                    deleteLabel={pack.source === 'imported' ? 'Uninstall Pack' : 'Delete Pack'}
-                                  />
-                                </Link>
+                                  name={pack.name}
+                                  gameName={pack.game.name}
+                                  thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
+                                  thumbnail={
+                                    assets?.thumbnailSrc
+                                      ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
+                                      : undefined
+                                  }
+                                  badges={pack.badges}
+                                  description={pack.description ?? undefined}
+                                  onDelete={() => requestDeletePack(pack)}
+                                  deleteLabel={pack.source === 'imported' ? 'Uninstall Pack' : 'Delete Pack'}
+                                  // Own packs get an "Edit Pack" CTA that
+                                  // navigates to the editor. Imported packs
+                                  // have no CTA — the user already has the
+                                  // pack's clones in their library, so the
+                                  // pack itself doesn't need to be "opened".
+                                  cta={pack.source === 'own'
+                                    ? {
+                                        label:   'Edit Pack',
+                                        icon:    <Pen2 className="size-4" />,
+                                        onClick: () => navigate(`/app/packs/${pack.id}/edit`),
+                                      }
+                                    : undefined}
+                                />
                               );
                             })}
                           </div>
@@ -727,7 +732,11 @@ export default function AppHome() {
                                   }
                                   badges={pack.badges}
                                   description={pack.description ?? undefined}
-                                  onDownload={() => handleImport(pack)}
+                                  cta={{
+                                    label:   'Download Pack',
+                                    icon:    <AddCircle className="size-4" />,
+                                    onClick: () => handleImport(pack),
+                                  }}
                                 />
                               );
                             })}

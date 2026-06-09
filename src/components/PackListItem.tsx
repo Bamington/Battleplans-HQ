@@ -7,13 +7,14 @@
  * (with a Delete item when the caller owns or has imported the pack).
  * Below: an HR, a wrap of badges summarising the pack contents
  * (Units / Rules / per-addon-type), a brief description, and an
- * optional "Download Pack" CTA in the bottom-right (shown on public
- * browse rows the caller could import).
+ * optional CTA button in the bottom-right (caller-supplied label +
+ * action — e.g. "Download Pack" for public rows, "Edit Pack" for
+ * owned rows).
  *
  * Matches the Figma "Card / Rules Pack" component (node 897:14732).
  *
  * USAGE EXAMPLES:
- *   // Public pack — download CTA, no menu
+ *   // Public pack — Download CTA, no menu
  *   <PackListItem
  *     name="Black Orc Player Cards"
  *     gameName="Blood Bowl"
@@ -21,15 +22,16 @@
  *     thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
  *     badges={[...]}
  *     description="..."
- *     onDownload={() => importPack(pack.id)}
+ *     cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => importPack(pack.id) }}
  *   />
  *
- *   // Owned pack — menu with Delete, no download CTA
+ *   // Owned pack — menu with Delete + Edit CTA
  *   <PackListItem
  *     name="My Custom Pack"
  *     gameName="Halo: Flashpoint"
  *     onDelete={() => confirmDelete(pack)}
  *     deleteLabel="Delete Pack"
+ *     cta={{ label: 'Edit Pack', icon: <Pen2 className="size-4" />, onClick: () => navigate(`/app/packs/${pack.id}/edit`) }}
  *   />
  *
  * PROPS:
@@ -39,8 +41,8 @@
  *   thumbnailBg  — Tailwind bg class for the thumbnail container.
  *   badges       — Content summary badges (Units / Rules / per type).
  *   description  — Author-written blurb.
- *   onDownload   — When provided, renders the "Download Pack" CTA in
- *                  the bottom-right. Use on public browse rows.
+ *   cta          — Bottom-right action button. Omit to hide entirely.
+ *                  { label, icon?, onClick }
  *   onDelete     — When provided, renders the ⋯ menu in the header
  *                  top-right with a Delete item. Use on rows the user
  *                  owns or has imported.
@@ -53,7 +55,6 @@ import React from 'react';
 import Badge from './Badge';
 import Button from './Button';
 import Dropdown, { DropdownItem } from './Dropdown';
-import AddCircle from '../icons/AddCircle';
 import MenuDots from '../icons/MenuDots';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
@@ -84,8 +85,12 @@ export interface PackListItemProps {
   badges?: PackBadge[];
   /** Author-written description */
   description?: string;
-  /** When provided, renders the "Download Pack" CTA in the bottom-right. */
-  onDownload?: () => void;
+  /** Bottom-right CTA button. Omit to hide the CTA entirely. */
+  cta?: {
+    label:    string;
+    icon?:    React.ReactNode;
+    onClick:  () => void;
+  };
   /** When provided, renders the ⋯ menu in the header with a Delete item. */
   onDelete?: () => void;
   /** Override the Delete menu item's label. Defaults to "Delete Pack". */
@@ -103,7 +108,7 @@ const PackListItem = ({
   thumbnailBg = 'bg-gray-700',
   badges      = [],
   description,
-  onDownload,
+  cta,
   onDelete,
   deleteLabel = 'Delete Pack',
   className   = '',
@@ -212,20 +217,21 @@ const PackListItem = ({
         </p>
       )}
 
-      {/* ── Download Pack CTA ──────────────────────────────────────────
-          Bottom-right, only when this is a public browse row the user
-          could import. Owned / imported rows omit this since download
-          would be meaningless. */}
-      {onDownload && (
+      {/* ── CTA button ─────────────────────────────────────────────────
+          Bottom-right, caller decides the label + action. Examples:
+            - Public browse row    → "Download Pack"
+            - Owned pack row       → "Edit Pack"
+            - Imported pack row    → cta omitted (menu only) */}
+      {cta && (
         <div className="flex justify-end w-full pt-1">
           <Button
             variant="outline"
             color="primary"
             size="sm"
-            leftIcon={<AddCircle className="size-4" />}
-            onClick={onDownload}
+            leftIcon={cta.icon}
+            onClick={cta.onClick}
           >
-            Download Pack
+            {cta.label}
           </Button>
         </div>
       )}
