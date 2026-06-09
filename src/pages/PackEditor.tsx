@@ -28,6 +28,7 @@ import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
+import AddKeywordModal from '../components/AddKeywordModal';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
 import BloodBowlCard from '../components/BloodBowlCard';
 import KillTeamCard from '../components/KillTeamCard';
@@ -123,6 +124,12 @@ export default function PackEditor() {
   // The AddToPackModal is reused for every "Add X" button. Null when closed;
   // a context object describing what to show otherwise.
   const [addModal, setAddModal] = useState<AddModalCtx | null>(null);
+
+  // The keyword to edit. When non-null, AddKeywordModal opens in edit
+  // mode (skips the picker step and shows the form pre-populated).
+  // RLS allows pack owners to UPDATE keywords with pack_id matching one
+  // they own, so the modal's update path works without changes.
+  const [editingKeyword, setEditingKeyword] = useState<Keyword | null>(null);
 
   // Delete-confirmation state. One shared modal for every entity type;
   // `kind` picks the supabase table and the "this cannot be undone"
@@ -528,6 +535,7 @@ export default function PackEditor() {
                         name={k.name}
                         subtitle={k.description ?? ''}
                         addonTypeName="Keyword"
+                        onEdit={() => setEditingKeyword(k)}
                         onDelete={() => requestDelete('keyword', k.id, k.name, 'Keyword')}
                       />
                     ))}
@@ -559,6 +567,32 @@ export default function PackEditor() {
           onCreateNew={() => stubNotImplemented(addModal.newButtonLabel)}
           onAdded={() => {
             setAddModal(null);
+            loadAll();
+          }}
+        />
+      )}
+
+      {/* Edit-keyword modal — reuses the builder's AddKeywordModal in
+          its edit-mode path. The modal's UPDATE goes through RLS, which
+          allows pack owners to update their pack keywords. After save
+          we reload the pack so the row's label / subtitle refresh.
+          onKeywordSelected is required by the modal's type but only
+          fires from the picker step, which we never reach here. */}
+      {pack && editingKeyword && (
+        <AddKeywordModal
+          open={true}
+          onClose={() => setEditingKeyword(null)}
+          gameSlug={pack.game.slug}
+          editingKeyword={{
+            id:          editingKeyword.id,
+            name:        editingKeyword.name,
+            description: editingKeyword.description ?? '',
+            hasParams:   Array.isArray(editingKeyword.params_schema)
+                         && editingKeyword.params_schema.length > 0,
+          }}
+          onKeywordSelected={() => {/* unreachable in edit-only flow */}}
+          onKeywordUpdated={() => {
+            setEditingKeyword(null);
             loadAll();
           }}
         />
