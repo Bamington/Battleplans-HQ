@@ -71,7 +71,15 @@ const TIMING_OPTIONS: { value: '' | StarcraftTiming; label: string }[] = [
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-const StarcraftAbilityForm = ({ editingAddon, onSave, onCancel, saving }: AddonFormProps) => {
+export interface StarcraftAbilityFormProps extends AddonFormProps {
+  /** Fired once the FULL save has settled — addon row written AND
+   *  addon_keywords synced. Used by the pack editor's create flow,
+   *  which deep-clones the addon into the pack after saving; onSave
+   *  alone resolves before the keyword sync lands. */
+  onSaveComplete?: (addonId: string) => void;
+}
+
+const StarcraftAbilityForm = ({ editingAddon, onSave, onCancel, saving, onSaveComplete }: StarcraftAbilityFormProps) => {
   const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
 
   // Field state, seeded from editingAddon when in edit mode.
@@ -173,6 +181,7 @@ const StarcraftAbilityForm = ({ editingAddon, onSave, onCancel, saving }: AddonF
           })),
         );
       }
+      onSaveComplete?.(addonId);
     } catch (err) {
       console.error('[StarcraftAbilityForm] save error:', err);
     } finally {

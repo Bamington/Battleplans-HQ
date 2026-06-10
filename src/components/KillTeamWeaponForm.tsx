@@ -73,6 +73,12 @@ export interface KillTeamWeaponFormProps extends AddonFormProps {
     description: string,
     hasParams:   boolean,
   ) => void;
+  /** Fired once the FULL save has settled — addon row written AND
+   *  addon_keywords synced. Use this when follow-up work needs the
+   *  addon's keyword joins in place (e.g. the pack editor's create
+   *  flow, which deep-clones the addon into the pack after saving).
+   *  onSave alone resolves before the keyword sync lands. */
+  onSaveComplete?: (addonId: string) => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -85,6 +91,7 @@ export default function KillTeamWeaponForm({
   onPendingKeywords,
   onKeywordsSaved,
   onPropagateKeywordUpdate,
+  onSaveComplete,
 }: KillTeamWeaponFormProps) {
   const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
 
@@ -177,6 +184,7 @@ export default function KillTeamWeaponForm({
         // addon gets its keyword data refreshed — covers the edit path
         // that AddAddonModal doesn't touch via onAdd.
         onKeywordsSaved?.(addonId, attachedKeywords);
+        onSaveComplete?.(addonId);
       }
     } finally {
       // Clear so a stale list can't bleed across saves.

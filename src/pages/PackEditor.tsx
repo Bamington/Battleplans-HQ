@@ -29,6 +29,7 @@ import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
 import AddKeywordModal from '../components/AddKeywordModal';
+import StarcraftAddKeywordModal from '../components/StarcraftAddKeywordModal';
 import type { AddonFormProps } from '../components/AddAddonModal';
 import HaloWeaponForm from '../components/HaloWeaponForm';
 import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
@@ -116,8 +117,18 @@ function stubNotImplemented(what: string) {
 // Blood Bowl has a `skills` addon type in the DB but its builder models
 // skills as keywords (no skill-addon creation path), so it has no entry —
 // those rows keep a delete-only menu, and skills edit through the Keywords
-// panel.
-const ADDON_EDIT_FORMS: Record<string, Record<string, ComponentType<AddonFormProps>>> = {
+// panel. Its "New Skill" button stays stubbed for the same reason.
+//
+// The same forms also serve the "New X" create flow: rendered with
+// editingAddon=null, they create a LIBRARY addon (matching their own copy:
+// "Once created, you can add this X to other units…"), and onSaveComplete
+// — fired after the form's addon_keywords sync — triggers the deep clone
+// into the pack. Forms without the optional onSaveComplete prop still
+// typecheck here; they just can't drive the create flow yet.
+type PackAddonFormProps = AddonFormProps & {
+  onSaveComplete?: (addonId: string) => void;
+};
+const ADDON_EDIT_FORMS: Record<string, Record<string, ComponentType<PackAddonFormProps>>> = {
   'halo-flashpoint': { weapons: HaloWeaponForm },
   'kill-team':       { weapons: KillTeamWeaponForm, abilities: KillTeamAbilityForm },
   'starcraft':       { weapons: StarcraftWeaponForm, rules: StarcraftAbilityForm },
@@ -160,10 +171,24 @@ export default function PackEditor() {
   // in scope). When non-null, a Modal renders the form directly.
   const [editingAddon, setEditingAddon] = useState<{
     addon:     Addon;
-    Form:      ComponentType<AddonFormProps>;
+    Form:      ComponentType<PackAddonFormProps>;
     typeLabel: string;
   } | null>(null);
   const [savingAddonEdit, setSavingAddonEdit] = useState(false);
+
+  // Create-new flows launched from AddToPackModal's "New X" button.
+  // Addons: the per-game form renders in create mode; the row lands in
+  // the user's library first, then onSaveComplete deep-clones it into
+  // the pack (cloning earlier would miss the form's addon_keywords sync).
+  // Keywords: AddKeywordModal in createOnly mode, then the same
+  // create-library-then-copy dance.
+  const [creatingAddon, setCreatingAddon] = useState<{
+    Form:        ComponentType<PackAddonFormProps>;
+    addonTypeId: string;
+    typeLabel:   string;
+  } | null>(null);
+  const [savingAddonCreate, setSavingAddonCreate] = useState(false);
+  const [creatingKeyword,   setCreatingKeyword]   = useState(false);
 
   // Delete-confirmation state. One shared modal for every entity type;
   // `kind` picks the supabase table and the "this cannot be undone"
@@ -604,7 +629,24 @@ export default function PackEditor() {
           title={addModal.title}
           description={addModal.description}
           newButtonLabel={addModal.newButtonLabel}
-          onCreateNew={() => stubNotImplemented(addModal.newButtonLabel)}
+          onCreateNew={() => {
+            // Addons with a registered form and keywords get real create
+            // flows; cards (and Blood Bowl skills) stay stubbed.
+            if (addModal.entityType === 'addon' && addModal.addonTypeId) {
+              const at = addonTypes.find(t => t.id === addModal.addonTypeId);
+              const Form = at ? ADDON_EDIT_FORMS[pack.game.slug]?.[at.slug] : undefined;
+              if (at && Form) {
+                setAddModal(null);
+                setCreatingAddon({ Form, addonTypeId: at.id, typeLabel: singularise(at.name) });
+                return;
+              }
+            } else if (addModal.entityType === 'keyword') {
+              setAddModal(null);
+              setCreatingKeyword(true);
+              return;
+            }
+            stubNotImplemented(addModal.newButtonLabel);
+          }}
           onAdded={() => {
             setAddModal(null);
             loadAll();
@@ -676,6 +718,102 @@ export default function PackEditor() {
             }}
           />
         </Modal>
+      )}
+
+      {/* Create addon modal — the per-game form in create mode. onSave
+          inserts a LIBRARY addon (game_id auto-set by trigger from the
+          addon type); onSaveComplete — after the form's addon_keywords
+          sync — deep-clones it into the pack so the keywords come along.
+          The library copy is intentional: it matches the form's own
+          "you can add this to other units" promise. */}
+      {pack && creatingAddon && (
+        <Modal
+          open
+          onClose={() => !savingAddonCreate && setCreatingAddon(null)}
+          className="max-w-md"
+        >
+          <creatingAddon.Form
+            editingAddon={null}
+            saving={savingAddonCreate}
+            onCancel={() => setCreatingAddon(null)}
+            onSave={async (name, description, stats) => {
+              setSavingAddonCreate(true);
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) throw new Error('Not signed in');
+                const { data, error } = await supabase
+                  .from('addons')
+                  .insert({
+                    user_id:       user.id,
+                    addon_type_id: creatingAddon.addonTypeId,
+                    name,
+                    description,
+                    stats:         stats as Json,
+                  })
+                  .select('id')
+                  .single();
+                if (error) throw error;
+                return (data as { id: string }).id;
+              } catch (err) {
+                console.error(`[BattleCards] ${creatingAddon.typeLabel.toLowerCase()} create error:`, err);
+                return '';
+              } finally {
+                setSavingAddonCreate(false);
+              }
+            }}
+            onSaveComplete={async addonId => {
+              const { error } = await supabase.rpc('copy_addons_to_pack', {
+                p_target_pack_id: pack.id,
+                p_source_ids:     [addonId],
+              });
+              if (error) console.error('[BattleCards] copy new addon to pack error:', error);
+              setCreatingAddon(null);
+              await loadAll();
+            }}
+          />
+        </Modal>
+      )}
+
+      {/* Create keyword modal — the game's keyword modal in createOnly
+          mode (the picker step would duplicate AddToPackModal's job).
+          StarCraft uses its own modal because its keyword values are
+          strings (params_schema key "value") rather than the numeric "X"
+          the shared modal writes. Either way the keyword lands in the
+          user's library, then gets copied into the pack. */}
+      {pack && creatingKeyword && (
+        pack.game.slug === 'starcraft' ? (
+          <StarcraftAddKeywordModal
+            open
+            onClose={() => setCreatingKeyword(false)}
+            createOnly
+            onKeywordSelected={async kw => {
+              const { error } = await supabase.rpc('copy_keywords_to_pack', {
+                p_target_pack_id: pack.id,
+                p_source_ids:     [kw.keywordId],
+              });
+              if (error) console.error('[BattleCards] copy new keyword to pack error:', error);
+              setCreatingKeyword(false);
+              await loadAll();
+            }}
+          />
+        ) : (
+          <AddKeywordModal
+            open
+            onClose={() => setCreatingKeyword(false)}
+            gameSlug={pack.game.slug}
+            createOnly
+            typeName={pack.game.slug === 'blood-bowl' ? 'Skill' : 'Keyword'}
+            onKeywordSelected={async kw => {
+              const { error } = await supabase.rpc('copy_keywords_to_pack', {
+                p_target_pack_id: pack.id,
+                p_source_ids:     [kw.keywordId],
+              });
+              if (error) console.error('[BattleCards] copy new keyword to pack error:', error);
+              setCreatingKeyword(false);
+              await loadAll();
+            }}
+          />
+        )
       )}
 
       {/* Shared delete confirmation modal — used by every ⋯ menu. */}

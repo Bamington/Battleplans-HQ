@@ -64,6 +64,13 @@ export interface AddKeywordModalProps {
   editingKeyword?: { id: string; name: string; description: string; hasParams: boolean } | null;
   /** Called after a keyword definition is updated (name/description changed) */
   onKeywordUpdated?: (kw: KeywordSelection) => void;
+  /** When true, the modal opens directly on the create form (no picker
+   *  step) and Cancel closes the modal instead of returning to the picker.
+   *  The set-value step is also skipped — that step sets an ATTACHMENT
+   *  value, which doesn't exist when creating a standalone definition
+   *  (e.g. the pack editor's "New Keyword" flow). onKeywordSelected fires
+   *  with paramValue null. */
+  createOnly?: boolean;
   /** Display name for the entity type — defaults to "Keyword". Use "Skill" for Blood Bowl. */
   typeName?: string;
   /** Examples shown in the "has a value" checkbox label. Defaults to "Blast (X), Weight of Fire (X)". */
@@ -88,6 +95,7 @@ const AddKeywordModal = ({
   excludeKeywordIds = [],
   editingKeyword = null,
   onKeywordUpdated,
+  createOnly = false,
   typeName = 'Keyword',
   valueExamples = 'Blast (X), Weight of Fire (X)',
   constraints = {},
@@ -195,6 +203,9 @@ const AddKeywordModal = ({
       setNewDescription(editingKeyword.description);
       setNewHasValue(editingKeyword.hasParams);
       setStep('create');
+    } else if (createOnly) {
+      // Create-only mode skips the picker entirely.
+      setStep('create');
     }
 
     let cancelled = false;
@@ -213,8 +224,10 @@ const AddKeywordModal = ({
 
       gameIdRef.current = game.id;
 
-      // For non-edit mode, show the picker after resolving IDs
-      if (!editingKeyword) {
+      // For non-edit, non-create-only mode, show the picker after
+      // resolving IDs. (createOnly already set step to 'create' and
+      // fetchPage would clobber it back to 'pick'.)
+      if (!editingKeyword && !createOnly) {
         await fetchPage(0);
       }
     };
@@ -306,16 +319,18 @@ const AddKeywordModal = ({
 
         const created = data as Keyword;
 
-        if (newHasValue) {
+        if (newHasValue && !createOnly) {
           setPendingKeyword(created);
           setParamValue(1);
           setStep('set-value');
         } else {
+          // createOnly skips set-value: that step records an attachment
+          // value, and a standalone definition has nothing to attach to.
           onKeywordSelected({
             keywordId: created.id,
             keywordName: created.name,
             description: created.description ?? '',
-            hasParams: false,
+            hasParams: newHasValue,
             paramValue: null,
           });
         }
@@ -339,8 +354,8 @@ const AddKeywordModal = ({
   };
 
   const handleCreateCancel = () => {
-    if (editingKeyword) {
-      // Editing mode — just close the modal
+    if (editingKeyword || createOnly) {
+      // Editing / create-only mode — there's no picker to go back to.
       onClose();
       return;
     }

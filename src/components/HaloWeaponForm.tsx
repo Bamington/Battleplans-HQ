@@ -77,6 +77,12 @@ export interface HaloWeaponFormProps extends AddonFormProps {
     description: string,
     hasParams:   boolean,
   ) => void;
+  /** Fired once the FULL save has settled — addon row written AND
+   *  addon_keywords synced. Use this when follow-up work needs the
+   *  addon's keyword joins in place (e.g. the pack editor's create
+   *  flow, which deep-clones the addon into the pack after saving).
+   *  onSave alone resolves before the keyword sync lands. */
+  onSaveComplete?: (addonId: string) => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -90,6 +96,7 @@ export default function HaloWeaponForm({
   keywordConstraints  = {},
   onPendingKeywords,
   onPropagateKeywordUpdate,
+  onSaveComplete,
 }: HaloWeaponFormProps) {
   const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
 
@@ -179,6 +186,7 @@ export default function HaloWeaponForm({
           })),
         );
       }
+      onSaveComplete?.(addonId);
     }
   };
 
