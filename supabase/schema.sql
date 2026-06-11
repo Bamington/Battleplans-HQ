@@ -1499,7 +1499,7 @@ create or replace function public.copy_keywords_to_pack(
   p_target_pack_id uuid,
   p_source_ids     uuid[]
 )
-returns integer
+returns uuid[]
 language plpgsql
 security definer
 set search_path = public
@@ -1578,7 +1578,7 @@ create or replace function public.copy_addons_to_pack(
   p_target_pack_id uuid,
   p_source_ids     uuid[]
 )
-returns integer
+returns uuid[]
 language plpgsql
 security definer
 set search_path = public

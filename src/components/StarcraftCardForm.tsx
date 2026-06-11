@@ -11,6 +11,7 @@ import StarcraftWeaponForm from './StarcraftWeaponForm';
 import StarcraftAbilityForm from './StarcraftAbilityForm';
 import StarcraftSupplyTiersModal from './StarcraftSupplyTiersModal';
 import StarcraftAddKeywordModal from './StarcraftAddKeywordModal';
+import AddToPackModal from './AddToPackModal';
 import { starcraftWeaponSubtitle, starcraftAbilitySubtitle } from '../lib/addonSubtitles';
 import AddCircle from '../icons/AddCircle';
 import AltArrowRight from '../icons/AltArrowRight';
@@ -58,12 +59,15 @@ export default function StarcraftCardForm({
   const [weapons,   setWeapons]   = useState<LoadedAddon[]>([]);
   const [rules,     setRules]     = useState<LoadedAddon[]>([]);
   const [cardKws,   setCardKws]   = useState<LoadedKeyword[]>([]);
+  const [pickingW,  setPickingW]  = useState(false);
   const [addingW,   setAddingW]   = useState(false);
   const [editingW,  setEditingW]  = useState<LoadedAddon | null>(null);
   const [savingW,   setSavingW]   = useState(false);
+  const [pickingR,  setPickingR]  = useState(false);
   const [addingR,   setAddingR]   = useState(false);
   const [editingR,  setEditingR]  = useState<LoadedAddon | null>(null);
   const [savingR,   setSavingR]   = useState(false);
+  const [pickingKw, setPickingKw] = useState(false);
   const [addingKw,  setAddingKw]  = useState(false);
 
   const weaponType = addonTypes.find(t => t.slug === 'weapons');
@@ -242,7 +246,7 @@ export default function StarcraftCardForm({
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base text-gray-300">Weapons</h3>
           {weaponType && (
-            <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setAddingW(true)}>Add Weapon</Button>
+            <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setPickingW(true)}>Add Weapon</Button>
           )}
         </div>
         {weapons.length === 0
@@ -264,7 +268,7 @@ export default function StarcraftCardForm({
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base text-gray-300">Special Rules</h3>
           {ruleType && (
-            <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setAddingR(true)}>Add Rule</Button>
+            <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setPickingR(true)}>Add Rule</Button>
           )}
         </div>
         {rules.length === 0
@@ -285,7 +289,7 @@ export default function StarcraftCardForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base text-gray-300">Keywords</h3>
-          <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setAddingKw(true)}>Add Keyword</Button>
+          <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setPickingKw(true)}>Add Keyword</Button>
         </div>
         {cardKws.length === 0
           ? <p className="font-body text-sm text-gray-500 py-2">No keywords yet.</p>
@@ -305,6 +309,56 @@ export default function StarcraftCardForm({
       </div>
 
       {/* Sub-modals */}
+      {pickingW && weaponType && (
+        <AddToPackModal open onClose={() => setPickingW(false)}
+          entityType="addon" addonTypeId={weaponType.id}
+          gameId={gameId} targetPackId={packId}
+          title="Add Weapon" newButtonLabel="New Weapon"
+          getAddonSubtitle={starcraftWeaponSubtitle}
+          onCreateNew={() => { setPickingW(false); setAddingW(true); }}
+          onAdded={() => setPickingW(false)}
+          onAddedWithIds={async ids => {
+            await supabase.from('card_addons').insert(
+              ids.map((addonId, i) => ({ card_id: cardId, addon_id: addonId, sort_order: weapons.length + i }))
+            );
+            await loadContent(cardId);
+            setPickingW(false);
+          }}
+        />
+      )}
+      {pickingR && ruleType && (
+        <AddToPackModal open onClose={() => setPickingR(false)}
+          entityType="addon" addonTypeId={ruleType.id}
+          gameId={gameId} targetPackId={packId}
+          title="Add Special Rule" newButtonLabel="New Rule"
+          getAddonSubtitle={starcraftAbilitySubtitle}
+          onCreateNew={() => { setPickingR(false); setAddingR(true); }}
+          onAdded={() => setPickingR(false)}
+          onAddedWithIds={async ids => {
+            await supabase.from('card_addons').insert(
+              ids.map((addonId, i) => ({ card_id: cardId, addon_id: addonId, sort_order: weapons.length + rules.length + i }))
+            );
+            await loadContent(cardId);
+            setPickingR(false);
+          }}
+        />
+      )}
+      {pickingKw && (
+        <AddToPackModal open onClose={() => setPickingKw(false)}
+          entityType="keyword"
+          gameId={gameId} targetPackId={packId}
+          title="Add Keyword" newButtonLabel="New Keyword"
+          onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
+          onAdded={() => setPickingKw(false)}
+          onAddedWithIds={async ids => {
+            await supabase.from('card_keywords').insert(
+              ids.map((keywordId, i) => ({ card_id: cardId, keyword_id: keywordId, params: [], sort_order: cardKws.length + i }))
+            );
+            await loadContent(cardId);
+            setPickingKw(false);
+          }}
+        />
+      )}
       {addingW && (
         <Modal open onClose={() => !savingW && setAddingW(false)} className="max-w-md">
           <StarcraftWeaponForm editingAddon={null} saving={savingW} onCancel={() => setAddingW(false)}

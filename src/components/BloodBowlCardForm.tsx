@@ -7,6 +7,7 @@ import Counter from './Counter';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import AddonListItem from './AddonListItem';
 import AddKeywordModal from './AddKeywordModal';
+import AddToPackModal from './AddToPackModal';
 import AddCircle from '../icons/AddCircle';
 import AltArrowRight from '../icons/AltArrowRight';
 
@@ -45,6 +46,7 @@ export default function BloodBowlCardForm({
   const [error,   setError]   = useState<string | null>(null);
 
   const [cardKws,  setCardKws]  = useState<LoadedKeyword[]>([]);
+  const [pickingKw, setPickingKw] = useState(false);
   const [addingKw, setAddingKw] = useState(false);
 
   async function loadContent(cardId: string) {
@@ -143,7 +145,7 @@ export default function BloodBowlCardForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base text-gray-300">Skills</h3>
-          <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setAddingKw(true)}>
+          <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setPickingKw(true)}>
             Add Skill
           </Button>
         </div>
@@ -166,6 +168,22 @@ export default function BloodBowlCardForm({
         </Button>
       </div>
 
+      {pickingKw && (
+        <AddToPackModal open onClose={() => setPickingKw(false)}
+          entityType="keyword"
+          gameId={gameId} targetPackId={packId}
+          title="Add Skill" newButtonLabel="New Skill"
+          onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
+          onAdded={() => setPickingKw(false)}
+          onAddedWithIds={async ids => {
+            await supabase.from('card_keywords').insert(
+              ids.map((keywordId, i) => ({ card_id: cardId, keyword_id: keywordId, params: [], sort_order: cardKws.length + i }))
+            );
+            await loadContent(cardId);
+            setPickingKw(false);
+          }}
+        />
+      )}
       {addingKw && (
         <AddKeywordModal open onClose={() => setAddingKw(false)} gameSlug="blood-bowl" createOnly typeName="Skill"
           onKeywordSelected={async ({ keywordId }) => {

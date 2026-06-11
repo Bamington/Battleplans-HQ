@@ -8,6 +8,7 @@ import Modal from './Modal';
 import AddonListItem from './AddonListItem';
 import HaloWeaponForm from './HaloWeaponForm';
 import AddKeywordModal from './AddKeywordModal';
+import AddToPackModal from './AddToPackModal';
 import { haloWeaponSubtitle } from '../lib/addonSubtitles';
 import AddCircle from '../icons/AddCircle';
 import AltArrowRight from '../icons/AltArrowRight';
@@ -49,9 +50,11 @@ export default function HaloCardForm({
 
   const [weapons,    setWeapons]    = useState<LoadedAddon[]>([]);
   const [cardKws,    setCardKws]    = useState<LoadedKeyword[]>([]);
+  const [pickingW,   setPickingW]   = useState(false);
   const [addingW,    setAddingW]    = useState(false);
   const [editingW,   setEditingW]   = useState<LoadedAddon | null>(null);
   const [savingW,    setSavingW]    = useState(false);
+  const [pickingKw,  setPickingKw]  = useState(false);
   const [addingKw,   setAddingKw]   = useState(false);
 
   const weaponType = addonTypes.find(t => t.slug === 'weapons');
@@ -178,7 +181,7 @@ export default function HaloCardForm({
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base text-gray-300">Weapons</h3>
           {weaponType && (
-            <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setAddingW(true)}>
+            <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setPickingW(true)}>
               Add Weapon
             </Button>
           )}
@@ -201,7 +204,7 @@ export default function HaloCardForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base text-gray-300">Unit Keywords</h3>
-          <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setAddingKw(true)}>
+          <Button variant="ghost" color="primary" size="sm" leftIcon={<AddCircle className="size-4" />} onClick={() => setPickingKw(true)}>
             Add Keyword
           </Button>
         </div>
@@ -224,6 +227,23 @@ export default function HaloCardForm({
         </Button>
       </div>
 
+      {pickingW && weaponType && (
+        <AddToPackModal open onClose={() => setPickingW(false)}
+          entityType="addon" addonTypeId={weaponType.id}
+          gameId={gameId} targetPackId={packId}
+          title="Add Weapon" newButtonLabel="New Weapon"
+          getAddonSubtitle={haloWeaponSubtitle}
+          onCreateNew={() => { setPickingW(false); setAddingW(true); }}
+          onAdded={() => setPickingW(false)}
+          onAddedWithIds={async ids => {
+            await supabase.from('card_addons').insert(
+              ids.map((addonId, i) => ({ card_id: cardId, addon_id: addonId, sort_order: weapons.length + i }))
+            );
+            await loadContent(cardId);
+            setPickingW(false);
+          }}
+        />
+      )}
       {addingW && (
         <Modal open onClose={() => !savingW && setAddingW(false)} className="max-w-md">
           <HaloWeaponForm editingAddon={null} saving={savingW} onCancel={() => setAddingW(false)}
@@ -235,6 +255,22 @@ export default function HaloCardForm({
           <HaloWeaponForm editingAddon={editingW as unknown as Addon} saving={savingW} onCancel={() => setEditingW(null)}
             onSave={handleWeaponEditSave} onSaveComplete={handleWeaponEditSaveComplete} />
         </Modal>
+      )}
+      {pickingKw && (
+        <AddToPackModal open onClose={() => setPickingKw(false)}
+          entityType="keyword"
+          gameId={gameId} targetPackId={packId}
+          title="Add Keyword" newButtonLabel="New Keyword"
+          onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
+          onAdded={() => setPickingKw(false)}
+          onAddedWithIds={async ids => {
+            await supabase.from('card_keywords').insert(
+              ids.map((keywordId, i) => ({ card_id: cardId, keyword_id: keywordId, params: [], sort_order: cardKws.length + i }))
+            );
+            await loadContent(cardId);
+            setPickingKw(false);
+          }}
+        />
       )}
       {addingKw && (
         <AddKeywordModal open onClose={() => setAddingKw(false)} gameSlug="halo-flashpoint" createOnly

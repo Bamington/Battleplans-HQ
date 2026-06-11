@@ -80,8 +80,13 @@ export interface AddToPackModalProps {
     stats?:       Record<string, unknown>;
   }) => string;
 
-  onCreateNew: () => void;
-  onAdded:     (count: number) => void;
+  onCreateNew:      () => void;
+  onAdded:          (count: number) => void;
+  /** Called after a successful copy with the resulting pack-scoped IDs
+   *  (addon or keyword entity types only). Useful when the caller needs
+   *  to attach the copied items to a specific card via card_addons /
+   *  card_keywords immediately after the copy. */
+  onAddedWithIds?:  (ids: string[]) => void;
 }
 
 interface PickerItem {
@@ -152,6 +157,7 @@ export default function AddToPackModal({
   getAddonSubtitle,
   onCreateNew,
   onAdded,
+  onAddedWithIds,
 }: AddToPackModalProps) {
 
   // ── State ──────────────────────────────────────────────────────────────
@@ -521,9 +527,15 @@ export default function AddToPackModal({
       setError("Couldn't add the selected items. Please try again.");
       return;
     }
-    // The RPC returns the count of new rows inserted. Number cast handles
-    // both numeric and string returns from supabase-js.
-    onAdded(Number(data ?? selected.size));
+
+    if (entityType === 'card') {
+      onAdded(Number(data ?? selected.size));
+    } else {
+      // copy_addons_to_pack / copy_keywords_to_pack now return uuid[].
+      const ids = Array.isArray(data) ? (data as string[]) : [];
+      onAddedWithIds?.(ids);
+      onAdded(ids.length);
+    }
   }
 
   // True only on the rename step when every input has trimmed content.
