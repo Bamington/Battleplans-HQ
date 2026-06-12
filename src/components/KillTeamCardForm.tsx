@@ -10,6 +10,7 @@ import KillTeamWeaponForm from './KillTeamWeaponForm';
 import KillTeamAbilityForm from './KillTeamAbilityForm';
 import AddKeywordModal from './AddKeywordModal';
 import AddToPackModal from './AddToPackModal';
+import UploadPhotoModal from './UploadPhotoModal';
 import { killTeamWeaponSubtitle, killTeamAbilitySubtitle } from '../lib/addonSubtitles';
 import AddCircle from '../icons/AddCircle';
 import AltArrowRight from '../icons/AltArrowRight';
@@ -22,6 +23,7 @@ export interface KillTeamCardFormProps {
   cardType?: 'operative' | 'rule';
   onSaved:  (cardId: string) => void;
   onCancel: () => void;
+  editingCard?: { id: string; name: string; stats: Record<string, unknown> | null };
 }
 
 type Phase = { type: 'stats' } | { type: 'content'; cardId: string };
@@ -44,14 +46,29 @@ interface LoadedKeyword {
 }
 
 export default function KillTeamCardForm({
-  packId, gameId, addonTypes, cardType = 'operative', onSaved, onCancel,
+  packId, gameId, addonTypes, cardType = 'operative', onSaved, onCancel, editingCard,
 }: KillTeamCardFormProps) {
   const [phase,  setPhase]  = useState<Phase>({ type: 'stats' });
-  const [opF,    setOpF]    = useState<OperativeFields>({
-    operativeName: '', role: '', teamName: '', tags: '',
-    actions: 0, movement: 0, save: 0, wounds: 0, baseSize: 0,
+  const [opF,    setOpF]    = useState<OperativeFields>(() => {
+    if (!editingCard || cardType === 'rule') return { operativeName: '', role: '', teamName: '', tags: '', actions: 0, movement: 0, save: 0, wounds: 0, baseSize: 0 };
+    const s = (editingCard.stats ?? {}) as Record<string, unknown>;
+    return {
+      operativeName: editingCard.name,
+      role:          String(s.role ?? ''),
+      teamName:      String(s.teamName ?? ''),
+      tags:          String(s.tags ?? ''),
+      actions:       Number(s.actions ?? 0),
+      movement:      Number(s.movement ?? 0),
+      save:          Number(s.save ?? 0),
+      wounds:        Number(s.wounds ?? 0),
+      baseSize:      Number(s.baseSize ?? 0),
+    };
   });
-  const [ruleF,  setRuleF]  = useState<RuleFields>({ ruleTitle: '', ruleDescription: '' });
+  const [ruleF,  setRuleF]  = useState<RuleFields>(() => {
+    if (!editingCard || cardType !== 'rule') return { ruleTitle: '', ruleDescription: '' };
+    const s = (editingCard.stats ?? {}) as Record<string, unknown>;
+    return { ruleTitle: editingCard.name, ruleDescription: String(s.description ?? '') };
+  });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
 
@@ -69,48 +86,64 @@ export default function KillTeamCardForm({
   const [savingA,    setSavingA]    = useState(false);
   const [pickingKw,  setPickingKw]  = useState(false);
   const [addingKw,   setAddingKw]   = useState(false);
+  const [kwParamsQueue, setKwParamsQueue] = useState<{ keywordId: string; name: string; schemaKey: string; schemaType: 'text' | 'number' }[]>([]);
+  const [kwParamsCardId, setKwParamsCardId] = useState('');
+  const [currentKwParamInput, setCurrentKwParamInput] = useState('');
+  const [portraitUrl,      setPortraitUrl]      = useState<string | null>(null);
+  const [portraitFilePath, setPortraitFilePath] = useState<string | null>(null);
+  const [portraitOpen,     setPortraitOpen]     = useState(false);
+  const [removingPortrait, setRemovingPortrait] = useState(false);
 
   const weaponType  = addonTypes.find(t => t.slug === 'weapons');
   const abilityType = addonTypes.find(t => t.slug === 'abilities');
 
   const loadContent = useCallback(async (cardId: string) => {
-    const [wRes, kRes] = await Promise.all([
+    const [wRes, kRes, imgRes] = await Promise.all([
       supabase.from('card_addons')
         .select('addons(id, name, description, stats, addon_type:addon_types(slug))')
         .eq('card_id', cardId).order('sort_order'),
       supabase.from('card_keywords')
         .select('keyword_id, keywords(name, description)')
         .eq('card_id', cardId).order('sort_order'),
+      supabase.from('card_images')
+        .select('file_path')
+        .eq('card_id', cardId)
+        .eq('image_type', 'portrait')
+        .limit(1),
     ]);
     const all = (wRes.data ?? []).map(r => r.addons as unknown as LoadedAddon).filter(Boolean);
     setWeapons(all.filter(a => a.addon_type?.slug === 'weapons'));
     setAbilities(all.filter(a => a.addon_type?.slug === 'abilities'));
     setCardKws((kRes.data ?? []) as unknown as LoadedKeyword[]);
+    const fp = (imgRes.data?.[0] as { file_path: string } | undefined)?.file_path ?? null;
+    setPortraitFilePath(fp);
+    setPortraitUrl(fp ? supabase.storage.from('card-images').getPublicUrl(fp).data.publicUrl : null);
   }, []);
 
   async function handleCreate() {
     setSaving(true); setError(null);
+    const isRule   = cardType === 'rule';
+    const cardName = isRule ? (ruleF.ruleTitle || 'Unnamed Rule') : (opF.operativeName || 'Unnamed Operative');
+    const newStats: Json = isRule
+      ? { description: ruleF.ruleDescription }
+      : { role: opF.role, teamName: opF.teamName, tags: opF.tags, actions: opF.actions, movement: opF.movement, save: opF.save, wounds: opF.wounds, baseSize: opF.baseSize };
     try {
-      const isRule = cardType === 'rule';
-      const { data, error: err } = await supabase.from('cards')
-        .insert({
-          pack_id: packId, game_id: gameId,
-          name: isRule ? (ruleF.ruleTitle || 'Unnamed Rule') : (opF.operativeName || 'Unnamed Operative'),
-          stats: isRule
-            ? ({ description: ruleF.ruleDescription } as Json)
-            : ({
-                role:     opF.role,     teamName: opF.teamName, tags: opF.tags,
-                actions:  opF.actions,  movement: opF.movement, save: opF.save,
-                wounds:   opF.wounds,   baseSize: opF.baseSize,
-              } as Json),
-          card_type: cardType,
-          is_template: true,
-        })
-        .select('id').single();
-      if (err) throw err;
-      setPhase({ type: 'content', cardId: (data as { id: string }).id });
+      if (editingCard) {
+        const { error: err } = await supabase.from('cards')
+          .update({ name: cardName, stats: newStats })
+          .eq('id', editingCard.id);
+        if (err) throw err;
+        await loadContent(editingCard.id);
+        setPhase({ type: 'content', cardId: editingCard.id });
+      } else {
+        const { data, error: err } = await supabase.from('cards')
+          .insert({ pack_id: packId, game_id: gameId, name: cardName, stats: newStats, card_type: cardType, is_template: true })
+          .select('id').single();
+        if (err) throw err;
+        setPhase({ type: 'content', cardId: (data as { id: string }).id });
+      }
     } catch (e) {
-      setError((e as { message?: string })?.message ?? 'Failed to create card');
+      setError((e as { message?: string })?.message ?? 'Failed to save card');
     } finally {
       setSaving(false);
     }
@@ -121,8 +154,10 @@ export default function KillTeamCardForm({
   const handleWeaponSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
     if (!weaponType) return '';
     setSavingW(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingW(false); return ''; }
     const { data, error: err } = await supabase.from('addons')
-      .insert({ addon_type_id: weaponType.id, pack_id: packId, name, description: desc, stats: stats as Json })
+      .insert({ user_id: user.id, addon_type_id: weaponType.id, pack_id: packId, name, description: desc, stats: stats as Json })
       .select('id').single();
     if (err) { setSavingW(false); return ''; }
     return (data as { id: string }).id;
@@ -154,8 +189,10 @@ export default function KillTeamCardForm({
   const handleAbilitySave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
     if (!abilityType) return '';
     setSavingA(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingA(false); return ''; }
     const { data, error: err } = await supabase.from('addons')
-      .insert({ addon_type_id: abilityType.id, pack_id: packId, name, description: desc, stats: stats as Json })
+      .insert({ user_id: user.id, addon_type_id: abilityType.id, pack_id: packId, name, description: desc, stats: stats as Json })
       .select('id').single();
     if (err) { setSavingA(false); return ''; }
     return (data as { id: string }).id;
@@ -188,13 +225,13 @@ export default function KillTeamCardForm({
     if (cardType === 'rule') {
       return (
         <div className="flex flex-col gap-5 p-5">
-          <h2 className="font-heading text-xl text-white">New Rule Card</h2>
+          <h2 className="font-heading text-xl text-white">{editingCard ? 'Edit Rule Card' : 'New Rule Card'}</h2>
           <Input label="Title" value={ruleF.ruleTitle} onChange={e => setRuleF(p => ({ ...p, ruleTitle: e.target.value }))} placeholder="e.g. Honour the Chapter" disabled={saving} />
           <Input label="Description (optional)" value={ruleF.ruleDescription} onChange={e => setRuleF(p => ({ ...p, ruleDescription: e.target.value }))} placeholder="Rule text…" disabled={saving} />
           {error && <p className="font-body text-sm text-red-400">{error}</p>}
           <div className="flex items-center gap-3 pt-1">
             <Button variant="ghost" color="secondary" disabled={saving} onClick={onCancel}>Cancel</Button>
-            <Button color="primary" loading={saving} rightIcon={<AltArrowRight className="size-4" />} onClick={handleCreate}>Create Rule Card</Button>
+            <Button color="primary" loading={saving} rightIcon={<AltArrowRight className="size-4" />} onClick={handleCreate}>{editingCard ? 'Save Changes' : 'Create Rule Card'}</Button>
           </div>
         </div>
       );
@@ -202,7 +239,7 @@ export default function KillTeamCardForm({
 
     return (
       <div className="flex flex-col gap-5 p-5">
-        <h2 className="font-heading text-xl text-white">New Operative</h2>
+        <h2 className="font-heading text-xl text-white">{editingCard ? 'Edit Operative' : 'New Operative'}</h2>
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="Operative Name" value={opF.operativeName} onChange={e => setOpF(p => ({ ...p, operativeName: e.target.value }))} placeholder="e.g. Fire Warrior" disabled={saving} />
@@ -223,7 +260,7 @@ export default function KillTeamCardForm({
 
         <div className="flex items-center gap-3 pt-1">
           <Button variant="ghost" color="secondary" disabled={saving} onClick={onCancel}>Cancel</Button>
-          <Button color="primary" loading={saving} rightIcon={<AltArrowRight className="size-4" />} onClick={handleCreate}>Create Operative</Button>
+          <Button color="primary" loading={saving} rightIcon={<AltArrowRight className="size-4" />} onClick={handleCreate}>{editingCard ? 'Save Changes' : 'Create Operative'}</Button>
         </div>
       </div>
     );
@@ -238,7 +275,7 @@ export default function KillTeamCardForm({
 
   return (
     <div className="flex flex-col gap-6 p-5">
-      <h2 className="font-heading text-xl text-white">{displayName} — Add Content</h2>
+      <h2 className="font-heading text-xl text-white">{displayName} — {editingCard ? 'Edit Content' : 'Add Content'}</h2>
 
       {cardType === 'operative' && (
         <>
@@ -285,6 +322,36 @@ export default function KillTeamCardForm({
                 ))
             }
           </div>
+
+          {/* Portrait Image */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start justify-between">
+              <h3 className="font-heading text-base text-gray-300">Portrait Image</h3>
+              <div className="flex flex-col items-end gap-1">
+                <Button variant="ghost" color="primary" size="sm" onClick={() => setPortraitOpen(true)}>
+                  {portraitUrl ? 'Change Portrait' : 'Add Portrait Image'}
+                </Button>
+                {portraitUrl && (
+                  <Button variant="ghost" color="danger" size="sm" loading={removingPortrait}
+                    onClick={async () => {
+                      if (!portraitFilePath) return;
+                      setRemovingPortrait(true);
+                      await supabase.storage.from('card-images').remove([portraitFilePath]);
+                      await supabase.from('card_images').delete().eq('card_id', cardId).eq('image_type', 'portrait');
+                      setPortraitUrl(null);
+                      setPortraitFilePath(null);
+                      setRemovingPortrait(false);
+                    }}
+                  >
+                    Remove Portrait
+                  </Button>
+                )}
+              </div>
+            </div>
+            {portraitUrl && (
+              <p className="font-body text-sm text-green-400">Portrait added.</p>
+            )}
+          </div>
         </>
       )}
 
@@ -310,6 +377,17 @@ export default function KillTeamCardForm({
       <div className="pt-1">
         <Button color="primary" rightIcon={<AltArrowRight className="size-4" />} onClick={() => onSaved(cardId)}>Done</Button>
       </div>
+
+      {portraitOpen && cardType === 'operative' && (
+        <UploadPhotoModal
+          open
+          onClose={() => setPortraitOpen(false)}
+          game="kill-team"
+          cardDbId={cardId}
+          unitName={opF.operativeName || undefined}
+          onImageUploaded={() => { void loadContent(cardId); }}
+        />
+      )}
 
       {/* Sub-modals */}
       {pickingW && weaponType && (
@@ -378,24 +456,73 @@ export default function KillTeamCardForm({
           onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
           onAdded={() => setPickingKw(false)}
           onAddedWithIds={async ids => {
-            await supabase.from('card_keywords').insert(
-              ids.map((keywordId, i) => ({ card_id: cardId, keyword_id: keywordId, params: [], sort_order: cardKws.length + i }))
-            );
-            await loadContent(cardId);
+            const { data } = await supabase.from('keywords').select('id, name, params_schema').in('id', ids);
+            const rows = (data ?? []) as { id: string; name: string; params_schema: { key: string; type: string }[] | null }[];
+            const kwMap = new Map(rows.map(k => [k.id, k]));
+            const noParams = ids.filter(id => !kwMap.get(id)?.params_schema?.length);
+            const withParams = ids
+              .filter(id => kwMap.get(id)?.params_schema?.length)
+              .map(id => { const kw = kwMap.get(id)!; return { keywordId: id, name: kw.name, schemaKey: kw.params_schema![0].key, schemaType: kw.params_schema![0].type as 'text' | 'number' }; });
+            if (noParams.length > 0) {
+              await supabase.from('card_keywords').insert(
+                noParams.map((keywordId, i) => ({ card_id: cardId, keyword_id: keywordId, params: {}, sort_order: cardKws.length + i }))
+              );
+              await loadContent(cardId);
+            }
+            if (withParams.length > 0) { setKwParamsQueue(withParams); setKwParamsCardId(cardId); setCurrentKwParamInput(''); }
             setPickingKw(false);
           }}
         />
       )}
       {addingKw && (
         <AddKeywordModal open onClose={() => setAddingKw(false)} gameSlug="kill-team" createOnly
-          onKeywordSelected={async ({ keywordId }) => {
-            await supabase.from('card_keywords').insert({
-              card_id: cardId, keyword_id: keywordId, params: [], sort_order: cardKws.length,
-            });
-            await loadContent(cardId);
+          onKeywordSelected={async (kw) => {
+            if (kw.hasParams && kw.paramValue === null) {
+              setKwParamsQueue([{ keywordId: kw.keywordId, name: kw.keywordName, schemaKey: 'X', schemaType: 'number' }]);
+              setKwParamsCardId(cardId);
+              setCurrentKwParamInput('');
+            } else {
+              await supabase.from('card_keywords').insert({
+                card_id: cardId, keyword_id: kw.keywordId,
+                params: kw.hasParams && kw.paramValue !== null ? { X: kw.paramValue } : {},
+                sort_order: cardKws.length,
+              });
+              await loadContent(cardId);
+            }
             setAddingKw(false);
           }}
         />
+      )}
+      {kwParamsQueue.length > 0 && (
+        <Modal open onClose={() => setKwParamsQueue([])}>
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">Set value for {kwParamsQueue[0].name}</h2>
+            <Input
+              label="Value"
+              value={currentKwParamInput}
+              onChange={e => setCurrentKwParamInput(e.target.value)}
+              type={kwParamsQueue[0].schemaType === 'number' ? 'number' : 'text'}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" color="secondary" onClick={() => setKwParamsQueue([])}>Cancel</Button>
+              <Button color="primary" disabled={!currentKwParamInput.trim()}
+                onClick={async () => {
+                  const { keywordId, schemaKey, schemaType } = kwParamsQueue[0];
+                  const raw = currentKwParamInput.trim();
+                  await supabase.from('card_keywords').insert({
+                    card_id: kwParamsCardId, keyword_id: keywordId,
+                    params: { [schemaKey]: schemaType === 'number' ? Number(raw) : raw },
+                    sort_order: cardKws.length,
+                  });
+                  await loadContent(kwParamsCardId);
+                  setKwParamsQueue(prev => prev.slice(1));
+                  setCurrentKwParamInput('');
+                }}
+              >Add</Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

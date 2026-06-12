@@ -37,6 +37,7 @@ import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
 import StarcraftWeaponForm from '../components/StarcraftWeaponForm';
 import StarcraftAbilityForm from '../components/StarcraftAbilityForm';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import BloodBowlCard from '../components/BloodBowlCard';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
@@ -45,23 +46,30 @@ import HaloCardForm from '../components/HaloCardForm';
 import BloodBowlCardForm from '../components/BloodBowlCardForm';
 import KillTeamCardForm from '../components/KillTeamCardForm';
 import StarcraftCardForm from '../components/StarcraftCardForm';
+import UploadPhotoModal from '../components/UploadPhotoModal';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
 import Star from '../icons/Star';
 import Bookmark from '../icons/Bookmark';
 import MenuDots from '../icons/MenuDots';
+import Pen2 from '../icons/Pen2';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import Copy from '../icons/Copy';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
+import CheckCircle from '../icons/CheckCircle';
+import CloseCircle from '../icons/CloseCircle';
 import Dropdown, { DropdownItem } from '../components/Dropdown';
 import Modal from '../components/Modal';
+import Input from '../components/Input';
 import { supabase } from '../lib/supabase';
 import type {
   PackWithGame, Card, Addon, Keyword, AddonType, Json,
 } from '../lib/database.types';
 import {
   dbRowsToHaloFlashpointProps,
+  dbRowsToHaloFlashpointRuleProps,
   type HaloCardDbRow,
 } from '../lib/cardShape/haloFlashpoint';
 import {
@@ -90,6 +98,7 @@ type RuleType = { value: string; label: string; plural: string };
 type CardWithJoins = Card & {
   card_addons?:   unknown[];
   card_keywords?: unknown[];
+  card_images?:   { file_path: string; image_type: string }[];
 };
 
 /** Everything AddToPackModal needs to render itself. PackEditor keeps one
@@ -152,12 +161,13 @@ const ADDON_EDIT_FORMS: Record<string, Record<string, ComponentType<PackAddonFor
 // and renders it in a Modal when the user clicks "New Unit" / "New Rule Card".
 
 type PackCardFormProps = {
-  packId:     string;
-  gameId:     string;
-  addonTypes: AddonType[];
-  cardType?:  'operative' | 'rule';
-  onSaved:    (cardId: string) => void;
-  onCancel:   () => void;
+  packId:      string;
+  gameId:      string;
+  addonTypes:  AddonType[];
+  cardType?:   'operative' | 'rule';
+  onSaved:     (cardId: string) => void;
+  onCancel:    () => void;
+  editingCard?: { id: string; name: string; stats: Record<string, unknown> | null };
 };
 const CARD_EDIT_FORMS: Record<string, ComponentType<PackCardFormProps>> = {
   'halo-flashpoint': HaloCardForm,
@@ -231,6 +241,14 @@ export default function PackEditor() {
     Form:     ComponentType<PackCardFormProps>;
   } | null>(null);
 
+  // Card editing flow — stores the card being edited alongside its resolved
+  // form so the modal can render it pre-filled without re-resolving on every
+  // render. Mirrors the creatingCard pattern.
+  const [editingCardCtx, setEditingCardCtx] = useState<{
+    card: CardWithJoins;
+    Form: ComponentType<PackCardFormProps>;
+  } | null>(null);
+
   // Delete-confirmation state. One shared modal for every entity type;
   // `kind` picks the supabase table and the "this cannot be undone"
   // copy in the body. Cleared after a successful delete or cancel.
@@ -242,6 +260,23 @@ export default function PackEditor() {
   } | null>(null);
   const [deleting,   setDeleting]   = useState(false);
   const [deleteErr,  setDeleteErr]  = useState<string | null>(null);
+  const [previewCard, setPreviewCard] = useState<CardWithJoins | null>(null);
+
+  // Portrait upload flow — opened after AddToPackModal's "Add Portrait Image"
+  // button copies a card into the pack. game is stored so UploadPhotoModal
+  // can show game-appropriate framing.
+  const [portraitUploadCard, setPortraitUploadCard] = useState<{
+    id:   string;
+    name: string;
+    game: string;
+  } | null>(null);
+
+  // Publish flow — confirmation modal with editable name + description.
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [publishName,      setPublishName]      = useState('');
+  const [publishDesc,      setPublishDesc]      = useState('');
+  const [publishing,       setPublishing]       = useState(false);
+  const [publishErr,       setPublishErr]       = useState<string | null>(null);
 
   // ── Load everything in parallel ──────────────────────────────────────────
 
@@ -288,7 +323,8 @@ export default function PackEditor() {
               addon_keywords(keyword_id, params, sort_order,
                 keywords(id, name, description, params_schema)))),
             card_keywords(keyword_id, params, sort_order,
-              keywords(name, description, params_schema))
+              keywords(name, description, params_schema)),
+            card_images(file_path, image_type)
           `)
           .eq('pack_id', packId!)
           .order('created_at'),
@@ -406,6 +442,33 @@ export default function PackEditor() {
     loadAll();
   }
 
+  const handlePublish = async () => {
+    if (!pack || !packId) return;
+    setPublishing(true);
+    setPublishErr(null);
+    try {
+      const { error } = await supabase
+        .from('packs')
+        .update({
+          name:        publishName.trim() || pack.name,
+          description: publishDesc.trim() || null,
+          is_public:   true,
+        })
+        .eq('id', packId);
+      if (error) throw error;
+      setPack(prev => prev
+        ? { ...prev, name: publishName.trim() || prev.name, description: publishDesc.trim() || null, is_public: true }
+        : prev,
+      );
+      setPublishModalOpen(false);
+    } catch (err) {
+      console.error('[BattleCards] Publish failed:', err);
+      setPublishErr('Failed to publish. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   // ── Derived data per panel ───────────────────────────────────────────────
 
   const operativeCards = useMemo(
@@ -434,6 +497,21 @@ export default function PackEditor() {
     (pack?.game as unknown as { rule_types?: RuleType[] } | undefined)
       ?.rule_types?.length,
   );
+
+  const previewModalDims = useMemo(() => {
+    if (!previewCard || !pack) return null;
+    const [nW, nH] = nativeDimsFor(previewCard, pack.game.slug);
+    return modalDimsFor(nW, nH);
+  }, [previewCard, pack]);
+
+  async function handleDuplicateCard(card: CardWithJoins) {
+    if (!pack) return;
+    await supabase.rpc('copy_cards_to_pack', {
+      p_target_pack_id: pack.id,
+      p_source_ids:     [card.id],
+    });
+    await loadAll();
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -533,6 +611,12 @@ export default function PackEditor() {
                   cards={operativeCards}
                   gameSlug={pack.game.slug}
                   onDeleteCard={card => requestDelete('card', card.id, card.name, 'Unit')}
+                  onPreviewCard={setPreviewCard}
+                  onEditCard={card => {
+                    const CardForm = CARD_EDIT_FORMS[pack.game.slug];
+                    if (CardForm) setEditingCardCtx({ card, Form: CardForm });
+                  }}
+                  onDuplicateCard={handleDuplicateCard}
                 />
               )}
             </PackPanel>
@@ -559,6 +643,11 @@ export default function PackEditor() {
                     cards={ruleCards}
                     gameSlug={pack.game.slug}
                     onDeleteCard={card => requestDelete('card', card.id, card.name, 'Rule Card')}
+                    onPreviewCard={setPreviewCard}
+                    onEditCard={card => {
+                      const CardForm = CARD_EDIT_FORMS[pack.game.slug];
+                      if (CardForm) setEditingCardCtx({ card, Form: CardForm });
+                    }}
                   />
                 )}
               </PackPanel>
@@ -663,6 +752,25 @@ export default function PackEditor() {
 
       </div>
 
+      {/* Publish this Pack — fixed bottom-right floating button. Only shown
+          while the pack is loaded and not yet public. */}
+      {pack && !pack.is_public && (
+        <div className="fixed bottom-6 right-6 z-10">
+          <Button
+            color="primary"
+            leftIcon={<CheckCircle className="size-4" />}
+            onClick={() => {
+              setPublishName(pack.name);
+              setPublishDesc(pack.description ?? '');
+              setPublishErr(null);
+              setPublishModalOpen(true);
+            }}
+          >
+            Publish this Pack
+          </Button>
+        </div>
+      )}
+
       {/* AddToPackModal — one instance, driven by addModal state. */}
       {pack && addModal && (
         <AddToPackModal
@@ -703,10 +811,33 @@ export default function PackEditor() {
             }
             stubNotImplemented(addModal.newButtonLabel);
           }}
+          enablePortrait={
+            addModal.entityType === 'card' &&
+            ['halo-flashpoint', 'blood-bowl', 'kill-team'].includes(pack.game.slug)
+          }
+          onAddedWithPortraitIntent={(newCardId, cardName) => {
+            setAddModal(null);
+            setPortraitUploadCard({ id: newCardId, name: cardName, game: pack.game.slug });
+            loadAll();
+          }}
           onAdded={() => {
             setAddModal(null);
             loadAll();
           }}
+        />
+      )}
+
+      {/* Portrait upload modal — opened after "Add Portrait Image" in the
+          picker copies a card into the pack. Reloads after upload so the
+          preview tile shows the portrait immediately. */}
+      {portraitUploadCard && (
+        <UploadPhotoModal
+          open
+          onClose={() => { setPortraitUploadCard(null); loadAll(); }}
+          game={portraitUploadCard.game as 'halo-flashpoint' | 'blood-bowl' | 'kill-team' | 'starcraft'}
+          cardDbId={portraitUploadCard.id}
+          unitName={portraitUploadCard.name}
+          onImageUploaded={() => { setPortraitUploadCard(null); loadAll(); }}
         />
       )}
 
@@ -892,6 +1023,27 @@ export default function PackEditor() {
         </Modal>
       )}
 
+      {/* Edit card modal — same two-phase form as creation, pre-filled from
+          the card's name + stats. Phase 1 saves via UPDATE; Phase 2 loads the
+          existing weapons/keywords so the user can modify without losing them. */}
+      {pack && editingCardCtx && (
+        <Modal open onClose={() => setEditingCardCtx(null)} className="max-w-xl">
+          <editingCardCtx.Form
+            packId={pack.id}
+            gameId={pack.game_id}
+            addonTypes={addonTypes}
+            cardType={editingCardCtx.card.card_type as 'operative' | 'rule'}
+            editingCard={{
+              id:    editingCardCtx.card.id,
+              name:  editingCardCtx.card.name,
+              stats: editingCardCtx.card.stats as Record<string, unknown> | null,
+            }}
+            onSaved={() => { setEditingCardCtx(null); loadAll(); }}
+            onCancel={() => setEditingCardCtx(null)}
+          />
+        </Modal>
+      )}
+
       {/* Shared delete confirmation modal — used by every ⋯ menu. */}
       <Modal
         open={confirmDelete !== null}
@@ -942,6 +1094,95 @@ export default function PackEditor() {
 
           </div>
         )}
+      </Modal>
+
+      {/* Card preview modal — full-size card */}
+      {previewCard && previewModalDims && pack && (
+        <Modal open onClose={() => setPreviewCard(null)} className="max-w-[700px]">
+          <div className="flex justify-center pt-4 px-4">
+            <div style={{ width: previewModalDims.w, height: previewModalDims.h, overflow: 'hidden', borderRadius: 6, flexShrink: 0 }}>
+              <div style={{ width: previewModalDims.nativeW, height: previewModalDims.nativeH, transform: `scale(${previewModalDims.scale})`, transformOrigin: 'top left' }}>
+                {renderCardOnly(previewCard, pack.game.slug)}
+              </div>
+            </div>
+          </div>
+          <div className="px-4 pb-3 pt-2 border-t border-gray-700">
+            <p className="font-body font-bold text-sm text-white uppercase tracking-[1px] truncate">
+              {previewCard.name}
+            </p>
+          </div>
+        </Modal>
+      )}
+
+      {/* Publish confirmation modal */}
+      <Modal
+        open={publishModalOpen}
+        onClose={() => !publishing && setPublishModalOpen(false)}
+        className="max-w-md"
+      >
+        <div className="flex flex-col gap-4 p-5">
+
+          <h2 className="font-heading text-xl text-white">Publish Pack?</h2>
+
+          <p className="font-body text-base text-gray-300">
+            This pack will be available for any user to download. You can update
+            the name and description before continuing.
+          </p>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-body text-sm font-medium text-white">
+              Pack Name <span className="text-red-400">*</span>
+            </label>
+            <Input
+              placeholder="Enter your pack name"
+              value={publishName}
+              onChange={e => setPublishName(e.target.value)}
+              disabled={publishing}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-body text-sm font-medium text-white">
+              Pack Description <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2
+                         font-body text-sm text-white placeholder:text-gray-500
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                         min-h-[110px] resize-y disabled:opacity-50"
+              placeholder="What's contained in the pack"
+              value={publishDesc}
+              disabled={publishing}
+              onChange={e => setPublishDesc(e.target.value)}
+            />
+          </div>
+
+          {publishErr && (
+            <p className="font-body text-sm text-red-400">{publishErr}</p>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-1">
+            <Button
+              variant="ghost"
+              color="danger"
+              leftIcon={<CloseCircle className="size-4" />}
+              disabled={publishing}
+              onClick={() => setPublishModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              leftIcon={<CheckCircle className="size-4" />}
+              loading={publishing}
+              disabled={!publishName.trim() || publishing}
+              onClick={handlePublish}
+            >
+              Publish
+            </Button>
+          </div>
+
+        </div>
       </Modal>
     </div>
   );
@@ -1016,6 +1257,7 @@ function EmptyPanelState({ message }: { message: string }) {
  *  matching the Figma "Unit List Item" cell. */
 
 const PREVIEW_LONG_EDGE = 237;
+const MODAL_LONG_EDGE   = 660;
 
 interface PreviewDims {
   nativeW: number;
@@ -1027,28 +1269,59 @@ interface PreviewDims {
   h:       number;
 }
 
-/** Compute scale + final on-screen size so the longer edge fits
- *  PREVIEW_LONG_EDGE while preserving aspect ratio. */
 function dimsFor(nativeW: number, nativeH: number): PreviewDims {
-  const longEdge = Math.max(nativeW, nativeH);
-  const scale = PREVIEW_LONG_EDGE / longEdge;
-  return {
-    nativeW,
-    nativeH,
-    scale,
-    w: Math.round(nativeW * scale),
-    h: Math.round(nativeH * scale),
-  };
+  const scale = PREVIEW_LONG_EDGE / Math.max(nativeW, nativeH);
+  return { nativeW, nativeH, scale, w: Math.round(nativeW * scale), h: Math.round(nativeH * scale) };
 }
 
-// Native dimensions per card component. Sourced from each card file's
-// CARD_W / CARD_H constants. Halo / Kill Team operative / Starcraft are
-// landscape; Blood Bowl + Kill Team rule are portrait.
-const HALO_DIMS           = dimsFor(1270, 890);
-const BLOOD_BOWL_DIMS     = dimsFor(750, 1100);
-const KILL_TEAM_DIMS      = dimsFor(1270, 890);
-const KILL_TEAM_RULE_DIMS = dimsFor(700, 1200);
-const STARCRAFT_DIMS      = dimsFor(1270, 890);
+function modalDimsFor(nativeW: number, nativeH: number): PreviewDims {
+  const scale = MODAL_LONG_EDGE / Math.max(nativeW, nativeH);
+  return { nativeW, nativeH, scale, w: Math.round(nativeW * scale), h: Math.round(nativeH * scale) };
+}
+
+/** Returns the [width, height] of the native card component for a given card. */
+function nativeDimsFor(c: CardWithJoins, gameSlug: string): [number, number] {
+  if (gameSlug === 'blood-bowl') return [750, 1100];
+  if (gameSlug === 'kill-team' && c.card_type === 'rule') return [700, 1200];
+  if (gameSlug === 'halo-flashpoint' && c.card_type === 'rule') return [1270, 890];
+  return [1270, 890];
+}
+
+/** Returns the public portrait URL for a card if one exists, otherwise undefined. */
+function getPortraitUrl(c: CardWithJoins): string | undefined {
+  const img = c.card_images?.find(ci => ci.image_type === 'portrait');
+  if (!img) return undefined;
+  return supabase.storage.from('card-images').getPublicUrl(img.file_path).data.publicUrl;
+}
+
+/** Renders just the game card component — no tile wrapper. Used by both the
+ *  preview tile (via renderPreview) and the full-size card preview modal. */
+function renderCardOnly(c: CardWithJoins, gameSlug: string): React.ReactNode {
+  const portraitUrl = getPortraitUrl(c);
+  if (gameSlug === 'halo-flashpoint') {
+    if (c.card_type === 'rule') {
+      return <HaloFlashpointRuleCard {...dbRowsToHaloFlashpointRuleProps(c as unknown as HaloCardDbRow)} />;
+    }
+    return <HaloFlashpointCard {...dbRowsToHaloFlashpointProps(c as unknown as HaloCardDbRow, { portraitUrl })} />;
+  }
+  if (gameSlug === 'blood-bowl') {
+    return <BloodBowlCard {...dbRowsToBloodBowlProps(c as unknown as BloodBowlCardDbRow, { portraitUrl })} />;
+  }
+  if (gameSlug === 'kill-team') {
+    if (c.card_type === 'rule') {
+      return <KillTeamRuleCard {...dbRowsToKillTeamRuleProps(c as unknown as KillTeamCardDbRow)} />;
+    }
+    return <KillTeamCard {...dbRowsToKillTeamProps(c as unknown as KillTeamCardDbRow, { portraitUrl })} forceLayout="desktop" />;
+  }
+  if (gameSlug === 'starcraft') {
+    return <StarcraftCard {...dbRowsToStarcraftProps(c as unknown as StarcraftCardDbRow)} />;
+  }
+  return (
+    <div className="flex items-center justify-center bg-gray-700" style={{ width: 1270, height: 890 }}>
+      <p className="font-heading text-[80px] text-white text-center truncate">{c.name}</p>
+    </div>
+  );
+}
 
 /** Shared wrapper that draws the card-shaped bounding box, applies the
  *  CSS transform that scales the native-size card into the tile, and
@@ -1060,70 +1333,72 @@ const STARCRAFT_DIMS      = dimsFor(1270, 890);
  *  so the Dropdown panel can escape — the card area applies its own
  *  overflow-hidden + rounded-t-[6px] to keep the scaled card clipped. */
 function PreviewTile({
-  dims,
   title,
-  children,
+  subtitle,
   typeLabel = 'Card',
   onEdit,
+  onDuplicate,
   onDelete,
+  onPreview,
 }: {
-  dims:   PreviewDims;
-  title?: string;
-  children: React.ReactNode;
+  title?:    string;
+  subtitle?: string;
   /** Used in the menu item copy: "Delete {typeLabel}", "Edit {typeLabel}". */
-  typeLabel?: string;
-  onEdit?:   () => void;
-  onDelete?: () => void;
+  typeLabel?:   string;
+  onEdit?:      () => void;
+  onDuplicate?: () => void;
+  onDelete?:    () => void;
+  onPreview?:   () => void;
 }) {
+  const hasSubtitle = Boolean(subtitle);
   return (
     <div
-      // No overflow-hidden so the Dropdown panel can escape the tile.
-      className="shrink-0 rounded-[6px] border border-gray-700 bg-gray-800"
-      style={{ width: dims.w }}
+      className={[
+        'group flex gap-1.5 items-start w-full px-[7px]',
+        hasSubtitle ? 'py-px h-[66px]' : 'h-[50px]',
+        'bg-gray-800 rounded-lg shadow-sm border border-gray-700',
+        'hover:border-gray-500 transition-colors',
+      ].join(' ')}
     >
-      {/* Card area — fixed height, clips the scaled-down native card.
-          Has its own rounded-t so the top corners match the outer's
-          rounded-[6px] without relying on the outer's overflow-hidden. */}
-      <div
-        className="overflow-hidden rounded-t-[6px]"
-        style={{ height: dims.h }}
-        title={title}
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={!onPreview}
+        className="flex-1 flex flex-col justify-center min-w-0 h-full text-left leading-none disabled:cursor-default"
       >
-        <div
-          style={{
-            width:           dims.nativeW,
-            height:          dims.nativeH,
-            transform:       `scale(${dims.scale})`,
-            transformOrigin: 'top left',
-          }}
-        >
-          {children}
-        </div>
-      </div>
-
-      {/* Footer band — card name (uppercase Space Grotesk Bold) + ⋯ */}
-      <div className="flex items-center p-1">
-        <p className="flex-1 min-w-0 truncate font-body font-bold text-xs leading-4 tracking-[1.2px] uppercase text-gray-300 px-1">
+        <p className="font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
           {title ?? ''}
         </p>
+        {subtitle && (
+          <p className="font-body text-[12px] leading-4 text-gray-400 truncate w-full">
+            {subtitle}
+          </p>
+        )}
+      </button>
 
-        {(onEdit || onDelete) && (
+      {(onEdit || onDuplicate || onDelete) && (
+        <div className="shrink-0 opacity-50 group-hover:opacity-100 transition-opacity self-start pt-[5px]">
           <Dropdown
             align="right"
-            menuClassName="w-36"
+            menuClassName="w-40"
             trigger={
               <button
                 type="button"
                 aria-label={`${typeLabel} options`}
-                className="shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity text-gray-300 hover:text-white"
+                className="p-1 flex items-center justify-center text-gray-300 hover:text-white"
               >
                 <MenuDots className="size-4" />
               </button>
             }
           >
             {onEdit && (
-              <DropdownItem onClick={onEdit}>
+              <DropdownItem icon={<Pen2 className="size-4" />} onClick={onEdit}>
                 Edit {typeLabel}
+              </DropdownItem>
+            )}
+            {onDuplicate && (
+              <DropdownItem icon={<Copy className="size-4" />} onClick={onDuplicate}>
+                Duplicate Unit
               </DropdownItem>
             )}
             {onDelete && (
@@ -1136,93 +1411,59 @@ function PreviewTile({
               </DropdownItem>
             )}
           </Dropdown>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/** Per-card preview render — switches on game slug + card_type and
- *  delegates to the right shaper + card component. The caller-supplied
- *  onDelete is wired into PreviewTile's Dropdown so each card's
- *  ⋯ menu can request a delete confirmation. */
+/** Subtitle for a card list item: addon names in sort order, falling back
+ *  to keyword names if the card has no addons (e.g. games with no addon
+ *  types, or cards that only carry keywords). */
+function cardSubtitle(c: CardWithJoins): string {
+  type AddonJoin = { sort_order: number | null; addons: { name: string } | null };
+  type KwJoin    = { sort_order: number | null; keywords: { name: string } | null };
+
+  const addonRows = (c.card_addons as AddonJoin[] | undefined) ?? [];
+  const addonNames = addonRows
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map(a => a.addons?.name)
+    .filter((n): n is string => Boolean(n));
+  if (addonNames.length > 0) return addonNames.join(', ');
+
+  const kwRows = (c.card_keywords as KwJoin[] | undefined) ?? [];
+  return kwRows
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map(k => k.keywords?.name)
+    .filter((n): n is string => Boolean(n))
+    .join(', ');
+}
+
+/** Per-card preview render — delegates to renderCardOnly for the card
+ *  component and wraps it in PreviewTile. onPreview opens the full-size
+ *  modal; onEdit/onDelete wire into the ⋯ menu. */
 function renderPreview(
   c: CardWithJoins,
-  gameSlug: string,
-  onDelete: () => void,
+  _gameSlug: string,
+  onDelete:     () => void,
+  onPreview:    () => void,
+  onEdit:       () => void,
+  onDuplicate?: () => void,
 ): React.ReactNode {
-  // Operative cards are called "Unit" in copy, rule cards "Rule Card".
   const typeLabel = c.card_type === 'rule' ? 'Rule Card' : 'Unit';
-
-  const common = { key: c.id, title: c.name, typeLabel, onDelete };
-
-  if (gameSlug === 'halo-flashpoint') {
-    return (
-      <PreviewTile {...common} dims={HALO_DIMS}>
-        <HaloFlashpointCard
-          {...dbRowsToHaloFlashpointProps(c as unknown as HaloCardDbRow)}
-        />
-      </PreviewTile>
-    );
-  }
-
-  if (gameSlug === 'blood-bowl') {
-    return (
-      <PreviewTile {...common} dims={BLOOD_BOWL_DIMS}>
-        <BloodBowlCard
-          {...dbRowsToBloodBowlProps(c as unknown as BloodBowlCardDbRow)}
-        />
-      </PreviewTile>
-    );
-  }
-
-  if (gameSlug === 'kill-team') {
-    if (c.card_type === 'rule') {
-      return (
-        <PreviewTile {...common} dims={KILL_TEAM_RULE_DIMS}>
-          <KillTeamRuleCard
-            {...dbRowsToKillTeamRuleProps(c as unknown as KillTeamCardDbRow)}
-          />
-        </PreviewTile>
-      );
-    }
-    return (
-      <PreviewTile {...common} dims={KILL_TEAM_DIMS}>
-        {/* Force the desktop (landscape) layout so the scale assumption
-            holds — without this the card flips to a portrait mobile
-            layout on narrow viewports. */}
-        <KillTeamCard
-          {...dbRowsToKillTeamProps(c as unknown as KillTeamCardDbRow)}
-          forceLayout="desktop"
-        />
-      </PreviewTile>
-    );
-  }
-
-  if (gameSlug === 'starcraft') {
-    return (
-      <PreviewTile {...common} dims={STARCRAFT_DIMS}>
-        <StarcraftCard
-          {...dbRowsToStarcraftProps(c as unknown as StarcraftCardDbRow)}
-        />
-      </PreviewTile>
-    );
-  }
-
-  // Fallback for any future game that lands before its shaper does.
-  // Uses PreviewTile so the footer chrome is consistent; the card area
-  // shows a name placeholder instead of a real game card.
   return (
-    <PreviewTile {...common} dims={HALO_DIMS}>
-      <div
-        className="flex items-center justify-center p-3 bg-gray-700"
-        style={{ width: HALO_DIMS.nativeW, height: HALO_DIMS.nativeH }}
-      >
-        <p className="font-heading text-[80px] text-white text-center truncate">
-          {c.name}
-        </p>
-      </div>
-    </PreviewTile>
+    <PreviewTile
+      key={c.id}
+      title={c.name}
+      subtitle={cardSubtitle(c)}
+      typeLabel={typeLabel}
+      onDelete={onDelete}
+      onPreview={onPreview}
+      onEdit={onEdit}
+      onDuplicate={onDuplicate}
+    />
   );
 }
 
@@ -1230,15 +1471,26 @@ function CardPreviewRow({
   cards,
   gameSlug,
   onDeleteCard,
+  onPreviewCard,
+  onEditCard,
+  onDuplicateCard,
 }: {
   cards:    CardWithJoins[];
   gameSlug: string;
-  /** Per-card delete request — opens the shared confirmation modal. */
-  onDeleteCard: (card: CardWithJoins) => void;
+  onDeleteCard:     (card: CardWithJoins) => void;
+  onPreviewCard:    (card: CardWithJoins) => void;
+  onEditCard:       (card: CardWithJoins) => void;
+  onDuplicateCard?: (card: CardWithJoins) => void;
 }) {
   return (
-    <div className="flex gap-3 overflow-x-auto">
-      {cards.map(c => renderPreview(c, gameSlug, () => onDeleteCard(c)))}
+    <div className="flex flex-col gap-1.5">
+      {cards.map(c => renderPreview(
+        c, gameSlug,
+        () => onDeleteCard(c),
+        () => onPreviewCard(c),
+        () => onEditCard(c),
+        onDuplicateCard ? () => onDuplicateCard(c) : undefined,
+      ))}
     </div>
   );
 }

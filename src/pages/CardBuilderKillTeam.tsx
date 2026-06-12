@@ -568,6 +568,8 @@ const CardBuilderKillTeam = () => {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [newCardModalOpen,  setNewCardModalOpen]  = useState(false);
   const [newCardTemplates,  setNewCardTemplates]  = useState<NewCardModalTemplate[]>([]);
+  const [newRuleModalOpen,  setNewRuleModalOpen]  = useState(false);
+  const [newRuleTemplates,  setNewRuleTemplates]  = useState<NewCardModalTemplate[]>([]);
 
   /** Local fallback when there are no templates (or the lookup fails). */
   const addBlankOperativeCard = () => {
@@ -586,18 +588,64 @@ const CardBuilderKillTeam = () => {
         .from('games').select('id').eq('slug', 'kill-team').single();
       if (!game) { addBlankOperativeCard(); return; }
 
-      const { data: templates } = await supabase
-        .from('cards')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .eq('game_id', game.id)
-        .eq('is_template', true)
-        .eq('card_type', 'operative')
-        .order('name');
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .eq('card_type', 'operative')
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
 
-      if (!templates || templates.length === 0) { addBlankOperativeCard(); return; }
+      type TemplateRow = {
+        id: string; name: string; pack_id?: string;
+        card_addons?: { sort_order: number | null; addons: { name: string } | null }[];
+        card_keywords?: { sort_order: number | null; keywords: { name: string } | null }[];
+      };
+      const addonSummaryFor = (t: Pick<TemplateRow, 'card_addons' | 'card_keywords'>): string | undefined => {
+        const addons = (t.card_addons ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(a => a.addons?.name).filter((n): n is string => Boolean(n));
+        if (addons.length) return addons.join(', ');
+        const kws = (t.card_keywords ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(k => k.keywords?.name).filter((n): n is string => Boolean(n));
+        return kws.length ? kws.join(', ') : undefined;
+      };
+      const libTemplates: NewCardModalTemplate[] =
+        ((libRes.data ?? []) as TemplateRow[]).map(t => ({
+          id: t.id, name: t.name, source: 'library' as const, addonSummary: addonSummaryFor(t),
+        }));
 
-      setNewCardTemplates(templates);
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .eq('card_type', 'operative')
+          .order('name');
+        packTemplates = ((packCards ?? []) as (TemplateRow & { pack_id: string })[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id), addonSummary: addonSummaryFor(t),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addBlankOperativeCard(); return; }
+
+      setNewCardTemplates(allTemplates);
       setNewCardModalOpen(true);
     } catch (err) {
       console.error('[BattleCards] Failed to load templates:', err);
@@ -823,6 +871,203 @@ const CardBuilderKillTeam = () => {
   const addRuleCard = () => {
     const card = defaultRuleCard();
     setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
+  };
+
+  // ── Rule template picker (mirrors addOperativeCard / createOperativeFromTemplate) ──
+
+  const addRuleCardWithModal = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { addRuleCard(); return; }
+
+      const { data: game } = await supabase
+        .from('games').select('id').eq('slug', 'kill-team').single();
+      if (!game) { addRuleCard(); return; }
+
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .eq('card_type', 'rule')
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
+
+      const libTemplates: NewCardModalTemplate[] = ((libRes.data ?? []) as { id: string; name: string }[]).map(
+        t => ({ id: t.id, name: t.name, source: 'library' as const }),
+      );
+
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .eq('card_type', 'rule')
+          .order('name');
+        packTemplates = ((packCards ?? []) as { id: string; name: string; pack_id: string }[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addRuleCard(); return; }
+
+      setNewRuleTemplates(allTemplates);
+      setNewRuleModalOpen(true);
+    } catch (err) {
+      console.error('[BattleCards] Failed to load rule templates:', err);
+      addRuleCard();
+    }
+  };
+
+  const createRuleFromTemplate = async (templateId: string) => {
+    if (!deckId) return;
+
+    type AddonKeywordRow = {
+      keyword_id: string;
+      params: Record<string, unknown>;
+      sort_order: number | null;
+      keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null;
+    };
+    type RuleTemplateRow = {
+      name: string;
+      stats: KillTeamStats;
+      card_addons: {
+        addon_id:   string;
+        sort_order: number | null;
+        addons: {
+          name: string;
+          description: string | null;
+          stats: Record<string, unknown>;
+          addon_type_id: string;
+          addon_keywords: AddonKeywordRow[];
+        } | null;
+      }[];
+    };
+
+    const { data: tmpl, error } = await supabase
+      .from('cards')
+      .select('name, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema))))')
+      .eq('id', templateId)
+      .single();
+    if (error || !tmpl) { console.error('[BattleCards] Rule template fetch failed:', error); return; }
+
+    const src = tmpl as unknown as RuleTemplateRow;
+
+    const { data: newRow, error: insertErr } = await supabase
+      .from('cards')
+      .insert({
+        deck_id:    deckId,
+        name:       src.name,
+        card_type:  'rule',
+        stats:      src.stats,
+        sort_order: cards.length,
+      })
+      .select('id')
+      .single();
+    if (insertErr || !newRow) { console.error('[BattleCards] Rule card insert failed:', insertErr); return; }
+
+    const addons = src.card_addons ?? [];
+    if (addons.length > 0) {
+      await supabase.from('card_addons').insert(
+        addons.map(a => ({ card_id: newRow.id, addon_id: a.addon_id, sort_order: a.sort_order })),
+      );
+    }
+
+    const typeIdToSlug: Record<string, string> = {};
+    {
+      const { data: addonTypes } = await supabase
+        .from('addon_types')
+        .select('id, slug, games!inner(slug)')
+        .eq('games.slug', 'kill-team');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (addonTypes as any[] | null)?.forEach(t => { typeIdToSlug[t.id] = t.slug; });
+    }
+
+    const sortedAddons = [...addons]
+      .filter(ca => ca.addons != null)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    let ruleAbility: LocalAbility | null = null;
+    for (const ca of sortedAddons) {
+      const addon = ca.addons!;
+      if (typeIdToSlug[addon.addon_type_id] !== 'abilities') continue;
+      const ws = addon.stats;
+      const addonKws = [...(addon.addon_keywords ?? [])]
+        .filter(ak => ak.keywords != null)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const kws: LocalKeywordAttachment[] = addonKws.map(ak => ({
+        keywordId:   ak.keyword_id,
+        keywordName: ak.keywords!.name,
+        description: ak.keywords!.description ?? '',
+        hasParams:   Array.isArray(ak.keywords!.params_schema) && ak.keywords!.params_schema.length > 0,
+        paramValue:  ak.params?.X != null ? Number(ak.params.X) : null,
+      }));
+      ruleAbility = {
+        addonId:         ca.addon_id,
+        name:            addon.name,
+        description:     addon.description ?? '',
+        apCost:          Number(ws.apCost) || 0,
+        keywords:        buildKeywordsDisplayString(kws),
+        abilityKeywords: kws,
+      };
+      break;
+    }
+
+    const s = (src.stats ?? {}) as KillTeamStats;
+    const localCard: KillTeamCardData = {
+      id:              crypto.randomUUID(),
+      dbId:            newRow.id,
+      cardType:        'rule',
+      operativeName:   '',
+      role:            '',
+      teamName:        '',
+      tags:            '',
+      actions:         0,
+      movement:        0,
+      save:            0,
+      wounds:          0,
+      baseSize:        0,
+      weapons:         [],
+      abilities:       [],
+      ruleTitle:       src.name,
+      ruleDescription: String(s.description ?? ''),
+      ruleAbility,
+      portraitUrl:     null,
+      portraitStyle:   null,
+      avatarUrl:       null,
+      tokenState:      {},
+    };
+
+    setCardState(s2 => ({ cards: [...s2.cards, localCard], activeCardId: localCard.id }));
+    setNewRuleModalOpen(false);
+  };
+
+  const deleteRuleTemplate = async (templateId: string) => {
+    try {
+      const { error } = await supabase.from('cards').delete().eq('id', templateId);
+      if (error) throw error;
+      setNewRuleTemplates(list => {
+        const next = list.filter(t => t.id !== templateId);
+        if (next.length === 0) setNewRuleModalOpen(false);
+        return next;
+      });
+    } catch (err) {
+      console.error('[BattleCards] Failed to delete rule template:', err);
+    }
   };
 
   const deleteCard = async (cardId: string) => {
@@ -1665,7 +1910,7 @@ const CardBuilderKillTeam = () => {
                     variant="outline"
                     size="sm"
                     className="w-full"
-                    onClick={addRuleCard}
+                    onClick={addRuleCardWithModal}
                   >
                     Add Rule Card
                   </Button>
@@ -1711,6 +1956,9 @@ const CardBuilderKillTeam = () => {
                           ? 'Faction Rule'
                           : (card.role || undefined)
                       }
+                      addonSummary={card.cardType !== 'rule'
+                        ? ([...card.weapons.map(w => w.name), ...card.abilities.map(a => a.name)].filter(Boolean).join(', ') || undefined)
+                        : undefined}
                       avatarSrc={card.avatarUrl ?? iconKillTeam}
                       active={card.id === activeCardId}
                       activated={appMode === 'play' && isCardActivated(card)}
@@ -2452,6 +2700,16 @@ const CardBuilderKillTeam = () => {
         onNewBlank={() => { setNewCardModalOpen(false); addBlankOperativeCard(); }}
         onPickTemplate={createOperativeFromTemplate}
         onDeleteTemplate={deleteTemplate}
+      />
+
+      {/* ── New Rule modal (rule templates picker) ────────────────────────── */}
+      <NewCardModal
+        open={newRuleModalOpen}
+        onClose={() => setNewRuleModalOpen(false)}
+        templates={newRuleTemplates}
+        onNewBlank={() => { setNewRuleModalOpen(false); addRuleCard(); }}
+        onPickTemplate={createRuleFromTemplate}
+        onDeleteTemplate={deleteRuleTemplate}
       />
 
       {/* ── Custom Token modal (create / edit a deck-scoped UCT) ──────────── */}

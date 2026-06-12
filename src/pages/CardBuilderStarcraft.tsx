@@ -688,6 +688,7 @@ const CardBuilderStarcraft = () => {
               status={c.dbId ? 'complete' : 'blank'}
               unitName={c.unitName || c.unitType || undefined}
               unitType={c.unitName ? c.unitType : undefined}
+              addonSummary={[...c.weapons.map(w => w.name), ...c.abilities.map(a => a.name)].filter(Boolean).join(', ') || undefined}
               avatarSrc={c.avatarUrl ?? (iconStarcraft as string)}
               active={c.id === activeCardId}
               onClick={() => setActiveCardId(c.id)}

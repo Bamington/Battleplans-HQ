@@ -1505,11 +1505,11 @@ security definer
 set search_path = public
 as $$
 declare
-  v_user_id  uuid := auth.uid();
-  v_target   record;
-  v_count    integer := 0;
-  v_src      record;
-  v_existing uuid;
+  v_user_id    uuid := auth.uid();
+  v_target     record;
+  v_src        record;
+  v_existing   uuid;
+  v_result_ids uuid[] := '{}';
 begin
   if v_user_id is null then
     raise exception 'Not authenticated' using errcode = '42501';
@@ -1521,7 +1521,7 @@ begin
     raise exception 'Target pack not found or not owned by you' using errcode = '42501';
   end if;
 
-  if array_length(p_source_ids, 1) is null then return 0; end if;
+  if array_length(p_source_ids, 1) is null then return v_result_ids; end if;
 
   -- A source keyword must be either (a) in a pack the caller owns, OR
   -- (b) owned directly by the caller (pack_id null) — both same game.
@@ -1561,12 +1561,13 @@ begin
       ) values (
         v_user_id, v_src.game_id, v_src.name, v_src.description,
         v_src.params_schema, v_src.extra, p_target_pack_id
-      );
-      v_count := v_count + 1;
+      ) returning id into v_existing;
     end if;
+
+    v_result_ids := array_append(v_result_ids, v_existing);
   end loop;
 
-  return v_count;
+  return v_result_ids;
 end;
 $$;
 
@@ -1604,7 +1605,7 @@ begin
     raise exception 'Target pack not found or not owned by you' using errcode = '42501';
   end if;
 
-  if array_length(p_source_ids, 1) is null then return 0; end if;
+  if array_length(p_source_ids, 1) is null then return '{}'::uuid[]; end if;
 
   -- A source addon must be either (a) in a pack the caller owns, OR
   -- (b) owned directly by the caller (pack_id null) — both same game.
@@ -1711,7 +1712,11 @@ begin
     and v_new_addon_ids ? (v_addon_map ->> ak.addon_id::text)
   on conflict (addon_id, keyword_id) do nothing;
 
-  return v_count;
+  -- Return the target-pack addon ID for every source addon (new or reused).
+  return array(
+    select (v_addon_map ->> k)::uuid
+    from   jsonb_object_keys(v_addon_map) as k
+  );
 end;
 $$;
 
@@ -1720,9 +1725,10 @@ grant  execute on function public.copy_addons_to_pack(uuid, uuid[]) to authentic
 
 
 create or replace function public.copy_cards_to_pack(
-  p_target_pack_id uuid,
-  p_source_ids     uuid[],
-  p_card_overrides jsonb default '{}'::jsonb
+  p_target_pack_id   uuid,
+  p_source_ids       uuid[],
+  p_card_overrides   jsonb    default '{}'::jsonb,
+  p_retain_portraits boolean  default true
 )
 returns integer
 language plpgsql
@@ -1949,9 +1955,22 @@ begin
   from public.card_keywords ck
   where ck.card_id = any(p_source_ids);
 
+  -- Copy portrait images for the cloned cards.
+  if p_retain_portraits then
+    insert into public.card_images (card_id, file_path, sort_order, image_type)
+    select
+      (v_card_map ->> ci.card_id::text)::uuid,
+      ci.file_path,
+      ci.sort_order,
+      ci.image_type
+    from public.card_images ci
+    where ci.card_id = any(p_source_ids)
+      and (v_card_map ->> ci.card_id::text) is not null;
+  end if;
+
   return v_count;
 end;
 $$;
 
-revoke all on function public.copy_cards_to_pack(uuid, uuid[], jsonb) from public;
-grant  execute on function public.copy_cards_to_pack(uuid, uuid[], jsonb) to authenticated;
+revoke all on function public.copy_cards_to_pack(uuid, uuid[], jsonb, boolean) from public;
+grant  execute on function public.copy_cards_to_pack(uuid, uuid[], jsonb, boolean) to authenticated;

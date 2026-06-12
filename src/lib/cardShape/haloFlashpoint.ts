@@ -28,6 +28,7 @@
  */
 
 import type { HaloFlashpointCardProps } from '../../components/HaloFlashpointCard';
+import type { HaloFlashpointRuleCardProps } from '../../components/HaloFlashpointRuleCard';
 import type { HaloFlashpointStats } from '../database.types';
 import { formatKeywordLabel } from './util';
 
@@ -124,5 +125,15 @@ export function dbRowsToHaloFlashpointProps(
     weapons,
     portrait:      options.portraitUrl ?? undefined,
     portraitStyle: row.portrait_style ?? undefined,
+  };
+}
+
+// ── Rule card shaper ─────────────────────────────────────────────────────────
+
+export function dbRowsToHaloFlashpointRuleProps(row: HaloCardDbRow): HaloFlashpointRuleCardProps {
+  const s = (row.stats ?? {}) as Record<string, unknown>;
+  return {
+    title:       row.name || undefined,
+    description: String(s.description ?? ''),
   };
 }

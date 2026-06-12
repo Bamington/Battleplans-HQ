@@ -30,6 +30,8 @@ export interface AddonListItemProps {
   name: string;
   /** One-line summary shown below the name — truncated if too long */
   subtitle: string;
+  /** Source label shown top-right, e.g. the pack name */
+  packLabel?: string;
   /** Whether this item is currently selected in the picker */
   selected?: boolean;
   /** Called when the row body is clicked */
@@ -48,6 +50,7 @@ export interface AddonListItemProps {
 const AddonListItem = ({
   name,
   subtitle,
+  packLabel,
   selected = false,
   onSelect,
   onEdit,
@@ -75,9 +78,14 @@ const AddonListItem = ({
         className="flex-1 flex flex-col justify-center min-w-0 h-full text-left leading-none"
         disabled={!onSelect}
       >
-        <p className="font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
-          {name}
-        </p>
+        <div className="flex items-center gap-2 min-w-0 w-full">
+          <p className="flex-1 min-w-0 font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
+            {name}
+          </p>
+          {packLabel && (
+            <span className="shrink-0 font-body text-xs text-gray-500">{packLabel}</span>
+          )}
+        </div>
         <p className="font-body text-[12px] leading-4 text-gray-400 truncate w-full">
           {subtitle}
         </p>

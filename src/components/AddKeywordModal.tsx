@@ -108,6 +108,10 @@ const AddKeywordModal = ({
   const [saving, setSaving]           = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [unfilteredCount, setUnfilteredCount] = useState(0);
+  // Source tabs: 'pack' = keywords in a pack, 'library' = personal library.
+  const [tabFilter,    setTabFilter]   = useState<'pack' | 'library' | null>(null);
+  const [packCount,    setPackCount]   = useState(0);
+  const [libraryCount, setLibraryCount] = useState(0);
 
   // Create form state
   const [newName, setNewName]           = useState('');
@@ -124,10 +128,13 @@ const AddKeywordModal = ({
   const excludeRef       = useRef(excludeKeywordIds);
   const openRef          = useRef(open);
   const editingKwRef     = useRef(editingKeyword);
+  const tabFilterRef     = useRef<'pack' | 'library' | null>(null);
+  const packNameMapRef   = useRef<Map<string, string>>(new Map());
 
   useEffect(() => { excludeRef.current    = excludeKeywordIds; }, [excludeKeywordIds]);
   useEffect(() => { openRef.current       = open;              }, [open]);
   useEffect(() => { editingKwRef.current  = editingKeyword;    }, [editingKeyword]);
+  useEffect(() => { tabFilterRef.current  = tabFilter;         }, [tabFilter]);
 
   // ── Fetch a page of keywords ──────────────────────────────────────────────
 
@@ -153,8 +160,13 @@ const AddKeywordModal = ({
     if (search.trim()) {
       query = query.ilike('name', `%${search.trim()}%`);
     }
+    // Apply source tab filter when active
+    const tf = tabFilterRef.current;
+    if (tf === 'pack')    query = query.not('pack_id', 'is', null);
+    if (tf === 'library') query = query.is('pack_id', null);
 
-    // Also fetch unfiltered count (no search filter) to decide whether to show search bar
+    // Also fetch unfiltered count (all items, no tab/search filter) to decide
+    // whether to show the search bar.
     let unfilteredQuery = supabase
       .from('keywords')
       .select('*', { count: 'exact', head: true })
@@ -192,8 +204,13 @@ const AddKeywordModal = ({
       setParamValue(1);
       setSearchQuery('');
       setUnfilteredCount(0);
-      gameIdRef.current = null;
-      userIdRef.current = null;
+      setTabFilter(null);
+      setPackCount(0);
+      setLibraryCount(0);
+      tabFilterRef.current  = null;
+      gameIdRef.current     = null;
+      userIdRef.current     = null;
+      packNameMapRef.current = new Map();
       return;
     }
 
@@ -228,6 +245,43 @@ const AddKeywordModal = ({
       // resolving IDs. (createOnly already set step to 'create' and
       // fetchPage would clobber it back to 'pick'.)
       if (!editingKeyword && !createOnly) {
+        // Determine which sources have items so we know whether to show tabs.
+        const excluded = excludeRef.current;
+        let packCountQ = supabase
+          .from('keywords')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id)
+          .eq('game_id', game.id)
+          .not('pack_id', 'is', null);
+        let libCountQ = supabase
+          .from('keywords')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id)
+          .eq('game_id', game.id)
+          .is('pack_id', null);
+        if (excluded.length > 0) {
+          packCountQ = packCountQ.not('id', 'in', `(${excluded.join(',')})`);
+          libCountQ  = libCountQ.not('id', 'in', `(${excluded.join(',')})`);
+        }
+        const [packRes, libRes, packNamesRes] = await Promise.all([
+          packCountQ,
+          libCountQ,
+          supabase.from('packs').select('id, name').eq('owner_user_id', session.user.id).eq('game_id', game.id),
+        ]);
+        if (cancelled) return;
+
+        packNameMapRef.current = new Map(
+          ((packNamesRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+        );
+
+        const pc = packRes.count ?? 0;
+        const lc = libRes.count ?? 0;
+        const initialFilter = pc > 0 && lc > 0 ? 'pack' : null;
+        tabFilterRef.current = initialFilter;
+        setPackCount(pc);
+        setLibraryCount(lc);
+        setTabFilter(initialFilter);
+
         await fetchPage(0);
       }
     };
@@ -238,12 +292,12 @@ const AddKeywordModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, gameSlug, fetchPage, editingKeyword?.id]);
 
-  // ── Re-fetch when the page changes ────────────────────────────────────────
+  // ── Re-fetch when the page, search, or tab filter changes ─────────────────
 
   useEffect(() => {
     if (step === 'pick') fetchPage(page, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchQuery]);
+  }, [page, searchQuery, tabFilter]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -370,6 +424,7 @@ const AddKeywordModal = ({
 
   // ── Derived values ────────────────────────────────────────────────────────
 
+  const showTabs   = packCount > 0 && libraryCount > 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const canCreate  = newName.trim() !== '' && newDescription.trim() !== '' && !saving;
 
@@ -421,6 +476,33 @@ const AddKeywordModal = ({
             Add Existing {typeName}
           </h5>
 
+          {/* Source tabs — only shown when both packs and library have items */}
+          {showTabs && (
+            <div className="flex">
+              {(['pack', 'library'] as const).map((tab, idx) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    tabFilterRef.current = tab;
+                    setTabFilter(tab);
+                    setPage(0);
+                    setSelectedId(null);
+                  }}
+                  className={[
+                    'flex-1 font-body text-sm font-medium px-4 py-2.5 text-center transition-colors',
+                    idx === 0 ? 'rounded-l-lg' : 'rounded-r-lg',
+                    tabFilter === tab
+                      ? 'bg-blue-600 text-white'
+                      : 'border border-blue-500 text-blue-500',
+                  ].join(' ')}
+                >
+                  {tab === 'pack' ? 'From Packs' : 'Your Content'}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Search — shown only when there are more than 5 possible keywords */}
           {unfilteredCount > 5 && (
             <Input
@@ -446,6 +528,7 @@ const AddKeywordModal = ({
                 key={kw.id}
                 name={kw.name}
                 subtitle={kw.description ?? ''}
+                packLabel={kw.pack_id ? packNameMapRef.current.get(kw.pack_id) : undefined}
                 selected={selectedId === kw.id}
                 onSelect={() => setSelectedId(kw.id)}
               />

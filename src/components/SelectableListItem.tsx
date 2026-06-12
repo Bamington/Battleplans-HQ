@@ -44,9 +44,10 @@ import Checkbox from './Checkbox';
 export interface SelectableListItemProps {
   /** Row label */
   name: string;
-  /** Optional second line below the name — e.g. "Pack: Space Marines"
-   *  to indicate the source of an item in a multi-source picker. */
+  /** Optional second line below the name */
   subtitle?: string;
+  /** Source label shown top-right next to the name, e.g. the pack name */
+  packLabel?: string;
   /** Whether the row is currently selected */
   checked: boolean;
   /** Called with the new checked value on toggle */
@@ -64,6 +65,7 @@ export interface SelectableListItemProps {
 const SelectableListItem = ({
   name,
   subtitle,
+  packLabel,
   checked,
   onCheckedChange,
   disabled = false,
@@ -103,9 +105,14 @@ const SelectableListItem = ({
         disabled={disabled}
         className="flex-1 min-w-0 text-left disabled:cursor-not-allowed flex flex-col justify-center"
       >
-        <p className="font-heading text-base leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
-          {name}
-        </p>
+        <div className="flex items-center gap-2 min-w-0 w-full">
+          <p className="flex-1 min-w-0 font-heading text-base leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
+            {name}
+          </p>
+          {packLabel && (
+            <span className="shrink-0 font-body text-xs text-gray-500">{packLabel}</span>
+          )}
+        </div>
         {subtitle && (
           <p className="font-body text-xs leading-4 text-gray-400 truncate">
             {subtitle}

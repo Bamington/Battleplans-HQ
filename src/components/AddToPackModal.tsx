@@ -41,12 +41,13 @@
  *                   reloads its panel data.
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import Input from './Input';
 import SelectableListItem from './SelectableListItem';
 import AddCircle from '../icons/AddCircle';
+import AltArrowLeft  from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
 import Magnifer from '../icons/Magnifer';
 import { supabase } from '../lib/supabase';
@@ -88,6 +89,11 @@ export interface AddToPackModalProps {
    *  never see the same item twice. */
   includeTargetPack?: boolean;
 
+  /** When true, an "Add Portrait Image" button is shown in the rename
+   *  step (single-card selections only). Caller sets this for games
+   *  that support portrait images (all except StarCraft). */
+  enablePortrait?:  boolean;
+
   onCreateNew:      () => void;
   onAdded:          (count: number) => void;
   /** Called after a successful copy with the resulting pack-scoped IDs
@@ -95,17 +101,26 @@ export interface AddToPackModalProps {
    *  to attach the copied items to a specific card via card_addons /
    *  card_keywords immediately after the copy. */
   onAddedWithIds?:  (ids: string[]) => void;
+  /** Called instead of onAdded when the user clicks "Add Portrait Image"
+   *  in the rename step. Receives the new pack-scoped card ID and the
+   *  final card name so the caller can open the portrait upload flow. */
+  onAddedWithPortraitIntent?: (newCardId: string, cardName: string) => void;
 }
 
 interface PickerItem {
   id:       string;
-  /** Addon/keyword rows: "Name (source deck or pack)". Card rows: the
-   *  plain name (their source stays in the subtitle). */
   name:     string;
   /** Addon rows: the per-game stat string. Keyword rows: the keyword's
-   *  description. Card rows: the source label ("Deck: …", "Pack: …",
-   *  "My Templates"). */
+   *  description. Card rows: empty (source is shown in packLabel). */
   subtitle: string;
+  /** Source label shown top-right: pack name, deck name, or "My Library". */
+  packLabel?: string;
+  /** Cards only: true when the source card has a portrait image. */
+  hasPortrait?: boolean;
+  /** Whether this item came from one of the user's packs ('pack') or
+   *  from their personal library / decks ('library'). Used to drive the
+   *  Packs / My Library tab filter. */
+  source: 'pack' | 'library';
 }
 
 const RPC_NAME: Record<EntityType, string> = {
@@ -129,6 +144,7 @@ type Row = {
   pack_id?:     string | null;
   deck_id?:     string | null;
   is_template?: boolean;
+  card_images?: Array<{ file_path: string; image_type: string }> | null;
 };
 
 /** Build a content fingerprint for dedup. Items with identical
@@ -164,9 +180,11 @@ export default function AddToPackModal({
   newButtonLabel,
   includeTargetPack = false,
   getAddonSubtitle,
+  enablePortrait,
   onCreateNew,
   onAdded,
   onAddedWithIds,
+  onAddedWithPortraitIntent,
 }: AddToPackModalProps) {
 
   // ── State ──────────────────────────────────────────────────────────────
@@ -178,8 +196,11 @@ export default function AddToPackModal({
   // IDs of items that already live in the target pack (populated when
   // includeTargetPack=true). These bypass the copy RPC at commit time.
   const samePackIds = useRef<Set<string>>(new Set());
-  const [search,   setSearch]   = useState('');
-  const [adding,   setAdding]   = useState(false);
+  const [search,     setSearch]     = useState('');
+  const [adding,     setAdding]     = useState(false);
+  const [page,       setPage]       = useState(0);
+  // 'pack' | 'library' — only active when both sources have items.
+  const [tabFilter,  setTabFilter]  = useState<'pack' | 'library'>('pack');
 
   // Two-step modal: 'picker' shows the list to choose from, 'rename'
   // shows one editable name input per selected card before commit.
@@ -187,6 +208,13 @@ export default function AddToPackModal({
   // keywords commit directly from 'picker'.
   const [step,           setStep]           = useState<'picker' | 'rename'>('picker');
   const [renameDrafts,   setRenameDrafts]   = useState<Record<string, string>>({});
+  // Whether to copy portrait images alongside the card (only sent to the
+  // card RPC when entityType='card'). Defaults to true.
+  const [retainPortrait, setRetainPortrait] = useState(true);
+  // Ref tracking whether the pending commit was triggered by "Add Portrait
+  // Image" — if so we query for the new card ID and call
+  // onAddedWithPortraitIntent rather than onAdded.
+  const portraitIntentRef = useRef(false);
 
   // ── Fetch picker items each time the modal opens ───────────────────────
   // Source scope:
@@ -210,6 +238,9 @@ export default function AddToPackModal({
     setRenameDrafts({});
     setSearch('');
     setError(null);
+    setRetainPortrait(true);
+    setTabFilter('pack');
+    portraitIntentRef.current = false;
     loadItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, entityType, cardType, addonTypeId, gameId, targetPackId]);
@@ -222,7 +253,7 @@ export default function AddToPackModal({
 
       // Per-entity-type select shapes — we pull the content fields needed
       // for the fingerprint, plus source FKs for the subtitle.
-      const cardSelect    = 'id, name, card_type, stats, pack_id, deck_id, is_template';
+      const cardSelect    = 'id, name, card_type, stats, pack_id, deck_id, is_template, card_images(file_path, image_type)';
       const addonSelect   = 'id, name, description, stats, addon_type_id, pack_id';
       const keywordSelect = 'id, name, description, params_schema, extra, pack_id';
 
@@ -281,15 +312,19 @@ export default function AddToPackModal({
         //    means is_template = true; for addons/keywords it's just the
         //    caller's personal library (pack_id null).
         entityType === 'card'
-          ? supabase
-              .from('cards')
-              .select(cardSelect)
-              .eq('user_id', user.id)
-              .eq('game_id', gameId)
-              .eq('is_template', true)
-              .is('pack_id', null)
-              .is('deck_id', null)
-              .order('name')
+          ? (() => {
+              let q = supabase
+                .from('cards')
+                .select(cardSelect)
+                .eq('user_id', user.id)
+                .eq('game_id', gameId)
+                .eq('is_template', true)
+                .is('pack_id', null)
+                .is('deck_id', null);
+              if (cardType) q = q.eq('card_type', cardType);
+              return q.order('name');
+            })()
+
           : supabase
               .from(entityType === 'addon' ? 'addons' : 'keywords')
               .select(entityType === 'addon' ? addonSelect : keywordSelect)
@@ -341,6 +376,7 @@ export default function AddToPackModal({
       }
 
       const libraryRows = ((libraryRes.data ?? []) as unknown as Row[])
+        .filter(r => entityType !== 'card'  || !cardType    || r.card_type === cardType)
         .filter(r => entityType !== 'addon' || !addonTypeId || r.addon_type_id === addonTypeId);
 
       // ── Resolve a concrete source for library addons/keywords ──────────
@@ -419,18 +455,36 @@ export default function AddToPackModal({
         return getAddonSubtitle?.(r) ?? r.description ?? '';
       };
 
+      const cardPackLabelFor = (r: Row): string => {
+        if (r.pack_id && ownPackMap.has(r.pack_id)) return ownPackMap.get(r.pack_id)!;
+        if (r.deck_id && ownDeckMap.has(r.deck_id)) return ownDeckMap.get(r.deck_id)!;
+        return 'My Templates';
+      };
+
       const candidates: { row: Row; pick: PickerItem }[] = [];
-      const pushAll = (rows: Row[]) => {
+      const pushAll = (rows: Row[], source: 'pack' | 'library') => {
         for (const r of rows) {
           candidates.push({
             row: r,
             pick: entityType === 'card'
-              ? { id: r.id, name: r.name, subtitle: cardLabelFor(r) }
-              : { id: r.id, name: `${r.name} (${sourceFor(r)})`, subtitle: contentSubtitle(r) },
+              ? {
+                  id: r.id,
+                  name: r.name,
+                  subtitle: '',
+                  packLabel: cardPackLabelFor(r),
+                  hasPortrait: Boolean(r.card_images?.some(ci => ci.image_type === 'portrait')),
+                  source,
+                }
+              : { id: r.id, name: r.name, subtitle: contentSubtitle(r), packLabel: sourceFor(r), source },
           });
         }
       };
-      pushAll(packRows);
+      // Push target-pack rows before other-pack rows so they always win
+      // the fingerprint dedup. Without this, a same-fingerprint item from
+      // another pack can crowd out the current pack's version.
+      const targetPackRows = packRows.filter(r => r.pack_id === targetPackId);
+      const otherPackRows  = packRows.filter(r => r.pack_id !== targetPackId);
+      pushAll(targetPackRows, 'pack');
       // Record which items can bypass the copy RPC at commit time.
       // In the card-form context (includeTargetPack=true) we're attaching
       // existing items to a card, not importing from elsewhere, so:
@@ -440,12 +494,11 @@ export default function AddToPackModal({
       // Items from OTHER packs still go through the copy RPC so they get
       // cloned into the target pack first.
       if (includeTargetPack) {
-        for (const r of packRows) {
-          if (r.pack_id === targetPackId) samePackIds.current.add(r.id);
-        }
+        for (const r of targetPackRows) samePackIds.current.add(r.id);
       }
-      pushAll(deckRows);
-      pushAll(libraryRows);
+      pushAll(otherPackRows, 'pack');
+      pushAll(deckRows,      'library');
+      pushAll(libraryRows,   'library');
       if (includeTargetPack) {
         for (const r of libraryRows) samePackIds.current.add(r.id);
       }
@@ -485,11 +538,24 @@ export default function AddToPackModal({
 
   // ── Derived state ──────────────────────────────────────────────────────
 
+  const hasPackItems    = useMemo(() => items.some(i => i.source === 'pack'),    [items]);
+  const hasLibraryItems = useMemo(() => items.some(i => i.source === 'library'), [items]);
+  const showTabs        = hasPackItems && hasLibraryItems;
+
   const filtered = useMemo(() => {
+    let list = showTabs ? items.filter(i => i.source === tabFilter) : items;
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(i => i.name.toLowerCase().includes(q));
-  }, [items, search]);
+    if (!q) return list;
+    return list.filter(i => i.name.toLowerCase().includes(q));
+  }, [items, search, showTabs, tabFilter]);
+
+  const PAGE_SIZE   = 5;
+  const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage    = Math.min(page, totalPages - 1);
+  const paginated   = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  // Reset to first page whenever the filtered list changes.
+  useEffect(() => { setPage(0); }, [filtered]);
 
   const canSubmit = selected.size > 0 && !adding;
 
@@ -532,7 +598,6 @@ export default function AddToPackModal({
   /** Footer CTA from the rename step: commit with the user's edited names
    *  packed into the RPC's p_card_overrides param. */
   async function handleCommitRenames() {
-    // Block submit if any draft is blank (after trim).
     for (const it of selectedItems) {
       if (!(renameDrafts[it.id] ?? '').trim()) return;
     }
@@ -540,8 +605,21 @@ export default function AddToPackModal({
     for (const it of selectedItems) {
       overrides[it.id] = { name: renameDrafts[it.id].trim() };
     }
+    portraitIntentRef.current = false;
     await commit(overrides);
   }
+
+  /** "Add Portrait Image" button in rename step: same as handleCommitRenames
+   *  but flags portrait intent so commit() calls onAddedWithPortraitIntent
+   *  with the new card ID instead of onAdded. */
+  const handleCommitWithPortrait = useCallback(async () => {
+    if (selectedItems.length !== 1) return;
+    const [it] = selectedItems;
+    if (!(renameDrafts[it.id] ?? '').trim()) return;
+    portraitIntentRef.current = true;
+    await commit({ [it.id]: { name: renameDrafts[it.id].trim() } });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItems, renameDrafts]);
 
   /** Shared submit path. `overrides` is only sent for the card RPC. */
   async function commit(overrides: Record<string, { name: string }> | undefined) {
@@ -550,12 +628,8 @@ export default function AddToPackModal({
 
     const selectedArr = Array.from(selected);
 
-    // Items that already live in the target pack don't need to be copied —
-    // we can deliver their IDs directly and skip the RPC for them.
     const directIds  = selectedArr.filter(id =>  samePackIds.current.has(id));
     const copyIds    = selectedArr.filter(id => !samePackIds.current.has(id));
-
-    // Cards always use the RPC (the rename step fills copyIds=selectedArr).
     const rpcIds = entityType === 'card' ? selectedArr : copyIds;
 
     let resultIds: string[] = [...directIds];
@@ -568,6 +642,9 @@ export default function AddToPackModal({
       if (entityType === 'card' && overrides) {
         args.p_card_overrides = overrides;
       }
+      if (entityType === 'card') {
+        args.p_retain_portraits = retainPortrait;
+      }
 
       const { data, error: rpcErr } = await supabase.rpc(RPC_NAME[entityType], args);
 
@@ -579,13 +656,59 @@ export default function AddToPackModal({
       }
 
       if (entityType === 'card') {
+        // Portrait intent: query for the new card's ID then hand off to caller.
+        if (portraitIntentRef.current && onAddedWithPortraitIntent && selectedArr.length === 1) {
+          const overrideName = overrides?.[selectedArr[0]]?.name ?? '';
+          const { data: newCards } = await supabase
+            .from('cards')
+            .select('id')
+            .eq('pack_id', targetPackId)
+            .eq('name', overrideName)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          const newCardId = (newCards as Array<{ id: string }> | null)?.[0]?.id;
+          if (newCardId) {
+            onAddedWithPortraitIntent(newCardId, overrideName);
+            return;
+          }
+        }
         onAdded(Number(data ?? selected.size));
         return;
       }
 
-      // copy_addons_to_pack / copy_keywords_to_pack return uuid[].
-      const rpcReturned = Array.isArray(data) ? (data as string[]) : [];
-      resultIds = [...resultIds, ...rpcReturned];
+      // Both RPCs now return uuid[] (the target-pack IDs, new or reused).
+      // Fall back to a name-lookup for older DB versions that still return
+      // an integer count.
+      if (Array.isArray(data) && (data as unknown[]).length > 0) {
+        resultIds = [...resultIds, ...(data as string[])];
+      } else if (entityType === 'keyword') {
+        // Fallback: resolve keyword IDs by name in target pack.
+        const { data: srcKws } = await supabase
+          .from('keywords').select('name').in('id', rpcIds);
+        const names = (srcKws ?? []).map((k: { name: string }) => k.name);
+        if (names.length > 0) {
+          const { data: tgtKws } = await supabase
+            .from('keywords').select('id')
+            .eq('pack_id', targetPackId).in('name', names);
+          resultIds = [...resultIds, ...(tgtKws ?? []).map((k: { id: string }) => k.id)];
+        }
+      } else {
+        // Fallback: resolve addon IDs by (name, addon_type_id) in target pack.
+        const { data: srcMeta } = await supabase
+          .from('addons').select('name, addon_type_id').in('id', rpcIds);
+        const srcEntries = (srcMeta ?? []) as { name: string; addon_type_id: string }[];
+        if (srcEntries.length > 0) {
+          const names = [...new Set(srcEntries.map(a => a.name))];
+          const { data: tgtMatches } = await supabase
+            .from('addons').select('id, name, addon_type_id')
+            .eq('pack_id', targetPackId).in('name', names);
+          const tgtRows = (tgtMatches ?? []) as { id: string; name: string; addon_type_id: string }[];
+          for (const src of srcEntries) {
+            const match = tgtRows.find(t => t.name === src.name && t.addon_type_id === src.addon_type_id);
+            if (match && !resultIds.includes(match.id)) resultIds.push(match.id);
+          }
+        }
+      }
     } else {
       setAdding(false);
     }
@@ -637,6 +760,33 @@ export default function AddToPackModal({
               <hr className="flex-1 h-px border-0 bg-gray-700" />
             </div>
 
+            {/* Source tabs — only shown when both packs and library have items */}
+            {showTabs && (
+              <div className="flex">
+                {(['pack', 'library'] as const).map((tab, idx) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    disabled={adding}
+                    onClick={() => {
+                      setTabFilter(tab);
+                      setPage(0);
+                      setSelected(new Set());
+                    }}
+                    className={[
+                      'flex-1 font-body text-sm font-medium px-4 py-2.5 text-center transition-colors',
+                      idx === 0 ? 'rounded-l-lg' : 'rounded-r-lg',
+                      tabFilter === tab
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-blue-500 text-blue-500',
+                    ].join(' ')}
+                  >
+                    {tab === 'pack' ? 'From Packs' : 'Your Content'}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Search — purely client-side filter over the loaded list. */}
             <Input
               placeholder={`Search ${title.replace(/^Add /, '').replace(/ to Pack$/, '').toLowerCase()}s`}
@@ -646,9 +796,8 @@ export default function AddToPackModal({
               disabled={loading || adding}
             />
 
-            {/* Picker list — fixed height + scroll so the modal doesn't
-                jump around as the user filters. */}
-            <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
+            {/* Picker list — paginated to 5 items */}
+            <div className="flex flex-col gap-1.5">
               {loading ? (
                 <p className="font-body text-sm text-gray-400 text-center py-6">
                   Loading…
@@ -662,11 +811,12 @@ export default function AddToPackModal({
                     : "No matches."}
                 </p>
               ) : (
-                filtered.map(item => (
+                paginated.map(item => (
                   <SelectableListItem
                     key={item.id}
                     name={item.name}
-                    subtitle={item.subtitle}
+                    subtitle={item.subtitle || undefined}
+                    packLabel={item.packLabel}
                     checked={selected.has(item.id)}
                     onCheckedChange={c => toggle(item.id, c)}
                     disabled={adding}
@@ -674,6 +824,35 @@ export default function AddToPackModal({
                 ))
               )}
             </div>
+
+            {/* Pagination controls — only shown when the list spans multiple pages */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="ghost"
+                  color="secondary"
+                  size="sm"
+                  leftIcon={<AltArrowLeft className="size-4" />}
+                  disabled={safePage === 0 || adding}
+                  onClick={() => setPage(p => p - 1)}
+                >
+                  Prev
+                </Button>
+                <span className="font-body text-xs text-gray-400">
+                  {safePage + 1} of {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  color="secondary"
+                  size="sm"
+                  rightIcon={<AltArrowRight className="size-4" />}
+                  disabled={safePage >= totalPages - 1 || adding}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
 
             {error && (
               <p className="font-body text-sm text-red-400">{error}</p>
@@ -702,24 +881,14 @@ export default function AddToPackModal({
         ) : (
 
           // ── Step 2: review names before commit (cards only) ────────────
-          // The user-specific stat fields (game.stat_schema entries with
-          // userSpecific: true) are stripped server-side; portraits aren't
-          // copied at all. This step lets the user rename each card so
-          // their personal "Bam's MK VIII" can become a generic
-          // "Spartan Mark VII" before going into the pack.
           <>
             <p className="font-body text-base text-gray-300">
               {selectedItems.length === 1
-                ? `This ${cardType === 'rule' ? 'card' : 'unit'}'s portrait and other custom information (if any) will be removed before being added to this pack.`
-                : `Each card's portrait and other custom information (if any) will be removed before being added to this pack.`}
-            </p>
-            <p className="font-body text-base text-gray-300">
-              {selectedItems.length === 1
-                ? `You should update this ${cardType === 'rule' ? 'card' : 'unit'}'s name to be generic, if it's not already.`
-                : `Update each name to be generic, if it's not already.`}
+                ? `Update this ${cardType === 'rule' ? 'card' : 'unit'}'s name to be generic before adding it to the pack.`
+                : `Update each name to be generic before adding to the pack.`}
             </p>
 
-            <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto">
+            <div className="flex flex-col gap-3 max-h-[280px] overflow-y-auto">
               {selectedItems.map((item, idx) => (
                 <Input
                   key={item.id}
@@ -738,6 +907,19 @@ export default function AddToPackModal({
               ))}
             </div>
 
+            {selectedItems.some(i => i.hasPortrait) && (
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={retainPortrait}
+                  onChange={e => setRetainPortrait(e.target.checked)}
+                  disabled={adding}
+                  className="w-4 h-4 accent-blue-500 shrink-0"
+                />
+                <span className="font-body text-sm text-gray-300">Retain portrait image</span>
+              </label>
+            )}
+
             {error && (
               <p className="font-body text-sm text-red-400">{error}</p>
             )}
@@ -751,6 +933,16 @@ export default function AddToPackModal({
               >
                 Cancel
               </Button>
+              {enablePortrait && selectedItems.length === 1 && (
+                <Button
+                  variant="outline"
+                  color="primary"
+                  disabled={!renamesValid || adding}
+                  onClick={handleCommitWithPortrait}
+                >
+                  Add Portrait Image
+                </Button>
+              )}
               <Button
                 disabled={!renamesValid || adding}
                 loading={adding}

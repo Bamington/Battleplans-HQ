@@ -48,6 +48,8 @@ export interface UnitListEntryProps {
   unitName?: string;
   /** Secondary label — unit faction or type (e.g. "Spartan ZVEZDA") */
   unitType?: string;
+  /** Tertiary label — comma-separated addon/keyword preview (e.g. weapon names) */
+  addonSummary?: string;
   /** URL for the unit's portrait or game icon */
   avatarSrc?: string;
   /** Called when the row is clicked */
@@ -93,6 +95,7 @@ const UnitListEntry = ({
   activated = false,
   unitName,
   unitType,
+  addonSummary,
   avatarSrc,
   onClick,
   editMode  = false,
@@ -169,6 +172,11 @@ const UnitListEntry = ({
         {subtitle && (
           <p className={`text-xs font-bold font-body uppercase tracking-[1.2px] leading-4 truncate ${subtitleColor}`}>
             {subtitle}
+          </p>
+        )}
+        {addonSummary && (
+          <p className="font-body text-[12px] leading-4 text-gray-400 truncate">
+            {addonSummary}
           </p>
         )}
       </div>
