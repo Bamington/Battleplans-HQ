@@ -37,6 +37,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
@@ -59,7 +60,6 @@ import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
 import Star from '../icons/Star';
-import Settings from '../icons/Settings';
 import { supabase } from '../lib/supabase';
 import type { DeckWithGame, PackWithGame } from '../lib/database.types';
 
@@ -148,6 +148,7 @@ const PLACEHOLDER_POST = {
 
 export default function AppHome() {
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
 
   // ── Deck list state ────────────────────────────────────────────────────────
   const [decks,      setDecks]      = useState<DeckWithCards[]>([]);
@@ -169,10 +170,7 @@ export default function AppHome() {
   const [packs,             setPacks]             = useState<PackForList[]>([]);
   const [packsLoading,      setPacksLoading]      = useState(true);
   const [packsError,        setPacksError]        = useState<string | null>(null);
-  // Derived value used by the Manage CTA — true when the user has any
-  // pack content of their own (whether authored or imported).
-  const hasOwnOrImported = yourPacks.length > 0;
-  // While a download is in flight: ID of the pack being imported (used to
+// While a download is in flight: ID of the pack being imported (used to
   // ignore concurrent clicks and show a spinner) + inline error from the
   // most recent failed import. Cleared on next successful import or refresh.
   const [importingId,       setImportingId]       = useState<string | null>(null);
@@ -443,8 +441,7 @@ export default function AppHome() {
     setImportingId(pack.id);
     setImportError(null);
 
-    // Optimistic update: remove from browse, add to "Your Packs". The
-    // derived hasOwnOrImported flips automatically once yourPacks > 0.
+    // Optimistic update: remove from browse, add to "Your Packs".
     setPacks(prev => prev.filter(p => p.id !== pack.id));
     setYourPacks(prev => [pack, ...prev]);
 
@@ -747,27 +744,18 @@ export default function AppHome() {
 
                     )}
 
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      color="primary"
-                      leftIcon={<AddCircle className="size-4" />}
-                      onClick={openPackConfirm}
-                    >
-                      Create Pack
-                    </Button>
-
-                    {hasOwnOrImported && (
+                    {isAdmin && (
                       <Button
                         className="w-full"
                         variant="outline"
-                        color="secondary"
-                        leftIcon={<Settings className="size-4" />}
-                        onClick={() => navigate('/app/packs')}
+                        color="primary"
+                        leftIcon={<AddCircle className="size-4" />}
+                        onClick={openPackConfirm}
                       >
-                        Manage your packs
+                        Create Pack
                       </Button>
                     )}
+
                   </>
 
                 )}

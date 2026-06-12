@@ -218,6 +218,16 @@ export interface Pack {
 }
 
 /**
+ * Per-user profile row. Created automatically on signup via DB trigger.
+ * The `role` field gates admin-only features (e.g. creating packs).
+ */
+export interface UserProfile {
+  id:         string
+  role:       'user' | 'admin'
+  created_at: string
+}
+
+/**
  * Tracks which users have imported which packs. Lets the UI show
  * "installed" state and (later) detect available updates.
  */
