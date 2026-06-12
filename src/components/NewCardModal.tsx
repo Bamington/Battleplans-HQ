@@ -28,13 +28,18 @@ import Input from './Input';
 import Button from './Button';
 import Dropdown, { DropdownItem } from './Dropdown';
 import AddCircle from '../icons/AddCircle';
+import AltArrowLeft  from '../icons/AltArrowLeft';
+import AltArrowRight from '../icons/AltArrowRight';
 import Magnifer from '../icons/Magnifer';
 import MenuDots from '../icons/MenuDots';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
 export interface NewCardModalTemplate {
-  id:   string;
-  name: string;
+  id:       string;
+  name:     string;
+  source?:  'pack' | 'library';
+  packName?: string;
+  addonSummary?: string;
 }
 
 export interface NewCardModalProps {
@@ -50,24 +55,40 @@ export interface NewCardModalProps {
   onDeleteTemplate?: (templateId: string) => void | Promise<void>;
 }
 
-const SEARCH_THRESHOLD = 5;
+const PAGE_SIZE = 5;
 
 const NewCardModal = ({ open, onClose, templates, onNewBlank, onPickTemplate, onDeleteTemplate }: NewCardModalProps) => {
-  const [search, setSearch]   = useState('');
-  const [picking, setPicking] = useState(false);
+  const [search,    setSearch]    = useState('');
+  const [picking,   setPicking]   = useState(false);
+  const [page,      setPage]      = useState(0);
+  const [tabFilter, setTabFilter] = useState<'pack' | 'library'>('pack');
 
   useEffect(() => {
     if (open) {
       setSearch('');
       setPicking(false);
+      setPage(0);
+      setTabFilter('pack');
     }
   }, [open]);
 
+  const hasPackItems    = useMemo(() => templates.some(t => t.source === 'pack'),    [templates]);
+  const hasLibraryItems = useMemo(() => templates.some(t => t.source === 'library'), [templates]);
+  const showTabs        = hasPackItems && hasLibraryItems;
+
   const filtered = useMemo(() => {
+    let list = showTabs ? templates.filter(t => t.source === tabFilter) : templates;
     const q = search.trim().toLowerCase();
-    if (!q) return templates;
-    return templates.filter(t => t.name.toLowerCase().includes(q));
-  }, [templates, search]);
+    if (!q) return list;
+    return list.filter(t => t.name.toLowerCase().includes(q));
+  }, [templates, search, showTabs, tabFilter]);
+
+  // Reset to first page whenever the filtered list changes.
+  useEffect(() => { setPage(0); }, [filtered]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages - 1);
+  const paginated  = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const handlePick = async (id: string) => {
     if (picking) return;
@@ -108,7 +129,32 @@ const NewCardModal = ({ open, onClose, templates, onNewBlank, onPickTemplate, on
 
             <h5 className="font-heading text-xl text-white">Create from Template</h5>
 
-            {templates.length > SEARCH_THRESHOLD && (
+            {showTabs && (
+              <div className="flex">
+                {(['pack', 'library'] as const).map((tab, idx) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    disabled={picking}
+                    onClick={() => {
+                      setTabFilter(tab);
+                      setPage(0);
+                    }}
+                    className={[
+                      'flex-1 font-body text-sm font-medium px-4 py-2.5 text-center transition-colors',
+                      idx === 0 ? 'rounded-l-lg' : 'rounded-r-lg',
+                      tabFilter === tab
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-blue-500 text-blue-500',
+                    ].join(' ')}
+                  >
+                    {tab === 'pack' ? 'From Packs' : 'Your Content'}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {templates.length > PAGE_SIZE && (
               <Input
                 leftIcon={<Magnifer className="size-4" />}
                 placeholder="Search for a Template"
@@ -120,10 +166,10 @@ const NewCardModal = ({ open, onClose, templates, onNewBlank, onPickTemplate, on
             <div className="flex flex-col gap-2">
               {filtered.length === 0 ? (
                 <p className="font-body text-sm text-gray-400 py-2 text-center">
-                  No templates match “{search}”.
+                  No templates match &quot;{search}&quot;.
                 </p>
               ) : (
-                filtered.map(t => (
+                paginated.map(t => (
                   <div
                     key={t.id}
                     className={[
@@ -139,11 +185,24 @@ const NewCardModal = ({ open, onClose, templates, onNewBlank, onPickTemplate, on
                       type="button"
                       disabled={picking}
                       onClick={() => handlePick(t.id)}
-                      className="flex-1 min-w-0 py-[13px] text-left disabled:cursor-not-allowed"
+                      className={[
+                        'flex-1 min-w-0 text-left disabled:cursor-not-allowed',
+                        t.addonSummary ? 'py-[7px]' : 'py-[13px]',
+                      ].join(' ')}
                     >
-                      <p className="font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
-                        {t.name}
-                      </p>
+                      <div className="flex items-center gap-2 min-w-0 w-full">
+                        <p className="flex-1 min-w-0 font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
+                          {t.name}
+                        </p>
+                        {t.packName && (
+                          <span className="shrink-0 font-body text-xs text-gray-500">{t.packName}</span>
+                        )}
+                      </div>
+                      {t.addonSummary && (
+                        <p className="font-body text-[12px] leading-4 text-gray-400 truncate w-full">
+                          {t.addonSummary}
+                        </p>
+                      )}
                     </button>
 
                     {/* ⋯ menu — only shown when a delete handler is provided */}
@@ -177,6 +236,54 @@ const NewCardModal = ({ open, onClose, templates, onNewBlank, onPickTemplate, on
                 ))
               )}
             </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  disabled={safePage === 0 || picking}
+                  onClick={() => setPage(p => p - 1)}
+                  className="size-9 flex items-center justify-center
+                             bg-gray-900 border border-gray-700 rounded-l-lg
+                             text-gray-400 hover:text-white hover:bg-gray-800
+                             disabled:opacity-40 disabled:cursor-not-allowed
+                             transition-colors"
+                  aria-label="Previous page"
+                >
+                  <AltArrowLeft className="size-4" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={picking}
+                    onClick={() => setPage(i)}
+                    className={[
+                      'size-9 flex items-center justify-center font-body text-sm',
+                      'border-y border-r border-gray-700 transition-colors',
+                      i === safePage
+                        ? 'bg-gray-800 text-gray-50'
+                        : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-white',
+                    ].join(' ')}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages - 1 || picking}
+                  onClick={() => setPage(p => p + 1)}
+                  className="size-9 flex items-center justify-center
+                             bg-gray-900 border-y border-r border-gray-700 rounded-r-lg
+                             text-gray-400 hover:text-white hover:bg-gray-800
+                             disabled:opacity-40 disabled:cursor-not-allowed
+                             transition-colors"
+                  aria-label="Next page"
+                >
+                  <AltArrowRight className="size-4" />
+                </button>
+              </div>
+            )}
           </>
         )}
 

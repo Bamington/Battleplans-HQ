@@ -3,46 +3,60 @@
  *
  * A compact card representing a single content pack as seen in the home
  * screen's Packs column. Shows a 64×64 game thumbnail on the left, the
- * pack name + game name centred, and a download button on the right.
- * Below that: an HR, a wrap of badges summarising the pack contents
- * (Units / Rules / per-addon-type), and a brief description.
+ * pack name + game name centred, and an optional ⋯ menu on the right
+ * (with a Delete item when the caller owns or has imported the pack).
+ * Below: an HR, a wrap of badges summarising the pack contents
+ * (Units / Rules / per-addon-type), a brief description, and an
+ * optional CTA button in the bottom-right (caller-supplied label +
+ * action — e.g. "Download Pack" for public rows, "Edit Pack" for
+ * owned rows).
  *
- * Matches the Figma "Card / Rules Pack" component (node 897:15279).
+ * Matches the Figma "Card / Rules Pack" component (node 897:14732).
  *
  * USAGE EXAMPLES:
+ *   // Public pack — Download CTA, no menu
  *   <PackListItem
  *     name="Black Orc Player Cards"
  *     gameName="Blood Bowl"
  *     thumbnailBg="bg-[#15417e]"
  *     thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
- *     badges={[
- *       { label: '8 Units',    icon: <UserRounded className="size-3.5" /> },
- *       { label: '14 Skills',  icon: <Star        className="size-3.5" /> },
- *     ]}
- *     description="All the Black Orc players from Season 3 of Blood Bowl, including all skills and traits."
- *     onDownload={() => importPack(pack.id)}
+ *     badges={[...]}
+ *     description="..."
+ *     cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => importPack(pack.id) }}
+ *   />
+ *
+ *   // Owned pack — menu with Delete + Edit CTA
+ *   <PackListItem
+ *     name="My Custom Pack"
+ *     gameName="Halo: Flashpoint"
+ *     onDelete={() => confirmDelete(pack)}
+ *     deleteLabel="Delete Pack"
+ *     cta={{ label: 'Edit Pack', icon: <Pen2 className="size-4" />, onClick: () => navigate(`/app/packs/${pack.id}/edit`) }}
  *   />
  *
  * PROPS:
  *   name         — Pack title displayed in Tanker (heading) font.
- *   gameName     — Name of the game the pack belongs to. Rendered small
- *                  under the title at 50% opacity.
+ *   gameName     — Game name displayed small under the title.
  *   thumbnail    — Content for the 64×64 thumbnail (typically an <img>).
- *                  Omit to show only the thumbnailBg colour.
- *   thumbnailBg  — Tailwind bg class(es) for the thumbnail container.
- *                  Defaults to bg-gray-700.
- *   badges       — Ordered array of content badges. Each badge takes a
- *                  label (e.g. "8 Units") and an optional icon node.
- *                  The component renders them via the existing <Badge>
- *                  with variant=solid, color=primary, size=lg.
- *   description  — Free-text blurb. Author-written.
- *   onDownload   — Called when the user clicks the download button.
+ *   thumbnailBg  — Tailwind bg class for the thumbnail container.
+ *   badges       — Content summary badges (Units / Rules / per type).
+ *   description  — Author-written blurb.
+ *   cta          — Bottom-right action button. Omit to hide entirely.
+ *                  { label, icon?, onClick }
+ *   onDelete     — When provided, renders the ⋯ menu in the header
+ *                  top-right with a Delete item. Use on rows the user
+ *                  owns or has imported.
+ *   deleteLabel  — Label for the Delete menu item, e.g. "Delete Pack"
+ *                  or "Uninstall Pack". Defaults to "Delete Pack".
  *   className    — Extra Tailwind classes on the outer element.
  */
 
 import React from 'react';
 import Badge from './Badge';
-import ArrowDown from '../icons/ArrowDown';
+import Button from './Button';
+import Dropdown, { DropdownItem } from './Dropdown';
+import MenuDots from '../icons/MenuDots';
+import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
@@ -71,8 +85,16 @@ export interface PackListItemProps {
   badges?: PackBadge[];
   /** Author-written description */
   description?: string;
-  /** Called when the user clicks the download button */
-  onDownload?: () => void;
+  /** Bottom-right CTA button. Omit to hide the CTA entirely. */
+  cta?: {
+    label:    string;
+    icon?:    React.ReactNode;
+    onClick:  () => void;
+  };
+  /** When provided, renders the ⋯ menu in the header with a Delete item. */
+  onDelete?: () => void;
+  /** Override the Delete menu item's label. Defaults to "Delete Pack". */
+  deleteLabel?: string;
   /** Extra Tailwind classes on the outer element */
   className?: string;
 }
@@ -86,7 +108,9 @@ const PackListItem = ({
   thumbnailBg = 'bg-gray-700',
   badges      = [],
   description,
-  onDownload,
+  cta,
+  onDelete,
+  deleteLabel = 'Delete Pack',
   className   = '',
 }: PackListItemProps) => {
   return (
@@ -100,8 +124,8 @@ const PackListItem = ({
       ].filter(Boolean).join(' ')}
     >
 
-      {/* ── Top row: thumbnail + title + download ─────────────────────── */}
-      <div className="flex gap-1.5 items-center w-full">
+      {/* ── Top row: thumbnail + title + optional ⋯ menu ───────────────── */}
+      <div className="flex gap-1.5 items-start w-full">
 
         {/* Thumbnail */}
         <div
@@ -114,7 +138,7 @@ const PackListItem = ({
         </div>
 
         {/* Title + game name */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col self-stretch justify-center">
           <p className="font-heading text-[18px] leading-6 text-white truncate">
             {name}
           </p>
@@ -123,24 +147,40 @@ const PackListItem = ({
           </p>
         </div>
 
-        {/* Download button — icon-only, styled to match Button's
-            outline + primary variant. Built as a plain <button> rather
-            than the Button component because Button doesn't forward
-            aria-label and is designed for text+icon, not icon-only. */}
-        {onDownload && (
-          <button
-            type="button"
-            aria-label={`Download ${name}`}
-            onClick={onDownload}
-            className={[
-              'shrink-0 inline-flex items-center justify-center p-2.5 rounded-lg',
-              'border transition-colors focus:outline-none',
-              'border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-4 focus:ring-blue-300',
-              'dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-950 dark:focus:ring-blue-800',
-            ].join(' ')}
+        {/* ⋯ menu — only when the caller has a delete action to expose
+            (i.e. own + imported packs). Public browse rows omit this and
+            rely on the Download CTA at the bottom instead.
+            Wrapper stops clicks bubbling up so a parent <Link> (used on
+            Your Packs rows for navigate-to-editor) doesn't fire when the
+            user opens or interacts with the menu. */}
+        {onDelete && (
+          <div
+            className="shrink-0"
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
           >
-            <ArrowDown className="size-4" />
-          </button>
+            <Dropdown
+              align="right"
+              menuClassName="w-44"
+              trigger={
+                <button
+                  type="button"
+                  aria-label={`${name} options`}
+                  className="p-1 opacity-50 hover:opacity-100 transition-opacity text-gray-300 hover:text-white"
+                >
+                  <MenuDots className="size-4" />
+                </button>
+              }
+            >
+              <DropdownItem
+                icon={<TrashBinMinimalistic className="size-4" />}
+                onClick={onDelete}
+                className="!text-red-400 hover:!text-red-300 dark:!text-red-400 dark:hover:!text-red-300"
+              >
+                {deleteLabel}
+              </DropdownItem>
+            </Dropdown>
+          </div>
         )}
 
       </div>
@@ -175,6 +215,25 @@ const PackListItem = ({
         <p className="font-body text-base leading-6 text-white">
           {description}
         </p>
+      )}
+
+      {/* ── CTA button ─────────────────────────────────────────────────
+          Bottom-right, caller decides the label + action. Examples:
+            - Public browse row    → "Download Pack"
+            - Owned pack row       → "Edit Pack"
+            - Imported pack row    → cta omitted (menu only) */}
+      {cta && (
+        <div className="flex justify-end w-full pt-1">
+          <Button
+            variant="outline"
+            color="primary"
+            size="sm"
+            leftIcon={cta.icon}
+            onClick={cta.onClick}
+          >
+            {cta.label}
+          </Button>
+        </div>
       )}
 
     </div>

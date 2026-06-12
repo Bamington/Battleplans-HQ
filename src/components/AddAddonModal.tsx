@@ -108,16 +108,24 @@ const AddAddonModal = ({
   const [saving, setSaving]             = useState(false);
   const [searchQuery, setSearchQuery]   = useState('');
   const [unfilteredCount, setUnfilteredCount] = useState(0);
+  // Source tabs: 'pack' = addons in a pack, 'library' = personal library.
+  // null = show all (tabs are hidden when only one source has items).
+  const [tabFilter,   setTabFilter]   = useState<'pack' | 'library' | null>(null);
+  const [packCount,   setPackCount]   = useState(0);
+  const [libraryCount, setLibraryCount] = useState(0);
 
   // Resolved Supabase IDs — stored in refs so fetchPage can always read
   // the latest value without being included in effect dependencies.
-  const addonTypeIdRef = useRef<string | null>(null);
-  const userIdRef      = useRef<string | null>(null);
-  const excludeRef     = useRef(excludeAddonIds);
-  const openRef        = useRef(open);
+  const addonTypeIdRef  = useRef<string | null>(null);
+  const userIdRef       = useRef<string | null>(null);
+  const excludeRef      = useRef(excludeAddonIds);
+  const openRef         = useRef(open);
+  const tabFilterRef    = useRef<'pack' | 'library' | null>(null);
+  const packNameMapRef  = useRef<Map<string, string>>(new Map());
 
-  useEffect(() => { excludeRef.current = excludeAddonIds; }, [excludeAddonIds]);
-  useEffect(() => { openRef.current    = open;            }, [open]);
+  useEffect(() => { excludeRef.current   = excludeAddonIds; }, [excludeAddonIds]);
+  useEffect(() => { openRef.current     = open;            }, [open]);
+  useEffect(() => { tabFilterRef.current = tabFilter;      }, [tabFilter]);
 
   // ── Fetch a page of eligible addons ───────────────────────────────────────
 
@@ -143,8 +151,13 @@ const AddAddonModal = ({
     if (search.trim()) {
       query = query.ilike('name', `%${search.trim()}%`);
     }
+    // Apply source tab filter when active
+    const tf = tabFilterRef.current;
+    if (tf === 'pack')    query = query.not('pack_id', 'is', null);
+    if (tf === 'library') query = query.is('pack_id', null);
 
-    // Also fetch unfiltered count to decide whether to show search bar
+    // Also fetch unfiltered count (all items, no tab/search filter) to decide
+    // whether to show the search bar.
     let unfilteredQuery = supabase
       .from('addons')
       .select('*', { count: 'exact', head: true })
@@ -179,8 +192,13 @@ const AddAddonModal = ({
       setSaving(false);
       setSearchQuery('');
       setUnfilteredCount(0);
+      setTabFilter(null);
+      setPackCount(0);
+      setLibraryCount(0);
+      tabFilterRef.current   = null;
       addonTypeIdRef.current = null;
       userIdRef.current      = null;
+      packNameMapRef.current = new Map();
       return;
     }
 
@@ -209,6 +227,45 @@ const AddAddonModal = ({
       if (cancelled || !addonType) return;
 
       addonTypeIdRef.current = addonType.id;
+
+      // Determine which sources have items so we know whether to show tabs.
+      const excluded = excludeRef.current;
+      let packCountQ = supabase
+        .from('addons')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('addon_type_id', addonType.id)
+        .not('pack_id', 'is', null);
+      let libCountQ = supabase
+        .from('addons')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('addon_type_id', addonType.id)
+        .is('pack_id', null);
+      if (excluded.length > 0) {
+        packCountQ = packCountQ.not('id', 'in', `(${excluded.join(',')})`);
+        libCountQ  = libCountQ.not('id', 'in', `(${excluded.join(',')})`);
+      }
+      const [packRes, libRes, packsNamesRes] = await Promise.all([
+        packCountQ,
+        libCountQ,
+        supabase.from('packs').select('id, name').eq('owner_user_id', session.user.id).eq('game_id', game.id),
+      ]);
+      if (cancelled) return;
+
+      packNameMapRef.current = new Map(
+        ((packsNamesRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+
+      const pc = packRes.count ?? 0;
+      const lc = libRes.count ?? 0;
+      const initialFilter = pc > 0 && lc > 0 ? 'pack' : null;
+      // Set the ref synchronously so the following fetchPage call picks it up.
+      tabFilterRef.current = initialFilter;
+      setPackCount(pc);
+      setLibraryCount(lc);
+      setTabFilter(initialFilter);
+
       await fetchPage(0);
     };
 
@@ -216,12 +273,12 @@ const AddAddonModal = ({
     return () => { cancelled = true; };
   }, [open, gameSlug, addonTypeSlug, fetchPage]);
 
-  // ── Re-fetch when the page changes ────────────────────────────────────────
+  // ── Re-fetch when the page, search, or tab filter changes ─────────────────
 
   useEffect(() => {
     if (step === 'pick') fetchPage(page, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchQuery]);
+  }, [page, searchQuery, tabFilter]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -315,6 +372,7 @@ const AddAddonModal = ({
 
   // ── Derived values ─────────────────────────────────────────────────────────
 
+  const showTabs   = packCount > 0 && libraryCount > 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -361,6 +419,33 @@ const AddAddonModal = ({
             Add Existing {addonTypeName}
           </h5>
 
+          {/* Source tabs — only shown when both packs and library have items */}
+          {showTabs && (
+            <div className="flex">
+              {(['pack', 'library'] as const).map((tab, idx) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    tabFilterRef.current = tab;
+                    setTabFilter(tab);
+                    setPage(0);
+                    setSelectedId(null);
+                  }}
+                  className={[
+                    'flex-1 font-body text-sm font-medium px-4 py-2.5 text-center transition-colors',
+                    idx === 0 ? 'rounded-l-lg' : 'rounded-r-lg',
+                    tabFilter === tab
+                      ? 'bg-blue-600 text-white'
+                      : 'border border-blue-500 text-blue-500',
+                  ].join(' ')}
+                >
+                  {tab === 'pack' ? 'From Packs' : 'Your Content'}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Search — shown only when there are more than 5 possible addons */}
           {unfilteredCount > 5 && (
             <Input
@@ -381,6 +466,7 @@ const AddAddonModal = ({
                 key={addon.id}
                 name={addon.name}
                 subtitle={getSubtitle(addon)}
+                packLabel={addon.pack_id ? packNameMapRef.current.get(addon.pack_id) : undefined}
                 selected={selectedId === addon.id}
                 onSelect={() => setSelectedId(addon.id)}
                 onEdit={() => { setEditingAddon(addon); setStep('edit'); }}

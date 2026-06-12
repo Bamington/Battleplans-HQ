@@ -1134,7 +1134,7 @@ insert into public.games (name, slug, stat_schema) values (
   'Blood Bowl',
   'blood-bowl',
   '[
-    {"key": "teamName",           "label": "Team Name",           "type": "text"},
+    {"key": "teamName",           "label": "Team Name",           "type": "text", "userSpecific": true},
     {"key": "playerRole",         "label": "Player Role",         "type": "text"},
     {"key": "cost",               "label": "Cost (GP)",           "type": "text"},
     {"key": "primaryAttribute",   "label": "Primary Attribute",   "type": "text"},
@@ -1168,7 +1168,7 @@ insert into public.games (name, slug, stat_schema, print_size, bleed_size) value
   'kill-team',
   '[
     {"key": "role",     "label": "Operative Type", "type": "text"},
-    {"key": "teamName", "label": "Team Name",      "type": "text"},
+    {"key": "teamName", "label": "Team Name",      "type": "text", "userSpecific": true},
     {"key": "tags",     "label": "Tags",           "type": "text"},
     {"key": "actions",  "label": "A",              "type": "number"},
     {"key": "movement", "label": "M",              "type": "number"},
@@ -1477,3 +1477,500 @@ $$;
 
 revoke all on function public.import_pack(uuid) from public;
 grant  execute on function public.import_pack(uuid) to authenticated;
+
+
+-- ── Packs: pack-to-pack copy RPCs ────────────────────────────────────────────
+-- Used by the pack editor's "Add X to Pack" flow. Each function takes a
+-- target pack id (must be owned by caller) and an array of source entity
+-- ids. Source rows can come from:
+--   - any pack the caller owns (same game as target), OR
+--   - any deck the caller owns (cards only, same game), OR
+--   - the caller's standalone user-owned rows (no pack, no deck — for
+--     cards this means is_template=true; for addons/keywords this means
+--     personal-library rows).
+-- Copies them into the target pack as fresh pack-source rows, pulling in
+-- dependencies:
+--   copy_addons_to_pack also copies attached keywords (deduped by name)
+--   copy_cards_to_pack  also copies attached addons + keywords
+-- All three are SECURITY DEFINER for the same reason as import_pack (the
+-- user-context join-table INSERT policies forbid templates without a deck).
+
+create or replace function public.copy_keywords_to_pack(
+  p_target_pack_id uuid,
+  p_source_ids     uuid[]
+)
+returns uuid[]
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id    uuid := auth.uid();
+  v_target     record;
+  v_src        record;
+  v_existing   uuid;
+  v_result_ids uuid[] := '{}';
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated' using errcode = '42501';
+  end if;
+
+  select id, owner_user_id, game_id into v_target
+  from public.packs where id = p_target_pack_id;
+  if v_target.id is null or v_target.owner_user_id <> v_user_id then
+    raise exception 'Target pack not found or not owned by you' using errcode = '42501';
+  end if;
+
+  if array_length(p_source_ids, 1) is null then return v_result_ids; end if;
+
+  -- A source keyword must be either (a) in a pack the caller owns, OR
+  -- (b) owned directly by the caller (pack_id null) — both same game.
+  if exists (
+    select 1 from public.keywords k
+    where k.id = any(p_source_ids)
+      and not (
+        (k.pack_id is not null and exists (
+          select 1 from public.packs p
+          where p.id = k.pack_id
+            and p.owner_user_id = v_user_id
+            and p.game_id = v_target.game_id
+        ))
+        OR
+        (k.pack_id is null
+          and k.user_id = v_user_id
+          and k.game_id = v_target.game_id)
+      )
+  ) then
+    raise exception 'Source keyword is not accessible to you or in a different game'
+      using errcode = '42501';
+  end if;
+
+  for v_src in
+    select * from public.keywords where id = any(p_source_ids)
+  loop
+    select id into v_existing
+    from public.keywords
+    where pack_id = p_target_pack_id
+      and game_id = v_target.game_id
+      and name    = v_src.name
+    limit 1;
+
+    if v_existing is null then
+      insert into public.keywords (
+        user_id, game_id, name, description, params_schema, extra, pack_id
+      ) values (
+        v_user_id, v_src.game_id, v_src.name, v_src.description,
+        v_src.params_schema, v_src.extra, p_target_pack_id
+      ) returning id into v_existing;
+    end if;
+
+    v_result_ids := array_append(v_result_ids, v_existing);
+  end loop;
+
+  return v_result_ids;
+end;
+$$;
+
+revoke all on function public.copy_keywords_to_pack(uuid, uuid[]) from public;
+grant  execute on function public.copy_keywords_to_pack(uuid, uuid[]) to authenticated;
+
+
+create or replace function public.copy_addons_to_pack(
+  p_target_pack_id uuid,
+  p_source_ids     uuid[]
+)
+returns uuid[]
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id       uuid := auth.uid();
+  v_target        record;
+  v_keyword_map   jsonb := '{}'::jsonb;
+  v_addon_map     jsonb := '{}'::jsonb;
+  v_new_addon_ids jsonb := '{}'::jsonb;   -- ids inserted in this call
+  v_src           record;
+  v_existing      uuid;
+  v_new_id        uuid;
+  v_count         integer := 0;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated' using errcode = '42501';
+  end if;
+
+  select id, owner_user_id, game_id into v_target
+  from public.packs where id = p_target_pack_id;
+  if v_target.id is null or v_target.owner_user_id <> v_user_id then
+    raise exception 'Target pack not found or not owned by you' using errcode = '42501';
+  end if;
+
+  if array_length(p_source_ids, 1) is null then return '{}'::uuid[]; end if;
+
+  -- A source addon must be either (a) in a pack the caller owns, OR
+  -- (b) owned directly by the caller (pack_id null) — both same game.
+  if exists (
+    select 1 from public.addons a
+    where a.id = any(p_source_ids)
+      and not (
+        (a.pack_id is not null and exists (
+          select 1 from public.packs p
+          where p.id = a.pack_id
+            and p.owner_user_id = v_user_id
+            and p.game_id = v_target.game_id
+        ))
+        OR
+        (a.pack_id is null
+          and a.user_id = v_user_id
+          and a.game_id = v_target.game_id)
+      )
+  ) then
+    raise exception 'Source addon is not accessible to you or in a different game'
+      using errcode = '42501';
+  end if;
+
+  -- Keywords referenced by these addons, deduped into target pack by name.
+  for v_src in
+    select distinct k.*
+    from public.keywords k
+    join public.addon_keywords ak on ak.keyword_id = k.id
+    where ak.addon_id = any(p_source_ids)
+  loop
+    select id into v_existing
+    from public.keywords
+    where pack_id = p_target_pack_id
+      and game_id = v_target.game_id
+      and name    = v_src.name
+    limit 1;
+
+    if v_existing is null then
+      insert into public.keywords (
+        user_id, game_id, name, description, params_schema, extra, pack_id
+      ) values (
+        v_user_id, v_src.game_id, v_src.name, v_src.description,
+        v_src.params_schema, v_src.extra, p_target_pack_id
+      ) returning id into v_new_id;
+    else
+      v_new_id := v_existing;
+    end if;
+
+    v_keyword_map := v_keyword_map || jsonb_build_object(v_src.id::text, v_new_id::text);
+  end loop;
+
+  -- Clone the addons with content-match dedup against the target pack.
+  -- Fingerprint is (addon_type_id, name, description, stats); see
+  -- migration_packs_addon_dedup.sql for why parent_addon_id and
+  -- addon_keywords aren't part of the fingerprint.
+  for v_src in
+    select * from public.addons where id = any(p_source_ids)
+  loop
+    select id into v_existing
+    from public.addons
+    where pack_id        = p_target_pack_id
+      and addon_type_id  = v_src.addon_type_id
+      and name           = v_src.name
+      and coalesce(description, '') = coalesce(v_src.description, '')
+      and coalesce(stats, '{}'::jsonb) = coalesce(v_src.stats, '{}'::jsonb)
+    limit 1;
+
+    if v_existing is not null then
+      v_new_id := v_existing;
+    else
+      insert into public.addons (
+        user_id, addon_type_id, game_id, name, description, stats,
+        parent_addon_id, pack_id
+      ) values (
+        v_user_id, v_src.addon_type_id, v_src.game_id, v_src.name,
+        v_src.description, v_src.stats, null, p_target_pack_id
+      ) returning id into v_new_id;
+      v_new_addon_ids := v_new_addon_ids || jsonb_build_object(v_new_id::text, true);
+      v_count := v_count + 1;
+    end if;
+
+    v_addon_map := v_addon_map || jsonb_build_object(v_src.id::text, v_new_id::text);
+  end loop;
+
+  -- Parent remap only for newly-inserted addons.
+  update public.addons clone
+     set parent_addon_id = (v_addon_map ->> src.parent_addon_id::text)::uuid
+  from public.addons src
+  where src.id = any(p_source_ids)
+    and src.parent_addon_id is not null
+    and v_addon_map ? src.parent_addon_id::text
+    and clone.id = (v_addon_map ->> src.id::text)::uuid
+    and v_new_addon_ids ? clone.id::text;
+
+  -- addon_keywords joins only for newly-inserted addons; reused ones
+  -- keep their own existing joins.
+  insert into public.addon_keywords (addon_id, keyword_id, params, sort_order)
+  select
+    (v_addon_map   ->> ak.addon_id::text)::uuid,
+    (v_keyword_map ->> ak.keyword_id::text)::uuid,
+    ak.params, ak.sort_order
+  from public.addon_keywords ak
+  where ak.addon_id = any(p_source_ids)
+    and v_new_addon_ids ? (v_addon_map ->> ak.addon_id::text)
+  on conflict (addon_id, keyword_id) do nothing;
+
+  -- Return the target-pack addon ID for every source addon (new or reused).
+  return array(
+    select (v_addon_map ->> k)::uuid
+    from   jsonb_object_keys(v_addon_map) as k
+  );
+end;
+$$;
+
+revoke all on function public.copy_addons_to_pack(uuid, uuid[]) from public;
+grant  execute on function public.copy_addons_to_pack(uuid, uuid[]) to authenticated;
+
+
+create or replace function public.copy_cards_to_pack(
+  p_target_pack_id   uuid,
+  p_source_ids       uuid[],
+  p_card_overrides   jsonb    default '{}'::jsonb,
+  p_retain_portraits boolean  default true
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id        uuid := auth.uid();
+  v_target         record;
+  v_target_schema  jsonb;
+  v_user_keys      text[];
+  v_keyword_map    jsonb := '{}'::jsonb;
+  v_addon_map      jsonb := '{}'::jsonb;
+  v_new_addon_ids  jsonb := '{}'::jsonb;   -- addons inserted in this call
+  v_card_map       jsonb := '{}'::jsonb;
+  v_src            record;
+  v_existing       uuid;
+  v_new_id         uuid;
+  v_count          integer := 0;
+  v_override_name  text;
+  v_clean_stats    jsonb;
+  v_k              text;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated' using errcode = '42501';
+  end if;
+
+  select p.id, p.owner_user_id, p.game_id, g.stat_schema
+    into v_target
+  from public.packs p
+  join public.games g on g.id = p.game_id
+  where p.id = p_target_pack_id;
+  if v_target.id is null or v_target.owner_user_id <> v_user_id then
+    raise exception 'Target pack not found or not owned by you' using errcode = '42501';
+  end if;
+  v_target_schema := v_target.stat_schema;
+
+  -- Collect userSpecific keys from the game's stat_schema; cards copied
+  -- into the pack get these keys stripped from their cloned stats blob.
+  v_user_keys := array(
+    select coalesce(field->>'key', '')
+    from jsonb_array_elements(coalesce(v_target_schema, '[]'::jsonb)) as field
+    where (field->>'userSpecific')::boolean = true
+  );
+
+  if array_length(p_source_ids, 1) is null then return 0; end if;
+
+  -- A source card must be either:
+  --   (a) in a pack the caller owns, same game; or
+  --   (b) in a deck the caller owns, same game; or
+  --   (c) a user-owned template (is_template true, no pack, no deck), same game.
+  -- For (b) the card's game_id may be null (deck cards derive game from the
+  -- parent deck), so we check deck.game_id rather than cards.game_id.
+  if exists (
+    select 1 from public.cards c
+    where c.id = any(p_source_ids)
+      and not (
+        (c.pack_id is not null and exists (
+          select 1 from public.packs p
+          where p.id = c.pack_id
+            and p.owner_user_id = v_user_id
+            and p.game_id = v_target.game_id
+        ))
+        OR
+        (c.deck_id is not null and exists (
+          select 1 from public.decks d
+          where d.id = c.deck_id
+            and d.user_id = v_user_id
+            and d.game_id = v_target.game_id
+        ))
+        OR
+        (c.deck_id is null and c.pack_id is null and c.is_template = true
+          and c.user_id = v_user_id
+          and c.game_id = v_target.game_id)
+      )
+  ) then
+    raise exception 'Source card is not accessible to you or in a different game'
+      using errcode = '42501';
+  end if;
+
+  -- Keywords referenced directly or transitively (via card_addons).
+  for v_src in
+    select distinct k.*
+    from public.keywords k
+    where k.id in (
+      select keyword_id from public.card_keywords
+      where card_id = any(p_source_ids)
+      union
+      select ak.keyword_id
+      from public.addon_keywords ak
+      join public.card_addons ca on ca.addon_id = ak.addon_id
+      where ca.card_id = any(p_source_ids)
+    )
+  loop
+    select id into v_existing
+    from public.keywords
+    where pack_id = p_target_pack_id
+      and game_id = v_target.game_id
+      and name    = v_src.name
+    limit 1;
+
+    if v_existing is null then
+      insert into public.keywords (
+        user_id, game_id, name, description, params_schema, extra, pack_id
+      ) values (
+        v_user_id, v_src.game_id, v_src.name, v_src.description,
+        v_src.params_schema, v_src.extra, p_target_pack_id
+      ) returning id into v_new_id;
+    else
+      v_new_id := v_existing;
+    end if;
+
+    v_keyword_map := v_keyword_map || jsonb_build_object(v_src.id::text, v_new_id::text);
+  end loop;
+
+  -- Addons attached to the selected cards, with content-match dedup
+  -- against the target pack. Reused addons keep their existing joins;
+  -- only newly-inserted addons get parent remap + addon_keywords.
+  for v_src in
+    select distinct a.*
+    from public.addons a
+    join public.card_addons ca on ca.addon_id = a.id
+    where ca.card_id = any(p_source_ids)
+  loop
+    select id into v_existing
+    from public.addons
+    where pack_id        = p_target_pack_id
+      and addon_type_id  = v_src.addon_type_id
+      and name           = v_src.name
+      and coalesce(description, '') = coalesce(v_src.description, '')
+      and coalesce(stats, '{}'::jsonb) = coalesce(v_src.stats, '{}'::jsonb)
+    limit 1;
+
+    if v_existing is not null then
+      v_new_id := v_existing;
+    else
+      insert into public.addons (
+        user_id, addon_type_id, game_id, name, description, stats,
+        parent_addon_id, pack_id
+      ) values (
+        v_user_id, v_src.addon_type_id, v_src.game_id, v_src.name,
+        v_src.description, v_src.stats, null, p_target_pack_id
+      ) returning id into v_new_id;
+      v_new_addon_ids := v_new_addon_ids || jsonb_build_object(v_new_id::text, true);
+    end if;
+
+    v_addon_map := v_addon_map || jsonb_build_object(v_src.id::text, v_new_id::text);
+  end loop;
+
+  update public.addons clone
+     set parent_addon_id = (v_addon_map ->> src.parent_addon_id::text)::uuid
+  from public.addons src
+  where src.id::text in (select jsonb_object_keys(v_addon_map))
+    and src.parent_addon_id is not null
+    and v_addon_map ? src.parent_addon_id::text
+    and clone.id = (v_addon_map ->> src.id::text)::uuid
+    and v_new_addon_ids ? clone.id::text;
+
+  insert into public.addon_keywords (addon_id, keyword_id, params, sort_order)
+  select
+    (v_addon_map   ->> ak.addon_id::text)::uuid,
+    (v_keyword_map ->> ak.keyword_id::text)::uuid,
+    ak.params, ak.sort_order
+  from public.addon_keywords ak
+  where ak.addon_id::text in (select jsonb_object_keys(v_addon_map))
+    and v_new_addon_ids ? (v_addon_map ->> ak.addon_id::text)
+  on conflict (addon_id, keyword_id) do nothing;
+
+  -- Clone the cards as templates. Use the resolved game_id (cards.game_id
+  -- may be null for deck cards), and apply two transforms before insert:
+  --   1. Substitute the override name from p_card_overrides if present
+  --      (used by the pack editor's rename modal).
+  --   2. Strip every userSpecific key from the cloned stats blob.
+  for v_src in
+    select c.*,
+           coalesce(c.game_id, d.game_id) as resolved_game_id
+    from public.cards c
+    left join public.decks d on d.id = c.deck_id
+    where c.id = any(p_source_ids)
+  loop
+    v_override_name := nullif(
+      trim(coalesce(p_card_overrides #>> array[v_src.id::text, 'name'], '')),
+      ''
+    );
+
+    v_clean_stats := coalesce(v_src.stats, '{}'::jsonb);
+    if v_user_keys is not null then
+      foreach v_k in array v_user_keys loop
+        v_clean_stats := v_clean_stats - v_k;
+      end loop;
+    end if;
+
+    insert into public.cards (
+      deck_id, user_id, game_id, name, card_type, stats,
+      is_template, pack_id
+    ) values (
+      null,
+      v_user_id,
+      v_src.resolved_game_id,
+      coalesce(v_override_name, v_src.name),
+      v_src.card_type,
+      v_clean_stats,
+      true,
+      p_target_pack_id
+    ) returning id into v_new_id;
+
+    v_card_map := v_card_map || jsonb_build_object(v_src.id::text, v_new_id::text);
+    v_count := v_count + 1;
+  end loop;
+
+  insert into public.card_addons (card_id, addon_id, sort_order)
+  select
+    (v_card_map  ->> ca.card_id::text)::uuid,
+    (v_addon_map ->> ca.addon_id::text)::uuid,
+    ca.sort_order
+  from public.card_addons ca
+  where ca.card_id = any(p_source_ids);
+
+  insert into public.card_keywords (card_id, keyword_id, params, sort_order)
+  select
+    (v_card_map    ->> ck.card_id::text)::uuid,
+    (v_keyword_map ->> ck.keyword_id::text)::uuid,
+    ck.params, ck.sort_order
+  from public.card_keywords ck
+  where ck.card_id = any(p_source_ids);
+
+  -- Copy portrait images for the cloned cards.
+  if p_retain_portraits then
+    insert into public.card_images (card_id, file_path, sort_order, image_type)
+    select
+      (v_card_map ->> ci.card_id::text)::uuid,
+      ci.file_path,
+      ci.sort_order,
+      ci.image_type
+    from public.card_images ci
+    where ci.card_id = any(p_source_ids)
+      and (v_card_map ->> ci.card_id::text) is not null;
+  end if;
+
+  return v_count;
+end;
+$$;
+
+revoke all on function public.copy_cards_to_pack(uuid, uuid[], jsonb, boolean) from public;
+grant  execute on function public.copy_cards_to_pack(uuid, uuid[], jsonb, boolean) to authenticated;

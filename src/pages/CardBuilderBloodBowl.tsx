@@ -69,6 +69,7 @@ import HamburgerMenu from '../icons/HamburgerMenu';
 import { supabase } from '../lib/supabase';
 import { fetchConstraints, getMaxLength, getMaxKeywords, isAtLimit } from '../lib/constraints';
 import type { BloodBowlStats, EntityConstraints } from '../lib/database.types';
+import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
 
@@ -105,7 +106,7 @@ interface LocalKeywordAttachment {
 const buildSkillsDisplayString = (kws: LocalKeywordAttachment[]) =>
   kws
     .filter(k => !k.starPlayerOnly)
-    .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
+    .map(k => formatKeywordLabel(k.keywordName, k.paramValue))
     .join(', ');
 
 // ── Star-player keyword partitioning + card-prop helpers ──────────────────────
@@ -354,17 +355,62 @@ const CardBuilderBloodBowl = () => {
         .single();
       if (!game) { addBlankCard(); return; }
 
-      const { data: templates } = await supabase
-        .from('cards')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .eq('game_id', game.id)
-        .eq('is_template', true)
-        .order('name');
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
 
-      if (!templates || templates.length === 0) { addBlankCard(); return; }
+      type TemplateRow = {
+        id: string; name: string; pack_id?: string;
+        card_addons?: { sort_order: number | null; addons: { name: string } | null }[];
+        card_keywords?: { sort_order: number | null; keywords: { name: string } | null }[];
+      };
+      const addonSummaryFor = (t: Pick<TemplateRow, 'card_addons' | 'card_keywords'>): string | undefined => {
+        const addons = (t.card_addons ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(a => a.addons?.name).filter((n): n is string => Boolean(n));
+        if (addons.length) return addons.join(', ');
+        const kws = (t.card_keywords ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(k => k.keywords?.name).filter((n): n is string => Boolean(n));
+        return kws.length ? kws.join(', ') : undefined;
+      };
+      const libTemplates: NewCardModalTemplate[] =
+        ((libRes.data ?? []) as TemplateRow[]).map(t => ({
+          id: t.id, name: t.name, source: 'library' as const, addonSummary: addonSummaryFor(t),
+        }));
 
-      setNewCardTemplates(templates);
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .order('name');
+        packTemplates = ((packCards ?? []) as (TemplateRow & { pack_id: string })[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id), addonSummary: addonSummaryFor(t),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addBlankCard(); return; }
+
+      setNewCardTemplates(allTemplates);
       setNewCardModalOpen(true);
     } catch (err) {
       console.error('[BattleCards] Failed to load templates:', err);
@@ -1525,6 +1571,7 @@ const CardBuilderBloodBowl = () => {
                     status={card.dbId ? 'complete' : 'blank'}
                     unitName={card.unitName || undefined}
                     unitType={card.playerRole || undefined}
+                    addonSummary={card.unitKeywords.map(k => k.keywordName).filter(Boolean).join(', ') || undefined}
                     avatarSrc={card.avatarUrl ?? iconBloodBowl}
                     active={card.id === activeCardId}
                     editMode={editMode}

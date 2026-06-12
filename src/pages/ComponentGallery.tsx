@@ -52,10 +52,16 @@ import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import DeckListItem from '../components/DeckListItem';
 import PackListItem from '../components/PackListItem';
+import SelectableListItem from '../components/SelectableListItem';
+import AddToPackModal from '../components/AddToPackModal';
 import AddonListItem from '../components/AddonListItem';
 import RichTextEditor from '../components/RichTextEditor';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddKeywordModal from '../components/AddKeywordModal';
+import HaloCardForm from '../components/HaloCardForm';
+import BloodBowlCardForm from '../components/BloodBowlCardForm';
+import KillTeamCardForm from '../components/KillTeamCardForm';
+import StarcraftCardForm from '../components/StarcraftCardForm';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import WeaponInfoModal from '../components/WeaponInfoModal';
 import ImportListModal from '../components/ImportListModal';
@@ -224,6 +230,37 @@ const DISMISSIBLE_BADGES: { id: number; color: React.ComponentProps<typeof Badge
   { id: 4, color: 'warning', label: 'Review' },
   { id: 5, color: 'purple',  label: 'Legendary' },
 ];
+
+// ── AddToPackModalGalleryDemo ────────────────────────────────────────────────
+
+/** Live AddToPackModal preview. The picker hits Supabase with stubbed
+ *  pack/game IDs, so the list will be empty unless you happen to be
+ *  signed in as a user who owns packs with matching IDs — which won't
+ *  happen with these constants. The point is to see the modal chrome
+ *  (header, "New X" button, OR divider, search, empty state, CTAs). */
+const AddToPackModalGalleryDemo = () => {
+  const [open, setOpen] = useState(false);
+  const STUB_ID = '00000000-0000-0000-0000-000000000000';
+  return (
+    <div className="flex items-center gap-3">
+      <Button onClick={() => setOpen(true)}>Open Add to Pack Modal</Button>
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Picker uses stub IDs — list will show the "nothing to copy" empty state.
+      </p>
+      <AddToPackModal
+        open={open}
+        onClose={() => setOpen(false)}
+        entityType="keyword"
+        gameId={STUB_ID}
+        targetPackId={STUB_ID}
+        title="Add Keyword to Pack"
+        newButtonLabel="New Keyword"
+        onCreateNew={() => alert('New keyword flow')}
+        onAdded={() => setOpen(false)}
+      />
+    </div>
+  );
+};
 
 const DismissibleBadgeDemo = () => {
   const [visible, setVisible] = useState<number[]>(DISMISSIBLE_BADGES.map((b) => b.id));
@@ -404,6 +441,8 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-game-logos"       icon={<Gallery className="w-5 h-5" />}            label="Game Logos"       />
         <SidebarItem href="#nav-deck-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Deck List Item"   />
         <SidebarItem href="#nav-pack-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Pack List Item"   />
+        <SidebarItem href="#nav-selectable-list-item" icon={<Gallery className="w-5 h-5" />}         label="Selectable List Item" />
+        <SidebarItem href="#nav-add-to-pack-modal" icon={<Gallery className="w-5 h-5" />}            label="Add to Pack Modal" />
         <SidebarItem href="#nav-blog-entry-preview" icon={<Gallery className="w-5 h-5" />}           label="Blog Entry Preview" />
         <SidebarItem href="#nav-modal"              icon={<Gallery className="w-5 h-5" />}            label="Modal"            />
         <SidebarItem href="#nav-upload-photo-modal" icon={<Gallery className="w-5 h-5" />}            label="Upload Photo Modal" />
@@ -3036,7 +3075,7 @@ const ComponentGallery = () => {
         <div className="w-full max-w-[342px] space-y-6">
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Blood Bowl pack — two badges + description + download</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Public pack — Download CTA, no menu</p>
             <PackListItem
               name="Black Orc Player Cards"
               gameName="Blood Bowl"
@@ -3047,24 +3086,43 @@ const ComponentGallery = () => {
                 { label: '14 Skills', icon: <Star        className="size-3.5" /> },
               ]}
               description="All the Black Orc players from Season 3 of Blood Bowl, including all skills and traits."
-              onDownload={() => {}}
+              cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => {} }}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Halo pack — many badges + short description</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Owned pack — Edit CTA + ⋯ menu with Delete</p>
+            <PackListItem
+              name="My Custom Spartans"
+              gameName="Halo: Flashpoint"
+              thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
+              thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
+              badges={[
+                { label: '6 Units',   icon: <UserRounded className="size-3.5" /> },
+                { label: '8 Weapons', icon: <Star        className="size-3.5" /> },
+              ]}
+              description="A custom Spartan strike team I made for our home league."
+              onDelete={() => {}}
+              deleteLabel="Delete Pack"
+              cta={{ label: 'Edit Pack', icon: <Pen2 className="size-4" />, onClick: () => {} }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Imported pack — ⋯ menu with Uninstall, no CTA</p>
             <PackListItem
               name="Spartan Strike Team"
               gameName="Halo: Flashpoint"
               thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
               thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
               badges={[
-                { label: '6 Units',    icon: <UserRounded className="size-3.5" /> },
-                { label: '8 Weapons',  icon: <Star        className="size-3.5" /> },
-                { label: '3 Rules',    icon: <FileText    className="size-3.5" /> },
+                { label: '6 Units',   icon: <UserRounded className="size-3.5" /> },
+                { label: '8 Weapons', icon: <Star        className="size-3.5" /> },
+                { label: '3 Rules',   icon: <FileText    className="size-3.5" /> },
               ]}
-              description="A starter pack for a Spartan strike team."
-              onDownload={() => {}}
+              description="A starter pack imported from the community."
+              onDelete={() => {}}
+              deleteLabel="Uninstall Pack"
             />
           </div>
 
@@ -3078,7 +3136,7 @@ const ComponentGallery = () => {
               badges={[
                 { label: '4 Skills', icon: <Star className="size-3.5" /> },
               ]}
-              onDownload={() => {}}
+              cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => {} }}
             />
           </div>
 
@@ -3090,12 +3148,12 @@ const ComponentGallery = () => {
               thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
               thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
               description="Background lore for every faction in Halo: Flashpoint. No game content — just flavour text."
-              onDownload={() => {}}
+              cta={{ label: 'Download Pack', icon: <AddCircle className="size-4" />, onClick: () => {} }}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Minimal (header only — no download, no badges, no description)</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Minimal (header only — no menu, no download, no badges, no description)</p>
             <PackListItem
               name="Imported Pack"
               gameName="Blood Bowl"
@@ -3105,6 +3163,68 @@ const ComponentGallery = () => {
           </div>
 
         </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SELECTABLE LIST ITEM
+          Compact picker row with leading checkbox. Used inside
+          AddToPackModal. Lives outside that modal so it can be reused
+          for any multi-select list elsewhere.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-selectable-list-item" title="Selectable List Item">
+        <div className="w-full max-w-[523px] space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Three rows — first checked, second hovered (passive), third long-name truncation</p>
+            <SelectableListItem name="BR55 Battle Rifle"   checked={true}  onCheckedChange={() => {}} />
+            <SelectableListItem name="MA40 AR"             checked={false} onCheckedChange={() => {}} />
+            <SelectableListItem
+              name="A Very Long Weapon Name That Should Definitely Truncate At Some Point"
+              checked={false}
+              onCheckedChange={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With subtitle (source label, as used in the multi-source picker)</p>
+            <SelectableListItem
+              name="BR55 Battle Rifle"
+              subtitle="Pack: Space Marines"
+              checked={false}
+              onCheckedChange={() => {}}
+            />
+            <SelectableListItem
+              name="Spartan Zvezda"
+              subtitle="Deck: My Halo Skirmish"
+              checked={true}
+              onCheckedChange={() => {}}
+            />
+            <SelectableListItem
+              name="Stealth"
+              subtitle="My Library"
+              checked={false}
+              onCheckedChange={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Disabled (e.g. submit in flight)</p>
+            <SelectableListItem name="Tackle" checked={true} onCheckedChange={() => {}} disabled />
+            <SelectableListItem name="Dodge"  checked={false} onCheckedChange={() => {}} disabled />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ADD TO PACK MODAL
+          Driver for "Add Unit / Rule Card / Addon / Keyword to Pack"
+          in the pack editor. The picker queries Supabase live, so the
+          gallery demo needs a real packId / gameId to render anything
+          meaningful — buttons here simulate an open with stub IDs.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-add-to-pack-modal" title="Add to Pack Modal">
+        <AddToPackModalGalleryDemo />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
@@ -3874,6 +3994,40 @@ const ComponentGallery = () => {
               mobilePanelOpen — logo hidden, main collapsed
             </div>
           </CenterViewport>
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Halo Flashpoint">
+        <p className="font-body text-sm text-gray-400 mb-4">
+          Phase 1 stats form — fills in card stats and creates the row in the DB before proceeding to weapons/keywords.
+          Phase 2 (content) opens after create. Cancel/Done are non-functional in the gallery.
+        </p>
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <HaloCardForm packId="" gameId="" addonTypes={[]} onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Blood Bowl">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <BloodBowlCardForm packId="" gameId="" onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Kill Team — Operative">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <KillTeamCardForm packId="" gameId="" addonTypes={[]} cardType="operative" onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Kill Team — Rule Card">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <KillTeamCardForm packId="" gameId="" addonTypes={[]} cardType="rule" onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / StarCraft">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <StarcraftCardForm packId="" gameId="" addonTypes={[]} onSaved={() => {}} onCancel={() => {}} />
         </div>
       </GallerySection>
 

@@ -33,7 +33,6 @@ import AltArrowDown from '../icons/AltArrowDown';
 import Play from '../icons/Play';
 import UnitListEntry from '../components/UnitListEntry';
 import Input from '../components/Input';
-import Select from '../components/Select';
 import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
@@ -55,9 +54,9 @@ import AddonInfoModal from '../components/AddonInfoModal';
 import SaveTemplateModal from '../components/SaveTemplateModal';
 import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
 import CustomTokenModal, { CustomTokenSaveError } from '../components/CustomTokenModal';
-import AddKeywordModal from '../components/AddKeywordModal';
-import KeywordInfoModal from '../components/KeywordInfoModal';
-import Badge from '../components/Badge';
+import AddKeywordModal, { type KeywordSelection } from '../components/AddKeywordModal';
+import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
+import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
 import UserRounded from '../icons/UserRounded';
 import AddCircle from '../icons/AddCircle';
@@ -70,6 +69,7 @@ import HamburgerMenu from '../icons/HamburgerMenu';
 import Diskette from '../icons/Diskette';
 import { supabase } from '../lib/supabase';
 import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
+import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
 import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 
@@ -87,41 +87,15 @@ const OPERATIVE_H            = 890;
 const RULE_W                 = 700;
 const RULE_H                 = 1200;
 
-// ── Keyword update propagation ────────────────────────────────────────────────
-// Module-scoped ref so addon forms (which can't receive extra props via
-// AddonFormProps) can propagate keyword edits across all cards.
-let _propagateKeywordUpdate: ((keywordId: string, name: string, desc: string, hasParams: boolean) => void) | null = null;
+// Same shape as the keyword-selection contract exposed by AddKeywordModal /
+// the Kill Team addon forms. Aliased so the rest of this file keeps its
+// older name.
+type LocalKeywordAttachment = KeywordSelection;
 
-// ── New-addon keyword hand-off ────────────────────────────────────────────────
-// AddAddonModal calls `onAdd(addon)` synchronously after the addon row is
-// inserted but BEFORE the form's `handleSave` continuation gets a chance to
-// sync addon_keywords. So the parent's `handleWeaponAdded` /
-// `handleAbilityAdded` would otherwise see an addon with no keywords. To
-// bridge that gap, the form stashes its locally-attached keywords here just
-// before calling `onSave`; the parent's handler reads them and seeds the
-// LocalWeapon / LocalAbility with the right keyword data. Cleared in a
-// `finally` so a stale list can't bleed across saves.
-let _pendingNewAddonKeywords: LocalKeywordAttachment[] = [];
-
-// ── Post-sync keyword broadcast ───────────────────────────────────────────────
-// After the form has finished syncing addon_keywords to the DB (both create
-// and edit paths), it calls this with the canonical keyword list. The parent
-// uses it to refresh every LocalWeapon / LocalAbility / ruleAbility with a
-// matching addonId so keyword edits show up on the card immediately.
-let _onAddonKeywordsSaved: ((addonId: string, kws: LocalKeywordAttachment[]) => void) | null = null;
-
-interface LocalKeywordAttachment {
-  keywordId:   string;
-  keywordName: string;
-  description: string;
-  hasParams:   boolean;
-  paramValue:  number | null;
-}
-
+// Per-keyword "Name" / "Name (X)" formatting goes through the shared
+// formatKeywordLabel — same primitive the pack editor's shapers use.
 const buildKeywordsDisplayString = (kws: LocalKeywordAttachment[]) =>
-  kws
-    .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
-    .join(', ');
+  kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
 
 // ── Local addon shapes ────────────────────────────────────────────────────────
 
@@ -137,32 +111,16 @@ interface LocalWeapon {
   weaponKeywords: LocalKeywordAttachment[];
 }
 
-// ── Weapon helpers (parse legacy strings + format display) ───────────────────
-// Backward compat: weapons saved before this migration have `hit: "3+"` and
-// `damage: "3/4"` as strings. parseInt strips the suffix; '/' splits damage.
-const parseHit = (v: unknown): number => {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  const n = parseInt(String(v ?? ''), 10);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const parseDamageParts = (s: Record<string, unknown>): { base: number; crit: number } => {
-  // New shape: explicit baseDamage / critDamage fields
-  if (s.baseDamage != null || s.critDamage != null) {
-    return { base: Number(s.baseDamage) || 0, crit: Number(s.critDamage) || 0 };
-  }
-  // Legacy shape: damage as a "base/crit" string
-  const raw = String(s.damage ?? '');
-  const [b, c] = raw.split('/');
-  return { base: parseInt(b ?? '', 10) || 0, crit: parseInt(c ?? '', 10) || 0 };
-};
-
-/** Format a Hit value for display: `3+` / `—` */
-const formatHit = (hit: number) => hit > 0 ? `${hit}+` : '—';
-
-/** Format Damage values for display: `3/4` / `—` */
-const formatDamage = (base: number, crit: number) =>
-  base > 0 || crit > 0 ? `${base}/${crit}` : '—';
+// parseHit / parseDamageParts / formatHit / formatDamage are now exported
+// from the pack editor's Kill Team card shaper — same logic used in both
+// contexts. Importing here so any future change to the parsing rules
+// (e.g. a new legacy shape) only needs to happen in one place.
+import {
+  parseHit, parseDamageParts, formatHit, formatDamage,
+} from '../lib/cardShape/killTeam';
+import {
+  killTeamWeaponSubtitle, killTeamAbilitySubtitle,
+} from '../lib/addonSubtitles';
 
 interface LocalAbility {
   addonId:         string;
@@ -297,504 +255,6 @@ const toKillTeamStats = (c: KillTeamCardData): Record<string, unknown> => {
 const cardDisplayName = (c: KillTeamCardData): string => {
   if (c.cardType === 'rule') return c.ruleTitle || 'Untitled Rule';
   return c.operativeName || 'Unnamed Operative';
-};
-
-// ── Subtitles for the addon picker ────────────────────────────────────────────
-
-const getWeaponSubtitle = (addon: Addon): string => {
-  const s = addon.stats as Record<string, unknown>;
-  const parts: string[] = [];
-  if (s.meleeOrRanged) parts.push(s.meleeOrRanged === 'melee' ? 'Melee' : 'Ranged');
-  if (s.attack)        parts.push(`A${s.attack}`);
-  const hit = parseHit(s.hit);
-  if (hit > 0)         parts.push(`Hit ${hit}+`);
-  const dmg = parseDamageParts(s);
-  if (dmg.base > 0 || dmg.crit > 0) parts.push(`Dmg ${dmg.base}/${dmg.crit}`);
-  return parts.join(' · ') || addon.name;
-};
-
-const getAbilitySubtitle = (addon: Addon): string => {
-  const s = addon.stats as Record<string, unknown>;
-  const ap = Number(s.apCost ?? 0);
-  return ap > 0 ? `${ap} AP` : 'Free';
-};
-
-// ── Weapon / Ability type options ─────────────────────────────────────────────
-
-const MELEE_OR_RANGED_OPTIONS = [
-  { value: '',       label: 'Melee or Ranged', disabled: true },
-  { value: 'melee',  label: 'Melee'  },
-  { value: 'ranged', label: 'Ranged' },
-];
-
-// ── KillTeamWeaponForm — create / edit a Weapon addon ─────────────────────────
-
-const KillTeamWeaponForm = ({ editingAddon, onSave, onCancel, saving }: AddonFormProps) => {
-  const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
-
-  const [name,          setName]          = useState(editingAddon?.name ?? '');
-  const [meleeOrRanged, setMeleeOrRanged] = useState<'melee' | 'ranged' | ''>(
-    (s.meleeOrRanged === 'melee' || s.meleeOrRanged === 'ranged') ? s.meleeOrRanged : '',
-  );
-  const [attack,     setAttack]     = useState(Number(s.attack) || 0);
-  const [hit,        setHit]        = useState(parseHit(s.hit));
-  const initialDmg = parseDamageParts(s);
-  const [baseDamage, setBaseDamage] = useState(initialDmg.base);
-  const [critDamage, setCritDamage] = useState(initialDmg.crit);
-
-  const [attachedKeywords, setAttachedKeywords] = useState<LocalKeywordAttachment[]>([]);
-  const [keywordModalOpen, setKeywordModalOpen] = useState(false);
-  const [viewingKeyword,   setViewingKeyword]   = useState<LocalKeywordAttachment | null>(null);
-  const [editingKw,        setEditingKw]        = useState<LocalKeywordAttachment | null>(null);
-
-  // Load existing keyword attachments when editing
-  useEffect(() => {
-    if (!editingAddon) return;
-    let cancelled = false;
-
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('addon_keywords')
-        .select('keyword_id, params, sort_order, keywords(name, description, params_schema)')
-        .eq('addon_id', editingAddon.id)
-        .order('sort_order');
-
-      if (cancelled || error || !data) return;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setAttachedKeywords((data as any[]).map(ak => ({
-        keywordId:   ak.keyword_id,
-        keywordName: ak.keywords.name,
-        description: ak.keywords.description ?? '',
-        hasParams:   Array.isArray(ak.keywords.params_schema) && ak.keywords.params_schema.length > 0,
-        paramValue:  ak.params?.X != null ? Number(ak.params.X) : null,
-      })));
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [editingAddon]);
-
-  const isEditing = !!editingAddon;
-  const canSave   = name.trim() !== '' && meleeOrRanged !== '' && !saving;
-
-  const handleSave = async () => {
-    if (!canSave) return;
-    // Stash for the parent's handleWeaponAdded — see _pendingNewAddonKeywords.
-    if (!editingAddon) _pendingNewAddonKeywords = attachedKeywords;
-    try {
-      const addonId = await onSave(
-        name.trim(),
-        null,
-        {
-          meleeOrRanged,
-          attack,
-          hit,
-          baseDamage,
-          critDamage,
-        },
-      );
-
-      if (addonId) {
-        await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
-        if (attachedKeywords.length > 0) {
-          await supabase.from('addon_keywords').insert(
-            attachedKeywords.map((k, i) => ({
-              addon_id:   addonId,
-              keyword_id: k.keywordId,
-              params:     k.paramValue != null ? { X: k.paramValue } : {},
-              sort_order: i,
-            })),
-          );
-        }
-        // Broadcast the saved keyword list to the parent so any LocalWeapon
-        // (or LocalAbility / ruleAbility) using this addon gets its keyword
-        // data refreshed — covers the edit path that AddAddonModal doesn't
-        // touch via onAdd.
-        _onAddonKeywordsSaved?.(addonId, attachedKeywords);
-      }
-    } finally {
-      _pendingNewAddonKeywords = [];
-    }
-  };
-
-  return (
-    <div className="p-5 flex flex-col gap-3">
-      <h5 className="font-heading text-xl text-white">
-        {isEditing ? 'Edit Weapon' : 'Create Weapon'}
-      </h5>
-      <p className="font-body text-sm text-gray-300">
-        Once created, you can add this weapon to other operatives from the same game.
-      </p>
-
-      {/* ── Basic Details ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Basic Details</p>
-
-        <Input
-          label="Weapon Name"
-          required
-          placeholder="e.g. Bolt Rifle, Power Fist"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-
-        <Select
-          label="Type"
-          required
-          options={MELEE_OR_RANGED_OPTIONS}
-          value={meleeOrRanged}
-          onChange={e => setMeleeOrRanged(e.target.value as 'melee' | 'ranged' | '')}
-        />
-
-        {/* Weapon Keywords */}
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium font-body text-gray-900 dark:text-white">
-            Weapon Keywords
-          </p>
-          {attachedKeywords.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {attachedKeywords.map(k => (
-                <Badge
-                  key={k.keywordId}
-                  onDismiss={() =>
-                    setAttachedKeywords(prev => prev.filter(x => x.keywordId !== k.keywordId))
-                  }
-                >
-                  <button
-                    type="button"
-                    className="underline text-blue-600 dark:text-blue-400 hover:text-blue-500"
-                    onClick={() => setViewingKeyword(k)}
-                  >
-                    {k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName}
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<AddCircle className="size-4" />}
-              onClick={() => setKeywordModalOpen(true)}
-            >
-              Add Keyword
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      {/* ── Weapon Stats ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Weapon Stats</p>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Counter label="Attack"      min={0} value={attack}     onChange={setAttack} />
-          <Counter label="Hit"         min={0} value={hit}        onChange={setHit} />
-          <Counter label="Base Damage" min={0} value={baseDamage} onChange={setBaseDamage} />
-          <Counter label="Crit Damage" min={0} value={critDamage} onChange={setCritDamage} />
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      <div className="flex items-center gap-1 flex-wrap">
-        <Button
-          leftIcon={<CheckCircle className="size-4" />}
-          disabled={!canSave}
-          loading={saving}
-          onClick={handleSave}
-        >
-          {isEditing ? 'Update Weapon' : 'Save Weapon'}
-        </Button>
-        <Button
-          variant="ghost"
-          color="danger"
-          leftIcon={<CloseCircle className="size-4" />}
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancel
-        </Button>
-      </div>
-
-      <AddKeywordModal
-        open={keywordModalOpen}
-        onClose={() => setKeywordModalOpen(false)}
-        gameSlug="kill-team"
-        onKeywordSelected={(kw) => {
-          setAttachedKeywords(prev => [...prev, kw]);
-          setKeywordModalOpen(false);
-        }}
-        excludeKeywordIds={attachedKeywords.map(k => k.keywordId)}
-      />
-
-      <KeywordInfoModal
-        open={!!viewingKeyword}
-        onClose={() => setViewingKeyword(null)}
-        name={viewingKeyword?.keywordName ?? ''}
-        description={viewingKeyword?.description ?? ''}
-        onEdit={() => {
-          setEditingKw(viewingKeyword);
-          setViewingKeyword(null);
-        }}
-      />
-
-      <AddKeywordModal
-        open={!!editingKw}
-        onClose={() => setEditingKw(null)}
-        gameSlug="kill-team"
-        editingKeyword={editingKw ? {
-          id:          editingKw.keywordId,
-          name:        editingKw.keywordName,
-          description: editingKw.description,
-          hasParams:   editingKw.hasParams,
-        } : null}
-        onKeywordSelected={() => {}}
-        onKeywordUpdated={(updated) => {
-          setAttachedKeywords(prev => prev.map(k =>
-            k.keywordId === updated.keywordId
-              ? { ...k, keywordName: updated.keywordName, description: updated.description, hasParams: updated.hasParams }
-              : k,
-          ));
-          _propagateKeywordUpdate?.(updated.keywordId, updated.keywordName, updated.description, updated.hasParams);
-          setEditingKw(null);
-        }}
-      />
-    </div>
-  );
-};
-
-// ── KillTeamAbilityForm — create / edit an Ability addon ──────────────────────
-
-const KillTeamAbilityForm = ({ editingAddon, onSave, onCancel, saving }: AddonFormProps) => {
-  const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
-
-  const [name,        setName]        = useState(editingAddon?.name ?? '');
-  const [description, setDescription] = useState(editingAddon?.description ?? '');
-  const [apCost,      setApCost]      = useState(Number(s.apCost) || 0);
-
-  const [attachedKeywords, setAttachedKeywords] = useState<LocalKeywordAttachment[]>([]);
-  const [keywordModalOpen, setKeywordModalOpen] = useState(false);
-  const [viewingKeyword,   setViewingKeyword]   = useState<LocalKeywordAttachment | null>(null);
-  const [editingKw,        setEditingKw]        = useState<LocalKeywordAttachment | null>(null);
-
-  useEffect(() => {
-    if (!editingAddon) return;
-    let cancelled = false;
-
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('addon_keywords')
-        .select('keyword_id, params, sort_order, keywords(name, description, params_schema)')
-        .eq('addon_id', editingAddon.id)
-        .order('sort_order');
-
-      if (cancelled || error || !data) return;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setAttachedKeywords((data as any[]).map(ak => ({
-        keywordId:   ak.keyword_id,
-        keywordName: ak.keywords.name,
-        description: ak.keywords.description ?? '',
-        hasParams:   Array.isArray(ak.keywords.params_schema) && ak.keywords.params_schema.length > 0,
-        paramValue:  ak.params?.X != null ? Number(ak.params.X) : null,
-      })));
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [editingAddon]);
-
-  const isEditing = !!editingAddon;
-  const canSave   = name.trim() !== '' && !saving;
-
-  const handleSave = async () => {
-    if (!canSave) return;
-    // Stash for the parent's handleAbilityAdded — see _pendingNewAddonKeywords.
-    if (!editingAddon) _pendingNewAddonKeywords = attachedKeywords;
-    try {
-      const addonId = await onSave(
-        name.trim(),
-        description.trim() || null,
-        { apCost },
-      );
-
-      if (addonId) {
-        await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
-        if (attachedKeywords.length > 0) {
-          await supabase.from('addon_keywords').insert(
-            attachedKeywords.map((k, i) => ({
-              addon_id:   addonId,
-              keyword_id: k.keywordId,
-              params:     k.paramValue != null ? { X: k.paramValue } : {},
-              sort_order: i,
-            })),
-          );
-        }
-        // Broadcast the saved keyword list to the parent so any LocalWeapon
-        // (or LocalAbility / ruleAbility) using this addon gets its keyword
-        // data refreshed — covers the edit path that AddAddonModal doesn't
-        // touch via onAdd.
-        _onAddonKeywordsSaved?.(addonId, attachedKeywords);
-      }
-    } finally {
-      _pendingNewAddonKeywords = [];
-    }
-  };
-
-  return (
-    <div className="p-5 flex flex-col gap-3">
-      <h5 className="font-heading text-xl text-white">
-        {isEditing ? 'Edit Ability' : 'Create Ability'}
-      </h5>
-      <p className="font-body text-sm text-gray-300">
-        Once created, you can add this ability to other operatives from the same game.
-      </p>
-
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Basic Details</p>
-
-        <Input
-          label="Ability Name"
-          required
-          placeholder="Name of this ability"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium font-body text-gray-900 dark:text-white">
-            Description
-          </label>
-          <textarea
-            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm
-                       font-body text-gray-900 placeholder:text-gray-400
-                       dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder:text-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                       min-h-[88px] resize-y"
-            placeholder="What does this ability do?"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-          />
-        </div>
-
-        <Counter
-          label="AP Cost"
-          min={0}
-          max={3}
-          value={apCost}
-          onChange={setApCost}
-        />
-
-        {/* Ability Keywords */}
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium font-body text-gray-900 dark:text-white">
-            Ability Keywords
-          </p>
-          {attachedKeywords.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {attachedKeywords.map(k => (
-                <Badge
-                  key={k.keywordId}
-                  onDismiss={() =>
-                    setAttachedKeywords(prev => prev.filter(x => x.keywordId !== k.keywordId))
-                  }
-                >
-                  <button
-                    type="button"
-                    className="underline text-blue-600 dark:text-blue-400 hover:text-blue-500"
-                    onClick={() => setViewingKeyword(k)}
-                  >
-                    {k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName}
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<AddCircle className="size-4" />}
-              onClick={() => setKeywordModalOpen(true)}
-            >
-              Add Keyword
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      <div className="flex items-center gap-1 flex-wrap">
-        <Button
-          leftIcon={<CheckCircle className="size-4" />}
-          disabled={!canSave}
-          loading={saving}
-          onClick={handleSave}
-        >
-          {isEditing ? 'Update Ability' : 'Save Ability'}
-        </Button>
-        <Button
-          variant="ghost"
-          color="danger"
-          leftIcon={<CloseCircle className="size-4" />}
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancel
-        </Button>
-      </div>
-
-      <AddKeywordModal
-        open={keywordModalOpen}
-        onClose={() => setKeywordModalOpen(false)}
-        gameSlug="kill-team"
-        onKeywordSelected={(kw) => {
-          setAttachedKeywords(prev => [...prev, kw]);
-          setKeywordModalOpen(false);
-        }}
-        excludeKeywordIds={attachedKeywords.map(k => k.keywordId)}
-      />
-
-      <KeywordInfoModal
-        open={!!viewingKeyword}
-        onClose={() => setViewingKeyword(null)}
-        name={viewingKeyword?.keywordName ?? ''}
-        description={viewingKeyword?.description ?? ''}
-        onEdit={() => {
-          setEditingKw(viewingKeyword);
-          setViewingKeyword(null);
-        }}
-      />
-
-      <AddKeywordModal
-        open={!!editingKw}
-        onClose={() => setEditingKw(null)}
-        gameSlug="kill-team"
-        editingKeyword={editingKw ? {
-          id:          editingKw.keywordId,
-          name:        editingKw.keywordName,
-          description: editingKw.description,
-          hasParams:   editingKw.hasParams,
-        } : null}
-        onKeywordSelected={() => {}}
-        onKeywordUpdated={(updated) => {
-          setAttachedKeywords(prev => prev.map(k =>
-            k.keywordId === updated.keywordId
-              ? { ...k, keywordName: updated.keywordName, description: updated.description, hasParams: updated.hasParams }
-              : k,
-          ));
-          _propagateKeywordUpdate?.(updated.keywordId, updated.keywordName, updated.description, updated.hasParams);
-          setEditingKw(null);
-        }}
-      />
-    </div>
-  );
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -1108,6 +568,8 @@ const CardBuilderKillTeam = () => {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [newCardModalOpen,  setNewCardModalOpen]  = useState(false);
   const [newCardTemplates,  setNewCardTemplates]  = useState<NewCardModalTemplate[]>([]);
+  const [newRuleModalOpen,  setNewRuleModalOpen]  = useState(false);
+  const [newRuleTemplates,  setNewRuleTemplates]  = useState<NewCardModalTemplate[]>([]);
 
   /** Local fallback when there are no templates (or the lookup fails). */
   const addBlankOperativeCard = () => {
@@ -1126,18 +588,64 @@ const CardBuilderKillTeam = () => {
         .from('games').select('id').eq('slug', 'kill-team').single();
       if (!game) { addBlankOperativeCard(); return; }
 
-      const { data: templates } = await supabase
-        .from('cards')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .eq('game_id', game.id)
-        .eq('is_template', true)
-        .eq('card_type', 'operative')
-        .order('name');
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .eq('card_type', 'operative')
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
 
-      if (!templates || templates.length === 0) { addBlankOperativeCard(); return; }
+      type TemplateRow = {
+        id: string; name: string; pack_id?: string;
+        card_addons?: { sort_order: number | null; addons: { name: string } | null }[];
+        card_keywords?: { sort_order: number | null; keywords: { name: string } | null }[];
+      };
+      const addonSummaryFor = (t: Pick<TemplateRow, 'card_addons' | 'card_keywords'>): string | undefined => {
+        const addons = (t.card_addons ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(a => a.addons?.name).filter((n): n is string => Boolean(n));
+        if (addons.length) return addons.join(', ');
+        const kws = (t.card_keywords ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(k => k.keywords?.name).filter((n): n is string => Boolean(n));
+        return kws.length ? kws.join(', ') : undefined;
+      };
+      const libTemplates: NewCardModalTemplate[] =
+        ((libRes.data ?? []) as TemplateRow[]).map(t => ({
+          id: t.id, name: t.name, source: 'library' as const, addonSummary: addonSummaryFor(t),
+        }));
 
-      setNewCardTemplates(templates);
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .eq('card_type', 'operative')
+          .order('name');
+        packTemplates = ((packCards ?? []) as (TemplateRow & { pack_id: string })[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id), addonSummary: addonSummaryFor(t),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addBlankOperativeCard(); return; }
+
+      setNewCardTemplates(allTemplates);
       setNewCardModalOpen(true);
     } catch (err) {
       console.error('[BattleCards] Failed to load templates:', err);
@@ -1365,6 +873,203 @@ const CardBuilderKillTeam = () => {
     setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
   };
 
+  // ── Rule template picker (mirrors addOperativeCard / createOperativeFromTemplate) ──
+
+  const addRuleCardWithModal = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { addRuleCard(); return; }
+
+      const { data: game } = await supabase
+        .from('games').select('id').eq('slug', 'kill-team').single();
+      if (!game) { addRuleCard(); return; }
+
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .eq('card_type', 'rule')
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
+
+      const libTemplates: NewCardModalTemplate[] = ((libRes.data ?? []) as { id: string; name: string }[]).map(
+        t => ({ id: t.id, name: t.name, source: 'library' as const }),
+      );
+
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .eq('card_type', 'rule')
+          .order('name');
+        packTemplates = ((packCards ?? []) as { id: string; name: string; pack_id: string }[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addRuleCard(); return; }
+
+      setNewRuleTemplates(allTemplates);
+      setNewRuleModalOpen(true);
+    } catch (err) {
+      console.error('[BattleCards] Failed to load rule templates:', err);
+      addRuleCard();
+    }
+  };
+
+  const createRuleFromTemplate = async (templateId: string) => {
+    if (!deckId) return;
+
+    type AddonKeywordRow = {
+      keyword_id: string;
+      params: Record<string, unknown>;
+      sort_order: number | null;
+      keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null;
+    };
+    type RuleTemplateRow = {
+      name: string;
+      stats: KillTeamStats;
+      card_addons: {
+        addon_id:   string;
+        sort_order: number | null;
+        addons: {
+          name: string;
+          description: string | null;
+          stats: Record<string, unknown>;
+          addon_type_id: string;
+          addon_keywords: AddonKeywordRow[];
+        } | null;
+      }[];
+    };
+
+    const { data: tmpl, error } = await supabase
+      .from('cards')
+      .select('name, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema))))')
+      .eq('id', templateId)
+      .single();
+    if (error || !tmpl) { console.error('[BattleCards] Rule template fetch failed:', error); return; }
+
+    const src = tmpl as unknown as RuleTemplateRow;
+
+    const { data: newRow, error: insertErr } = await supabase
+      .from('cards')
+      .insert({
+        deck_id:    deckId,
+        name:       src.name,
+        card_type:  'rule',
+        stats:      src.stats,
+        sort_order: cards.length,
+      })
+      .select('id')
+      .single();
+    if (insertErr || !newRow) { console.error('[BattleCards] Rule card insert failed:', insertErr); return; }
+
+    const addons = src.card_addons ?? [];
+    if (addons.length > 0) {
+      await supabase.from('card_addons').insert(
+        addons.map(a => ({ card_id: newRow.id, addon_id: a.addon_id, sort_order: a.sort_order })),
+      );
+    }
+
+    const typeIdToSlug: Record<string, string> = {};
+    {
+      const { data: addonTypes } = await supabase
+        .from('addon_types')
+        .select('id, slug, games!inner(slug)')
+        .eq('games.slug', 'kill-team');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (addonTypes as any[] | null)?.forEach(t => { typeIdToSlug[t.id] = t.slug; });
+    }
+
+    const sortedAddons = [...addons]
+      .filter(ca => ca.addons != null)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    let ruleAbility: LocalAbility | null = null;
+    for (const ca of sortedAddons) {
+      const addon = ca.addons!;
+      if (typeIdToSlug[addon.addon_type_id] !== 'abilities') continue;
+      const ws = addon.stats;
+      const addonKws = [...(addon.addon_keywords ?? [])]
+        .filter(ak => ak.keywords != null)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const kws: LocalKeywordAttachment[] = addonKws.map(ak => ({
+        keywordId:   ak.keyword_id,
+        keywordName: ak.keywords!.name,
+        description: ak.keywords!.description ?? '',
+        hasParams:   Array.isArray(ak.keywords!.params_schema) && ak.keywords!.params_schema.length > 0,
+        paramValue:  ak.params?.X != null ? Number(ak.params.X) : null,
+      }));
+      ruleAbility = {
+        addonId:         ca.addon_id,
+        name:            addon.name,
+        description:     addon.description ?? '',
+        apCost:          Number(ws.apCost) || 0,
+        keywords:        buildKeywordsDisplayString(kws),
+        abilityKeywords: kws,
+      };
+      break;
+    }
+
+    const s = (src.stats ?? {}) as KillTeamStats;
+    const localCard: KillTeamCardData = {
+      id:              crypto.randomUUID(),
+      dbId:            newRow.id,
+      cardType:        'rule',
+      operativeName:   '',
+      role:            '',
+      teamName:        '',
+      tags:            '',
+      actions:         0,
+      movement:        0,
+      save:            0,
+      wounds:          0,
+      baseSize:        0,
+      weapons:         [],
+      abilities:       [],
+      ruleTitle:       src.name,
+      ruleDescription: String(s.description ?? ''),
+      ruleAbility,
+      portraitUrl:     null,
+      portraitStyle:   null,
+      avatarUrl:       null,
+      tokenState:      {},
+    };
+
+    setCardState(s2 => ({ cards: [...s2.cards, localCard], activeCardId: localCard.id }));
+    setNewRuleModalOpen(false);
+  };
+
+  const deleteRuleTemplate = async (templateId: string) => {
+    try {
+      const { error } = await supabase.from('cards').delete().eq('id', templateId);
+      if (error) throw error;
+      setNewRuleTemplates(list => {
+        const next = list.filter(t => t.id !== templateId);
+        if (next.length === 0) setNewRuleModalOpen(false);
+        return next;
+      });
+    } catch (err) {
+      console.error('[BattleCards] Failed to delete rule template:', err);
+    }
+  };
+
   const deleteCard = async (cardId: string) => {
     const cardToDelete = cards.find(c => c.id === cardId);
 
@@ -1455,11 +1160,6 @@ const CardBuilderKillTeam = () => {
     }));
   }, []);
 
-  useEffect(() => {
-    _propagateKeywordUpdate = propagateKeywordUpdate;
-    return () => { _propagateKeywordUpdate = null; };
-  }, [propagateKeywordUpdate]);
-
   /** Called by the addon forms after they sync addon_keywords to the DB —
    *  refresh every LocalWeapon / LocalAbility / ruleAbility that uses this
    *  addonId so keyword edits land on the card without a reload. */
@@ -1491,10 +1191,42 @@ const CardBuilderKillTeam = () => {
     }));
   }, []);
 
-  useEffect(() => {
-    _onAddonKeywordsSaved = handleAddonKeywordsSaved;
-    return () => { _onAddonKeywordsSaved = null; };
-  }, [handleAddonKeywordsSaved]);
+  // Snapshot of a create-form's keyword selection at save-time. The forms
+  // hand these over via `onPendingKeywords` right before their onSave fires
+  // (and clear with [] after the save settles); handleWeaponAdded /
+  // handleAbilityAdded — which run mid-onSave, before the addon_keywords
+  // sync lands — read them here to seed the new in-memory addon's keywords.
+  const pendingNewAddonKeywordsRef = useRef<LocalKeywordAttachment[]>([]);
+
+  // Bind the extracted forms to this builder's context (the pending-keywords
+  // side-channel, the post-sync broadcast, and the cross-card propagation
+  // hook) so AddAddonModal — which only knows the bare AddonFormProps
+  // contract — can render them without each call-site re-supplying these.
+  // Stable identity via useCallback so AddAddonModal doesn't re-mount the
+  // form on every render.
+  const WeaponFormWithContext = useCallback(
+    (props: AddonFormProps) => (
+      <KillTeamWeaponForm
+        {...props}
+        onPendingKeywords={kws => { pendingNewAddonKeywordsRef.current = kws; }}
+        onKeywordsSaved={handleAddonKeywordsSaved}
+        onPropagateKeywordUpdate={propagateKeywordUpdate}
+      />
+    ),
+    [handleAddonKeywordsSaved, propagateKeywordUpdate],
+  );
+
+  const AbilityFormWithContext = useCallback(
+    (props: AddonFormProps) => (
+      <KillTeamAbilityForm
+        {...props}
+        onPendingKeywords={kws => { pendingNewAddonKeywordsRef.current = kws; }}
+        onKeywordsSaved={handleAddonKeywordsSaved}
+        onPropagateKeywordUpdate={propagateKeywordUpdate}
+      />
+    ),
+    [handleAddonKeywordsSaved, propagateKeywordUpdate],
+  );
 
   // Deck-name inline rename is owned by useCardBuilder (above). The hook's
   // commitDeckName persists by default; we pass `{ persist: !editMode }` at
@@ -1977,10 +1709,10 @@ const CardBuilderKillTeam = () => {
     const s = addon.stats as Record<string, unknown>;
     const mr = s.meleeOrRanged === 'melee' || s.meleeOrRanged === 'ranged' ? s.meleeOrRanged : '';
     const dmg = parseDamageParts(s);
-    // Pull the form's freshly-attached keywords from the module-scoped ref
-    // (see _pendingNewAddonKeywords). For an existing addon picked from the
-    // library this will be empty — see TODO below to load those eagerly.
-    const initialKws = _pendingNewAddonKeywords;
+    // Pull the form's freshly-attached keywords from the pending ref
+    // (see pendingNewAddonKeywordsRef). For an existing addon picked from
+    // the library this will be empty — see TODO below to load those eagerly.
+    const initialKws = pendingNewAddonKeywordsRef.current;
     const weapon: LocalWeapon = {
       addonId:       addon.id,
       name:          addon.name,
@@ -2008,7 +1740,7 @@ const CardBuilderKillTeam = () => {
   const handleAbilityAdded = (addon: Addon) => {
     const s = addon.stats as Record<string, unknown>;
     // Same keyword hand-off pattern as handleWeaponAdded.
-    const initialKws = _pendingNewAddonKeywords;
+    const initialKws = pendingNewAddonKeywordsRef.current;
     const ability: LocalAbility = {
       addonId:         addon.id,
       name:            addon.name,
@@ -2178,7 +1910,7 @@ const CardBuilderKillTeam = () => {
                     variant="outline"
                     size="sm"
                     className="w-full"
-                    onClick={addRuleCard}
+                    onClick={addRuleCardWithModal}
                   >
                     Add Rule Card
                   </Button>
@@ -2224,6 +1956,9 @@ const CardBuilderKillTeam = () => {
                           ? 'Faction Rule'
                           : (card.role || undefined)
                       }
+                      addonSummary={card.cardType !== 'rule'
+                        ? ([...card.weapons.map(w => w.name), ...card.abilities.map(a => a.name)].filter(Boolean).join(', ') || undefined)
+                        : undefined}
                       avatarSrc={card.avatarUrl ?? iconKillTeam}
                       active={card.id === activeCardId}
                       activated={appMode === 'play' && isCardActivated(card)}
@@ -2907,8 +2642,8 @@ const CardBuilderKillTeam = () => {
         excludeAddonIds={activeCard.weapons.map(w => w.addonId)}
         onAdd={handleWeaponAdded}
         onDeleted={handleWeaponDeleted}
-        getSubtitle={getWeaponSubtitle}
-        CreateFormComponent={KillTeamWeaponForm}
+        getSubtitle={killTeamWeaponSubtitle}
+        CreateFormComponent={WeaponFormWithContext}
       />
 
       {/* ── Add Ability modal ───────────────────────────────────────────────── */}
@@ -2921,8 +2656,8 @@ const CardBuilderKillTeam = () => {
         excludeAddonIds={activeCard.abilities.map(a => a.addonId)}
         onAdd={handleAbilityAdded}
         onDeleted={handleAbilityDeleted}
-        getSubtitle={getAbilitySubtitle}
-        CreateFormComponent={KillTeamAbilityForm}
+        getSubtitle={killTeamAbilitySubtitle}
+        CreateFormComponent={AbilityFormWithContext}
       />
 
       {/* ── Edit Keyword modal (opened from a keyword chip on the card) ────
@@ -2965,6 +2700,16 @@ const CardBuilderKillTeam = () => {
         onNewBlank={() => { setNewCardModalOpen(false); addBlankOperativeCard(); }}
         onPickTemplate={createOperativeFromTemplate}
         onDeleteTemplate={deleteTemplate}
+      />
+
+      {/* ── New Rule modal (rule templates picker) ────────────────────────── */}
+      <NewCardModal
+        open={newRuleModalOpen}
+        onClose={() => setNewRuleModalOpen(false)}
+        templates={newRuleTemplates}
+        onNewBlank={() => { setNewRuleModalOpen(false); addRuleCard(); }}
+        onPickTemplate={createRuleFromTemplate}
+        onDeleteTemplate={deleteRuleTemplate}
       />
 
       {/* ── Custom Token modal (create / edit a deck-scoped UCT) ──────────── */}
@@ -3010,7 +2755,7 @@ const CardBuilderKillTeam = () => {
       {/* ── Edit Weapon modal (direct form, skips picker) ──────────────────── */}
       {editingWeaponAddon && (
         <Modal open onClose={() => setEditingWeaponAddon(null)} className="max-w-md">
-          <KillTeamWeaponForm
+          <WeaponFormWithContext
             editingAddon={editingWeaponAddon}
             onSave={async (name, description, stats) => {
               setSavingWeaponEdit(true);
@@ -3083,7 +2828,7 @@ const CardBuilderKillTeam = () => {
       {/* ── Edit Ability modal (direct form, skips picker) ──────────────────── */}
       {editingAbilityAddon && (
         <Modal open onClose={() => setEditingAbilityAddon(null)} className="max-w-md">
-          <KillTeamAbilityForm
+          <AbilityFormWithContext
             editingAddon={editingAbilityAddon}
             onSave={async (name, description, stats) => {
               setSavingAbilityEdit(true);

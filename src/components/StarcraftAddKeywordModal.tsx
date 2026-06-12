@@ -62,6 +62,12 @@ export interface StarcraftAddKeywordModalProps {
   /** When provided, opens straight to the edit form prefilled. */
   editingKeyword?: { id: string; name: string; description: string; hasValue: boolean } | null;
   onKeywordUpdated?: (kw: StarcraftKeywordAttachment) => void;
+  /** When true, the modal opens directly on the create form (no picker
+   *  step) and Cancel closes the modal. The set-value step is skipped —
+   *  it records an ATTACHMENT value, which doesn't exist when creating a
+   *  standalone definition (e.g. the pack editor's "New Keyword" flow).
+   *  onKeywordSelected fires with value null. */
+  createOnly?: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -73,6 +79,7 @@ const StarcraftAddKeywordModal = ({
   excludeKeywordIds = [],
   editingKeyword = null,
   onKeywordUpdated,
+  createOnly = false,
 }: StarcraftAddKeywordModalProps) => {
   const [step, setStep]               = useState<Step>('loading');
   const [keywords, setKeywords]       = useState<Keyword[]>([]);
@@ -168,6 +175,9 @@ const StarcraftAddKeywordModal = ({
       setNewDescription(editingKeyword.description);
       setNewHasValue(editingKeyword.hasValue);
       setStep('create');
+    } else if (createOnly) {
+      // Create-only mode skips the picker entirely.
+      setStep('create');
     }
 
     let cancelled = false;
@@ -184,7 +194,10 @@ const StarcraftAddKeywordModal = ({
       if (cancelled || !game) return;
       gameIdRef.current = game.id;
 
-      if (!editingKeyword) await fetchPage(0);
+      // createOnly already set step to 'create' — fetchPage would
+      // clobber it back to 'pick' (or re-enter 'create' with picker
+      // counts loaded, which we don't need).
+      if (!editingKeyword && !createOnly) await fetchPage(0);
     })();
 
     return () => { cancelled = true; };
@@ -279,16 +292,18 @@ const StarcraftAddKeywordModal = ({
 
       const created = data as Keyword;
 
-      if (newHasValue) {
+      if (newHasValue && !createOnly) {
         setPendingKeyword(created);
         setParamValue('');
         setStep('set-value');
       } else {
+        // createOnly skips set-value: that step records an attachment
+        // value, and a standalone definition has nothing to attach to.
         onKeywordSelected({
           keywordId:   created.id,
           name:        created.name,
           description: created.description ?? '',
-          hasValue:    false,
+          hasValue:    newHasValue,
           value:       null,
         });
         onClose();
@@ -301,7 +316,7 @@ const StarcraftAddKeywordModal = ({
   };
 
   const handleCreateCancel = () => {
-    if (editingKeyword) { onClose(); return; }
+    if (editingKeyword || createOnly) { onClose(); return; }
     if (totalCount > 0) setStep('pick');
     else                onClose();
   };

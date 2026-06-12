@@ -32,7 +32,6 @@ import { useCardBuilder } from '../hooks/useCardBuilder';
 import Dropdown, { DropdownItem } from '../components/Dropdown';
 import UnitListEntry from '../components/UnitListEntry';
 import Input from '../components/Input';
-import Select from '../components/Select';
 import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
@@ -41,8 +40,8 @@ import CardCarousel from '../components/CardCarousel';
 import AttachedAddonRow from '../components/AttachedAddonRow';
 import Modal from '../components/Modal';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
-import AddKeywordModal from '../components/AddKeywordModal';
-import AddRuleModal, { type RuleSelection } from '../components/AddRuleModal';
+import AddKeywordModal, { type KeywordSelection } from '../components/AddKeywordModal';
+import HaloWeaponForm from '../components/HaloWeaponForm';
 import RichTextEditor from '../components/RichTextEditor';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 // TODO: migrate to the universal `AddonInfoModal` (src/components/AddonInfoModal.tsx).
@@ -59,7 +58,6 @@ import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardMo
 import UserRounded from '../icons/UserRounded';
 import AddCircle from '../icons/AddCircle';
 import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import Diskette from '../icons/Diskette';
 import ArrowRight from '../icons/ArrowRight';
@@ -71,6 +69,8 @@ import { supabase } from '../lib/supabase';
 import { fetchConstraints, getMaxLength, getMaxAddons, getMaxKeywords, getMaxRules, isAtLimit } from '../lib/constraints';
 import TokenMenu from '../components/TokenMenu';
 import type { Addon, HaloFlashpointStats, EntityConstraints, TokenDefinition } from '../lib/database.types';
+import { formatKeywordLabel } from '../lib/cardShape/util';
+import { haloWeaponSubtitle } from '../lib/addonSubtitles';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import iconHaloFlashpoint from '../assets/games/card assets/halo/icon.png';
 
@@ -80,19 +80,12 @@ import iconHaloFlashpoint from '../assets/games/card assets/halo/icon.png';
 const CARD_W = 1270;
 const CARD_H = 890;
 
-// ── Keyword update propagation ────────────────────────────────────────────────
-// Module-scoped ref so HaloWeaponForm (which can't receive extra props via
-// AddonFormProps) can propagate keyword edits across all cards.
-let _propagateKeywordUpdate: ((keywordId: string, name: string, desc: string, hasParams: boolean) => void) | null = null;
-
-
-// Module-scoped refs so HaloWeaponForm can read constraints
-// without requiring changes to AddonFormProps.
-let _weaponConstraints: EntityConstraints = {};
-let _keywordConstraints: EntityConstraints = {};
-
 // ── Local weapon shape ────────────────────────────────────────────────────────
 // Mirrors HaloWeapon but carries the Supabase addon ID for edit/delete.
+
+// Same shape as the keyword-selection contract exposed by AddKeywordModal /
+// HaloWeaponForm. Aliased so the rest of this file keeps its older name.
+type LocalKeywordAttachment = KeywordSelection;
 
 interface LocalWeapon {
   addonId:    string;
@@ -177,305 +170,11 @@ const toHaloStats = (c: HaloCardData): HaloFlashpointStats => ({
   pointsCost:   c.pointsCost,
 });
 
+// Per-keyword "Name" / "Name (X)" formatting goes through the shared
+// formatKeywordLabel — same primitive the pack editor's shapers use.
 const buildKeywordsDisplayString = (kws: LocalKeywordAttachment[]) =>
-  kws
-    .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
-    .join(', ');
+  kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
 
-// ── Weapon subtitle builder ────────────────────────────────────────────────────
-// Used in the picker list to summarise a weapon from its Supabase addon row.
-
-const getWeaponSubtitle = (addon: Addon): string => {
-  const s = addon.stats as Record<string, unknown>;
-  const parts: string[] = [];
-  if (s.type)     parts.push(String(s.type));
-  if (s.range)    parts.push(`R${s.range}`);
-  if (s.ap)       parts.push(`AP ${s.ap}`);
-  if (s.keywords) parts.push(String(s.keywords));
-  return parts.join(', ') || addon.name;
-};
-
-// ── Weapon type options ───────────────────────────────────────────────────────
-
-const WEAPON_TYPE_OPTIONS = [
-  { value: '',             label: 'Closed Combat or Ranged', disabled: true },
-  { value: 'Close Combat', label: 'Close Combat' },
-  { value: 'Ranged',       label: 'Ranged'       },
-  { value: 'Grenade',      label: 'Grenade'      },
-];
-
-// ── HaloWeaponForm — create / edit form rendered inside AddAddonModal ─────────
-
-interface LocalKeywordAttachment {
-  keywordId: string;
-  keywordName: string;
-  description: string;
-  hasParams: boolean;
-  paramValue: number | null;
-}
-
-// Module-scoped ref so HaloWeaponForm can pass attached keywords to
-// handleWeaponAdded when creating a new weapon (keywords are synced to DB
-// after onAdd, so the handler can't fetch them from DB yet).
-let _pendingWeaponKeywords: LocalKeywordAttachment[] | null = null;
-
-const HaloWeaponForm = ({ editingAddon, onSave, onCancel, saving }: AddonFormProps) => {
-  const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
-
-  const [type,       setType]       = useState(String(s.type  ?? ''));
-  const [name,       setName]       = useState(editingAddon?.name ?? '');
-  const [range,      setRange]      = useState(Number(s.range) || 0);
-  const [ap,         setAp]         = useState(Number(s.ap)    || 0);
-  const [pointsCost, setPointsCost] = useState(Number(s.pointsCost) || 0);
-
-  const [attachedKeywords, setAttachedKeywords] = useState<LocalKeywordAttachment[]>([]);
-  const [keywordModalOpen, setKeywordModalOpen] = useState(false);
-  const [viewingKeyword, setViewingKeyword]     = useState<LocalKeywordAttachment | null>(null);
-  const [editingKw, setEditingKw]               = useState<LocalKeywordAttachment | null>(null);
-
-  // Load existing keyword attachments when editing
-  useEffect(() => {
-    if (!editingAddon) return;
-    let cancelled = false;
-
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('addon_keywords')
-        .select('keyword_id, params, sort_order, keywords(name, description, params_schema)')
-        .eq('addon_id', editingAddon.id)
-        .order('sort_order');
-
-      if (cancelled || error || !data) return;
-
-      setAttachedKeywords(
-        (data as any[]).map(ak => ({
-          keywordId: ak.keyword_id,
-          keywordName: ak.keywords.name,
-          description: ak.keywords.description ?? '',
-          hasParams: Array.isArray(ak.keywords.params_schema) && ak.keywords.params_schema.length > 0,
-          paramValue: ak.params?.X != null ? Number(ak.params.X) : null,
-        })),
-      );
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [editingAddon]);
-
-  const isCC      = type === 'Close Combat';
-  const isEditing = !!editingAddon;
-  const canSave   = type.trim() !== '' && name.trim() !== '' && !saving;
-
-  const handleSave = async () => {
-    if (!canSave) return;
-    // Stash keywords so handleWeaponAdded can read them synchronously
-    _pendingWeaponKeywords = [...attachedKeywords];
-    const addonId = await onSave(
-      name.trim(),
-      null,
-      {
-        type:     type.trim(),
-        range:      isCC ? null : String(range),
-        ap:         String(ap),
-        pointsCost: String(pointsCost),
-        keywords:   buildKeywordsDisplayString(attachedKeywords),
-      },
-    );
-
-    // Sync addon_keywords after the addon is persisted
-    if (addonId) {
-      await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
-      if (attachedKeywords.length > 0) {
-        await supabase.from('addon_keywords').insert(
-          attachedKeywords.map((k, i) => ({
-            addon_id: addonId,
-            keyword_id: k.keywordId,
-            params: k.paramValue != null ? { X: k.paramValue } : {},
-            sort_order: i,
-          })),
-        );
-      }
-    }
-  };
-
-  return (
-    <div className="p-5 flex flex-col gap-3">
-
-      {/* Title */}
-      <h5 className="font-heading text-xl text-white">
-        {isEditing ? `Edit Weapon` : 'Create Weapon'}
-      </h5>
-
-      {/* Subtitle */}
-      <p className="font-body text-sm text-gray-300">
-        Once created, you can add this weapon to other units from the same game.
-      </p>
-
-      {/* ── Basic Details ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Basic Details</p>
-
-        <Select
-          label="Weapon Type"
-          required
-          options={WEAPON_TYPE_OPTIONS}
-          value={type}
-          onChange={e => setType(e.target.value)}
-        />
-        <Input
-          label="Weapon Name"
-          required
-          placeholder="Eg. Fists, Battle Rifle, etc."
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-
-        {/* Weapon Keywords */}
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium font-body text-gray-900 dark:text-white">
-            Weapon Keywords
-          </p>
-          {attachedKeywords.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {attachedKeywords.map(k => (
-                <Badge
-                  key={k.keywordId}
-                  onDismiss={() =>
-                    setAttachedKeywords(prev => prev.filter(x => x.keywordId !== k.keywordId))
-                  }
-                >
-                  <button
-                    type="button"
-                    className="underline text-blue-600 dark:text-blue-400 hover:text-blue-500"
-                    onClick={() => setViewingKeyword(k)}
-                  >
-                    {k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName}
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<AddCircle className="size-4" />}
-              disabled={isAtLimit(attachedKeywords.length, getMaxKeywords(_weaponConstraints))}
-              onClick={() => setKeywordModalOpen(true)}
-            >
-              Add Keyword
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      {/* ── Weapon Stats ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-base font-bold text-gray-100">Weapon Stats</p>
-
-        <div className="flex gap-4">
-          {!isCC && (
-            <Counter
-              label="Weapon Range"
-              required
-              min={0}
-              value={range}
-              onChange={setRange}
-            />
-          )}
-          <Counter
-            label="AP Value"
-            required
-            min={0}
-            value={ap}
-            onChange={setAp}
-          />
-          <Counter
-            label="Points Cost"
-            min={0}
-            value={pointsCost}
-            onChange={setPointsCost}
-          />
-        </div>
-      </div>
-
-      <HR className="!my-0" />
-
-      {/* CTAs */}
-      <div className="flex items-center gap-1 flex-wrap">
-        <Button
-          leftIcon={<CheckCircle className="size-4" />}
-          disabled={!canSave}
-          loading={saving}
-          onClick={handleSave}
-        >
-          {isEditing ? 'Update Weapon' : 'Save Weapon'}
-        </Button>
-        <Button
-          variant="ghost"
-          color="danger"
-          leftIcon={<CloseCircle className="size-4" />}
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Cancel
-        </Button>
-      </div>
-
-      {/* Keyword modal (nested inside weapon form) */}
-      <AddKeywordModal
-        open={keywordModalOpen}
-        onClose={() => setKeywordModalOpen(false)}
-        gameSlug="halo-flashpoint"
-        onKeywordSelected={(kw) => {
-          setAttachedKeywords(prev => [...prev, kw]);
-          setKeywordModalOpen(false);
-        }}
-        excludeKeywordIds={attachedKeywords.map(k => k.keywordId)}
-        constraints={_keywordConstraints}
-      />
-
-      {/* Keyword info modal */}
-      <KeywordInfoModal
-        open={!!viewingKeyword}
-        onClose={() => setViewingKeyword(null)}
-        name={viewingKeyword?.keywordName ?? ''}
-        description={viewingKeyword?.description ?? ''}
-        onEdit={() => {
-          setEditingKw(viewingKeyword);
-          setViewingKeyword(null);
-        }}
-      />
-
-      {/* Edit keyword modal */}
-      <AddKeywordModal
-        open={!!editingKw}
-        onClose={() => setEditingKw(null)}
-        gameSlug="halo-flashpoint"
-        editingKeyword={editingKw ? {
-          id: editingKw.keywordId,
-          name: editingKw.keywordName,
-          description: editingKw.description,
-          hasParams: editingKw.hasParams,
-        } : null}
-        onKeywordSelected={() => {}}
-        onKeywordUpdated={(updated) => {
-          setAttachedKeywords(prev => prev.map(k =>
-            k.keywordId === updated.keywordId
-              ? { ...k, keywordName: updated.keywordName, description: updated.description, hasParams: updated.hasParams }
-              : k,
-          ));
-          _propagateKeywordUpdate?.(updated.keywordId, updated.keywordName, updated.description, updated.hasParams);
-          setEditingKw(null);
-        }}
-        constraints={_keywordConstraints}
-      />
-
-    </div>
-  );
-};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -586,13 +285,13 @@ const CardBuilderHaloFlashpoint = () => {
 
   // ── DB-driven constraints ─────────────────────────────────────────────────────
   const [cardConstraints, setCardConstraints] = useState<EntityConstraints>({});
-  const [_weaponConstraintsState, setWeaponConstraints] = useState<EntityConstraints>({});
+  const [weaponConstraints, setWeaponConstraints] = useState<EntityConstraints>({});
   const [keywordConstraints, setKeywordConstraints] = useState<EntityConstraints>({});
   const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
   useEffect(() => {
     fetchConstraints('halo-flashpoint', 'card').then(setCardConstraints);
-    fetchConstraints('halo-flashpoint', 'addon', 'weapons').then(c => { setWeaponConstraints(c); _weaponConstraints = c; });
-    fetchConstraints('halo-flashpoint', 'keyword').then(c => { setKeywordConstraints(c); _keywordConstraints = c; });
+    fetchConstraints('halo-flashpoint', 'addon', 'weapons').then(setWeaponConstraints);
+    fetchConstraints('halo-flashpoint', 'keyword').then(setKeywordConstraints);
     // Fetch token definitions for play mode
     (async () => {
       const { data: game } = await supabase
@@ -607,8 +306,8 @@ const CardBuilderHaloFlashpoint = () => {
 
   // ── Rule state (deck-level) ────────────────────────────────────────────────
   interface LocalRule {
-    id:          string;   // stable local React key
-    dbRuleId:    string;   // rules table id
+    id:          string;        // stable local React key
+    cardId:      string | null; // cards table id (null until first save)
     title:       string;
     description: string;
   }
@@ -730,10 +429,8 @@ const CardBuilderHaloFlashpoint = () => {
     return cards.every(isCardActivated);
   })();
 
-  const [ruleModalOpen, setRuleModalOpen]             = useState(false);
-  const [editingRule, setEditingRule]                   = useState<LocalRule | null>(null);
   const [ruleConstraints, setRuleConstraints]           = useState<EntityConstraints>({});
-  const dirtyRulesRef = useRef(false);
+  const dirtyRulesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetchConstraints('halo-flashpoint', 'rule').then(setRuleConstraints);
@@ -752,24 +449,23 @@ const CardBuilderHaloFlashpoint = () => {
   };
 
   const updateActiveRule = (patch: Partial<LocalRule>) => {
-    dirtyRulesRef.current = true;
+    if (activeRuleId) dirtyRulesRef.current.add(activeRuleId);
     setRuleState(s => ({
       ...s,
       rules: s.rules.map(r => r.id === s.activeRuleId ? { ...r, ...patch } : r),
     }));
   };
 
-  const addRule = (rule: RuleSelection) => {
+  const addRuleCard = () => {
     const local: LocalRule = {
       id:          crypto.randomUUID(),
-      dbRuleId:    rule.ruleId,
-      title:       rule.title,
-      description: rule.description,
+      cardId:      null,
+      title:       '',
+      description: '',
     };
-    dirtyRulesRef.current = true;
+    dirtyRulesRef.current.add(local.id);
     setRuleState(s => ({ ...s, rules: [...s.rules, local], activeRuleId: local.id }));
     setCardState(s => ({ ...s, activeCardId: '' }));
-    setRuleModalOpen(false);
   };
 
   const duplicateRule = (localId: string) => {
@@ -777,19 +473,17 @@ const CardBuilderHaloFlashpoint = () => {
     if (!source) return;
     const clone: LocalRule = {
       id:          crypto.randomUUID(),
-      dbRuleId:    source.dbRuleId,
+      cardId:      null,
       title:       source.title,
       description: source.description,
     };
-    dirtyRulesRef.current = true;
-    setRuleState(s => ({
-      ...s,
-      rules: [...s.rules, clone],
-    }));
+    dirtyRulesRef.current.add(clone.id);
+    setRuleState(s => ({ ...s, rules: [...s.rules, clone] }));
   };
 
   const removeRule = (localId: string) => {
-    dirtyRulesRef.current = true;
+    const rule = deckRules.find(r => r.id === localId);
+    dirtyRulesRef.current.delete(localId);
     setRuleState(s => {
       const remaining = s.rules.filter(r => r.id !== localId);
       return {
@@ -797,6 +491,12 @@ const CardBuilderHaloFlashpoint = () => {
         activeRuleId: s.activeRuleId === localId ? null : s.activeRuleId,
       };
     });
+    if (rule?.cardId) {
+      supabase.from('cards').delete().eq('id', rule.cardId)
+        .then(({ error }) => {
+          if (error) console.error('[BattleCards] Failed to delete rule card:', error);
+        });
+    }
   };
 
   const updateActiveCard = (patch: Partial<HaloCardData>) => {
@@ -817,6 +517,10 @@ const CardBuilderHaloFlashpoint = () => {
   const [newCardModalOpen, setNewCardModalOpen] = useState(false);
   const [newCardTemplates, setNewCardTemplates] = useState<NewCardModalTemplate[]>([]);
 
+  // ── New Rule modal (shown when rule templates exist) ─────────────────────────
+  const [newRuleModalOpen, setNewRuleModalOpen] = useState(false);
+  const [newRuleTemplates, setNewRuleTemplates] = useState<NewCardModalTemplate[]>([]);
+
   const addCard = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -829,17 +533,62 @@ const CardBuilderHaloFlashpoint = () => {
         .single();
       if (!game) { addBlankCard(); return; }
 
-      const { data: templates } = await supabase
-        .from('cards')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .eq('game_id', game.id)
-        .eq('is_template', true)
-        .order('name');
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
 
-      if (!templates || templates.length === 0) { addBlankCard(); return; }
+      type TemplateRow = {
+        id: string; name: string; pack_id?: string;
+        card_addons?: { sort_order: number | null; addons: { name: string } | null }[];
+        card_keywords?: { sort_order: number | null; keywords: { name: string } | null }[];
+      };
+      const addonSummaryFor = (t: Pick<TemplateRow, 'card_addons' | 'card_keywords'>): string | undefined => {
+        const addons = (t.card_addons ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(a => a.addons?.name).filter((n): n is string => Boolean(n));
+        if (addons.length) return addons.join(', ');
+        const kws = (t.card_keywords ?? []).slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map(k => k.keywords?.name).filter((n): n is string => Boolean(n));
+        return kws.length ? kws.join(', ') : undefined;
+      };
+      const libTemplates: NewCardModalTemplate[] =
+        ((libRes.data ?? []) as TemplateRow[]).map(t => ({
+          id: t.id, name: t.name, source: 'library' as const, addonSummary: addonSummaryFor(t),
+        }));
 
-      setNewCardTemplates(templates);
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id, card_addons(sort_order, addons(name)), card_keywords(sort_order, keywords(name))')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .order('name');
+        packTemplates = ((packCards ?? []) as (TemplateRow & { pack_id: string })[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id), addonSummary: addonSummaryFor(t),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addBlankCard(); return; }
+
+      setNewCardTemplates(allTemplates);
       setNewCardModalOpen(true);
     } catch (err) {
       console.error('[BattleCards] Failed to load templates:', err);
@@ -982,6 +731,116 @@ const CardBuilderHaloFlashpoint = () => {
     }
   };
 
+  // ── Rule template picker (mirrors addCard / createFromTemplate for rules) ──
+
+  const addRule = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { addRuleCard(); return; }
+
+      const { data: game } = await supabase
+        .from('games').select('id').eq('slug', 'halo-flashpoint').single();
+      if (!game) { addRuleCard(); return; }
+
+      const [libRes, packsRes] = await Promise.all([
+        supabase
+          .from('cards')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .eq('game_id', game.id)
+          .eq('is_template', true)
+          .eq('card_type', 'rule')
+          .is('pack_id', null)
+          .order('name'),
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', game.id),
+      ]);
+
+      const libTemplates: NewCardModalTemplate[] = ((libRes.data ?? []) as { id: string; name: string }[]).map(
+        t => ({ id: t.id, name: t.name, source: 'library' as const }),
+      );
+
+      const packsMap = new Map(
+        ((packsRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      let packTemplates: NewCardModalTemplate[] = [];
+      if (packsMap.size > 0) {
+        const { data: packCards } = await supabase
+          .from('cards')
+          .select('id, name, pack_id')
+          .in('pack_id', [...packsMap.keys()])
+          .eq('is_template', true)
+          .eq('card_type', 'rule')
+          .order('name');
+        packTemplates = ((packCards ?? []) as { id: string; name: string; pack_id: string }[]).map(t => ({
+          id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id),
+        }));
+      }
+
+      const allTemplates = [...packTemplates, ...libTemplates];
+      if (allTemplates.length === 0) { addRuleCard(); return; }
+
+      setNewRuleTemplates(allTemplates);
+      setNewRuleModalOpen(true);
+    } catch (err) {
+      console.error('[BattleCards] Failed to load rule templates:', err);
+      addRuleCard();
+    }
+  };
+
+  const createRuleFromTemplate = async (templateId: string) => {
+    if (!deckId) return;
+
+    const { data: tmpl, error } = await supabase
+      .from('cards')
+      .select('name, stats')
+      .eq('id', templateId)
+      .single();
+    if (error || !tmpl) { console.error('[BattleCards] Rule template fetch failed:', error); return; }
+
+    const src = tmpl as { name: string; stats: Record<string, unknown> | null };
+
+    const { data: newRow, error: insertErr } = await supabase
+      .from('cards')
+      .insert({
+        deck_id:   deckId,
+        name:      src.name,
+        stats:     src.stats ?? {},
+        card_type: 'rule',
+      })
+      .select('id')
+      .single();
+    if (insertErr || !newRow) { console.error('[BattleCards] Rule card insert failed:', insertErr); return; }
+
+    const local: LocalRule = {
+      id:          crypto.randomUUID(),
+      cardId:      (newRow as { id: string }).id,
+      title:       src.name,
+      description: String(src.stats?.description ?? ''),
+    };
+
+    setRuleState(s => ({ ...s, rules: [...s.rules, local], activeRuleId: local.id }));
+    setCardState(s => ({ ...s, activeCardId: '' }));
+    setNewRuleModalOpen(false);
+  };
+
+  const deleteRuleTemplate = async (templateId: string) => {
+    try {
+      const { error } = await supabase.from('cards').delete().eq('id', templateId);
+      if (error) throw error;
+      setNewRuleTemplates(list => {
+        const next = list.filter(t => t.id !== templateId);
+        if (next.length === 0) setNewRuleModalOpen(false);
+        return next;
+      });
+    } catch (err) {
+      console.error('[BattleCards] Failed to delete rule template:', err);
+    }
+  };
+
   const deleteCard = async (cardId: string) => {
     const cardToDelete = cards.find(c => c.id === cardId);
 
@@ -1064,12 +923,6 @@ const CardBuilderHaloFlashpoint = () => {
       }),
     }));
   }, []);
-
-  // Expose propagateKeywordUpdate to HaloWeaponForm via module-scoped ref
-  useEffect(() => {
-    _propagateKeywordUpdate = propagateKeywordUpdate;
-    return () => { _propagateKeywordUpdate = null; };
-  }, [propagateKeywordUpdate]);
 
   // ── Deck name inline rename ─────────────────────────────────────────────────
   // `startDeckNameEdit` comes from useCardBuilder. `commitDeckName` skips the
@@ -1254,29 +1107,29 @@ const CardBuilderHaloFlashpoint = () => {
     supabase.from('decks').select('name').eq('id', deckId).single()
       .then(({ data }) => { if (data) setDeckName(data.name); });
 
-    // Load deck rules
+    // Load rule cards (card_type='rule')
     supabase
-      .from('deck_rules')
-      .select('id, rule_id, sort_order, rules(id, title, description)')
+      .from('cards')
+      .select('id, name, stats')
       .eq('deck_id', deckId)
-      .order('sort_order', { ascending: true })
+      .eq('card_type', 'rule')
+      .order('created_at', { ascending: true })
       .then(({ data, error }) => {
-        if (error) { console.error('[BattleCards] Failed to load deck rules:', error); return; }
+        if (error) { console.error('[BattleCards] Failed to load rule cards:', error); return; }
         if (!data || data.length === 0) return;
-        const loaded: LocalRule[] = (data as any[])
-          .filter(dr => dr.rules != null)
-          .map(dr => ({
+        const loaded: LocalRule[] = (data as { id: string; name: string; stats: Record<string, unknown> | null }[])
+          .map(row => ({
             id:          crypto.randomUUID(),
-            dbRuleId:    dr.rule_id,
-            title:       dr.rules.title,
-            description: dr.rules.description ?? '',
+            cardId:      row.id,
+            title:       row.name ?? '',
+            description: String(row.stats?.description ?? ''),
           }));
         setRuleState({ rules: loaded, activeRuleId: null });
       });
 
     type AddonKeywordRow = { keyword_id: string; params: Record<string, unknown>; sort_order: number | null; keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null };
     type CardRow = {
-      id: string; name: string; stats: HaloFlashpointStats; portrait_style: string | null;
+      id: string; name: string; stats: HaloFlashpointStats; portrait_style: string | null; card_type: string | null;
       card_addons: { addon_id: string; sort_order: number | null; addons: { name: string; stats: Record<string, unknown>; addon_keywords: AddonKeywordRow[] } | null }[];
       card_images: { file_path: string; sort_order: number; image_type: string }[];
       card_keywords: AddonKeywordRow[];
@@ -1284,14 +1137,14 @@ const CardBuilderHaloFlashpoint = () => {
 
     supabase
       .from('cards')
-      .select('id, name, stats, portrait_style, card_addons(addon_id, sort_order, addons(name, stats, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema)))), card_images(file_path, sort_order, image_type), card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema))')
+      .select('id, name, stats, portrait_style, card_type, card_addons(addon_id, sort_order, addons(name, stats, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema)))), card_images(file_path, sort_order, image_type), card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema))')
       .eq('deck_id', deckId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (error) { console.error('[BattleCards] Failed to load cards:', error); return; }
         if (!data || data.length === 0) return;
-        const loaded = (data as unknown as CardRow[]).map(row => {
+        const loaded = (data as unknown as CardRow[]).filter(row => row.card_type !== 'rule').map(row => {
           const s = row.stats ?? {};
           const sortedAddons = [...(row.card_addons ?? [])]
             .filter(ca => ca.addons != null)
@@ -1441,24 +1294,40 @@ const CardBuilderHaloFlashpoint = () => {
     return () => clearTimeout(timer);
   }, [cards, deckId]);
 
-  // ── Auto-save deck rules (debounced 1s) ────────────────────────────────────
+  // ── Auto-save rule cards (debounced 1s) ────────────────────────────────────
   useEffect(() => {
-    if (!deckId || !dirtyRulesRef.current) return;
+    if (!deckId || dirtyRulesRef.current.size === 0) return;
 
     const timer = setTimeout(async () => {
-      dirtyRulesRef.current = false;
+      const dirty = new Set(dirtyRulesRef.current);
+      dirtyRulesRef.current.clear();
 
-      await supabase.from('deck_rules').delete().eq('deck_id', deckId);
+      for (const rule of deckRules) {
+        if (!dirty.has(rule.id)) continue;
+        if (!rule.title.trim() && !rule.description.trim()) continue;
 
-      if (deckRules.length > 0) {
-        const { error } = await supabase.from('deck_rules').insert(
-          deckRules.map((r, i) => ({
-            deck_id:    deckId,
-            rule_id:    r.dbRuleId,
-            sort_order: i,
-          }))
-        );
-        if (error) console.error('[BattleCards] Failed to save deck rules:', error);
+        if (!rule.cardId) {
+          const { data, error } = await supabase
+            .from('cards')
+            .insert({ deck_id: deckId, name: rule.title || 'New Rule', stats: { description: rule.description } as Record<string, unknown>, card_type: 'rule' })
+            .select('id')
+            .single();
+          if (error) {
+            console.error('[BattleCards] Failed to create rule card:', error);
+          } else if (data) {
+            const newId = (data as { id: string }).id;
+            setRuleState(s => ({
+              ...s,
+              rules: s.rules.map(r => r.id === rule.id ? { ...r, cardId: newId } : r),
+            }));
+          }
+        } else {
+          const { error } = await supabase
+            .from('cards')
+            .update({ name: rule.title || 'New Rule', stats: { description: rule.description } as Record<string, unknown> })
+            .eq('id', rule.cardId);
+          if (error) console.error('[BattleCards] Failed to update rule card:', error);
+        }
       }
     }, 1000);
 
@@ -1593,12 +1462,39 @@ const CardBuilderHaloFlashpoint = () => {
   const [editingWeaponAddon, setEditingWeaponAddon]      = useState<Addon | null>(null);
   const [savingWeaponEdit, setSavingWeaponEdit]          = useState(false);
 
+  // Snapshot of the weapon-form's keyword selection at save-time. HaloWeaponForm
+  // hands these over via the `onPendingKeywords` callback right before its
+  // onSave fires; handleWeaponAdded (which runs AFTER onSave resolves) reads
+  // them here so the new weapon's in-memory `weaponKeywords` matches what the
+  // user just picked, without re-querying addon_keywords for a row we just
+  // wrote.
+  const pendingWeaponKeywordsRef = useRef<LocalKeywordAttachment[] | null>(null);
+
+  // Bind HaloWeaponForm to this builder's context (constraints, the
+  // pending-keywords side-channel, and the cross-card propagation hook)
+  // so AddAddonModal — which only knows the bare AddonFormProps contract —
+  // can render it without each call-site re-supplying these. Stable
+  // identity via useCallback so AddAddonModal doesn't re-mount the form
+  // on every render.
+  const WeaponFormWithContext = useCallback(
+    (props: AddonFormProps) => (
+      <HaloWeaponForm
+        {...props}
+        weaponConstraints={weaponConstraints}
+        keywordConstraints={keywordConstraints}
+        onPendingKeywords={(kws) => { pendingWeaponKeywordsRef.current = kws; }}
+        onPropagateKeywordUpdate={propagateKeywordUpdate}
+      />
+    ),
+    [weaponConstraints, keywordConstraints, propagateKeywordUpdate],
+  );
+
   const handleWeaponAdded = async (addon: Addon) => {
     const s = addon.stats as Record<string, unknown>;
 
     // Use pending keywords from the create form if available
-    let wkws = _pendingWeaponKeywords;
-    _pendingWeaponKeywords = null;
+    let wkws = pendingWeaponKeywordsRef.current;
+    pendingWeaponKeywordsRef.current = null;
 
     // For existing weapons picked from the list, fetch from DB
     if (!wkws) {
@@ -1803,7 +1699,7 @@ const CardBuilderHaloFlashpoint = () => {
                     size="sm"
                     className="w-full"
                     disabled={isAtLimit(deckRules.length, getMaxRules(cardConstraints))}
-                    onClick={() => setRuleModalOpen(true)}
+                    onClick={addRule}
                   >
                     Add Rule
                   </Button>
@@ -1839,6 +1735,7 @@ const CardBuilderHaloFlashpoint = () => {
                     <UnitListEntry
                       status={card.dbId ? 'complete' : 'blank'}
                       unitName={card.unitName || undefined}
+                      addonSummary={card.weapons.map(w => w.name).filter(Boolean).join(', ') || undefined}
                       avatarSrc={card.avatarUrl ?? iconHaloFlashpoint}
                       active={card.id === activeCardId && !activeRuleId}
                       activated={appMode === 'play' && isCardActivated(card)}
@@ -1925,7 +1822,7 @@ const CardBuilderHaloFlashpoint = () => {
                 )}
                 <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
                   <UnitListEntry
-                    status="complete"
+                    status={rule.cardId ? 'complete' : 'blank'}
                     unitName={rule.title || 'New Rule'}
                     unitType="Rule"
                     active={rule.id === activeRuleId}
@@ -2528,42 +2425,6 @@ const CardBuilderHaloFlashpoint = () => {
         </EditorPanel>
       ) : undefined}
       modals={<>
-      {/* ── Add Rule modal ──────────────────────────────────────────────── */}
-      <AddRuleModal
-        open={ruleModalOpen}
-        onClose={() => setRuleModalOpen(false)}
-        gameSlug="halo-flashpoint"
-        onRuleSelected={addRule}
-        excludeRuleIds={deckRules.map(r => r.dbRuleId)}
-        constraints={ruleConstraints}
-      />
-
-      {/* ── Edit Rule definition modal ─────────────────────────────────── */}
-      <AddRuleModal
-        open={!!editingRule}
-        onClose={() => setEditingRule(null)}
-        gameSlug="halo-flashpoint"
-        editingRule={editingRule ? {
-          id:          editingRule.dbRuleId,
-          title:       editingRule.title,
-          description: editingRule.description,
-        } : null}
-        onRuleSelected={() => {}}
-        onRuleUpdated={(updated) => {
-          // Propagate name/description changes to all deck rules referencing this rule
-          setRuleState(s => ({
-            ...s,
-            rules: s.rules.map(r =>
-              r.dbRuleId === updated.ruleId
-                ? { ...r, title: updated.title, description: updated.description }
-                : r,
-            ),
-          }));
-          setEditingRule(null);
-        }}
-        constraints={ruleConstraints}
-      />
-
       {/* ── Delete portrait confirmation modal ──────────────────────────── */}
       <Modal
         open={deletePortraitConfirm}
@@ -2675,6 +2536,16 @@ const CardBuilderHaloFlashpoint = () => {
         onDeleteTemplate={deleteTemplate}
       />
 
+      {/* ── New Rule modal (rule templates picker) ────────────────────────── */}
+      <NewCardModal
+        open={newRuleModalOpen}
+        onClose={() => setNewRuleModalOpen(false)}
+        templates={newRuleTemplates}
+        onNewBlank={() => { setNewRuleModalOpen(false); addRuleCard(); }}
+        onPickTemplate={createRuleFromTemplate}
+        onDeleteTemplate={deleteRuleTemplate}
+      />
+
       {/* ── Add Weapon modal ──────────────────────────────────────────────── */}
       <AddAddonModal
         open={weaponModalOpen}
@@ -2685,8 +2556,8 @@ const CardBuilderHaloFlashpoint = () => {
         excludeAddonIds={activeCard.weapons.map(w => w.addonId)}
         onAdd={handleWeaponAdded}
         onDeleted={handleWeaponDeleted}
-        getSubtitle={getWeaponSubtitle}
-        CreateFormComponent={HaloWeaponForm}
+        getSubtitle={haloWeaponSubtitle}
+        CreateFormComponent={WeaponFormWithContext}
       />
 
       {/* ── Weapon detail modal ────────────────────────────────────────────── */}
@@ -2716,7 +2587,7 @@ const CardBuilderHaloFlashpoint = () => {
       {/* ── Edit Weapon modal (direct form, skips picker) ──────────────────── */}
       {editingWeaponAddon && (
         <Modal open onClose={() => setEditingWeaponAddon(null)} className="max-w-md">
-          <HaloWeaponForm
+          <WeaponFormWithContext
             editingAddon={editingWeaponAddon}
             onSave={async (name, description, stats) => {
               setSavingWeaponEdit(true);

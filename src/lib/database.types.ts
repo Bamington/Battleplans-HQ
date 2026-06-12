@@ -13,6 +13,12 @@ export interface StatField {
   key:   string
   label: string
   type:  StatFieldType
+  /** When true, this stat field carries the player's personal customization
+   *  (e.g. their team's name, their hero's name) and should be stripped
+   *  when the row is copied into a shareable pack. The pack-copy RPCs
+   *  read this flag off the game's stat_schema and remove matching keys
+   *  from the cloned stats object. */
+  userSpecific?: boolean
 }
 
 // ── Game-specific stat shapes ─────────────────────────────────────────────────
@@ -212,6 +218,16 @@ export interface Pack {
   is_public:     boolean
   created_at:    string
   updated_at:    string
+}
+
+/**
+ * Per-user profile row. Created automatically on signup via DB trigger.
+ * The `role` field gates admin-only features (e.g. creating packs).
+ */
+export interface UserProfile {
+  id:         string
+  role:       'user' | 'admin'
+  created_at: string
 }
 
 /**
