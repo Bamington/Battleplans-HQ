@@ -40,6 +40,9 @@ import Button from '../components/Button';
 import HR from '../components/HR';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import BloodBowlCard from '../components/BloodBowlCard';
+import StarPlayerCard from '../components/StarPlayerCard';
+import type { CardSkillInfo } from '../components/BloodBowlCard';
+import Checkbox from '../components/Checkbox';
 import Card3DWrapper from '../components/Card3DWrapper';
 import Modal from '../components/Modal';
 import AddKeywordModal from '../components/AddKeywordModal';
@@ -95,12 +98,54 @@ interface LocalKeywordAttachment {
   description: string;
   hasParams: boolean;
   paramValue: number | null;
+  /** Blood Bowl star-only keyword — renders as a Special Rule, not a Skill. */
+  starPlayerOnly: boolean;
 }
 
-// Per-keyword "Name" / "Name (X)" formatting goes through the shared
-// formatKeywordLabel — same primitive the pack editor's shapers use.
+// Skills & Traits exclude star-only keywords (those render as Special Rules).
 const buildSkillsDisplayString = (kws: LocalKeywordAttachment[]) =>
-  kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
+  kws
+    .filter(k => !k.starPlayerOnly)
+    .map(k => formatKeywordLabel(k.keywordName, k.paramValue))
+    .join(', ');
+
+// ── Star-player keyword partitioning + card-prop helpers ──────────────────────
+const skillKeywords       = (c: BloodBowlCardData) => c.unitKeywords.filter(k => !k.starPlayerOnly);
+const specialRuleKeywords = (c: BloodBowlCardData) => c.unitKeywords.filter(k =>  k.starPlayerOnly);
+
+const toCardSkillInfo = (kws: LocalKeywordAttachment[]): CardSkillInfo[] =>
+  kws.map(k => ({
+    label:       k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
+    name:        k.keywordName,
+    description: k.description,
+  }));
+
+// Props shared by both BloodBowlCard and StarPlayerCard render sites.
+const staticCardProps = (c: BloodBowlCardData) => ({
+  teamName:   c.teamName   || 'Team Name',
+  unitName:   c.unitName   || 'Unit Name',
+  playerRole: c.playerRole || 'Player Role',
+  cost:       c.cost       || '?',
+  portrait:   c.portraitUrl ?? undefined,
+  ma: c.move, st: c.strength, ag: c.agility, pa: c.passing, av: c.armor,
+});
+
+// Read-only (carousel-adjacent) card render — picks the right component by type.
+const renderStaticCard = (c: BloodBowlCardData) =>
+  c.isStarPlayer ? (
+    <StarPlayerCard
+      {...staticCardProps(c)}
+      skills={c.skills}
+      specialRules={toCardSkillInfo(specialRuleKeywords(c))}
+    />
+  ) : (
+    <BloodBowlCard
+      {...staticCardProps(c)}
+      skills={c.skills}
+      primaryAttribute={c.primaryAttr.join(', ')     || '—'}
+      secondaryAttribute={c.secondaryAttr.join(', ') || '—'}
+    />
+  );
 
 // ── Card data type ────────────────────────────────────────────────────────────
 
@@ -122,6 +167,7 @@ interface BloodBowlCardData {
   unitKeywords:  LocalKeywordAttachment[];
   portraitUrl:   string | null;
   avatarUrl:     string | null;
+  isStarPlayer:  boolean;       // star players swap Development for Special Rules
 }
 
 const defaultCard = (): BloodBowlCardData => ({
@@ -142,6 +188,7 @@ const defaultCard = (): BloodBowlCardData => ({
   unitKeywords:  [],
   portraitUrl:   null,
   avatarUrl:     null,
+  isStarPlayer:  false,
 });
 
 // ── Persistence helpers ────────────────────────────────────────────────────────
@@ -172,6 +219,7 @@ const toBloodBowlStats = (c: BloodBowlCardData): BloodBowlStats => ({
   ag: c.agility,
   pa: c.passing,
   av: c.armor,
+  isStarPlayer: c.isStarPlayer,
 });
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -381,13 +429,13 @@ const CardBuilderBloodBowl = () => {
         keyword_id: string;
         params: Record<string, unknown>;
         sort_order: number | null;
-        keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null;
+        keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[]; extra: Record<string, unknown> | null } | null;
       }[];
     };
 
     const { data: tmpl, error } = await supabase
       .from('cards')
-      .select('name, stats, card_addons(addon_id, sort_order), card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema))')
+      .select('name, stats, card_addons(addon_id, sort_order), card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema, extra))')
       .eq('id', templateId)
       .single();
     if (error || !tmpl) { console.error('[BattleCards] Template fetch failed:', error); return; }
@@ -429,6 +477,7 @@ const CardBuilderBloodBowl = () => {
         description: k.keywords!.description ?? '',
         hasParams:   Array.isArray(k.keywords!.params_schema) && k.keywords!.params_schema.length > 0,
         paramValue:  k.params?.X != null ? Number(k.params.X) : null,
+        starPlayerOnly: k.keywords!.extra?.starPlayerOnly === true,
       }));
 
     const s = (src.stats ?? {}) as BloodBowlStats;
@@ -450,6 +499,7 @@ const CardBuilderBloodBowl = () => {
       unitKeywords:  loadedKeywords,
       portraitUrl:   null,
       avatarUrl:     null,
+      isStarPlayer:  s.isStarPlayer ?? false,
     };
     setCardState(st => ({ cards: [...st.cards, localCard], activeCardId: localCard.id }));
     setNewCardModalOpen(false);
@@ -646,7 +696,7 @@ const CardBuilderBloodBowl = () => {
     supabase.from('decks').select('name').eq('id', deckId).single()
       .then(({ data }) => { if (data) setDeckName(data.name); });
 
-    type CardKeywordRow = { keyword_id: string; params: Record<string, unknown>; sort_order: number | null; keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[] } | null };
+    type CardKeywordRow = { keyword_id: string; params: Record<string, unknown>; sort_order: number | null; keywords: { name: string; description: string | null; params_schema: { key: string; type: string; label: string }[]; extra: Record<string, unknown> | null } | null };
     type CardRow = {
       id: string; name: string; stats: BloodBowlStats;
       card_keywords: CardKeywordRow[];
@@ -655,7 +705,7 @@ const CardBuilderBloodBowl = () => {
 
     supabase
       .from('cards')
-      .select('id, name, stats, card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema)), card_images(file_path, sort_order, image_type)')
+      .select('id, name, stats, card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema, extra)), card_images(file_path, sort_order, image_type)')
       .eq('deck_id', deckId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
@@ -675,6 +725,7 @@ const CardBuilderBloodBowl = () => {
             description: ck.keywords!.description ?? '',
             hasParams: Array.isArray(ck.keywords!.params_schema) && ck.keywords!.params_schema.length > 0,
             paramValue: ck.params?.X != null ? Number(ck.params.X) : null,
+            starPlayerOnly: ck.keywords!.extra?.starPlayerOnly === true,
           }));
 
           // Resolve card images by type
@@ -708,6 +759,7 @@ const CardBuilderBloodBowl = () => {
             unitKeywords: loadedUnitKeywords,
             portraitUrl,
             avatarUrl,
+            isStarPlayer: s.isStarPlayer ?? false,
           } as BloodBowlCardData;
         });
         setCardState({ cards: loaded, activeCardId: loaded[0].id });
@@ -908,16 +960,17 @@ const CardBuilderBloodBowl = () => {
   const [editingSkill, setEditingSkill]                 = useState<LocalKeywordAttachment | null>(null);
 
   /** Propagate a skill/keyword definition update across ALL cards. */
-  const propagateKeywordUpdate = useCallback((keywordId: string, newName: string, newDescription: string, newHasParams: boolean) => {
+  const propagateKeywordUpdate = useCallback((keywordId: string, newName: string, newDescription: string, newHasParams: boolean, newStarOnly: boolean) => {
     setCardState(s => ({
       ...s,
       cards: s.cards.map(c => {
-        const newUnitKws = c.unitKeywords.map(k =>
-          k.keywordId === keywordId
-            ? { ...k, keywordName: newName, description: newDescription, hasParams: newHasParams }
-            : k,
-        );
-        if (newUnitKws === c.unitKeywords) return c;
+        let changed = false;
+        const newUnitKws = c.unitKeywords.map(k => {
+          if (k.keywordId !== keywordId) return k;
+          changed = true;
+          return { ...k, keywordName: newName, description: newDescription, hasParams: newHasParams, starPlayerOnly: newStarOnly };
+        });
+        if (!changed) return c;
         dirtyCardsRef.current.add(c.id);
         return { ...c, unitKeywords: newUnitKws, skills: buildSkillsDisplayString(newUnitKws) };
       }),
@@ -1064,6 +1117,24 @@ const CardBuilderBloodBowl = () => {
   // ── Derived values ────────────────────────────────────────────────────────────
   const skillsString = activeCard.skills;
 
+  // Inline-edit callbacks shared by BloodBowlCard and StarPlayerCard (edit mode only).
+  const activeCardEditProps = appMode === 'edit' ? {
+    onTeamNameChange:   (v: string) => updateActiveCard({ teamName:   v }),
+    onUnitNameChange:   (v: string) => updateActiveCard({ unitName:   v }),
+    onPlayerRoleChange: (v: string) => updateActiveCard({ playerRole: v }),
+    onCostChange:       (v: string) => updateActiveCard({ cost:       v }),
+    onMaChange: (v: number) => updateActiveCard({ move:     v }),
+    onStChange: (v: number) => updateActiveCard({ strength: v }),
+    onAgChange: (v: number) => updateActiveCard({ agility:  v }),
+    onPaChange: (v: number) => updateActiveCard({ passing:  v }),
+    onAvChange: (v: number) => updateActiveCard({ armor:    v }),
+    onEditSkill: (sk: { name: string; description: string }) => {
+      const match = activeCard.unitKeywords.find(k => k.keywordName === sk.name);
+      if (match) setEditingSkill(match);
+    },
+    constraints: cardConstraints,
+  } : {};
+
   // ── Shared editor form ────────────────────────────────────────────────────────
   const editorForm = (
     <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
@@ -1073,6 +1144,12 @@ const CardBuilderBloodBowl = () => {
         <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">
           Basic Details
         </p>
+
+        <Checkbox
+          label="Star Player"
+          checked={activeCard.isStarPlayer}
+          onChange={e => updateActiveCard({ isStarPlayer: e.target.checked })}
+        />
 
         <Input
           label="Team Name"
@@ -1205,37 +1282,42 @@ const CardBuilderBloodBowl = () => {
         />
       </section>
 
-      {/* ── Player Development ─────────────────────────────────────────── */}
+      {/* ── Player Development — star players don't develop, so hide it ─── */}
+      {!activeCard.isStarPlayer && (
+        <section className="space-y-3">
+          <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Player Development
+          </p>
+
+          <MultiSelectDropdown
+            label="Primary Attributes"
+            required
+            helperText="Used for league progression."
+            options={ATTRIBUTE_OPTIONS}
+            selected={activeCard.primaryAttr}
+            disabledOptions={activeCard.secondaryAttr}
+            onChange={primaryAttr => updateActiveCard({ primaryAttr })}
+          />
+
+          <MultiSelectDropdown
+            label="Secondary Attributes"
+            required
+            helperText="Used for league progression."
+            options={ATTRIBUTE_OPTIONS}
+            selected={activeCard.secondaryAttr}
+            disabledOptions={activeCard.primaryAttr}
+            onChange={secondaryAttr => updateActiveCard({ secondaryAttr })}
+          />
+        </section>
+      )}
+
+      {/* ── Skills & Special Rules (keyword-based) ───────────────────────
+          On a star player card, star-only keywords render as Special Rules on
+          the card; regular keywords render as Skills & Traits. Both are managed
+          from this single attached-keyword list. */}
       <section className="space-y-3">
         <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">
-          Player Development
-        </p>
-
-        <MultiSelectDropdown
-          label="Primary Attributes"
-          required
-          helperText="Used for league progression."
-          options={ATTRIBUTE_OPTIONS}
-          selected={activeCard.primaryAttr}
-          disabledOptions={activeCard.secondaryAttr}
-          onChange={primaryAttr => updateActiveCard({ primaryAttr })}
-        />
-
-        <MultiSelectDropdown
-          label="Secondary Attributes"
-          required
-          helperText="Used for league progression."
-          options={ATTRIBUTE_OPTIONS}
-          selected={activeCard.secondaryAttr}
-          disabledOptions={activeCard.primaryAttr}
-          onChange={secondaryAttr => updateActiveCard({ secondaryAttr })}
-        />
-      </section>
-
-      {/* ── Skills (keyword-based) ─────────────────────────────────────── */}
-      <section className="space-y-3">
-        <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">
-          Skills
+          {activeCard.isStarPlayer ? 'Skills & Special Rules' : 'Skills'}
         </p>
 
         {activeCard.unitKeywords.length > 0 && (
@@ -1280,8 +1362,11 @@ const CardBuilderBloodBowl = () => {
           gameSlug="blood-bowl"
           typeName="Skill"
           valueExamples="Loner (X), Mighty Blow (X)"
+          showStarPlayerFlag={activeCard.isStarPlayer}
+          excludeStarPlayerKeywords={!activeCard.isStarPlayer}
           onKeywordSelected={(kw) => {
-            const updated = [...activeCard.unitKeywords, kw];
+            const attachment: LocalKeywordAttachment = { ...kw, starPlayerOnly: kw.starPlayerOnly ?? false };
+            const updated = [...activeCard.unitKeywords, attachment];
             updateActiveCard({
               unitKeywords: updated,
               skills: buildSkillsDisplayString(updated),
@@ -1310,15 +1395,17 @@ const CardBuilderBloodBowl = () => {
           gameSlug="blood-bowl"
           typeName="Skill"
           valueExamples="Loner (X), Mighty Blow (X)"
+          showStarPlayerFlag={activeCard.isStarPlayer}
           editingKeyword={editingSkill ? {
             id: editingSkill.keywordId,
             name: editingSkill.keywordName,
             description: editingSkill.description,
             hasParams: editingSkill.hasParams,
+            starPlayerOnly: editingSkill.starPlayerOnly,
           } : null}
           onKeywordSelected={() => {}}
           onKeywordUpdated={(updated) => {
-            propagateKeywordUpdate(updated.keywordId, updated.keywordName, updated.description, updated.hasParams);
+            propagateKeywordUpdate(updated.keywordId, updated.keywordName, updated.description, updated.hasParams, updated.starPlayerOnly ?? false);
             setEditingSkill(null);
           }}
           constraints={keywordConstraints}
@@ -1655,20 +1742,7 @@ const CardBuilderBloodBowl = () => {
                     }}
                     onClick={() => prevCard && navigateCarousel(prevCard.id, 'prev')}
                   >
-                    {prevCard && (
-                      <BloodBowlCard
-                        teamName={prevCard.teamName     || 'Team Name'}
-                        unitName={prevCard.unitName     || 'Unit Name'}
-                        playerRole={prevCard.playerRole || 'Player Role'}
-                        cost={prevCard.cost             || '?'}
-                        skills={prevCard.skills}
-                        portrait={prevCard.portraitUrl ?? undefined}
-                        primaryAttribute={prevCard.primaryAttr.join(', ')   || '—'}
-                        secondaryAttribute={prevCard.secondaryAttr.join(', ') || '—'}
-                        ma={prevCard.move} st={prevCard.strength} ag={prevCard.agility}
-                        pa={prevCard.passing} av={prevCard.armor}
-                      />
-                    )}
+                    {prevCard && renderStaticCard(prevCard)}
                   </div>
 
                   {/* ── Active card — ref-controlled scale, no transform in JSX ── */}
@@ -1690,42 +1764,24 @@ const CardBuilderBloodBowl = () => {
                         filter: 'drop-shadow(0 5.571px 75.215px rgba(30,31,110,0.75))',
                       }}
                     >
-                      <BloodBowlCard
-                        teamName={activeCard.teamName     || 'Team Name'}
-                        unitName={activeCard.unitName     || 'Unit Name'}
-                        playerRole={activeCard.playerRole || 'Player Role'}
-                        cost={activeCard.cost             || '?'}
-                        skills={skillsString}
-                        skillData={activeCard.unitKeywords.map(k => ({
-                          label: k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
-                          name: k.keywordName,
-                          description: k.description,
-                        }))}
-                        portrait={activeCard.portraitUrl ?? undefined}
-                        primaryAttribute={activeCard.primaryAttr.length   ? activeCard.primaryAttr.join(', ')   : '—'}
-                        secondaryAttribute={activeCard.secondaryAttr.length ? activeCard.secondaryAttr.join(', ') : '—'}
-                        ma={activeCard.move}
-                        st={activeCard.strength}
-                        ag={activeCard.agility}
-                        pa={activeCard.passing}
-                        av={activeCard.armor}
-                        {...(appMode === 'edit' ? {
-                          onTeamNameChange:   (v: string) => updateActiveCard({ teamName:   v }),
-                          onUnitNameChange:   (v: string) => updateActiveCard({ unitName:   v }),
-                          onPlayerRoleChange: (v: string) => updateActiveCard({ playerRole: v }),
-                          onCostChange:       (v: string) => updateActiveCard({ cost:       v }),
-                          onMaChange: (v: number) => updateActiveCard({ move:     v }),
-                          onStChange: (v: number) => updateActiveCard({ strength: v }),
-                          onAgChange: (v: number) => updateActiveCard({ agility:  v }),
-                          onPaChange: (v: number) => updateActiveCard({ passing:  v }),
-                          onAvChange: (v: number) => updateActiveCard({ armor:    v }),
-                          onEditSkill: (sk: { name: string; description: string }) => {
-                            const match = activeCard.unitKeywords.find(k => k.keywordName === sk.name);
-                            if (match) setEditingSkill(match);
-                          },
-                          constraints: cardConstraints,
-                        } : {})}
-                      />
+                      {activeCard.isStarPlayer ? (
+                        <StarPlayerCard
+                          {...staticCardProps(activeCard)}
+                          skills={skillsString}
+                          skillData={toCardSkillInfo(skillKeywords(activeCard))}
+                          specialRules={toCardSkillInfo(specialRuleKeywords(activeCard))}
+                          {...activeCardEditProps}
+                        />
+                      ) : (
+                        <BloodBowlCard
+                          {...staticCardProps(activeCard)}
+                          skills={skillsString}
+                          skillData={toCardSkillInfo(skillKeywords(activeCard))}
+                          primaryAttribute={activeCard.primaryAttr.length   ? activeCard.primaryAttr.join(', ')   : '—'}
+                          secondaryAttribute={activeCard.secondaryAttr.length ? activeCard.secondaryAttr.join(', ') : '—'}
+                          {...activeCardEditProps}
+                        />
+                      )}
                     </Card3DWrapper>
                   </div>
 
@@ -1745,20 +1801,7 @@ const CardBuilderBloodBowl = () => {
                     }}
                     onClick={() => nextCard && navigateCarousel(nextCard.id, 'next')}
                   >
-                    {nextCard && (
-                      <BloodBowlCard
-                        teamName={nextCard.teamName     || 'Team Name'}
-                        unitName={nextCard.unitName     || 'Unit Name'}
-                        playerRole={nextCard.playerRole || 'Player Role'}
-                        cost={nextCard.cost             || '?'}
-                        skills={nextCard.skills}
-                        portrait={nextCard.portraitUrl ?? undefined}
-                        primaryAttribute={nextCard.primaryAttr.join(', ')   || '—'}
-                        secondaryAttribute={nextCard.secondaryAttr.join(', ') || '—'}
-                        ma={nextCard.move} st={nextCard.strength} ag={nextCard.agility}
-                        pa={nextCard.passing} av={nextCard.armor}
-                      />
-                    )}
+                    {nextCard && renderStaticCard(nextCard)}
                   </div>
                 </div>
               );

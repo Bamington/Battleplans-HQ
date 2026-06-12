@@ -1,23 +1,29 @@
 /**
- * BloodBowlCard.tsx — Blood Bowl unit card
+ * StarPlayerCard.tsx — Blood Bowl STAR PLAYER card
  *
- * Architecture:
- *   Layer 1 — card-background.svg  : all static chrome (card shape, stat column,
- *             GP shield, section backgrounds, decorative elements)
- *   Layer 2 — Player image          : portrait clipped to a parallelogram using
- *             a CSS mask (image-mask.png from Figma's Image Mask Shape vector)
- *   Layer 3 — Interactive           : dynamically-bound text nodes, positioned to
- *             match the Figma "Interactive" group exactly (node 226:3515)
+ * A star player card is visually the same as a regular Blood Bowl player card
+ * (team name, unit name, stat column, GP cost, player-role banner, Skills &
+ * Traits) with ONE structural difference: the Player Development (Primary /
+ * Secondary) section is replaced by a variable-height "Special Rules" block.
+ *
+ * Special Rules are sourced from star-player-only keywords (keywords whose
+ * `extra.starPlayerOnly === true`). Unlike Skills & Traits — which render as a
+ * comma-separated list of labels — each Special Rule renders its full
+ * description as a flowing paragraph (bold name, then the rule text), matching
+ * the printed card (e.g. "Master Assassin: Once per game…").
+ *
+ * This component shares its layout lineage with BloodBowlCard but is kept
+ * standalone deliberately: star cards will diverge in styling and get their own
+ * background asset. For now it renders against the regular bg.svg — the
+ * `★ STAR BG SEAM` comment below marks where the star-specific background and
+ * "Special Rules" section chrome will plug in.
  *
  * The card renders at its native 750 × 1100 px. Scale the outer wrapper with a
  * CSS transform for smaller display sizes.
  *
- * All positions and styles are taken directly from Figma — do not adjust by eye.
- *
- * Inline editing:
- *   Pass an onChange callback (e.g. onTeamNameChange) to enable double-click
- *   editing on that field. Omit the callback to keep the field read-only.
- *   Edits commit on blur or Enter; Escape cancels without saving.
+ * Inline editing: pass an onChange callback to enable double-click editing on
+ * that field. Special Rules are NOT free-text edited here — clicking a rule name
+ * opens the keyword info modal (view / edit), mirroring Skills & Traits.
  */
 
 import { useState, useRef } from 'react';
@@ -25,7 +31,8 @@ import { createPortal }    from 'react-dom';
 import KeywordInfoModal    from './KeywordInfoModal';
 import { clampNumber, getMaxLength } from '../lib/constraints';
 import type { EntityConstraints }    from '../lib/database.types';
-import cardBackground      from '../assets/games/card assets/blood-bowl/bg.svg';
+import type { CardSkillInfo }        from './BloodBowlCard';
+import starBackground      from '../assets/games/card assets/blood-bowl/bg_star.svg';
 import portraitPlaceholder from '../assets/games/card assets/blood-bowl/example-image.jpg';
 
 // ── Font shorthands ───────────────────────────────────────────────────────────
@@ -33,11 +40,12 @@ const BROTHERS = { fontFamily: "'Brothers', serif" } as const;
 const NOTO     = { fontFamily: "'Noto Sans', sans-serif", fontVariationSettings: "'CTGR' 0, 'wdth' 100" } as const;
 const NOTO_MED = { ...NOTO, fontWeight: 500 } as const;
 
-// Stat numbers: Brothers, dark blue, white stroke behind fill (Figma spec)
+// Stat numbers: Brothers, dark blue. Star players use a golden-yellow stroke
+// (regular players use white) — 4px stroke behind the fill.
 const STAT_STYLE = {
   ...BROTHERS,
   color:            '#0e457d',
-  WebkitTextStroke: '4px white',
+  WebkitTextStroke: '4px #FFAE00',
   paintOrder:       'stroke fill',
 } as const;
 
@@ -56,25 +64,18 @@ const INPUT_BASE: React.CSSProperties = {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-/** Structured skill data for clickable skill links on the card. */
-export interface CardSkillInfo {
-  label: string;
-  name:  string;
-  description: string;
-}
-
-export interface BloodBowlCardProps {
+export interface StarPlayerCardProps {
   teamName?:           string;
   unitName?:           string;
   playerRole?:         string;
-  /** GP cost displayed in the banner — e.g. "75,000" */
+  /** GP cost displayed in the banner — e.g. "170,000" */
   cost?:               string | number;
   /** Comma-separated skills & traits */
   skills?:             string;
   /** When provided, skills render as individually clickable links instead of flat text. */
   skillData?:          CardSkillInfo[];
-  primaryAttribute?:   string;
-  secondaryAttribute?: string;
+  /** Star-player-only Special Rules — each renders name (bold) + full description. */
+  specialRules?:       CardSkillInfo[];
   /** Portrait image src — defaults to placeholder */
   portrait?:           string;
   ma?: number;
@@ -95,7 +96,7 @@ export interface BloodBowlCardProps {
   onAgChange?: (v: number) => void;
   onPaChange?: (v: number) => void;
   onAvChange?: (v: number) => void;
-  /** Called when user clicks "Edit Skill" from a skill info modal on the card */
+  /** Called when user clicks "Edit" from a skill / special-rule info modal on the card */
   onEditSkill?:        (skill: CardSkillInfo) => void;
   /** DB-driven validation constraints — when omitted, falls back to 0–9 for numbers. */
   constraints?:        EntityConstraints;
@@ -103,15 +104,14 @@ export interface BloodBowlCardProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const BloodBowlCard = ({
+const StarPlayerCard = ({
   teamName           = 'Team Name',
   unitName           = 'Unit Name',
   playerRole         = 'Player Role',
   cost               = '0',
   skills             = '—',
   skillData,
-  primaryAttribute   = '—',
-  secondaryAttribute = '—',
+  specialRules       = [],
   portrait           = portraitPlaceholder,
   ma = 0,
   st = 0,
@@ -131,10 +131,10 @@ const BloodBowlCard = ({
   onAvChange,
   onEditSkill,
   constraints = {},
-}: BloodBowlCardProps) => {
+}: StarPlayerCardProps) => {
 
-  // ── Skill info modal state ──────────────────────────────────────────────────
-  const [viewingCardSkill, setViewingCardSkill] = useState<CardSkillInfo | null>(null);
+  // ── Info modal state — shared by Skills and Special Rules ────────────────────
+  const [viewing, setViewing] = useState<{ info: CardSkillInfo; type: string } | null>(null);
 
   // ── Inline edit state ───────────────────────────────────────────────────────
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -186,18 +186,17 @@ const BloodBowlCard = ({
       style={{ width: 750, height: 1100 }}
     >
 
-      {/* ── Layer 1: static SVG background ─────────────────────────────── */}
+      {/* ── Layer 1: static SVG background (star-player chrome) ───────────
+          bg_star.svg supplies the "Special Rules" section heading in place of
+          the regular card's "Player Development" chrome. */}
       <img
-        src={cardBackground}
+        src={starBackground}
         alt=""
         className="absolute inset-0 w-full h-full"
         draggable={false}
       />
 
-      {/* ── Layer 2: player portrait, clipped to parallelogram ───────────
-          Node: 240:4619 "Player Image" — x:163 y:50 w:393 h:407
-          clip-path polygon derived from Figma's "Image Mask Shape" vector:
-            M 0 38 L 393 0 L 393 369 L 0 407 Z */}
+      {/* ── Layer 2: player portrait, clipped to parallelogram ───────────── */}
       <div
         className="absolute"
         style={{
@@ -218,8 +217,7 @@ const BloodBowlCard = ({
 
       {/* ── Layer 3: interactive elements ──────────────────────────────── */}
 
-      {/* ── Card Headings (node 31:11190) ─────────────────────────────── */}
-
+      {/* ── Card Headings ─────────────────────────────────────────────── */}
       <div
         className="absolute flex flex-col items-start"
         style={{ left: '22.85px', top: '15px' }}
@@ -305,9 +303,7 @@ const BloodBowlCard = ({
         </div>
       </div>
 
-      {/* ── Stat Numbers (node 226:3097) ──────────────────────────────────
-          Brothers 58px, #0e457d, 3px white stroke behind fill.
-          MA/ST: no suffix. AG/PA/AV: "+" suffix at 28px. */}
+      {/* ── Stat Numbers ────────────────────────────────────────────────── */}
 
       {/* MA — top 215 */}
       <div
@@ -438,8 +434,7 @@ const BloodBowlCard = ({
         </div>
       </div>
 
-      {/* ── GP Cost (node 31:11427) ───────────────────────────────────────
-          Brothers 22px, white, centered in the GP banner ribbon. */}
+      {/* ── GP Cost ─────────────────────────────────────────────────────── */}
       <div
         className="-translate-x-1/2 -translate-y-full absolute flex flex-col justify-end leading-[0] not-italic text-[28px] text-center text-white whitespace-nowrap"
         style={{ ...BROTHERS, left: 'calc(50% - 264px)', top: 'calc(50% + 492px)' }}
@@ -475,9 +470,7 @@ const BloodBowlCard = ({
         )}
       </div>
 
-      {/* ── Player Role (node 240:4610) ───────────────────────────────────
-          Brothers 53px, white, centered, tracking -1.06px, uppercase.
-          bottom:96.5 centered at left:calc(50%+80.5px) w:509 */}
+      {/* ── Player Role ─────────────────────────────────────────────────── */}
       <div
         className="-translate-x-1/2 translate-y-1/2 absolute flex flex-col justify-center leading-[0] not-italic text-[53px] text-center text-white uppercase"
         style={{ ...BROTHERS, left: 'calc(50% + 80.5px)', bottom: 96.5, width: 509, letterSpacing: '-1.06px' }}
@@ -515,16 +508,17 @@ const BloodBowlCard = ({
         )}
       </div>
 
-      {/* ── Skills and Development (node 31:11374) ───────────────────────
-          left:163 top:476 width:367
-          gap-[10px] between sections (updated from 18px in Figma redesign)
-          Skills Container:   h-[118px] pt-[12px] px-[7px]
-          Development Container: gap-px px-[7px] (no vertical padding) */}
+      {/* ── Skills & Special Rules ───────────────────────────────────────
+          Same anchor + sub-section offsets as the regular card's
+          Skills/Development block (left:178 top:679 w:367). The bg_star.svg
+          bakes in "SKILLS & TRAITS" (top) and "SPECIAL RULES" (top:166) section
+          headings, so each block is pinned to sit beneath its heading. Special
+          Rules flows downward from its fixed top and may grow past the box. */}
       <div
         className="absolute w-[367px] h-[231px]"
         style={{ left: 178, top: 679 }}
       >
-        {/* Skills Container */}
+        {/* Skills Container — beneath the "SKILLS & TRAITS" heading */}
         <div className="absolute flex flex-col h-[118px] items-start pt-[12px] px-[7px] left-0 right-0 top-0">
           <div
             className="flex flex-col font-normal justify-end leading-[0] relative shrink-0 text-[20px] text-black w-[353px]"
@@ -556,8 +550,8 @@ const BloodBowlCard = ({
                     <span
                       role="button"
                       tabIndex={0}
-                      onClick={e => { e.stopPropagation(); setViewingCardSkill(sk); }}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setViewingCardSkill(sk); } }}
+                      onClick={e => { e.stopPropagation(); setViewing({ info: sk, type: 'Skill' }); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setViewing({ info: sk, type: 'Skill' }); } }}
                       style={{ textDecoration: 'underline', color: '#2563eb', cursor: 'pointer' }}
                     >
                       {sk.label}
@@ -577,43 +571,51 @@ const BloodBowlCard = ({
           </div>
         </div>
 
-        {/* Development Container */}
-        <div
-          className="absolute flex flex-col gap-px items-start leading-[0] left-0 right-0 px-[7px] text-[18px] text-black tracking-[-0.36px]"
-          style={{ top: 166 }}
-        >
-          {/* Primary */}
-          <div className="flex gap-[4px] h-[32px] items-center justify-center relative shrink-0 w-full">
-            <div className="flex flex-col justify-center relative shrink-0 whitespace-nowrap" style={NOTO_MED}>
-              <p className="leading-[normal]">Primary:</p>
-            </div>
-            <div className="flex flex-[1_0_0] flex-col font-normal h-full justify-center min-h-px min-w-px relative" style={NOTO}>
-              <p className="leading-[normal]">{primaryAttribute}</p>
-            </div>
-          </div>
-          {/* Secondary */}
-          <div className="flex gap-[4px] h-[32px] items-center justify-center relative shrink-0 w-full">
-            <div className="flex flex-col justify-center relative shrink-0 whitespace-nowrap" style={NOTO_MED}>
-              <p className="leading-[normal]">Secondary:</p>
-            </div>
-            <div className="flex flex-[1_0_0] flex-col font-normal h-full justify-center min-h-px min-w-px relative" style={NOTO}>
-              <p className="leading-[normal]">{secondaryAttribute}</p>
-            </div>
-          </div>
+        {/* Special Rules Container — beneath the baked-in "SPECIAL RULES"
+            heading (baseline ~y829, measured from bg_star.svg). The star asset
+            places that heading exactly where the regular card's "Player
+            Development" heading sits, so this uses the same top:166 offset the
+            Development block uses (first line lands ~16px under the heading).
+            Each rule: bold (clickable) name + ": " + full description, flowing. */}
+        <div className="absolute flex flex-col gap-[8px] px-[7px] left-0 right-0" style={{ top: 166 }}>
+          {specialRules.length > 0 ? (
+            specialRules.map((rule, i) => (
+              <p
+                key={i}
+                className="leading-[normal] text-[18px] text-black tracking-[-0.36px]"
+                style={NOTO}
+              >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={e => { e.stopPropagation(); setViewing({ info: rule, type: 'Special Rule' }); }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setViewing({ info: rule, type: 'Special Rule' }); } }}
+                  style={{ ...NOTO_MED, fontWeight: 700, color: '#0e457d', cursor: 'pointer' }}
+                >
+                  {rule.name}:
+                </span>{' '}
+                {rule.description}
+              </p>
+            ))
+          ) : (
+            <p className="leading-[normal] text-[18px] text-gray-400 italic" style={NOTO}>
+              No special rules yet
+            </p>
+          )}
         </div>
       </div>
 
-      {/* ── Skill info modal (portaled to body to escape card scaling) ── */}
-      {viewingCardSkill && createPortal(
+      {/* ── Info modal (portaled to body to escape card scaling) ── */}
+      {viewing && createPortal(
         <KeywordInfoModal
           open
-          onClose={() => setViewingCardSkill(null)}
-          name={viewingCardSkill.name}
-          description={viewingCardSkill.description}
-          typeName="Skill"
+          onClose={() => setViewing(null)}
+          name={viewing.info.name}
+          description={viewing.info.description}
+          typeName={viewing.type}
           onEdit={onEditSkill ? () => {
-            const sk = viewingCardSkill;
-            setViewingCardSkill(null);
+            const sk = viewing.info;
+            setViewing(null);
             onEditSkill(sk);
           } : undefined}
         />,
@@ -624,4 +626,4 @@ const BloodBowlCard = ({
   );
 };
 
-export default BloodBowlCard;
+export default StarPlayerCard;

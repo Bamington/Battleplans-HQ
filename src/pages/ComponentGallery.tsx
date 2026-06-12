@@ -35,6 +35,7 @@ import Tabs from '../components/Tabs';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
 import heroImage from '../assets/hero.png';
 import BloodBowlCard from '../components/BloodBowlCard';
+import StarPlayerCard from '../components/StarPlayerCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
 import StarcraftCard from '../components/StarcraftCard';
 import StarcraftPhaseFrame from '../components/StarcraftPhaseFrame';
@@ -427,6 +428,7 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-stars"      icon={<Star className="w-5 h-5" />}              label="Star Rating" />
         <SidebarItem href="#nav-tabs"       icon={<Filter className="w-5 h-5" />}            label="Tabs"        />
         <SidebarItem href="#nav-bb-card"      icon={<Shield className="w-5 h-5" />}            label="BB Card"     />
+        <SidebarItem href="#nav-bb-star-card" icon={<Star className="w-5 h-5" />}              label="BB Star Card" />
         <SidebarItem href="#nav-sc-card"      icon={<Shield className="w-5 h-5" />}            label="SC Card"     />
         <SidebarItem href="#nav-sc-phase-frame" icon={<Shield className="w-5 h-5" />}          label="SC Phase Frame" />
         <SidebarItem href="#nav-kill-team-card" icon={<Shield className="w-5 h-5" />}          label="KT Card" />
@@ -2150,6 +2152,81 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Blood Bowl Star Player Card ───────────────────────────────────
+          Same layout as the regular BB card, but Player Development is
+          replaced by a variable-height Special Rules block sourced from
+          star-only keywords. */}
+      <GallerySection id="nav-bb-star-card" title="Blood Bowl Star Player Card / Default">
+        <div className="flex flex-wrap gap-8 items-start">
+
+          {/* Empty / placeholder state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(1100 * (278 / 750)) }}>
+              <div style={{ transform: `scale(${278 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <StarPlayerCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled — single special rule (Skitter Stab-Stab) */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filled — one special rule
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(1100 * (278 / 750)) }}>
+              <div style={{ transform: `scale(${278 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <StarPlayerCard
+                  teamName="Underworld Challenge"
+                  unitName="Skitter Stab-Stab"
+                  playerRole="Runner"
+                  cost="170,000"
+                  ma={9}
+                  st={2}
+                  ag={2}
+                  pa={4}
+                  av={8}
+                  skills="Dodge, Loner (4+), Prehensile Tail, Shadowing, Stab"
+                  specialRules={[
+                    { label: 'Master Assassin', name: 'Master Assassin', description: 'Once per game, when Skitter performs a Stab Special Action, he may choose to re-roll the Armour Roll.' },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled — multiple special rules (overflow / flow check) */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filled — multiple special rules
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(1100 * (278 / 750)) }}>
+              <div style={{ transform: `scale(${278 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <StarPlayerCard
+                  teamName="Old World Classic"
+                  unitName="Griff Oberwald"
+                  playerRole="Blitzer"
+                  cost="280,000"
+                  ma={7}
+                  st={4}
+                  ag={2}
+                  pa={3}
+                  av={9}
+                  skills="Block, Dodge, Fend, Loner (4+), Sprint, Sure Feet"
+                  specialRules={[
+                    { label: 'Consummate Professional', name: 'Consummate Professional', description: 'Once per turn, Griff may re-roll any single dice roll he has just made (but not one made for him by another player).' },
+                    { label: 'Fan Favourite', name: 'Fan Favourite', description: 'Add 1 to any Prayers to Nuffle roll made by a team that has hired Griff for this game.' },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
       {/* ── Halo Flashpoint Card ──────────────────────────────────────── */}
       <GallerySection id="nav-halo-card" title="Halo Flashpoint Card / Default">
         <div className="flex flex-wrap gap-8 items-start">
@@ -2969,6 +3046,18 @@ const ComponentGallery = () => {
               cardCount={4}
               thumbnailBg="bg-[#15417e]"
               thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+              onDelete={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With duplicate + delete actions (⋯ menu)</p>
+            <DeckListItem
+              name="Imperial Nobility 11's Team"
+              cardCount={3}
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+              onDuplicate={() => {}}
               onDelete={() => {}}
             />
           </div>

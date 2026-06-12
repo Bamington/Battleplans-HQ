@@ -49,6 +49,9 @@ export interface KeywordSelection {
   description: string;
   hasParams: boolean;
   paramValue: number | null;
+  /** Blood Bowl: true when this keyword is a star-player-only Special Rule.
+   *  Used by the card to route it into the Special Rules block. */
+  starPlayerOnly?: boolean;
 }
 
 export interface AddKeywordModalProps {
@@ -61,7 +64,7 @@ export interface AddKeywordModalProps {
   /** Keyword IDs already attached — excluded from the picker list */
   excludeKeywordIds?: string[];
   /** When provided, opens directly to the edit form with prefilled values */
-  editingKeyword?: { id: string; name: string; description: string; hasParams: boolean } | null;
+  editingKeyword?: { id: string; name: string; description: string; hasParams: boolean; starPlayerOnly?: boolean } | null;
   /** Called after a keyword definition is updated (name/description changed) */
   onKeywordUpdated?: (kw: KeywordSelection) => void;
   /** When true, the modal opens directly on the create form (no picker
@@ -77,6 +80,12 @@ export interface AddKeywordModalProps {
   valueExamples?: string;
   /** DB-driven constraints for keyword fields (name maxLength, description maxLength, etc.) */
   constraints?: EntityConstraints;
+  /** Blood Bowl: show the "Star Player Only" checkbox in the create/edit form,
+   *  letting a keyword be flagged as a star-player Special Rule. */
+  showStarPlayerFlag?: boolean;
+  /** Blood Bowl: hide star-player-only keywords from the picker list. Set true
+   *  when editing a regular (non-star) player so they can't be attached. */
+  excludeStarPlayerKeywords?: boolean;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -99,6 +108,8 @@ const AddKeywordModal = ({
   typeName = 'Keyword',
   valueExamples = 'Blast (X), Weight of Fire (X)',
   constraints = {},
+  showStarPlayerFlag = false,
+  excludeStarPlayerKeywords = false,
 }: AddKeywordModalProps) => {
   const [step, setStep]               = useState<Step>('loading');
   const [keywords, setKeywords]       = useState<Keyword[]>([]);
@@ -117,6 +128,7 @@ const AddKeywordModal = ({
   const [newName, setNewName]           = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newHasValue, setNewHasValue]   = useState(false);
+  const [newStarOnly, setNewStarOnly]   = useState(false);
 
   // Set-value step state
   const [pendingKeyword, setPendingKeyword] = useState<Keyword | null>(null);
@@ -126,15 +138,17 @@ const AddKeywordModal = ({
   const gameIdRef        = useRef<string | null>(null);
   const userIdRef        = useRef<string | null>(null);
   const excludeRef       = useRef(excludeKeywordIds);
+  const excludeStarRef   = useRef(excludeStarPlayerKeywords);
   const openRef          = useRef(open);
   const editingKwRef     = useRef(editingKeyword);
   const tabFilterRef     = useRef<'pack' | 'library' | null>(null);
   const packNameMapRef   = useRef<Map<string, string>>(new Map());
 
-  useEffect(() => { excludeRef.current    = excludeKeywordIds; }, [excludeKeywordIds]);
-  useEffect(() => { openRef.current       = open;              }, [open]);
-  useEffect(() => { editingKwRef.current  = editingKeyword;    }, [editingKeyword]);
-  useEffect(() => { tabFilterRef.current  = tabFilter;         }, [tabFilter]);
+  useEffect(() => { excludeRef.current     = excludeKeywordIds;         }, [excludeKeywordIds]);
+  useEffect(() => { excludeStarRef.current = excludeStarPlayerKeywords; }, [excludeStarPlayerKeywords]);
+  useEffect(() => { openRef.current        = open;                      }, [open]);
+  useEffect(() => { editingKwRef.current   = editingKeyword;            }, [editingKeyword]);
+  useEffect(() => { tabFilterRef.current   = tabFilter;                 }, [tabFilter]);
 
   // ── Fetch a page of keywords ──────────────────────────────────────────────
 
@@ -143,7 +157,11 @@ const AddKeywordModal = ({
     const userId = userIdRef.current;
     if (!gameId || !userId) return;
 
-    const excluded = excludeRef.current;
+    const excluded     = excludeRef.current;
+    const excludeStars = excludeStarRef.current;
+    // PostgREST: include rows where the flag is absent (null) OR not true.
+    // A plain `neq.true` would drop null rows, so the is.null branch is required.
+    const STAR_FILTER  = 'extra->>starPlayerOnly.is.null,extra->>starPlayerOnly.neq.true';
 
     // Build the filtered query
     let query = supabase
@@ -156,6 +174,9 @@ const AddKeywordModal = ({
 
     if (excluded.length > 0) {
       query = query.not('id', 'in', `(${excluded.join(',')})`);
+    }
+    if (excludeStars) {
+      query = query.or(STAR_FILTER);
     }
     if (search.trim()) {
       query = query.ilike('name', `%${search.trim()}%`);
@@ -174,6 +195,9 @@ const AddKeywordModal = ({
       .eq('game_id', gameId);
     if (excluded.length > 0) {
       unfilteredQuery = unfilteredQuery.not('id', 'in', `(${excluded.join(',')})`);
+    }
+    if (excludeStars) {
+      unfilteredQuery = unfilteredQuery.or(STAR_FILTER);
     }
 
     const [filtered, unfiltered] = await Promise.all([query, unfilteredQuery]);
@@ -200,6 +224,7 @@ const AddKeywordModal = ({
       setNewName('');
       setNewDescription('');
       setNewHasValue(false);
+      setNewStarOnly(false);
       setPendingKeyword(null);
       setParamValue(1);
       setSearchQuery('');
@@ -219,6 +244,7 @@ const AddKeywordModal = ({
       setNewName(editingKeyword.name);
       setNewDescription(editingKeyword.description);
       setNewHasValue(editingKeyword.hasParams);
+      setNewStarOnly(editingKeyword.starPlayerOnly ?? false);
       setStep('create');
     } else if (createOnly) {
       // Create-only mode skips the picker entirely.
@@ -317,6 +343,7 @@ const AddKeywordModal = ({
         description: selected.description ?? '',
         hasParams: false,
         paramValue: null,
+        starPlayerOnly: selected.extra?.starPlayerOnly === true,
       });
     }
   };
@@ -340,6 +367,9 @@ const AddKeywordModal = ({
             name: newName.trim(),
             description: newDescription.trim() || null,
             params_schema: paramsSchema,
+            // Only touch `extra` when the star flag is in play (Blood Bowl) so we
+            // don't clobber other game-specific metadata on the keyword.
+            ...(showStarPlayerFlag ? { extra: { starPlayerOnly: newStarOnly } } : {}),
           })
           .eq('id', editingKeyword.id)
           .select()
@@ -353,6 +383,7 @@ const AddKeywordModal = ({
           description: updated.description ?? '',
           hasParams: Array.isArray(updated.params_schema) && updated.params_schema.length > 0,
           paramValue: null,
+          starPlayerOnly: updated.extra?.starPlayerOnly === true,
         });
         onClose();
       } else {
@@ -365,7 +396,7 @@ const AddKeywordModal = ({
             name: newName.trim(),
             description: newDescription.trim() || null,
             params_schema: paramsSchema,
-            extra: {},
+            extra: showStarPlayerFlag && newStarOnly ? { starPlayerOnly: true } : {},
           })
           .select()
           .single();
@@ -386,6 +417,7 @@ const AddKeywordModal = ({
             description: created.description ?? '',
             hasParams: newHasValue,
             paramValue: null,
+            starPlayerOnly: created.extra?.starPlayerOnly === true,
           });
         }
       }
@@ -404,6 +436,7 @@ const AddKeywordModal = ({
       description: pendingKeyword.description ?? '',
       hasParams: true,
       paramValue: paramValue,
+      starPlayerOnly: pendingKeyword.extra?.starPlayerOnly === true,
     });
   };
 
@@ -416,6 +449,7 @@ const AddKeywordModal = ({
     setNewName('');
     setNewDescription('');
     setNewHasValue(false);
+    setNewStarOnly(false);
     // Go back to pick — always, since the user might want to pick an existing one
     setStep('pick');
     // Re-fetch in case the list changed
@@ -458,6 +492,7 @@ const AddKeywordModal = ({
               setNewName('');
               setNewDescription('');
               setNewHasValue(false);
+              setNewStarOnly(false);
               setStep('create');
             }}
           >
@@ -639,6 +674,14 @@ const AddKeywordModal = ({
             checked={newHasValue}
             onChange={e => setNewHasValue(e.target.checked)}
           />
+
+          {showStarPlayerFlag && (
+            <Checkbox
+              label="Star Player only (can't be added to regular players)"
+              checked={newStarOnly}
+              onChange={e => setNewStarOnly(e.target.checked)}
+            />
+          )}
 
           {/* CTAs */}
           <div className="flex items-center justify-end gap-1 flex-wrap">

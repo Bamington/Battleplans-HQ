@@ -34,6 +34,9 @@ export interface BloodBowlStats {
   ag?: number
   pa?: number
   av?: number
+  /** Star player discriminator. When true the card renders a Special Rules
+   *  block (from star-only keywords) in place of the Player Development section. */
+  isStarPlayer?: boolean
 }
 
 export interface HaloFlashpointStats {

@@ -5,7 +5,8 @@
  * on the left, the deck name + card count in the centre, and a ⋯ menu
  * button on the right. Highlights on hover with a brighter border and text.
  *
- * Clicking ⋯ opens a small dropdown with a "Delete Deck" action.
+ * Clicking ⋯ opens a small dropdown with "Duplicate Deck" and "Delete Deck"
+ * actions. Each is shown only when its corresponding handler is provided.
  *
  * Matches the Figma "Card / Deck List Item" component (node 270:2269).
  * Delete tooltip matches Figma node 293:3895.
@@ -40,6 +41,7 @@
 import React from 'react';
 import Dropdown, { DropdownItem } from './Dropdown';
 import MenuDots from '../icons/MenuDots';
+import Copy from '../icons/Copy';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
@@ -59,6 +61,8 @@ export interface DeckListItemProps {
   thumbnailBg?: string;
   /** Called when the user clicks the main card area (thumbnail + name) */
   onClick?: () => void;
+  /** Called when the user picks "Duplicate Deck" from the ⋯ menu */
+  onDuplicate?: () => void;
   /** Called when the user confirms "Delete Deck" from the ⋯ menu */
   onDelete?: () => void;
   /** Extra Tailwind classes on the outer element */
@@ -73,6 +77,7 @@ const DeckListItem = ({
   thumbnail,
   thumbnailBg = 'bg-gray-700',
   onClick,
+  onDuplicate,
   onDelete,
   className = '',
 }: DeckListItemProps) => {
@@ -119,7 +124,7 @@ const DeckListItem = ({
       </button>
 
       {/* ── Menu dots ─────────────────────────────────────────────────────── */}
-      {onDelete && (
+      {(onDuplicate || onDelete) && (
         <div className="shrink-0 opacity-50 group-hover:opacity-100 transition-opacity self-start">
           <Dropdown
             align="right"
@@ -134,13 +139,23 @@ const DeckListItem = ({
               </button>
             }
           >
-            <DropdownItem
-              icon={<TrashBinMinimalistic className="size-4" />}
-              onClick={onDelete}
-              className="!text-red-400 hover:!text-red-300 dark:!text-red-400 dark:hover:!text-red-300"
-            >
-              Delete Deck
-            </DropdownItem>
+            {onDuplicate && (
+              <DropdownItem
+                icon={<Copy className="size-4" />}
+                onClick={onDuplicate}
+              >
+                Duplicate Deck
+              </DropdownItem>
+            )}
+            {onDelete && (
+              <DropdownItem
+                icon={<TrashBinMinimalistic className="size-4" />}
+                onClick={onDelete}
+                className="!text-red-400 hover:!text-red-300 dark:!text-red-400 dark:hover:!text-red-300"
+              >
+                Delete Deck
+              </DropdownItem>
+            )}
           </Dropdown>
         </div>
       )}
