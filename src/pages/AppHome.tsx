@@ -92,6 +92,9 @@ import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
 import iconStarcraft from '../assets/games/card assets/starcraft/icon.svg';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — path contains spaces
+import iconRyg from '../assets/games/card assets/ryg/icon.svg';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
@@ -130,6 +133,13 @@ const GAMES = [
     logoSrc: logoStarcraft,
     thumbnailSrc: iconStarcraft as string,
     thumbnailBg: 'bg-gradient-to-b from-[#0b1a33] to-[#061020]',
+  },
+  {
+    id: 'ryg',
+    name: 'Repent Ye Foolish Gods',
+    logoSrc: iconRyg as string,
+    thumbnailSrc: iconRyg as string,
+    thumbnailBg: 'bg-[#1a1612]',
   },
 ] as const;
 

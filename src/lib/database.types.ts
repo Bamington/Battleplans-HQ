@@ -103,6 +103,23 @@ export interface StarcraftStats {
   tags?:         string
 }
 
+export interface RygStats {
+  type?:    string
+  sept?:    string
+  offense?: number
+  defense?: number
+  life?:    number
+  tactics?: number
+  fate?:    number
+}
+
+export interface RygWeaponStats {
+  /** Free-text die spec, e.g. "1D6+3". */
+  damage?: string
+  /** Range in inches. 0 = melee (rendered as "—"). */
+  range?:  number
+}
+
 // ── Addon-specific stat shapes ────────────────────────────────────────────────
 
 export interface BloodBowlSkillStats {

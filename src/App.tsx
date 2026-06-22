@@ -34,6 +34,7 @@ import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
 import CardBuilderHaloFlashpoint from './pages/CardBuilderHaloFlashpoint';
 import CardBuilderKillTeam from './pages/CardBuilderKillTeam';
 import CardBuilderStarcraft from './pages/CardBuilderStarcraft';
+import CardBuilderRyg from './pages/CardBuilderRyg';
 import PrintDeck from './pages/PrintDeck';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
@@ -111,6 +112,9 @@ function App() {
 
         {/* ── Card Builder — StarCraft ── */}
         <Route path="/app/builder/starcraft" element={<CardBuilderStarcraft />} />
+
+        {/* ── Card Builder — Repent Ye Foolish Gods ── */}
+        <Route path="/app/builder/ryg" element={<CardBuilderRyg />} />
 
         {/* ── Print Deck ── */}
         <Route path="/app/print" element={<PrintDeck />} />
