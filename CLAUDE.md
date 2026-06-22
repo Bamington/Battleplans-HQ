@@ -2,6 +2,15 @@
 
 These rules apply to every command in this project.
 
+## Deploying to Production
+
+Before every production deploy, bump the version in `package.json`:
+- **Patch** (bug fixes, copy tweaks): `0.10.0` → `0.10.1`
+- **Minor** (new features, new pages): `0.10.0` → `0.11.0`
+- **Major** (breaking changes, full redesigns): `0.10.0` → `1.0.0`
+
+The build date and version shown on the login screen are injected automatically at build time from `package.json` — no other files need updating.
+
 ## UI Components
 
 - **Always use existing components first.** Before writing any UI, check `src/components/` and use what's already there. Do not recreate something that exists.

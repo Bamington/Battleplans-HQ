@@ -10,6 +10,9 @@
  * - /login                         → Pre-login screen (sign in / continue as guest)
  * - /gallery                       → Component gallery (dev tool — not a user-facing screen)
  * - /app                           → App home
+ * - /app/admin                      → Admin Tools hub (admin only)
+ * - /app/admin/games               → Manage Games (admin only)
+ * - /app/admin/packs               → Manage Packs (admin only)
  * - /app/packs                     → Manage packs (placeholder until built)
  * - /app/packs/new                 → Create pack (placeholder; in-app flow uses a modal)
  * - /app/packs/:packId/edit        → Pack editor
@@ -37,6 +40,11 @@ import AppHome from './pages/AppHome';
 import AuthCallback from './pages/AuthCallback';
 import PacksPlaceholder from './pages/PacksPlaceholder';
 import PackEditor from './pages/PackEditor';
+import AdminTools from './pages/AdminTools';
+import ManageUsers from './pages/ManageUsers';
+import ManageGames from './pages/ManageGames';
+import ManagePacks from './pages/ManagePacks';
+import AdminRoute from './components/AdminRoute';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -77,6 +85,12 @@ function App() {
 
         {/* ── App home ── */}
         <Route path="/app" element={<AppHome />} />
+
+        {/* ── Admin (guard: redirects non-admins to /app) ── */}
+        <Route path="/app/admin"        element={<AdminRoute><AdminTools /></AdminRoute>} />
+        <Route path="/app/admin/users"  element={<AdminRoute><ManageUsers /></AdminRoute>} />
+        <Route path="/app/admin/games"  element={<AdminRoute><ManageGames /></AdminRoute>} />
+        <Route path="/app/admin/packs"  element={<AdminRoute><ManagePacks /></AdminRoute>} />
 
         {/* ── Packs — manage + create remain placeholders; edit is the real editor ── */}
         <Route path="/app/packs"               element={<PacksPlaceholder mode="manage" />} />

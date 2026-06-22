@@ -323,12 +323,12 @@ export default function Login() {
         <div className="shrink-0 flex items-center gap-3 font-body font-bold text-xs text-gray-800 tracking-[1.2px] uppercase">
           <div className="flex items-center gap-1">
             <span>BattleCards version</span>
-            <span>0.10</span>
+            <span>{__APP_VERSION__}</span>
           </div>
           <span>-</span>
           <div className="flex items-center gap-1">
             <span>Build date</span>
-            <span>31/03/2026</span>
+            <span>{__APP_BUILD_DATE__}</span>
           </div>
         </div>
 

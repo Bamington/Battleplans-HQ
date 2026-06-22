@@ -28,7 +28,8 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import logotype from '../assets/battlecards-logotype-svg.svg';
 import Button from './Button';
-import Dropdown, { DropdownItem } from './Dropdown';
+import Dropdown, { DropdownItem, DropdownDivider } from './Dropdown';
+import Settings from '../icons/Settings';
 
 interface NavbarProps {
   /** Pin navbar to top of viewport. Set false for in-flow layouts. */
@@ -88,11 +89,21 @@ const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Get the current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    // Get the current session on mount, then fetch role
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', u.id)
+          .single();
+        setIsAdmin(data?.role === 'admin');
+      }
       setLoading(false);
     });
 
@@ -141,7 +152,7 @@ const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
               /* Logged-in: avatar + name/email with logout dropdown */
               <Dropdown
                 align="right"
-                menuClassName="w-auto min-w-[140px]"
+                menuClassName="w-auto min-w-[160px]"
                 trigger={
                   <button
                     type="button"
@@ -159,6 +170,17 @@ const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
                   </button>
                 }
               >
+                {isAdmin && (
+                  <>
+                    <DropdownItem
+                      icon={<Settings className="w-4 h-4 text-gray-400" />}
+                      onClick={() => navigate('/app/admin')}
+                    >
+                      <span className="text-gray-200">Admin Tools</span>
+                    </DropdownItem>
+                    <DropdownDivider />
+                  </>
+                )}
                 <DropdownItem
                   icon={<LogoutIcon className="w-4 h-4 text-red-500" />}
                   onClick={handleLogout}

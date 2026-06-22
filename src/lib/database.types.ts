@@ -183,10 +183,13 @@ export interface Profile {
   created_at:   string
 }
 
+export type GameStatus = 'draft' | 'beta' | 'published'
+
 export interface Game {
   id:          string
   name:        string
   slug:        string
+  status:      GameStatus
   stat_schema: StatField[]
   /** [width_mm, height_mm] — card dimensions for printing (no bleed) */
   print_size:  [number, number]
@@ -222,12 +225,19 @@ export interface Pack {
 
 /**
  * Per-user profile row. Created automatically on signup via DB trigger.
- * The `role` field gates admin-only features (e.g. creating packs).
+ * The `role` field gates admin-only features (e.g. creating packs) and
+ * beta/draft game visibility.
  */
 export interface UserProfile {
   id:         string
-  role:       'user' | 'admin'
+  role:       'user' | 'beta_tester' | 'admin'
   created_at: string
+}
+
+/** Join table granting a specific user access to a draft game. */
+export interface GameTester {
+  game_id:    string
+  user_id:    string
 }
 
 /**
