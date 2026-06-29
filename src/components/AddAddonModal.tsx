@@ -37,8 +37,9 @@ import Magnifer from '../icons/Magnifer';
 import CheckCircle from '../icons/CheckCircle';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
+import Lock from '../icons/Lock';
 import { supabase } from '../lib/supabase';
-import type { Addon } from '../lib/database.types';
+import type { Addon, AddonPrerequisites } from '../lib/database.types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,17 @@ export interface AddAddonModalProps {
   addonTypeName: string;
   /** IDs of addons already attached to this card — excluded from the picker list */
   excludeAddonIds?: string[];
+  /**
+   * Context used to evaluate prerequisites. Each entry describes an addon
+   * already on the card: its addonId, type slug, and the params stored in card_addons.
+   * Addons whose prerequisites are not met are shown greyed-out.
+   */
+  prerequisiteContext?: Array<{ addonId: string; name?: string; typeSlug: string; params?: Record<string, string[]> }>;
+  /**
+   * When true, fetch all addons in one batch and sort those whose prerequisites
+   * are met to the top of the list (client-side). Requires prerequisiteContext.
+   */
+  prioritiseByPrerequisites?: boolean;
   /** Called when an addon is attached to the card (new or existing) */
   onAdd: (addon: Addon) => void;
   /** Called when an addon is deleted from the user's library */
@@ -87,6 +99,34 @@ type Step = 'loading' | 'pick' | 'create' | 'edit';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+/** Returns true if all prerequisite rules are met by the given card addons. */
+function meetsPrerequisites(
+  addon: Addon,
+  context: Array<{ addonId: string; typeSlug: string; params?: Record<string, string[]> }>,
+): boolean {
+  const prereqs = addon.prerequisites as AddonPrerequisites | null;
+  if (!prereqs || prereqs.items.length === 0) return true;
+
+  const check = (item: AddonPrerequisites['items'][number]) => {
+    return context.some(ca => {
+      // Match by addonId, or fall back to name when IDs differ (e.g. pack copy vs library original)
+      const idMatch   = ca.addonId === item.addonId;
+      const nameMatch = !!ca.name && ca.name === item.name;
+      if (!idMatch && !nameMatch) return false;
+      // If the prerequisite specifies params, they must match
+      const requiredParams = Object.entries(item.params);
+      if (requiredParams.length === 0) return true;
+      return requiredParams.every(([key, vals]) =>
+        vals.length === 0 || (ca.params?.[key] ?? []).some(v => vals.includes(v)),
+      );
+    });
+  };
+
+  return prereqs.requireAll
+    ? prereqs.items.every(check)
+    : prereqs.items.some(check);
+}
+
 const AddAddonModal = ({
   open,
   onClose,
@@ -94,6 +134,8 @@ const AddAddonModal = ({
   addonTypeSlug,
   addonTypeName,
   excludeAddonIds = [],
+  prerequisiteContext = [],
+  prioritiseByPrerequisites = false,
   onAdd,
   onDeleted,
   getSubtitle,
@@ -116,16 +158,22 @@ const AddAddonModal = ({
 
   // Resolved Supabase IDs — stored in refs so fetchPage can always read
   // the latest value without being included in effect dependencies.
-  const addonTypeIdRef  = useRef<string | null>(null);
-  const userIdRef       = useRef<string | null>(null);
-  const excludeRef      = useRef(excludeAddonIds);
-  const openRef         = useRef(open);
-  const tabFilterRef    = useRef<'pack' | 'library' | null>(null);
-  const packNameMapRef  = useRef<Map<string, string>>(new Map());
+  const addonTypeIdRef         = useRef<string | null>(null);
+  const userIdRef              = useRef<string | null>(null);
+  const excludeRef             = useRef(excludeAddonIds);
+  const openRef                = useRef(open);
+  const tabFilterRef           = useRef<'pack' | 'library' | null>(null);
+  const packNameMapRef         = useRef<Map<string, string>>(new Map());
+  const prerequisiteContextRef = useRef(prerequisiteContext);
+  const clientModeRef          = useRef(prioritiseByPrerequisites);
+  // Holds all sorted addons when in client-side pagination mode.
+  const sortedAllRef           = useRef<Addon[]>([]);
 
-  useEffect(() => { excludeRef.current   = excludeAddonIds; }, [excludeAddonIds]);
-  useEffect(() => { openRef.current     = open;            }, [open]);
-  useEffect(() => { tabFilterRef.current = tabFilter;      }, [tabFilter]);
+  useEffect(() => { excludeRef.current            = excludeAddonIds;            }, [excludeAddonIds]);
+  useEffect(() => { openRef.current               = open;                       }, [open]);
+  useEffect(() => { tabFilterRef.current          = tabFilter;                  }, [tabFilter]);
+  useEffect(() => { prerequisiteContextRef.current = prerequisiteContext;        }, [prerequisiteContext]);
+  useEffect(() => { clientModeRef.current          = prioritiseByPrerequisites;  }, [prioritiseByPrerequisites]);
 
   // ── Fetch a page of eligible addons ───────────────────────────────────────
 
@@ -135,8 +183,46 @@ const AddAddonModal = ({
     if (!addonTypeId || !userId) return;
 
     const excluded = excludeRef.current;
+    const tf = tabFilterRef.current;
 
-    // Build the filtered query
+    // ── Client-side pagination mode (prioritiseByPrerequisites) ───────────────
+    if (clientModeRef.current) {
+      let query = supabase
+        .from('addons')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('addon_type_id', addonTypeId)
+        .order('name');
+      if (excluded.length > 0) query = query.not('id', 'in', `(${excluded.join(',')})`);
+      if (tf === 'pack')    query = query.not('pack_id', 'is', null);
+      if (tf === 'library') query = query.is('pack_id', null);
+
+      let unfilteredQuery = supabase
+        .from('addons')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('addon_type_id', addonTypeId);
+      if (excluded.length > 0) unfilteredQuery = unfilteredQuery.not('id', 'in', `(${excluded.join(',')})`);
+
+      const [res, unfilteredRes] = await Promise.all([query, unfilteredQuery]);
+      if (!openRef.current) return;
+      if (res.error) { console.error('[AddAddonModal] fetch error:', res.error); return; }
+
+      const ctx = prerequisiteContextRef.current;
+      const all = (res.data as Addon[]) ?? [];
+      const sorted = [
+        ...all.filter(a => meetsPrerequisites(a, ctx)),
+        ...all.filter(a => !meetsPrerequisites(a, ctx)),
+      ];
+      sortedAllRef.current = sorted;
+      setUnfilteredCount(unfilteredRes.count ?? 0);
+      setTotalCount(sorted.length);
+      setAddons(sorted.slice(0, PAGE_SIZE));
+      setStep(sorted.length === 0 ? 'create' : 'pick');
+      return;
+    }
+
+    // ── Server-side pagination mode (default) ─────────────────────────────────
     let query = supabase
       .from('addons')
       .select('*', { count: 'exact' })
@@ -151,8 +237,6 @@ const AddAddonModal = ({
     if (search.trim()) {
       query = query.ilike('name', `%${search.trim()}%`);
     }
-    // Apply source tab filter when active
-    const tf = tabFilterRef.current;
     if (tf === 'pack')    query = query.not('pack_id', 'is', null);
     if (tf === 'library') query = query.is('pack_id', null);
 
@@ -199,6 +283,7 @@ const AddAddonModal = ({
       addonTypeIdRef.current = null;
       userIdRef.current      = null;
       packNameMapRef.current = new Map();
+      sortedAllRef.current   = [];
       return;
     }
 
@@ -273,12 +358,42 @@ const AddAddonModal = ({
     return () => { cancelled = true; };
   }, [open, gameSlug, addonTypeSlug, fetchPage]);
 
-  // ── Re-fetch when the page, search, or tab filter changes ─────────────────
+  // ── Re-fetch / re-slice when page, search, or tab filter changes ──────────
 
   useEffect(() => {
+    // Server mode: always go to the server
+    if (!prioritiseByPrerequisites) {
+      if (step === 'pick') fetchPage(page, searchQuery);
+      return;
+    }
+    // Client mode: tab filter change needs a fresh fetch; reset to page 0.
+    if (step === 'pick') {
+      sortedAllRef.current = [];
+      setPage(0);
+      setSearchQuery('');
+      fetchPage(0, '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabFilter]);
+
+  useEffect(() => {
+    // Client mode: page or search changes are handled purely client-side
+    if (!prioritiseByPrerequisites || sortedAllRef.current.length === 0) return;
+    const q = searchQuery.trim().toLowerCase();
+    const base = q
+      ? sortedAllRef.current.filter(a => a.name.toLowerCase().includes(q))
+      : sortedAllRef.current;
+    setAddons(base.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE));
+    setTotalCount(base.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchQuery]);
+
+  useEffect(() => {
+    // Server mode only: re-fetch on page/search change
+    if (prioritiseByPrerequisites) return;
     if (step === 'pick') fetchPage(page, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchQuery, tabFilter]);
+  }, [page, searchQuery]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -461,19 +576,33 @@ const AddAddonModal = ({
 
           {/* List */}
           <div className="flex flex-col gap-1.5">
-            {addons.map(addon => (
-              <AddonListItem
-                key={addon.id}
-                name={addon.name}
-                subtitle={getSubtitle(addon)}
-                packLabel={addon.pack_id ? packNameMapRef.current.get(addon.pack_id) : undefined}
-                selected={selectedId === addon.id}
-                onSelect={() => setSelectedId(addon.id)}
-                onEdit={() => { setEditingAddon(addon); setStep('edit'); }}
-                onDelete={() => handleDelete(addon.id)}
-                addonTypeName={addonTypeName}
-              />
-            ))}
+            {addons.map(addon => {
+              const locked = prerequisiteContext.length > 0 && !meetsPrerequisites(addon, prerequisiteContext);
+              const prereqs = addon.prerequisites as AddonPrerequisites | null;
+              const lockTip = locked && prereqs && prereqs.items.length > 0
+                ? `Requires: ${prereqs.items.map(p => p.name).join(prereqs.requireAll ? ' and ' : ' or ')}`
+                : undefined;
+              return (
+                <div key={addon.id} className={locked ? 'relative' : undefined}>
+                  <AddonListItem
+                    name={addon.name}
+                    subtitle={locked && lockTip ? lockTip : getSubtitle(addon)}
+                    packLabel={addon.pack_id ? packNameMapRef.current.get(addon.pack_id) : undefined}
+                    selected={!locked && selectedId === addon.id}
+                    onSelect={locked ? undefined : () => setSelectedId(addon.id)}
+                    onEdit={locked ? undefined : () => { setEditingAddon(addon); setStep('edit'); }}
+                    onDelete={locked ? undefined : () => handleDelete(addon.id)}
+                    addonTypeName={addonTypeName}
+                    className={locked ? 'opacity-40 pointer-events-none select-none' : undefined}
+                  />
+                  {locked && (
+                    <div className="absolute inset-0 flex items-center justify-end pr-3 pointer-events-none">
+                      <Lock className="size-4 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Pagination */}

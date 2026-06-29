@@ -30,6 +30,7 @@ import HaloFlashpointCard from './HaloFlashpointCard';
 import BloodBowlCard from './BloodBowlCard';
 import KillTeamCard from './KillTeamCard';
 import StarcraftCard from './StarcraftCard';
+import RygCard from './RygCard';
 import Camera from '../icons/Camera';
 import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
@@ -48,7 +49,7 @@ const CROP_ASPECT_AVATAR = 1; // square
 
 // ── Per-game config ──────────────────────────────────────────────────────────
 
-type GameSlug = 'halo-flashpoint' | 'blood-bowl' | 'kill-team' | 'starcraft';
+type GameSlug = 'halo-flashpoint' | 'blood-bowl' | 'kill-team' | 'starcraft' | 'ryg';
 
 interface GameConfig {
   /** Default crop aspect ratio (no frame) */
@@ -109,6 +110,15 @@ const GAME_CONFIG: Record<GameSlug, GameConfig> = {
     cardH:            890,
     previewVisibleW:  600,
     recommendation:   'For StarCraft, we recommend a unit portrait with a clean background.',
+  },
+  'ryg': {
+    cropAspect:       298 / 354,
+    cropAspectFramed: null,
+    hasFrame:         false,
+    cardW:            890,
+    cardH:            1270,
+    previewVisibleW:  358,
+    recommendation:   'For Repent Ye Foolish Gods, we recommend a portrait with a clean background.',
   },
 };
 
@@ -457,6 +467,26 @@ const UploadPhotoModal = ({
             />
           )}
         </div>
+      );
+    }
+
+    if (game === 'ryg') {
+      return (
+        <RygCard
+          portrait={portraitSrc}
+          warriorName=""
+          type=""
+          sept=""
+          offense={0}
+          defense={0}
+          life={0}
+          tactics={0}
+          fate={0}
+          talents=""
+          weapons={[]}
+          armor={[]}
+          items={[]}
+        />
       );
     }
 

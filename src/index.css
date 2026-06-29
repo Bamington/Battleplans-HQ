@@ -175,6 +175,37 @@
 }
 
 /*
+ * LLTextur — display font for the Repent Ye Foolish Gods card template.
+ * Used for the warrior name, stat values, and the Life counter.
+ */
+@font-face {
+  font-family: 'LLTextur';
+  src: url('./assets/games/fonts/LLTERG.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Libre Baskerville — serif body font for the RYG card template.
+ */
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('./assets/games/fonts/LibreBaskerville-VariableFont_wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('./assets/games/fonts/LibreBaskerville-Italic-VariableFont_wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/*
  * Source Sans 3 — used for body text on the StarCraft card (rule descriptions,
  * weapon keyword text, tags).
  */

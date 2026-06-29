@@ -92,6 +92,10 @@ import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
 import iconStarcraft from '../assets/games/card assets/starcraft/icon.svg';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — path contains spaces
+import iconRyg from '../assets/games/card assets/ryg/icon.svg';
+import logoRyg from '../assets/games/logo-ryg.png';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
@@ -130,6 +134,13 @@ const GAMES = [
     logoSrc: logoStarcraft,
     thumbnailSrc: iconStarcraft as string,
     thumbnailBg: 'bg-gradient-to-b from-[#0b1a33] to-[#061020]',
+  },
+  {
+    id: 'ryg',
+    name: 'Repent Ye Foolish Gods',
+    logoSrc: logoRyg,
+    thumbnailSrc: iconRyg as string,
+    thumbnailBg: 'bg-[#1a1612]',
   },
 ] as const;
 
@@ -594,6 +605,28 @@ export default function AppHome() {
       return;
     }
 
+    // Auto-import any official packs for this game that the user doesn't have yet.
+    const { data: officialPacks } = await supabase
+      .from('packs')
+      .select('id')
+      .eq('game_id', gameId)
+      .eq('is_official', true);
+
+    if (officialPacks && officialPacks.length > 0) {
+      const { data: existingImports } = await supabase
+        .from('pack_imports')
+        .select('pack_id')
+        .in('pack_id', officialPacks.map((p: { id: string }) => p.id));
+
+      const importedIds = new Set((existingImports ?? []).map((r: { pack_id: string }) => r.pack_id));
+
+      await Promise.all(
+        officialPacks
+          .filter((p: { id: string }) => !importedIds.has(p.id))
+          .map((p: { id: string }) => supabase.rpc('import_pack', { p_pack_id: p.id }))
+      );
+    }
+
     navigate(`/app/builder/${selectedGame}?deckId=${(data as DeckWithGame).id}`);
   };
 
@@ -705,7 +738,7 @@ export default function AppHome() {
                                 Your Packs
                               </p>
                             )}
-                            {yourPacks.map(pack => {
+                            {yourPacks.filter(pack => pack.game != null).map(pack => {
                               const assets = gameAssets(pack.game.slug);
                               return (
                                 <PackListItem
@@ -720,13 +753,9 @@ export default function AppHome() {
                                   }
                                   badges={pack.badges}
                                   description={pack.description ?? undefined}
+                                  official={pack.is_official}
                                   onDelete={() => requestDeletePack(pack)}
                                   deleteLabel={pack.source === 'imported' ? 'Uninstall Pack' : 'Delete Pack'}
-                                  // Own packs get an "Edit Pack" CTA that
-                                  // navigates to the editor. Imported packs
-                                  // have no CTA — the user already has the
-                                  // pack's clones in their library, so the
-                                  // pack itself doesn't need to be "opened".
                                   cta={pack.source === 'own'
                                     ? {
                                         label:   'Edit Pack',
@@ -749,7 +778,7 @@ export default function AppHome() {
                                 More Packs
                               </p>
                             )}
-                            {packs.map(pack => {
+                            {packs.filter(pack => pack.game != null).map(pack => {
                               const assets = gameAssets(pack.game.slug);
                               return (
                                 <PackListItem
@@ -764,6 +793,7 @@ export default function AppHome() {
                                   }
                                   badges={pack.badges}
                                   description={pack.description ?? undefined}
+                                  official={pack.is_official}
                                   cta={{
                                     label:   'Download Pack',
                                     icon:    <AddCircle className="size-4" />,
@@ -890,20 +920,21 @@ export default function AppHome() {
                       {decks.map(deck => {
                         const assets = gameAssets(deck.game.slug);
                         return (
-                          <DeckListItem
-                            key={deck.id}
-                            name={deck.name}
-                            cardCount={deck.cards[0]?.count ?? 0}
-                            thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
-                            thumbnail={
-                              assets?.thumbnailSrc
-                                ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
-                                : undefined
-                            }
-                            onClick={() => navigate(`/app/builder/${deck.game.slug}?deckId=${deck.id}`)}
-                            onDuplicate={() => handleDuplicate(deck.id)}
-                            onDelete={() => confirmDelete(deck.id)}
-                          />
+                          <div key={deck.id} className="flex flex-col gap-1">
+                            <DeckListItem
+                              name={deck.name}
+                              cardCount={deck.cards[0]?.count ?? 0}
+                              thumbnailBg={assets?.thumbnailBg ?? 'bg-gray-800'}
+                              thumbnail={
+                                assets?.thumbnailSrc
+                                  ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
+                                  : undefined
+                              }
+                              onClick={() => navigate(`/app/builder/${deck.game.slug}?deckId=${deck.id}`)}
+                              onDuplicate={() => handleDuplicate(deck.id)}
+                              onDelete={() => confirmDelete(deck.id)}
+                            />
+                          </div>
                         );
                       })}
                     </div>

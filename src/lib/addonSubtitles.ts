@@ -106,6 +106,54 @@ export function starcraftAbilitySubtitle(addon: AddonLike): string {
   return parts.join(', ');
 }
 
+// ── Repent Ye Foolish Gods ───────────────────────────────────────────────────
+
+/** Lists the predefined talent names for a warrior type, e.g. "Spellcasting (Blood Magic), Fleet" */
+export function rygWarriorTypeSubtitle(addon: AddonLike): string {
+  const s = (addon.stats ?? {}) as { talents?: Array<{ name?: string; params?: Record<string, string[]> }> };
+  const talents = s.talents ?? [];
+  if (!talents.length) return addon.description ? addon.description.slice(0, 80) + (addon.description.length > 80 ? '…' : '') : '—';
+  return talents.map(t => {
+    const paramParts = Object.values(t.params ?? {}).flat().filter(Boolean);
+    return paramParts.length > 0 ? `${t.name} (${paramParts.join(', ')})` : (t.name ?? '');
+  }).filter(Boolean).join(', ');
+}
+
+// ── Repent Ye Foolish Gods (new types) ───────────────────────────────────────
+
+/** Comma-separated benefit names, e.g. "Bloodsoaked, Revel in Gore" */
+export function rygSeptSubtitle(addon: AddonLike): string {
+  const s = (addon.stats ?? {}) as { benefitNames?: string[] };
+  const names = s.benefitNames?.filter(Boolean) ?? [];
+  if (names.length) return names.join(', ');
+  return addon.description ?? '';
+}
+
+/** Full destiny description, truncated to ~100 chars */
+export function rygDestinySubtitle(addon: AddonLike): string {
+  const s = (addon.stats ?? {}) as { description?: string };
+  const text = s.description?.trim() ?? '';
+  if (!text) return addon.description ?? '';
+  return text.length > 100 ? text.slice(0, 97) + '…' : text;
+}
+
+/** The benefit description, truncated */
+export function rygSeptBenefitSubtitle(addon: AddonLike): string {
+  const text = addon.description ?? '';
+  return text.length > 80 ? text.slice(0, 77) + '…' : text;
+}
+
+/** First line of lore, or tier labels */
+export function rygGodSubtitle(addon: AddonLike): string {
+  const s = (addon.stats ?? {}) as { lore?: string; minions?: string };
+  const lore = s.lore?.trim() ?? '';
+  if (lore) {
+    const dot = lore.indexOf('.');
+    return dot > 0 && dot < 80 ? lore.slice(0, dot + 1) : lore.slice(0, 80) + (lore.length > 80 ? '…' : '');
+  }
+  return s.minions ? `Minions: ${s.minions.slice(0, 60)}` : addon.description ?? '';
+}
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 /** (game slug → addon-type slug) → formatter. Blood Bowl's skills have
@@ -118,4 +166,5 @@ export const ADDON_SUBTITLE_FORMATTERS: Record<
   'halo-flashpoint': { weapons: haloWeaponSubtitle },
   'kill-team':       { weapons: killTeamWeaponSubtitle, abilities: killTeamAbilitySubtitle },
   'starcraft':       { weapons: starcraftWeaponSubtitle, rules: starcraftAbilitySubtitle },
+  'ryg':             { 'warrior-type': rygWarriorTypeSubtitle, 'septs': rygSeptSubtitle, 'destinies': rygDestinySubtitle, 'sept-benefits': rygSeptBenefitSubtitle, 'gods': rygGodSubtitle },
 };

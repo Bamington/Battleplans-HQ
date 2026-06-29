@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PackEditor.tsx — The pack-editing page
  *
  * Layout:
@@ -22,7 +22,8 @@
  * Route: /app/packs/:packId/edit
  */
 
-import { useState, useEffect, useMemo, useRef, type ComponentType } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type ComponentType } from 'react';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
@@ -36,6 +37,15 @@ import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
 import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
 import StarcraftWeaponForm from '../components/StarcraftWeaponForm';
 import StarcraftAbilityForm from '../components/StarcraftAbilityForm';
+import RygWarriorTypeForm from '../components/RygWarriorTypeForm';
+import RygTalentForm from '../components/RygTalentForm';
+import RygWeaponForm from '../components/RygWeaponForm';
+import RygSimpleAddonForm from '../components/RygSimpleAddonForm';
+import RygSpellForm from '../components/RygSpellForm';
+import RygSeptForm from '../components/RygSeptForm';
+import RygDestinyForm from '../components/RygDestinyForm';
+import RygSeptBenefitForm from '../components/RygSeptBenefitForm';
+import RygGodForm from '../components/RygGodForm';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
 import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import BloodBowlCard from '../components/BloodBowlCard';
@@ -148,11 +158,57 @@ function stubNotImplemented(what: string) {
 // typecheck here; they just can't drive the create flow yet.
 type PackAddonFormProps = AddonFormProps & {
   onSaveComplete?: (addonId: string) => void;
+  onPendingTalents?: (talents: { id: string; name: string; description: string }[]) => void;
+  /** Passed to forms that create keywords, so new keywords are scoped to
+   *  the pack instead of the user's personal library. */
+  packId?: string;
 };
+function RygArmorFormForPack(props: PackAddonFormProps) {
+  return (
+    <RygSimpleAddonForm
+      {...props}
+      showCost
+      namePlaceholder="Armor Name"
+      descPlaceholder="Describe the armor's effect…"
+      saveLabel="Save Armor"
+    />
+  );
+}
+
+function RygItemFormForPack(props: PackAddonFormProps) {
+  return (
+    <RygSimpleAddonForm
+      {...props}
+      showCost
+      namePlaceholder="Item Name"
+      descPlaceholder="Describe the item's effect…"
+      saveLabel="Save Item"
+    />
+  );
+}
+
 const ADDON_EDIT_FORMS: Record<string, Record<string, ComponentType<PackAddonFormProps>>> = {
   'halo-flashpoint': { weapons: HaloWeaponForm },
   'kill-team':       { weapons: KillTeamWeaponForm, abilities: KillTeamAbilityForm },
   'starcraft':       { weapons: StarcraftWeaponForm, rules: StarcraftAbilityForm },
+  'ryg':             { 'warrior-type': RygWarriorTypeForm, 'talents': RygTalentForm, 'weapons': RygWeaponForm, 'armor': RygArmorFormForPack, 'items': RygItemFormForPack, 'spells': RygSpellForm, 'septs': RygSeptForm, 'destinies': RygDestinyForm, 'sept-benefits': RygSeptBenefitForm, 'gods': RygGodForm },
+};
+
+// ── Per-game addon panel layout ───────────────────────────────────────────────
+// Slugs listed here render full-width (outside the 2-col grid), directly below
+// the Unit Cards panel. All other addon types stay in the grid.
+const FULL_WIDTH_ADDON_SLUGS: Record<string, string[]> = {};
+
+// Slugs listed here are hidden from the pack editor entirely. Use for addon
+// types that are managed elsewhere (e.g. as part of another addon's flow).
+const HIDDEN_ADDON_SLUGS: Record<string, string[]> = {
+  'ryg': ['special-ability'],
+};
+
+// Explicit sort order for addon panels per game. Slugs not listed fall to the
+// end in their original DB order. Keywords always renders last in the grid.
+const ADDON_TYPE_ORDER: Record<string, string[]> = {
+  'ryg': ['warrior-type', 'talents', 'weapons', 'armor', 'items', 'spells', 'septs', 'destinies', 'sept-benefits', 'gods'],
 };
 
 // ── Per-game card creation forms ──────────────────────────────────────────────
@@ -178,11 +234,123 @@ const CARD_EDIT_FORMS: Record<string, ComponentType<PackCardFormProps>> = {
   'starcraft':       StarcraftCardForm,
 };
 
+// ── Pagination helpers ────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
+
+interface PaginatedAddonListProps {
+  list:         Addon[];
+  describe:     (a: Addon) => string;
+  singular:     string;
+  EditForm?:    ComponentType<PackAddonFormProps>;
+  onEdit:       (a: Addon) => void;
+  onDelete:     (id: string, name: string) => void;
+  emptyMessage: string;
+}
+
+function PaginatedAddonList({ list, describe, singular, EditForm, onEdit, onDelete, emptyMessage }: PaginatedAddonListProps) {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.ceil(list.length / PAGE_SIZE);
+  const slice = list.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  if (list.length === 0) return <EmptyPanelState message={emptyMessage} />;
+
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      {slice.map(a => (
+        <AddonListItem
+          key={a.id}
+          name={a.name}
+          subtitle={describe(a)}
+          addonTypeName={singular}
+          onEdit={EditForm ? () => onEdit(a) : undefined}
+          onDelete={() => onDelete(a.id, a.name)}
+        />
+      ))}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="font-body text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Prev
+          </button>
+          <span className="font-body text-xs text-gray-500">
+            {page + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            disabled={page === pageCount - 1}
+            className="font-body text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaginatedKeywordList({ keywords, onEdit, onDelete }: {
+  keywords: { id: string; name: string; description: string | null }[];
+  onEdit:   (k: { id: string; name: string; description: string | null }) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
+  const [page, setPage] = useState(0);
+  const sorted = [...keywords].sort((a, b) => a.name.localeCompare(b.name));
+  const pageCount = Math.ceil(sorted.length / PAGE_SIZE);
+  const slice = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  if (sorted.length === 0) return <EmptyPanelState message="No keywords yet. Click Add Keyword to create one." />;
+
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      {slice.map(k => (
+        <AddonListItem
+          key={k.id}
+          name={k.name}
+          subtitle={k.description ?? ''}
+          addonTypeName="Keyword"
+          onEdit={() => onEdit(k)}
+          onDelete={() => onDelete(k.id, k.name)}
+        />
+      ))}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="font-body text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Prev
+          </button>
+          <span className="font-body text-xs text-gray-500">
+            {page + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            disabled={page === pageCount - 1}
+            className="font-body text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PackEditor() {
   const { packId } = useParams<{ packId: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
 
   // ── State ────────────────────────────────────────────────────────────────
 
@@ -199,6 +367,13 @@ export default function PackEditor() {
   const [nameDraft,   setNameDraft]   = useState('');
   const [savingName,  setSavingName]  = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Pack metadata draft state (title, description, published status)
+  const [draftName,       setDraftName]       = useState('');
+  const [draftDesc,       setDraftDesc]       = useState('');
+  const [draftIsPublic,   setDraftIsPublic]   = useState(false);
+  const [draftIsOfficial, setDraftIsOfficial] = useState(false);
+  const [savingMeta,      setSavingMeta]      = useState(false);
 
   // The AddToPackModal is reused for every "Add X" button. Null when closed;
   // a context object describing what to show otherwise.
@@ -232,6 +407,7 @@ export default function PackEditor() {
     typeLabel:   string;
   } | null>(null);
   const [savingAddonCreate, setSavingAddonCreate] = useState(false);
+  const pendingAddonTalents = useRef<{ id: string; name: string; description: string }[]>([]);
   const [creatingKeyword,   setCreatingKeyword]   = useState(false);
 
   // Card creation flow — resolves the per-game form from CARD_EDIT_FORMS and
@@ -302,6 +478,10 @@ export default function PackEditor() {
 
       const fetchedPack = packData as PackWithGame;
       setPack(fetchedPack);
+      setDraftName(fetchedPack.name);
+      setDraftDesc(fetchedPack.description ?? '');
+      setDraftIsPublic(fetchedPack.is_public ?? false);
+      setDraftIsOfficial(fetchedPack.is_official ?? false);
 
       // Everything else fetched in parallel for snappy first paint.
       const [atRes, cardsRes, addonsRes, keywordsRes] = await Promise.all([
@@ -356,43 +536,59 @@ export default function PackEditor() {
     }
   }
 
-  // ── Pack name inline edit ────────────────────────────────────────────────
+  // ── Pack metadata inline edit ────────────────────────────────────────────
 
+  // Meta fields are edited directly in the header inputs; changes are saved
+  // on blur via a shared helper so every field goes through the same path.
+
+  async function savePackMeta(patch: { name?: string; description?: string; is_public?: boolean; is_official?: boolean }) {
+    if (!pack) return;
+    const { error } = await supabase
+      .from('packs')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', pack.id);
+    if (error) {
+      console.error('[BattleCards] savePackMeta failed:', error);
+      alert('Failed to save pack changes. Please try again.');
+      return;
+    }
+    setPack({ ...pack, ...patch });
+  }
+
+  async function commitPackMetaDraft() {
+    if (!pack || savingMeta) return;
+    setSavingMeta(true);
+    await savePackMeta({
+      name:        draftName.trim() || pack.name,
+      description: draftDesc.trim() || undefined,
+      is_public:   draftIsPublic,
+      is_official: draftIsOfficial,
+    });
+    setSavingMeta(false);
+  }
+
+  const metaDirty = pack != null && (
+    draftName.trim() !== pack.name ||
+    (draftDesc.trim() || undefined) !== (pack.description ?? undefined) ||
+    draftIsPublic   !== (pack.is_public   ?? false) ||
+    draftIsOfficial !== (pack.is_official ?? false)
+  );
+
+  // Keep the legacy name-commit helpers so nothing else breaks.
   function startEditingName() {
     if (!pack || savingName) return;
     setNameDraft(pack.name);
     setEditingName(true);
-    // Focus + select after the input mounts.
-    setTimeout(() => {
-      nameInputRef.current?.focus();
-      nameInputRef.current?.select();
-    }, 0);
+    setTimeout(() => { nameInputRef.current?.focus(); nameInputRef.current?.select(); }, 0);
   }
-
-  function cancelEditingName() {
-    setEditingName(false);
-    setNameDraft('');
-  }
-
+  function cancelEditingName() { setEditingName(false); setNameDraft(''); }
   async function commitName() {
     const trimmed = nameDraft.trim();
     if (!pack) return;
-    if (trimmed.length === 0 || trimmed === pack.name) {
-      cancelEditingName();
-      return;
-    }
+    if (trimmed.length === 0 || trimmed === pack.name) { cancelEditingName(); return; }
     setSavingName(true);
-    const { error } = await supabase
-      .from('packs')
-      .update({ name: trimmed, updated_at: new Date().toISOString() })
-      .eq('id', pack.id);
+    await savePackMeta({ name: trimmed });
     setSavingName(false);
-    if (error) {
-      // Soft-fail: keep editing so the user can retry / cancel.
-      alert("Couldn't save the new name. Please try again.");
-      return;
-    }
-    setPack({ ...pack, name: trimmed });
     setEditingName(false);
   }
 
@@ -486,8 +682,35 @@ export default function PackEditor() {
       const list = grouped.get(a.addon_type_id);
       if (list) list.push(a);
     }
+    grouped.forEach(list => list.sort((a, b) => a.name.localeCompare(b.name)));
     return grouped;
   }, [addons, addonTypes]);
+
+  // Sort and split addon types per game-specific layout config.
+  const sortedAddonTypes = useMemo(() => {
+    const order  = pack ? (ADDON_TYPE_ORDER[pack.game.slug]  ?? []) : [];
+    const hidden = pack ? (HIDDEN_ADDON_SLUGS[pack.game.slug] ?? []) : [];
+    return [...addonTypes].filter(at => !hidden.includes(at.slug)).sort((a, b) => {
+      const ai = order.indexOf(a.slug);
+      const bi = order.indexOf(b.slug);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [addonTypes, pack]);
+
+  const fullWidthAddonTypes = useMemo(() => {
+    if (!pack) return [];
+    const slugs = FULL_WIDTH_ADDON_SLUGS[pack.game.slug] ?? [];
+    return sortedAddonTypes.filter(at => slugs.includes(at.slug));
+  }, [sortedAddonTypes, pack]);
+
+  const gridAddonTypes = useMemo(() => {
+    if (!pack) return sortedAddonTypes;
+    const slugs = FULL_WIDTH_ADDON_SLUGS[pack.game.slug] ?? [];
+    return sortedAddonTypes.filter(at => !slugs.includes(at.slug));
+  }, [sortedAddonTypes, pack]);
 
   // games.rule_types is a jsonb column added by the rule-types feature
   // branch — on content-packs alone the column may not exist yet, in which
@@ -562,32 +785,58 @@ export default function PackEditor() {
           // ── Loaded ─────────────────────────────────────────────────────
           <>
 
-            {/* Pack name — centered, double-click to edit inline */}
-            <div className="flex justify-center">
-              {editingName ? (
+            {/* Pack metadata */}
+            <div className="flex flex-col gap-3 max-w-xl mx-auto w-full">
+              <div className="flex flex-col gap-1">
+                <label className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">Pack Title</label>
                 <input
-                  ref={nameInputRef}
                   type="text"
-                  value={nameDraft}
+                  value={draftName}
                   maxLength={99}
-                  disabled={savingName}
-                  onChange={e => setNameDraft(e.target.value)}
-                  onBlur={commitName}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter')  { e.preventDefault(); commitName(); }
-                    if (e.key === 'Escape') { e.preventDefault(); cancelEditingName(); }
-                  }}
-                  className="font-heading text-[24px] leading-8 text-white text-center bg-gray-800 border border-blue-500 rounded px-3 py-1 outline-none min-w-[300px]"
+                  placeholder="Pack title…"
+                  onChange={e => setDraftName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  className="font-body text-sm text-white bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
-              ) : (
-                <h1
-                  onDoubleClick={startEditingName}
-                  title="Double-click to rename"
-                  className="font-heading text-[24px] leading-8 text-white text-center cursor-text select-none"
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</label>
+                <textarea
+                  value={draftDesc}
+                  placeholder="Describe what's in this pack…"
+                  rows={3}
+                  onChange={e => setDraftDesc(e.target.value)}
+                  className="font-body text-sm text-white bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">Published Status</label>
+                <select
+                  value={draftIsOfficial ? 'official' : draftIsPublic ? 'public' : 'private'}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setDraftIsOfficial(v === 'official');
+                    setDraftIsPublic(v === 'public' || v === 'official');
+                  }}
+                  className="font-body text-sm text-white bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 >
-                  {pack.name}
-                </h1>
-              )}
+                  <option value="private">Private — only visible to you</option>
+                  <option value="public">Public — visible to everyone</option>
+                  {isAdmin && (
+                    <option value="official">Official — auto-added to all new decks</option>
+                  )}
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="filled"
+                  color="primary"
+                  disabled={!metaDirty || savingMeta}
+                  onClick={commitPackMetaDraft}
+                >
+                  {savingMeta ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
             </div>
 
             {/* Units panel — full width */}
@@ -653,12 +902,48 @@ export default function PackEditor() {
               </PackPanel>
             )}
 
+            {/* Full-width addon panels (game-specific; e.g. RYG Warrior Types) */}
+            {fullWidthAddonTypes.map(at => {
+              const singular = singularise(at.name);
+              const EditForm = ADDON_EDIT_FORMS[pack.game.slug]?.[at.slug];
+              const subtitleFmt = ADDON_SUBTITLE_FORMATTERS[pack.game.slug]?.[at.slug];
+              const describe = (a: { name?: string; description?: string | null; stats?: unknown }) =>
+                subtitleFmt ? subtitleFmt(a) : addonSubtitle(a, at);
+              return (
+                <PackPanel
+                  key={at.id}
+                  icon={<Star className="size-12 text-blue-400" />}
+                  title={at.name}
+                  subtitle={`All ${at.name.toLowerCase()} in this pack.`}
+                  addLabel={`Add ${singular}`}
+                  onAdd={() => setAddModal({
+                    entityType:    'addon',
+                    addonTypeId:   at.id,
+                    title:         `Add ${singular} to Pack`,
+                    description:   `Adding this ${singular.toLowerCase()} will also add all keywords associated with it to the pack.`,
+                    newButtonLabel:`New ${singular}`,
+                    getAddonSubtitle: describe,
+                  })}
+                >
+                  <PaginatedAddonList
+                    list={addonsByType.get(at.id) ?? []}
+                    describe={describe}
+                    singular={singular}
+                    EditForm={EditForm}
+                    onEdit={a => setEditingAddon({ addon: a, Form: EditForm!, typeLabel: singular })}
+                    onDelete={(id, name) => requestDelete('addon', id, name, singular)}
+                    emptyMessage={`No ${at.name.toLowerCase()} yet. Click Add ${singular} to create one.`}
+                  />
+                </PackPanel>
+              );
+            })}
+
             {/* Addon + Keyword panels in a responsive 2-col grid.
                 Kill Team has 2 addon types → 3 panels total (Weapons,
                 Abilities, Keywords) and the third wraps onto a new row. */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-              {addonTypes.map(at => {
+              {gridAddonTypes.map(at => {
                 const singular = singularise(at.name);
                 // Games register their addon edit forms in ADDON_EDIT_FORMS;
                 // combos without one (Blood Bowl skills) get no Edit item.
@@ -684,32 +969,15 @@ export default function PackEditor() {
                       getAddonSubtitle: describe,
                     })}
                   >
-                    {(() => {
-                      const list = addonsByType.get(at.id) ?? [];
-                      if (list.length === 0) {
-                        return (
-                          <EmptyPanelState
-                            message={`No ${at.name.toLowerCase()} yet. Click Add ${singular} to create one.`}
-                          />
-                        );
-                      }
-                      return (
-                        <div className="flex flex-col gap-2 w-full">
-                          {list.map(a => (
-                            <AddonListItem
-                              key={a.id}
-                              name={a.name}
-                              subtitle={describe(a)}
-                              addonTypeName={singular}
-                              onEdit={EditForm
-                                ? () => setEditingAddon({ addon: a, Form: EditForm, typeLabel: singular })
-                                : undefined}
-                              onDelete={() => requestDelete('addon', a.id, a.name, singular)}
-                            />
-                          ))}
-                        </div>
-                      );
-                    })()}
+                    <PaginatedAddonList
+                      list={addonsByType.get(at.id) ?? []}
+                      describe={describe}
+                      singular={singular}
+                      EditForm={EditForm}
+                      onEdit={a => setEditingAddon({ addon: a, Form: EditForm!, typeLabel: singular })}
+                      onDelete={(id, name) => requestDelete('addon', id, name, singular)}
+                      emptyMessage={`No ${at.name.toLowerCase()} yet. Click Add ${singular} to create one.`}
+                    />
                   </PackPanel>
                 );
               })}
@@ -726,22 +994,11 @@ export default function PackEditor() {
                   newButtonLabel:'New Keyword',
                 })}
               >
-                {keywords.length === 0 ? (
-                  <EmptyPanelState message="No keywords yet. Click Add Keyword to create one." />
-                ) : (
-                  <div className="flex flex-col gap-2 w-full">
-                    {keywords.map(k => (
-                      <AddonListItem
-                        key={k.id}
-                        name={k.name}
-                        subtitle={k.description ?? ''}
-                        addonTypeName="Keyword"
-                        onEdit={() => setEditingKeyword(k)}
-                        onDelete={() => requestDelete('keyword', k.id, k.name, 'Keyword')}
-                      />
-                    ))}
-                  </div>
-                )}
+                <PaginatedKeywordList
+                  keywords={keywords}
+                  onEdit={setEditingKeyword}
+                  onDelete={(id, name) => requestDelete('keyword', id, name, 'Keyword')}
+                />
               </PackPanel>
 
             </div>
@@ -908,11 +1165,9 @@ export default function PackEditor() {
       )}
 
       {/* Create addon modal — the per-game form in create mode. onSave
-          inserts a LIBRARY addon (game_id auto-set by trigger from the
-          addon type); onSaveComplete — after the form's addon_keywords
-          sync — deep-clones it into the pack so the keywords come along.
-          The library copy is intentional: it matches the form's own
-          "you can add this to other units" promise. */}
+          inserts the addon directly into the pack (pack_id set on insert).
+          onSaveComplete handles copying any pending related addons (e.g.
+          warrior-type talents) that were created separately in the library. */}
       {pack && creatingAddon && (
         <Modal
           open
@@ -922,7 +1177,9 @@ export default function PackEditor() {
           <creatingAddon.Form
             editingAddon={null}
             saving={savingAddonCreate}
-            onCancel={() => setCreatingAddon(null)}
+            packId={pack.id}
+            onCancel={() => { setCreatingAddon(null); pendingAddonTalents.current = []; }}
+            onPendingTalents={talents => { pendingAddonTalents.current = talents; }}
             onSave={async (name, description, stats) => {
               setSavingAddonCreate(true);
               try {
@@ -933,6 +1190,7 @@ export default function PackEditor() {
                   .insert({
                     user_id:       user.id,
                     addon_type_id: creatingAddon.addonTypeId,
+                    pack_id:       pack.id,
                     name,
                     description,
                     stats:         stats as Json,
@@ -948,12 +1206,18 @@ export default function PackEditor() {
                 setSavingAddonCreate(false);
               }
             }}
-            onSaveComplete={async addonId => {
-              const { error } = await supabase.rpc('copy_addons_to_pack', {
-                p_target_pack_id: pack.id,
-                p_source_ids:     [addonId],
-              });
-              if (error) console.error('[BattleCards] copy new addon to pack error:', error);
+            onSaveComplete={async _addonId => {
+              // The main addon was already inserted with pack_id set.
+              // Only copy pending related addons (e.g. warrior-type talents).
+              const talentIds = pendingAddonTalents.current.map(t => t.id);
+              pendingAddonTalents.current = [];
+              if (talentIds.length > 0) {
+                const { error } = await supabase.rpc('copy_addons_to_pack', {
+                  p_target_pack_id: pack.id,
+                  p_source_ids:     talentIds,
+                });
+                if (error) console.error('[BattleCards] copy talents to pack error:', error);
+              }
               setCreatingAddon(null);
               await loadAll();
             }}
