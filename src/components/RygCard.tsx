@@ -59,9 +59,7 @@ const PORTRAIT_TOP  = 0;
 const PORTRAIT_W    = 298;
 const PORTRAIT_H    = 354;
 
-// Dark header band (top-right, from portrait edge to right bleed)
-const BAND_LEFT = 290;
-// BAND_TOP / BAND_W / BAND_H reserved for future use
+// BAND_LEFT / BAND_TOP / BAND_W / BAND_H reserved for future use
 
 // Warrior name block inside the band
 const NAME_LEFT = 317;
