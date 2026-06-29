@@ -30,7 +30,7 @@ import UploadPhotoModal from '../components/UploadPhotoModal';
 import Modal from '../components/Modal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import { type KeywordSelection } from '../components/AddKeywordModal';
-import RygCard, { CARD_W, CARD_H } from '../components/RygCard';
+import RygCard, { CARD_W, CARD_H, type RygSpell } from '../components/RygCard';
 import SeptCard from '../components/SeptCard';
 import GodCard from '../components/GodCard';
 import RygWeaponForm, { type RygWeaponFormProps } from '../components/RygWeaponForm';
@@ -169,7 +169,7 @@ const cardStats = (c: RygCardData) => ({
 });
 
 const isBlank = (c: RygCardData) =>
-  !c.warriorName && !c.warriorType && !c.sept &&
+  !c.warriorName && !c.warriorType &&
   c.offense === 0 && c.defense === 0 && c.life === 0 && c.tactics === 0 && c.fate === 0 &&
   c.weapons.length === 0 && c.armor.length === 0 && c.items.length === 0 && c.spells.length === 0;
 
@@ -257,6 +257,7 @@ const CardBuilderRyg = () => {
   const [godPickerOpen,     setGodPickerOpen]     = useState(false);
 
   const dirtyRef = useRef<Set<string>>(new Set());
+  const prevSeptNameRef = useRef<string | null>(null);
 
   const updateActive = (patch: Partial<RygCardData>) => {
     dirtyRef.current.add(activeCardId);
@@ -318,7 +319,7 @@ const CardBuilderRyg = () => {
           .from('cards')
           .select('id, name, stats, card_addons(addon_id, sort_order, params, addons(name, description, stats, addon_type_id, addon_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema)))), card_keywords(keyword_id, params, sort_order, keywords(name, description, params_schema)), card_images(file_path, image_type)')
           .eq('deck_id', deckId)
-          .is('card_type', null)
+          .eq('card_type', 'operative')
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true })
           .then(({ data, error }) => {
@@ -489,7 +490,26 @@ const CardBuilderRyg = () => {
     })();
   }, [deckId]);
 
-  // ── Auto-save (debounced 1s) ──────────────────────────────────────────────
+  // ── Propagate sept name to all warrior cards ──────────────────────────────
+  useEffect(() => {
+    const newName = septState.sept?.name ?? '';
+    if (prevSeptNameRef.current === null) {
+      prevSeptNameRef.current = newName;
+      return;
+    }
+    if (prevSeptNameRef.current === newName) return;
+    prevSeptNameRef.current = newName;
+    setCardState(s => ({
+      ...s,
+      cards: s.cards.map(c => {
+        if (c.sept === newName) return c;
+        dirtyRef.current.add(c.id);
+        return { ...c, sept: newName };
+      }),
+    }));
+  }, [septState.sept?.name]);
+
+  // ── Auto-save (debounced 1s) — mirrors Kill Team card builder ───────────
   useEffect(() => {
     if (!deckId || dirtyRef.current.size === 0) return;
 
@@ -523,7 +543,6 @@ const CardBuilderRyg = () => {
             if (error) throw error;
           }
 
-          // Sync card_addons (warrior type, talents, weapons, armor, items)
           await supabase.from('card_addons').delete().eq('card_id', dbId);
           const addonRows: { card_id: string; addon_id: string; sort_order: number; params: Record<string, string[]> }[] = [];
           let sortIdx = 0;
@@ -626,7 +645,7 @@ const CardBuilderRyg = () => {
 
   // ── Add / remove cards ───────────────────────────────────────────────────
   const addCard = () => {
-    const card = defaultCard();
+    const card = { ...defaultCard(), sept: septState.sept?.name ?? '' };
     setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
   };
 
@@ -803,9 +822,10 @@ const CardBuilderRyg = () => {
         : t.name,
     })),
     specialAbilityDesc: card.warriorType?.abilityDesc || undefined,
-    weapons:            card.weapons.map(w => ({ id: w.addonId, name: w.name, damage: w.damage, range: w.range, cost: w.cost, description: w.description, keywords: w.keywords })),
+    weapons:            card.weapons.map(w => ({ id: w.addonId, name: w.name, damage: w.damage, range: w.range, cost: w.cost, description: w.description, keywords: w.keywords, keywordList: w.weaponKeywords.map(kw => ({ name: kw.keywordName, description: kw.description })) })),
     armor:              card.armor.map(a => ({ id: a.addonId, name: a.name, cost: a.cost, description: a.description })),
     items:              card.items.map(i => ({ id: i.addonId, name: i.name, cost: i.cost, description: i.description })),
+    spells:             card.spells.map((s): RygSpell => ({ id: s.addonId, name: s.name, spellType: s.spellType, fateModifier: s.fateModifier, description: s.description })),
     portrait:           card.portraitUrl ?? undefined,
   });
 
@@ -1625,10 +1645,31 @@ const CardBuilderRyg = () => {
               addonTypeName="Weapon"
               excludeAddonIds={activeCard.weapons.map(w => w.addonId)}
               onClose={() => { setWeaponModalOpen(false); setEditingAddon(null); pendingWeaponKws.current = []; }}
-              onAdd={addon => {
+              onAdd={async addon => {
                 const ws = (addon.stats ?? {}) as Record<string, unknown>;
-                const kws = pendingWeaponKws.current;
+                let kws = pendingWeaponKws.current;
                 pendingWeaponKws.current = [];
+                // Picking an existing weapon: pending kws are empty, fetch from DB
+                if (kws.length === 0) {
+                  const { data: kwData } = await supabase
+                    .from('addon_keywords')
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    .select('keyword_id, params, sort_order, keywords(name, description, params_schema)')
+                    .eq('addon_id', addon.id)
+                    .order('sort_order');
+                  if (kwData) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    kws = (kwData as any[])
+                      .filter(ak => ak.keywords != null)
+                      .map(ak => ({
+                        keywordId:   ak.keyword_id as string,
+                        keywordName: ak.keywords.name as string,
+                        description: (ak.keywords.description ?? '') as string,
+                        hasParams:   Array.isArray(ak.keywords.params_schema) && ak.keywords.params_schema.length > 0,
+                        paramValue:  ak.params?.X != null ? Number(ak.params.X) : null,
+                      }));
+                  }
+                }
                 updateActive({
                   weapons: [...activeCard.weapons, {
                     addonId:        addon.id,

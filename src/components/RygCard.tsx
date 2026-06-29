@@ -179,16 +179,17 @@ function EditableText({ value, onChange, style, className, placeholder }: Editab
 // â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface RygWeapon {
-  id:           string;
-  name:         string;
+  id:            string;
+  name:          string;
   /** Free-text die spec, e.g. "1D6+3". */
-  damage:       string;
+  damage:        string;
   /** Range in inches; 0 = melee (omitted). */
-  range:        number;
+  range:         number;
   /** Cost in gold pieces. */
-  cost:         number;
-  keywords:     string;
-  description?: string;
+  cost:          number;
+  keywords:      string;
+  keywordList?:  Array<{ name: string; description: string }>;
+  description?:  string;
 }
 
 export interface RygArmor {
@@ -203,6 +204,14 @@ export interface RygItem {
   name:        string;
   cost:        number;
   description: string;
+}
+
+export interface RygSpell {
+  id:           string;
+  name:         string;
+  spellType:    string;
+  fateModifier: string;
+  description:  string;
 }
 
 export interface RygCardProps {
@@ -223,6 +232,7 @@ export interface RygCardProps {
   weapons:             RygWeapon[];
   armor:               RygArmor[];
   items:               RygItem[];
+  spells?:             RygSpell[];
   /** URL of the user-uploaded portrait photo. */
   portrait?:           string;
 
@@ -241,7 +251,7 @@ export default function RygCard({
   offense, defense, life, tactics, fate,
   talents, talentList, onTalentClick,
   specialAbilityDesc,
-  weapons, armor, items,
+  weapons, armor, items, spells = [],
   portrait,
   onChangeName, onChangeType, onChangeSept, onChangeTalents,
   onChangeAbilityDesc,
@@ -266,6 +276,7 @@ export default function RygCard({
   const hasWeapons    = weapons.length > 0;
   const hasArmor      = armor.length > 0;
   const hasItems      = items.length > 0;
+  const hasSpells     = spells.length > 0;
   const hasEquipment  = hasWeapons || hasArmor || hasItems;
   const hasAbility    = Boolean(specialAbilityDesc);
 
@@ -548,10 +559,63 @@ export default function RygCard({
                 </div>
                 {/* Divider */}
                 <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
-                {/* Right 50%: description */}
+                {/* Right 50%: keywords then description */}
+                <div style={{ flex: 1, paddingLeft: 10, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                  {(w.keywordList && w.keywordList.length > 0) ? (
+                    <span style={{ ...BASKERVILLE, fontStyle: 'italic', fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
+                      {w.keywordList.map((kw, i) => (
+                        <span key={kw.name}>
+                          {i > 0 && ', '}
+                          {onTalentClick ? (
+                            <button
+                              type="button"
+                              onClick={() => onTalentClick(kw)}
+                              style={{ ...BASKERVILLE, fontStyle: 'italic', fontSize: 20, color: TEXT_DARK, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                            >
+                              {kw.name}
+                            </button>
+                          ) : kw.name}
+                        </span>
+                      ))}
+                    </span>
+                  ) : w.keywords ? (
+                    <span style={{ ...BASKERVILLE, fontStyle: 'italic', fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>{w.keywords}</span>
+                  ) : null}
+                  {w.description && <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>{w.description}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Spells group */}
+        {hasSpells && (
+          <div style={{ flexShrink: 0 }}>
+            {spells.map((sp, i) => (
+              <div
+                key={sp.id}
+                style={{
+                  background: '#ffffff',
+                  border:     `2px solid ${BORDER_TAN}`,
+                  borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
+                  padding:    '8px 10px',
+                  display:    'flex',
+                  gap:        0,
+                  alignItems: 'stretch',
+                }}
+              >
+                <div style={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flexShrink: 0, paddingRight: 10 }}>
+                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {sp.name}
+                  </span>
+                  <span style={{ ...BASKERVILLE, fontSize: 18, color: TEXT_DARK, opacity: 0.7 }}>
+                    {[sp.spellType, sp.fateModifier ? `Fate ${sp.fateModifier}` : ''].filter(Boolean).join(' · ')}
+                  </span>
+                </div>
+                <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
                 <div style={{ flex: 1, paddingLeft: 10, display: 'flex', alignItems: 'center' }}>
-                  <span style={{ ...BASKERVILLE, fontSize: 22, color: TEXT_DARK, lineHeight: 1.3 }}>
-                    {w.description || w.keywords}
+                  <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
+                    {sp.description}
                   </span>
                 </div>
               </div>

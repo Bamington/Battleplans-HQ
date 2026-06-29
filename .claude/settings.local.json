@@ -142,7 +142,9 @@
       "Bash(Sort-Object)",
       "Bash(node -p \"require\\('./package.json'\\).version\")",
       "Bash(npm version *)",
-      "Bash(gh pr create --title 'Add Repent Ye Foolish Gods full feature set \\(v0.12.0\\)' --body ' *)"
+      "Bash(gh pr create --title 'Add Repent Ye Foolish Gods full feature set \\(v0.12.0\\)' --body ' *)",
+      "Bash(gh pr create --title 'Add Repent Ye Foolish Gods \\(v0.12.0\\)' --body ' *)",
+      "Bash(gh pr *)"
     ]
   }
 }
