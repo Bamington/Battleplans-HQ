@@ -126,7 +126,7 @@ export default function RygSpellForm({
       await supabase.from('addons').update({ prerequisites }).eq('id', editingAddon.id);
     }
 
-    const addonId = await onSave(name.trim(), null, stats);
+    const addonId = await onSave(name.trim(), null, stats as Record<string, unknown>);
     if (addonId) {
       await Promise.all([
         ...(editingAddon ? [] : [supabase.from('addons').update({ prerequisites }).eq('id', addonId)]),
@@ -340,7 +340,6 @@ export default function RygSpellForm({
         open={kwModalOpen}
         onClose={() => setKwModalOpen(false)}
         gameSlug="ryg"
-        keywordCategory="spell"
         packId={packId}
         onKeywordSelected={kw => {
           setAttachedKeywords(prev => [...prev, kw]);

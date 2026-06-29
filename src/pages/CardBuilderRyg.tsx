@@ -46,7 +46,6 @@ import UserRounded from '../icons/UserRounded';
 import AddCircle from '../icons/AddCircle';
 import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
-import HamburgerMenu from '../icons/HamburgerMenu';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import Pen2 from '../icons/Pen2';
 import { supabase } from '../lib/supabase';
@@ -202,9 +201,6 @@ const weaponSubtitle = (addon: Addon): string => {
   if (typeof s.cost === 'number' && s.cost > 0) parts.push(`${s.cost}gp`);
   return parts.join(' · ') || 'No stats';
 };
-
-const simpleSubtitle = (addon: Addon): string =>
-  addon.description ? addon.description.slice(0, 60) + (addon.description.length > 60 ? '…' : '') : '—';
 
 const spellSubtitle = (addon: Addon): string => {
   const s = (addon.stats ?? {}) as RygSpellStats;
@@ -664,7 +660,7 @@ const CardBuilderRyg = () => {
         next.splice(to, 0, moved);
         next.forEach((c, idx) => {
           if (c.dbId) {
-            withRetry(() => supabase.from('cards').update({ sort_order: idx }).eq('id', c.dbId!).then(r => { if (r.error) throw r.error; }));
+            withRetry(() => Promise.resolve(supabase.from('cards').update({ sort_order: idx }).eq('id', c.dbId!).then(r => { if (r.error) throw r.error; })));
           }
         });
         return { ...s, cards: next };
@@ -703,7 +699,7 @@ const CardBuilderRyg = () => {
   const pendingWarriorTypeTalents = useRef<LocalTalent[]>([]);
 
   // Addon being edited (weapons)
-  const [editingAddon, setEditingAddon] = useState<Addon | null>(null);
+  const [, setEditingAddon] = useState<Addon | null>(null);
 
   // ── Portrait upload / delete ──────────────────────────────────────────────
   const handlePortraitUploaded = (url: string) => {
@@ -1797,7 +1793,7 @@ const CardBuilderRyg = () => {
                 setGodPickerOpen(false);
               }}
               onDeleted={() => { godDirtyRef.current = true; setGodState(prev => ({ ...prev, god: null })); }}
-              getSubtitle={a => (a.stats as RygGodStats)?.lore?.slice(0, 60) ?? '—'}
+              getSubtitle={a => (a.stats as RygGodStats)?.specialAbility?.slice(0, 60) ?? '—'}
               CreateFormComponent={GodFormComponent}
             />
           )}

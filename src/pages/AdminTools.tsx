@@ -4,7 +4,6 @@ import Button from '../components/Button';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
 import Shield from '../icons/Shield';
-import UsersGroupRounded from '../icons/UsersGroupRounded';
 
 interface AdminLinkProps {
   title: string;

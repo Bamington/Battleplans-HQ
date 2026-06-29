@@ -63,7 +63,7 @@ export default function RygTalentForm({ editingAddon, onSave, onCancel, saving, 
 
   async function handleSave() {
     if (!canSave) return;
-    const addonId = await onSave(name.trim(), desc.trim() || null, buildStats());
+    const addonId = await onSave(name.trim(), desc.trim() || null, buildStats() as Record<string, unknown>);
     if (addonId) onSaveComplete?.(addonId);
   }
 

@@ -73,7 +73,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 
 export default function CardBuilderGod() {
   const [searchParams] = useSearchParams();
-  const deckId = searchParams.get('deckId') ?? undefined;
+  const deckId = searchParams.get('deckId') ?? null;
 
   const [cardState, setCardState] = useState<{ card: GodCardData }>(() => ({ card: defaultCard() }));
   const card = cardState.card;

@@ -26,7 +26,7 @@ export default function RygDestinyForm({ editingAddon, onSave, onCancel, saving,
       description: description.trim() || undefined,
       curse:       curse.trim()       || undefined,
     };
-    const addonId = await onSave(name.trim(), null, stats);
+    const addonId = await onSave(name.trim(), null, stats as Record<string, unknown>);
     if (addonId) onSaveComplete?.(addonId);
   };
 

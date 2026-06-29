@@ -92,7 +92,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 
 export default function CardBuilderSept() {
   const [searchParams] = useSearchParams();
-  const deckId = searchParams.get('deckId') ?? undefined;
+  const deckId = searchParams.get('deckId') ?? null;
 
   const [cardState, setCardState] = useState<{ card: SeptCardData }>(() => ({ card: defaultCard() }));
   const card = cardState.card;

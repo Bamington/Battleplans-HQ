@@ -41,7 +41,7 @@ export const CARD_W = 890;
 export const CARD_H = 1270;
 
 // â”€â”€ Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const DARK_BAND_BG   = 'rgba(10, 8, 6, 0.88)';
+// const DARK_BAND_BG   = 'rgba(10, 8, 6, 0.88)'; // reserved for future use
 const LIFE_RED       = '#890000';
 const CREAM          = '#e8e5dd';
 const BORDER_TAN     = '#87816e';
@@ -59,11 +59,7 @@ const PORTRAIT_TOP  = 0;
 const PORTRAIT_W    = 298;
 const PORTRAIT_H    = 354;
 
-// Dark header band (top-right, from portrait edge to right bleed)
-const BAND_LEFT = 290;
-const BAND_TOP  = 0;
-const BAND_W    = CARD_W - BAND_LEFT + 4;  // slight overlap with portrait edge
-const BAND_H    = 375;
+// BAND_LEFT / BAND_TOP / BAND_W / BAND_H reserved for future use
 
 // Warrior name block inside the band
 const NAME_LEFT = 317;
@@ -72,9 +68,7 @@ const NAME_W    = 548;
 const NAME_H    = 124;
 
 // Divider line
-const DIVIDER_LEFT = 321;
-const DIVIDER_TOP  = 127;
-const DIVIDER_W    = 529;
+// DIVIDER_LEFT / DIVIDER_TOP / DIVIDER_W reserved for future use
 
 // Type â€¢ Sept row
 const TYPESEPT_CENTER_X = 584;
@@ -268,7 +262,6 @@ export default function RygCard({
   useEffect(() => { measureName(); }, [warriorName, measureName]);
 
   const typeSeptParts = [type, sept].filter(Boolean);
-  const typeSeptStr   = typeSeptParts.join('  â€¢  ');
 
   const hasWeapons    = weapons.length > 0;
   const hasArmor      = armor.length > 0;

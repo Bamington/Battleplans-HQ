@@ -102,7 +102,7 @@ type Step = 'loading' | 'pick' | 'create' | 'edit';
 /** Returns true if all prerequisite rules are met by the given card addons. */
 function meetsPrerequisites(
   addon: Addon,
-  context: Array<{ addonId: string; typeSlug: string; params?: Record<string, string[]> }>,
+  context: Array<{ addonId: string; typeSlug: string; name?: string; params?: Record<string, string[]> }>,
 ): boolean {
   const prereqs = addon.prerequisites as AddonPrerequisites | null;
   if (!prereqs || prereqs.items.length === 0) return true;

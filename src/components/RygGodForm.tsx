@@ -32,7 +32,7 @@ export default function RygGodForm({ editingAddon, onSave, onCancel, saving, onS
       lieutenants:    lieutenants.trim()    || undefined,
       champions:      champions.trim()      || undefined,
     };
-    const addonId = await onSave(name.trim(), null, stats);
+    const addonId = await onSave(name.trim(), null, stats as Record<string, unknown>);
     if (addonId) onSaveComplete?.(addonId);
   };
 

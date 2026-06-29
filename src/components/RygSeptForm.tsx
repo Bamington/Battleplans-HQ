@@ -79,7 +79,7 @@ export default function RygSeptForm({
         benefitIds:   attachedBenefits.map(b => b.id),
         benefitNames: attachedBenefits.map(b => b.name),
       };
-      const addonId = await onSave(name.trim(), null, stats);
+      const addonId = await onSave(name.trim(), null, stats as Record<string, unknown>);
       if (addonId) onSaveComplete?.(addonId);
     } finally {
       onPendingTalents?.([]);

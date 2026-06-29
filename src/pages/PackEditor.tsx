@@ -22,7 +22,7 @@
  * Route: /app/packs/:packId/edit
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback, type ComponentType } from 'react';
+import { useState, useEffect, useMemo, useRef, type ComponentType } from 'react';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -362,12 +362,6 @@ export default function PackEditor() {
   const [loading,     setLoading]     = useState(true);
   const [loadError,   setLoadError]   = useState<string | null>(null);
 
-  // Pack-name inline-edit state
-  const [editingName, setEditingName] = useState(false);
-  const [nameDraft,   setNameDraft]   = useState('');
-  const [savingName,  setSavingName]  = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
   // Pack metadata draft state (title, description, published status)
   const [draftName,       setDraftName]       = useState('');
   const [draftDesc,       setDraftDesc]       = useState('');
@@ -573,24 +567,6 @@ export default function PackEditor() {
     draftIsPublic   !== (pack.is_public   ?? false) ||
     draftIsOfficial !== (pack.is_official ?? false)
   );
-
-  // Keep the legacy name-commit helpers so nothing else breaks.
-  function startEditingName() {
-    if (!pack || savingName) return;
-    setNameDraft(pack.name);
-    setEditingName(true);
-    setTimeout(() => { nameInputRef.current?.focus(); nameInputRef.current?.select(); }, 0);
-  }
-  function cancelEditingName() { setEditingName(false); setNameDraft(''); }
-  async function commitName() {
-    const trimmed = nameDraft.trim();
-    if (!pack) return;
-    if (trimmed.length === 0 || trimmed === pack.name) { cancelEditingName(); return; }
-    setSavingName(true);
-    await savePackMeta({ name: trimmed });
-    setSavingName(false);
-    setEditingName(false);
-  }
 
   // ── Delete (cards / addons / keywords) ─────────────────────────────────
   // The user can request a delete from any ⋯ menu; this opens the shared
@@ -996,7 +972,7 @@ export default function PackEditor() {
               >
                 <PaginatedKeywordList
                   keywords={keywords}
-                  onEdit={setEditingKeyword}
+                  onEdit={k => setEditingKeyword(k as Keyword)}
                   onDelete={(id, name) => requestDelete('keyword', id, name, 'Keyword')}
                 />
               </PackPanel>
