@@ -73,13 +73,20 @@ export default function ManageGames() {
     setSaving(true);
     setEditError(null);
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from('games')
       .update({ status: editStatus })
-      .eq('id', editTarget.id);
+      .eq('id', editTarget.id)
+      .select('id');
 
     if (error) {
       setEditError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    if (!updated || updated.length === 0) {
+      setEditError('Update was blocked — you may not have permission to edit games. Check that the games_update RLS policy has been applied in Supabase.');
       setSaving(false);
       return;
     }

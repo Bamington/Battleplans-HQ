@@ -1,9 +1,17 @@
-/**
+﻿/**
  * RygWeaponForm.tsx — RYG weapon create/edit form
  *
- * Rendered inside AddAddonModal's CreateFormComponent slot.
- * Fields: Name, Damage (free-text die spec), Range (number, 0=melee),
- * Keywords (via AddKeywordModal, same pattern as Kill Team weapons).
+ * Fields: Name, Cost (GP), Damage (free-text), Keywords.
+ *
+ * Props
+ *   editingAddon, onSave, onCancel, saving — standard AddonFormProps contract.
+ *   onPendingKeywords — fired with keyword list right before onSave when
+ *     creating (and [] in a finally). Builder uses this to seed the new
+ *     weapon's keywords in onAdd, before the addon_keywords sync lands.
+ *   onKeywordsSaved — fired after addon_keywords sync. Builder uses this
+ *     to refresh every card's in-memory copy of this weapon's keywords.
+ *   onSaveComplete — fired after full save + keyword sync. Used by the
+ *     pack editor to deep-clone the addon into the pack.
  */
 
 import { useState, useEffect } from 'react';
@@ -11,18 +19,23 @@ import { supabase } from '../lib/supabase';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 import type { AddonFormProps } from './AddAddonModal';
 import AddKeywordModal, { type KeywordSelection } from './AddKeywordModal';
+import KeywordInfoModal from './KeywordInfoModal';
 import Input from './Input';
 import Counter from './Counter';
 import Button from './Button';
 import Badge from './Badge';
 import HR from './HR';
 import AddCircle from '../icons/AddCircle';
+import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
 
 export interface RygWeaponFormProps extends AddonFormProps {
   onPendingKeywords?: (keywords: KeywordSelection[]) => void;
   onKeywordsSaved?:   (addonId: string, keywords: KeywordSelection[]) => void;
   onSaveComplete?:    (addonId: string) => void;
+  /** When set, new keywords created inside this form are scoped to the pack
+   *  and won't appear in the user's personal library. */
+  packId?: string;
 }
 
 export default function RygWeaponForm({
@@ -33,146 +46,201 @@ export default function RygWeaponForm({
   onPendingKeywords,
   onKeywordsSaved,
   onSaveComplete,
+  packId,
 }: RygWeaponFormProps) {
   const s = (editingAddon?.stats ?? {}) as Record<string, unknown>;
 
-  const [name,     setName]     = useState(editingAddon?.name ?? '');
-  const [damage,   setDamage]   = useState(typeof s.damage === 'string' ? s.damage : '');
-  const [range,    setRange]    = useState<number>(typeof s.range === 'number' ? s.range : 0);
-  const [keywords, setKeywords] = useState<KeywordSelection[]>([]);
-  const [kwModalOpen, setKwModalOpen] = useState(false);
+  const [name,        setName]        = useState(editingAddon?.name ?? '');
+  const [description, setDescription] = useState(editingAddon?.description ?? '');
+  const [damage,      setDamage]      = useState(typeof s.damage === 'string' ? s.damage : '');
+  const [cost,        setCost]        = useState<number>(typeof s.cost === 'number' ? s.cost : 0);
+  const [range,       setRange]       = useState<number>(typeof s.range === 'number' ? s.range : 0);
 
-  // Load existing keywords when editing
+  const [attachedKeywords, setAttachedKeywords] = useState<KeywordSelection[]>([]);
+  const [kwModalOpen,      setKwModalOpen]      = useState(false);
+  const [viewingKeyword,   setViewingKeyword]   = useState<KeywordSelection | null>(null);
+
   useEffect(() => {
     if (!editingAddon?.id) return;
+    let cancelled = false;
     supabase
       .from('addon_keywords')
       .select('keyword_id, params, sort_order, keywords(name, description, params_schema)')
       .eq('addon_id', editingAddon.id)
       .order('sort_order')
       .then(({ data }) => {
-        if (!data) return;
-        const loaded: KeywordSelection[] = (data as unknown as {
+        if (cancelled || !data) return;
+        type AkRow = {
           keyword_id: string;
-          params: Record<string, unknown> | null;
-          sort_order: number | null;
-          keywords: { name: string; description: string | null; params_schema: { key: string; type: string }[] } | null;
-        }[]).map(r => ({
-          keywordId:   r.keyword_id,
-          keywordName: r.keywords?.name ?? '',
-          description: r.keywords?.description ?? '',
-          hasParams:   Array.isArray(r.keywords?.params_schema) && r.keywords!.params_schema.length > 0,
-          paramValue:  r.params?.X != null ? Number(r.params.X) : null,
-        }));
-        setKeywords(loaded);
+          params:     { X?: number } | null;
+          keywords:   { name: string; description: string | null; params_schema: unknown } | null;
+        };
+        setAttachedKeywords(
+          (data as unknown as AkRow[])
+            .filter(r => r.keywords != null)
+            .map(r => ({
+              keywordId:   r.keyword_id,
+              keywordName: r.keywords!.name,
+              description: r.keywords!.description ?? '',
+              hasParams:   Array.isArray(r.keywords!.params_schema) && (r.keywords!.params_schema as unknown[]).length > 0,
+              paramValue:  r.params?.X != null ? Number(r.params.X) : null,
+            })),
+        );
       });
+    return () => { cancelled = true; };
   }, [editingAddon?.id]);
 
-  const removeKeyword = (id: string) =>
-    setKeywords(prev => prev.filter(k => k.keywordId !== id));
+  const isEditing = !!editingAddon;
+  const canSave   = name.trim() !== '' && !saving;
 
   const handleSave = async () => {
-    onPendingKeywords?.(keywords);
+    if (!canSave) return;
+    if (!isEditing) onPendingKeywords?.(attachedKeywords);
     try {
-      const addonId = await onSave(name.trim(), null, { damage, range });
-
-      // Sync addon_keywords
-      await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
-      if (keywords.length > 0) {
-        await supabase.from('addon_keywords').insert(
-          keywords.map((k, i) => ({
-            addon_id:   addonId,
-            keyword_id: k.keywordId,
-            params:     k.paramValue != null ? { X: k.paramValue } : null,
-            sort_order: i,
-          })),
-        );
+      const addonId = await onSave(name.trim(), description.trim() || null, { damage, range, cost });
+      if (addonId) {
+        await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
+        if (attachedKeywords.length > 0) {
+          await supabase.from('addon_keywords').insert(
+            attachedKeywords.map((k, i) => ({
+              addon_id:   addonId,
+              keyword_id: k.keywordId,
+              params:     k.paramValue != null ? { X: k.paramValue } : {},
+              sort_order: i,
+            })),
+          );
+        }
+        onKeywordsSaved?.(addonId, attachedKeywords);
+        onSaveComplete?.(addonId);
       }
-      onKeywordsSaved?.(addonId, keywords);
-      onSaveComplete?.(addonId);
     } finally {
       onPendingKeywords?.([]);
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Input
-        label="Weapon Name"
-        value={name}
-        onChange={e => setName(e.target.value)}
-        placeholder="e.g. Battleaxe"
-      />
+    <div className="p-5 flex flex-col gap-3">
+      <h5 className="font-heading text-xl text-white">
+        {isEditing ? 'Edit Weapon' : 'Create Weapon'}
+      </h5>
+      <p className="font-body text-sm text-gray-300">
+        Once created, you can add this weapon to warriors from the same game.
+      </p>
 
-      <div style={{ display: 'flex', gap: 12 }}>
-        <div style={{ flex: 1 }}>
+      {/* ── Basic Details ──────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-2">
+        <p className="font-body text-base font-bold text-gray-100">Basic Details</p>
+
+        <Input
+          label="Weapon Name"
+          required
+          placeholder="e.g. Battleaxe"
+          value={name}
+          onChange={e => setName(e.target.value)}
+        />
+
+        <div>
+          <label className="block text-sm font-medium font-body text-white mb-1">Description</label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Describe what this weapon does…"
+            rows={2}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm
+                       font-body text-white placeholder:text-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                       resize-y"
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
           <Input
             label="Damage"
+            placeholder="e.g. 1D6+3"
             value={damage}
             onChange={e => setDamage(e.target.value)}
-            placeholder="e.g. 1D6+3"
           />
+          <Counter label="Range (in)" value={range} onChange={setRange} min={0} max={999} />
+          <Counter label="Cost (GP)" value={cost} onChange={setCost} min={0} max={9999} />
         </div>
-        <div>
-          <Counter
-            label="Range (inches)"
-            value={range}
-            onChange={setRange}
-            min={0}
-            max={999}
-          />
-        </div>
-      </div>
 
-      <HR />
-
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Keywords</span>
-          <Button size="sm" variant="secondary" onClick={() => setKwModalOpen(true)}>
-            <AddCircle /> Add Keyword
-          </Button>
-        </div>
-        {keywords.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#6b7280' }}>No keywords yet.</p>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {keywords.map(k => (
-              <Badge key={k.keywordId} variant="default">
-                {formatKeywordLabel(k.keywordName, k.paramValue)}
-                <button
-                  onClick={() => removeKeyword(k.keywordId)}
-                  style={{ marginLeft: 4, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        {/* Keywords */}
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium font-body text-white">Keywords</p>
+          {attachedKeywords.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {attachedKeywords.map(k => (
+                <Badge
+                  key={k.keywordId}
+                  onDismiss={() => setAttachedKeywords(prev => prev.filter(x => x.keywordId !== k.keywordId))}
                 >
-                  <CloseCircle style={{ width: 14, height: 14, verticalAlign: 'middle' }} />
-                </button>
-              </Badge>
-            ))}
+                  <button
+                    type="button"
+                    className="underline text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                    onClick={() => setViewingKeyword(k)}
+                  >
+                    {formatKeywordLabel(k.keywordName, k.paramValue)}
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<AddCircle className="size-4" />}
+              onClick={() => setKwModalOpen(true)}
+            >
+              Add Keyword
+            </Button>
           </div>
-        )}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-        <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button onClick={handleSave} disabled={!name.trim() || saving} loading={saving}>Save Weapon</Button>
+      <HR className="!my-0" />
+
+      {/* CTAs */}
+      <div className="flex items-center gap-1 flex-wrap">
+        <Button
+          leftIcon={<CheckCircle className="size-4" />}
+          disabled={!canSave}
+          loading={saving}
+          onClick={handleSave}
+        >
+          {isEditing ? 'Update Weapon' : 'Save Weapon'}
+        </Button>
+        <Button
+          variant="ghost"
+          color="danger"
+          leftIcon={<CloseCircle className="size-4" />}
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </Button>
       </div>
 
-      {kwModalOpen && (
-        <AddKeywordModal
-          open
-          gameSlug="ryg"
-          onClose={() => setKwModalOpen(false)}
-          onSelect={sel => {
-            setKeywords(prev =>
-              prev.some(k => k.keywordId === sel.keywordId)
-                ? prev
-                : [...prev, sel],
-            );
-            setKwModalOpen(false);
-          }}
-          excludeKeywordIds={keywords.map(k => k.keywordId)}
-        />
-      )}
+      {/* Keyword picker */}
+      <AddKeywordModal
+        open={kwModalOpen}
+        onClose={() => setKwModalOpen(false)}
+        gameSlug="ryg"
+        packId={packId}
+        onKeywordSelected={kw => {
+          setAttachedKeywords(prev => [...prev, kw]);
+          setKwModalOpen(false);
+        }}
+        excludeKeywordIds={attachedKeywords.map(k => k.keywordId)}
+      />
+
+      {/* Keyword info */}
+      <KeywordInfoModal
+        open={!!viewingKeyword}
+        onClose={() => setViewingKeyword(null)}
+        name={viewingKeyword?.keywordName ?? ''}
+        description={viewingKeyword?.description ?? ''}
+      />
     </div>
   );
 }

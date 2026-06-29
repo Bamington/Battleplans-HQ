@@ -1,11 +1,11 @@
-/**
+﻿/**
  * ryg.ts — DB rows → RygCardProps
  *
- * Addons split into four groups via addon_type.slug:
- *   'special-ability' → single ability block
- *   'weapons'         → weapons list (name, damage, range, keywords)
- *   'armor'           → armor list   (name, description)
- *   'items'           → items list   (name, description)
+ * Addons split into groups via addon_type.slug:
+ *   'warrior-type' → type name, starting stats, special ability name+desc
+ *   'weapons'      → weapons list (name, damage, range, keywords)
+ *   'armor'        → armor list   (name, description)
+ *   'items'        → items list   (name, description)
  *
  * Assumed select shape:
  *   .select(`
@@ -41,6 +41,7 @@ interface AddonKeywordRow {
 interface CardAddonRow {
   addon_id:   string;
   sort_order: number | null;
+  params:     Record<string, string> | null;
   addons: {
     name:           string;
     description:    string | null;
@@ -93,53 +94,60 @@ export function dbRowsToRygProps(
     .filter(ca => ca.addons != null)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-  let specialAbilityName: string | undefined;
+  let typeName:           string | undefined;
   let specialAbilityDesc: string | undefined;
-  const weapons: RygWeapon[] = [];
-  const armor:   RygArmor[]  = [];
-  const items:   RygItem[]   = [];
+  const talentNames: string[]  = [];
+  const weapons:     RygWeapon[] = [];
+  const armor:       RygArmor[]  = [];
+  const items:       RygItem[]   = [];
 
   for (const ca of sortedAddons) {
     const addon = ca.addons!;
     const slug  = addonSlug(addon);
     const ws    = addon.stats;
 
-    if (slug === 'special-ability') {
-      specialAbilityName = addon.name;
+    if (slug === 'warrior-type') {
+      typeName           = addon.name;
       specialAbilityDesc = addon.description ?? undefined;
+    } else if (slug === 'talents') {
+      const paramVals = ca.params ? Object.values(ca.params).flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean) : [];
+      talentNames.push(paramVals.length ? `${addon.name} (${paramVals.join(', ')})` : addon.name);
     } else if (slug === 'weapons') {
-      const rangeVal = typeof ws.range === 'number' ? ws.range : parseInt(String(ws.range ?? ''), 10);
+      const costVal = typeof ws.cost === 'number' ? ws.cost : parseInt(String(ws.cost ?? ''), 10);
+const rangeVal = typeof ws.range === 'number' ? ws.range : parseInt(String(ws.range ?? ''), 10);
       weapons.push({
-        id:       ca.addon_id,
-        name:     addon.name,
-        damage:   typeof ws.damage === 'string' ? ws.damage : '',
-        range:    Number.isFinite(rangeVal) ? rangeVal : 0,
-        keywords: joinKeywordLabels(addon.addon_keywords ?? []),
+        id:          ca.addon_id,
+        name:        addon.name,
+        damage:      typeof ws.damage === 'string' ? ws.damage : '',
+        range:       Number.isFinite(rangeVal) ? rangeVal : 0,
+        cost:        Number.isFinite(costVal) ? costVal : 0,
+        keywords:    joinKeywordLabels(addon.addon_keywords ?? []),
+        description: addon.description ?? '',
       });
     } else if (slug === 'armor') {
+      const costVal = typeof ws.cost === 'number' ? ws.cost : parseInt(String(ws.cost ?? ''), 10);
       armor.push({
         id:          ca.addon_id,
         name:        addon.name,
+        cost:        Number.isFinite(costVal) ? costVal : 0,
         description: addon.description ?? '',
       });
     } else if (slug === 'items') {
+      const costVal = typeof ws.cost === 'number' ? ws.cost : parseInt(String(ws.cost ?? ''), 10);
       items.push({
         id:          ca.addon_id,
         name:        addon.name,
+        cost:        Number.isFinite(costVal) ? costVal : 0,
         description: addon.description ?? '',
       });
     }
   }
 
-  const talents = [...(row.card_keywords ?? [])]
-    .filter(r => r.keywords != null)
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(r => formatKeywordLabel(r.keywords!.name, r.params?.X))
-    .join(', ');
+  const talents = talentNames.join(', ');
 
   return {
     warriorName:        row.name || 'Warrior Name',
-    type:               typeof s.type    === 'string' ? s.type    : '',
+    type:               typeName ?? '',
     sept:               typeof s.sept    === 'string' ? s.sept    : '',
     offense:            numStat(s.offense),
     defense:            numStat(s.defense),
@@ -147,7 +155,6 @@ export function dbRowsToRygProps(
     tactics:            numStat(s.tactics),
     fate:               numStat(s.fate),
     talents,
-    specialAbilityName,
     specialAbilityDesc,
     weapons,
     armor,

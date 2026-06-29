@@ -1,30 +1,30 @@
-/**
- * RygCard.tsx — Repent Ye Foolish Gods warrior card
+﻿/**
+ * RygCard.tsx â€” Repent Ye Foolish Gods warrior card
  *
  * Architecture:
- *   Layer 1 — bg.svg            : full-card rock texture background
- *   Layer 2 — Dark header band  : positioned div covering the top-right area,
+ *   Layer 1 â€” bg.svg            : full-card rock texture background
+ *   Layer 2 â€” Dark header band  : positioned div covering the top-right area,
  *                                  providing the dark stone background for the
  *                                  name / stats region
- *   Layer 3 — Dynamic content   : warrior name, type, sept, stat values,
+ *   Layer 3 â€” Dynamic content   : warrior name, type, sept, stat values,
  *                                  talents, portrait, and all content sections
  *
- * Native size: 890 × 1270 px (portrait). Wrap in a scaled container for display.
+ * Native size: 890 Ã— 1270 px (portrait). Wrap in a scaled container for display.
  *
  * Layout (from Figma node 959:15634):
- *   ┌───────────────┬────────────────────────────────────────┐
- *   │  Portrait     │  Dark header band                      │
- *   │  298 × 354    │  Name (LLTextur, 82px, white)          │
- *   │               │  ── divider ──                         │
- *   │               │  TYPE • SEPT                           │
- *   │               │  [OFF] [DEF] [TAC] [FATE]  stat boxes  │
- *   ├───┬───────────┴────────────────────────────────────────┤
- *   │[L]│  Talents: comma-separated keywords                 │
- *   ├───┴────────────────────────────────────────────────────┤
- *   │  SPECIAL ABILITY  (header + description)               │
- *   │  ── weapon rows ──                                     │
- *   │  ── armor / item rows ──                               │
- *   └────────────────────────────────────────────────────────┘
+ *   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ *   â”‚  Portrait     â”‚  Dark header band                      â”‚
+ *   â”‚  298 Ã— 354    â”‚  Name (LLTextur, 82px, white)          â”‚
+ *   â”‚               â”‚  â”€â”€ divider â”€â”€                         â”‚
+ *   â”‚               â”‚  TYPE â€¢ SEPT                           â”‚
+ *   â”‚               â”‚  [OFF] [DEF] [TAC] [FATE]  stat boxes  â”‚
+ *   â”œâ”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ *   â”‚[L]â”‚  Talents: comma-separated keywords                 â”‚
+ *   â”œâ”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ *   â”‚  SPECIAL ABILITY  (header + description)               â”‚
+ *   â”‚  â”€â”€ weapon rows â”€â”€                                     â”‚
+ *   â”‚  â”€â”€ armor / item rows â”€â”€                               â”‚
+ *   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  *
  * Inline editing:
  *   Pass onChange callbacks to enable editing on individual fields.
@@ -32,27 +32,27 @@
  *   Numeric stats: Counter via the editor panel (no inline click on the card).
  */
 
-import { useState, useRef, useEffect } from 'react';
-// @ts-ignore — path contains spaces
+import { useState, useRef, useEffect, useCallback } from 'react';
+// @ts-ignore â€” path contains spaces
 import bgSvg from '../assets/games/card assets/ryg/bg.svg';
 
-// ── Native size ──────────────────────────────────────────────────────────────
+// â”€â”€ Native size â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const CARD_W = 890;
 export const CARD_H = 1270;
 
-// ── Theme ────────────────────────────────────────────────────────────────────
+// â”€â”€ Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const DARK_BAND_BG   = 'rgba(10, 8, 6, 0.88)';
 const LIFE_RED       = '#890000';
 const CREAM          = '#e8e5dd';
 const BORDER_TAN     = '#87816e';
 const TEXT_DARK      = '#141414';
 
-// ── Fonts ────────────────────────────────────────────────────────────────────
+// â”€â”€ Fonts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TEXTUR = { fontFamily: "'LLTextur', 'IM Fell English', serif" } as const;
 const BASKERVILLE      = { fontFamily: "'Libre Baskerville', 'Georgia', serif" } as const;
 const BASKERVILLE_BOLD = { ...BASKERVILLE, fontWeight: 700 } as const;
 
-// ── Geometry (matches Figma node 959:15634) ──────────────────────────────────
+// â”€â”€ Geometry (matches Figma node 959:15634) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Portrait area
 const PORTRAIT_LEFT = 0;
 const PORTRAIT_TOP  = 0;
@@ -66,7 +66,7 @@ const BAND_W    = CARD_W - BAND_LEFT + 4;  // slight overlap with portrait edge
 const BAND_H    = 375;
 
 // Warrior name block inside the band
-const NAME_LEFT = 321;
+const NAME_LEFT = 317;
 const NAME_TOP  = 0;
 const NAME_W    = 548;
 const NAME_H    = 124;
@@ -76,11 +76,11 @@ const DIVIDER_LEFT = 321;
 const DIVIDER_TOP  = 127;
 const DIVIDER_W    = 529;
 
-// Type • Sept row
+// Type â€¢ Sept row
 const TYPESEPT_CENTER_X = 584;
 const TYPESEPT_TOP      = 147;
 
-// 4 stat boxes (Offense, Defense, Tactics, Fate) — top=204, h=102
+// 4 stat boxes (Offense, Defense, Tactics, Fate) â€” top=204, h=102
 const STAT_TOP    = 204;
 const STAT_H      = 102;
 const STAT_BOXES = [
@@ -99,7 +99,7 @@ const LIFE_H    = 102;
 
 // Talents text strip
 const TALENTS_CENTER_X = 590;
-const TALENTS_TOP      = 340;
+const TALENTS_TOP      = 329;
 const TALENTS_W        = 590;
 
 // Content area (special ability, weapons, armor, items)
@@ -108,7 +108,7 @@ const CONTENT_TOP  = 432;
 const CONTENT_W    = 806;
 const CONTENT_GAP  = 20;
 
-// ── Inline editable text ─────────────────────────────────────────────────────
+// â”€â”€ Inline editable text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface EditableTextProps {
   value:       string;
@@ -182,27 +182,32 @@ function EditableText({ value, onChange, style, className, placeholder }: Editab
   );
 }
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface RygWeapon {
-  id:       string;
-  name:     string;
+  id:           string;
+  name:         string;
   /** Free-text die spec, e.g. "1D6+3". */
-  damage:   string;
-  /** Range in inches; 0 = melee (rendered as "—"). */
-  range:    number;
-  keywords: string;
+  damage:       string;
+  /** Range in inches; 0 = melee (omitted). */
+  range:        number;
+  /** Cost in gold pieces. */
+  cost:         number;
+  keywords:     string;
+  description?: string;
 }
 
 export interface RygArmor {
   id:          string;
   name:        string;
+  cost:        number;
   description: string;
 }
 
 export interface RygItem {
   id:          string;
   name:        string;
+  cost:        number;
   description: string;
 }
 
@@ -215,9 +220,11 @@ export interface RygCardProps {
   life:                number;
   tactics:             number;
   fate:                number;
-  /** Comma-separated keyword display string. */
+  /** Comma-separated keyword display string (used when talentList not provided). */
   talents:             string;
-  specialAbilityName?: string;
+  /** Structured talent list — when provided, renders clickable talent names. */
+  talentList?:         Array<{ addonId: string; name: string; description: string; displayName: string }>;
+  onTalentClick?:      (talent: { name: string; description: string }) => void;
   specialAbilityDesc?: string;
   weapons:             RygWeapon[];
   armor:               RygArmor[];
@@ -225,38 +232,49 @@ export interface RygCardProps {
   /** URL of the user-uploaded portrait photo. */
   portrait?:           string;
 
-  // Inline editing callbacks — omit to make read-only
+  // Inline editing callbacks â€” omit to make read-only
   onChangeName?:         (v: string) => void;
   onChangeType?:         (v: string) => void;
   onChangeSept?:         (v: string) => void;
   onChangeTalents?:      (v: string) => void;
-  onChangeAbilityName?:  (v: string) => void;
   onChangeAbilityDesc?:  (v: string) => void;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function RygCard({
   warriorName, type, sept,
   offense, defense, life, tactics, fate,
-  talents,
-  specialAbilityName, specialAbilityDesc,
+  talents, talentList, onTalentClick,
+  specialAbilityDesc,
   weapons, armor, items,
   portrait,
   onChangeName, onChangeType, onChangeSept, onChangeTalents,
-  onChangeAbilityName, onChangeAbilityDesc,
+  onChangeAbilityDesc,
 }: RygCardProps) {
 
-  const statVal = (n: number) => n > 0 ? String(n) : '—';
+  const statVal = (n: number) => String(n);
+
+  // Scale the warrior name horizontally if it overflows the name box
+  const nameContainerRef = useRef<HTMLDivElement>(null);
+  const [nameScaleX, setNameScaleX] = useState(1);
+  const measureName = useCallback(() => {
+    const container = nameContainerRef.current;
+    if (!container) return;
+    const span = container.querySelector('span') as HTMLSpanElement | null;
+    if (!span) return;
+    setNameScaleX(Math.min(1, NAME_W / span.scrollWidth));
+  }, []);
+  useEffect(() => { measureName(); }, [warriorName, measureName]);
 
   const typeSeptParts = [type, sept].filter(Boolean);
-  const typeSeptStr   = typeSeptParts.join('  •  ');
+  const typeSeptStr   = typeSeptParts.join('  â€¢  ');
 
   const hasWeapons    = weapons.length > 0;
   const hasArmor      = armor.length > 0;
   const hasItems      = items.length > 0;
   const hasEquipment  = hasWeapons || hasArmor || hasItems;
-  const hasAbility    = Boolean(specialAbilityName);
+  const hasAbility    = Boolean(specialAbilityDesc);
 
   return (
     <div
@@ -269,7 +287,7 @@ export default function RygCard({
         fontFamily: BASKERVILLE.fontFamily,
       }}
     >
-      {/* Layer 1 — background texture */}
+      {/* Layer 1 â€” background texture */}
       <img
         src={bgSvg}
         alt=""
@@ -277,7 +295,7 @@ export default function RygCard({
         draggable={false}
       />
 
-      {/* Layer 2 — portrait photo area */}
+      {/* Layer 2 â€” portrait photo area */}
       <div
         style={{
           position:   'absolute',
@@ -299,65 +317,41 @@ export default function RygCard({
         )}
       </div>
 
-      {/* Layer 2 — dark header band (top-right) */}
-      <div
-        style={{
-          position:   'absolute',
-          left:       BAND_LEFT,
-          top:        BAND_TOP,
-          width:      BAND_W,
-          height:     BAND_H,
-          background: DARK_BAND_BG,
-          borderLeft: '5px solid #0f1015',
-        }}
-      />
 
-      {/* Layer 3 — Warrior name */}
+      {/* Layer 3 â€” Warrior name */}
       <div
+        ref={nameContainerRef}
         style={{
-          position:   'absolute',
-          left:       NAME_LEFT,
-          top:        NAME_TOP,
-          width:      NAME_W,
-          height:     NAME_H,
-          display:    'flex',
-          alignItems: 'flex-end',
-          paddingBottom: 6,
+          position:        'absolute',
+          left:            NAME_LEFT,
+          top:             NAME_TOP,
+          width:           NAME_W,
+          height:          NAME_H,
+          display:         'flex',
+          alignItems:      'flex-end',
+          justifyContent:  'center',
+          paddingBottom:   6,
+          overflow:        'hidden',
         }}
       >
-        <EditableText
-          value={warriorName}
-          onChange={onChangeName}
-          placeholder="Warrior Name"
-          style={{
-            ...TEXTUR,
-            fontSize:      72,
-            lineHeight:    1,
-            color:         '#ffffff',
-            display:       'block',
-            width:         '100%',
-            whiteSpace:    'nowrap',
-            overflow:      'hidden',
-          }}
-        />
+        <div style={{ transform: `scaleX(${nameScaleX})`, transformOrigin: 'center bottom' }}>
+          <EditableText
+            value={warriorName}
+            onChange={onChangeName}
+            placeholder="Warrior Name"
+            style={{
+              ...TEXTUR,
+              fontSize:   72,
+              lineHeight: 1,
+              color:      '#ffffff',
+              whiteSpace: 'nowrap',
+            }}
+          />
+        </div>
       </div>
 
-      {/* Layer 3 — Divider line */}
-      <div
-        style={{
-          position: 'absolute',
-          left:     DIVIDER_LEFT,
-          top:      DIVIDER_TOP,
-          width:    DIVIDER_W,
-          height:   2,
-          background: '#ffffff',
-        }}
-      />
-      {/* Decorative diamonds at ends */}
-      <div style={{ position: 'absolute', left: DIVIDER_LEFT - 5, top: DIVIDER_TOP - 4, width: 10, height: 10, background: '#ffffff', transform: 'rotate(45deg)' }} />
-      <div style={{ position: 'absolute', left: DIVIDER_LEFT + DIVIDER_W - 5, top: DIVIDER_TOP - 4, width: 10, height: 10, background: '#ffffff', transform: 'rotate(45deg)' }} />
 
-      {/* Layer 3 — Type • Sept */}
+      {/* Layer 3 â€” Type â€¢ Sept */}
       <div
         style={{
           position:  'absolute',
@@ -383,7 +377,7 @@ export default function RygCard({
           }}
         />
         {typeSeptParts.length === 2 && (
-          <span style={{ ...BASKERVILLE_BOLD, fontSize: 14, color: CREAM, opacity: 0.8 }}>•</span>
+          <span style={{ ...BASKERVILLE_BOLD, fontSize: 14, color: CREAM, opacity: 0.8 }}>â€¢</span>
         )}
         <EditableText
           value={sept}
@@ -399,7 +393,7 @@ export default function RygCard({
         />
       </div>
 
-      {/* Layer 3 — Four stat boxes (Offense, Defense, Tactics, Fate) */}
+      {/* Layer 3 â€” Four stat boxes (Offense, Defense, Tactics, Fate) */}
       {STAT_BOXES.map(box => (
         <div
           key={box.key}
@@ -409,27 +403,23 @@ export default function RygCard({
             top:            STAT_TOP,
             width:          STAT_W,
             height:         STAT_H,
-            background:     '#ffffff',
             border:         '10px solid #000000',
             display:        'flex',
             flexDirection:  'column',
             alignItems:     'center',
             justifyContent: 'space-between',
             paddingTop:     8,
-            paddingBottom:  6,
+            paddingBottom:  15,
             boxSizing:      'border-box',
           }}
         >
           <span style={{ ...TEXTUR, fontSize: 52, lineHeight: 1, color: TEXT_DARK }}>
             {statVal({ offense, defense, tactics, fate }[box.key])}
           </span>
-          <span style={{ ...BASKERVILLE_BOLD, fontSize: 20, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK }}>
-            {box.label}
-          </span>
         </div>
       ))}
 
-      {/* Layer 3 — Life box (left side, red) */}
+      {/* Layer 3 â€” Life box (left side, red) */}
       <div
         style={{
           position:       'absolute',
@@ -444,19 +434,16 @@ export default function RygCard({
           alignItems:     'center',
           justifyContent: 'space-between',
           paddingTop:     8,
-          paddingBottom:  6,
+          paddingBottom:  11,
           boxSizing:      'border-box',
         }}
       >
-        <span style={{ ...TEXTUR, fontSize: 64, lineHeight: 1, color: LIFE_RED }}>
+        <span style={{ ...TEXTUR, fontSize: 70, lineHeight: 1, color: LIFE_RED }}>
           {statVal(life)}
-        </span>
-        <span style={{ ...BASKERVILLE_BOLD, fontSize: 20, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK }}>
-          Life
         </span>
       </div>
 
-      {/* Layer 3 — Talents strip */}
+      {/* Layer 3 â€” Talents strip */}
       <div
         style={{
           position:  'absolute',
@@ -466,20 +453,48 @@ export default function RygCard({
           textAlign: 'center',
         }}
       >
-        <EditableText
-          value={talents}
-          onChange={onChangeTalents}
-          placeholder="Talents (e.g. Evasion, Stealthy)"
-          style={{
-            ...BASKERVILLE,
-            fontWeight: 500,
-            fontSize:   22,
-            color:      CREAM,
-          }}
-        />
+        {talentList && talentList.length > 0 ? (
+          <span style={{ ...BASKERVILLE, fontWeight: 500, fontSize: 22, color: CREAM }}>
+            {talentList.map((t, i) => (
+              <span key={t.addonId}>
+                {i > 0 && <span style={{ color: CREAM }}>, </span>}
+                <button
+                  type="button"
+                  onClick={() => onTalentClick?.(t)}
+                  style={{
+                    ...BASKERVILLE,
+                    fontWeight:      500,
+                    fontSize:        28,
+                    color:           CREAM,
+                    background:      'none',
+                    border:          'none',
+                    padding:         0,
+                    cursor:          'pointer',
+                    textDecoration:  'underline',
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  {t.displayName}
+                </button>
+              </span>
+            ))}
+          </span>
+        ) : (
+          <EditableText
+            value={talents}
+            onChange={onChangeTalents}
+            placeholder="Talents (e.g. Evasion, Stealthy)"
+            style={{
+              ...BASKERVILLE,
+              fontWeight: 500,
+              fontSize:   22,
+              color:      CREAM,
+            }}
+          />
+        )}
       </div>
 
-      {/* Layer 3 — Content area */}
+      {/* Layer 3 â€” Content area */}
       <div
         style={{
           position:      'absolute',
@@ -496,18 +511,11 @@ export default function RygCard({
         {/* Special Ability */}
         {hasAbility && (
           <div style={{ background: '#ffffff', border: `2px solid ${BORDER_TAN}`, padding: 10, flexShrink: 0 }}>
-            <div style={{ ...BASKERVILLE_BOLD, fontSize: 26, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, marginBottom: 5 }}>
-              <EditableText
-                value={specialAbilityName ?? ''}
-                onChange={onChangeAbilityName}
-                style={{ ...BASKERVILLE_BOLD, fontSize: 26, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK }}
-              />
-            </div>
             <EditableText
               value={specialAbilityDesc ?? ''}
               onChange={onChangeAbilityDesc}
-              placeholder="Describe the special ability…"
-              style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, display: 'block', lineHeight: 1.4 }}
+              placeholder="Describe the special abilityâ€¦"
+              style={{ ...BASKERVILLE, fontSize: 24, color: TEXT_DARK, display: 'block', lineHeight: 1.4 }}
             />
           </div>
         )}
@@ -519,27 +527,40 @@ export default function RygCard({
               <div
                 key={w.id}
                 style={{
-                  background:  '#ffffff',
-                  border:      `2px solid ${BORDER_TAN}`,
-                  borderTop:   i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
-                  padding:     '8px 10px',
-                  display:     'flex',
-                  gap:         6,
-                  alignItems:  'center',
+                  background: '#ffffff',
+                  border:     `2px solid ${BORDER_TAN}`,
+                  borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
+                  padding:    '8px 10px',
+                  display:    'flex',
+                  gap:        0,
+                  alignItems: 'stretch',
                 }}
               >
-                <span style={{ ...BASKERVILLE_BOLD, fontSize: 22, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, width: 200, flexShrink: 0 }}>
-                  {w.name}
-                </span>
-                <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, width: 80, flexShrink: 0 }}>
-                  {w.damage || '—'}
-                </span>
-                <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, width: 60, flexShrink: 0 }}>
-                  {w.range > 0 ? `${w.range}"` : '—'}
-                </span>
-                <span style={{ ...BASKERVILLE, fontSize: 18, color: TEXT_DARK, flex: 1, textAlign: 'right' }}>
-                  {w.keywords}
-                </span>
+                {/* Left 50%: name + stats */}
+                <div style={{ width: '50%', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, paddingRight: 10 }}>
+                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {w.name}
+                  </span>
+                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
+                    {w.damage || '—'}
+                  </span>
+                  {w.range > 0 && (
+                    <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
+                      {w.range}{'”'}
+                    </span>
+                  )}
+                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
+                    {w.cost > 0 ? `${w.cost}gp` : '—'}
+                  </span>
+                </div>
+                {/* Divider */}
+                <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
+                {/* Right 50%: description */}
+                <div style={{ flex: 1, paddingLeft: 10, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE, fontSize: 22, color: TEXT_DARK, lineHeight: 1.3 }}>
+                    {w.description || w.keywords}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -548,30 +569,38 @@ export default function RygCard({
         {/* Armor + Items group */}
         {hasEquipment && (hasArmor || hasItems) && (
           <div style={{ flexShrink: 0 }}>
-            {[...armor, ...items].map((eq, i) => {
-              const isArmor = i < armor.length;
-              return (
-                <div
-                  key={eq.id}
-                  style={{
-                    background: '#ffffff',
-                    border:     `2px solid ${BORDER_TAN}`,
-                    borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
-                    padding:    '8px 10px',
-                    display:    'flex',
-                    gap:        6,
-                    alignItems: 'center',
-                  }}
-                >
-                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 22, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, width: 200, flexShrink: 0 }}>
+            {[...armor, ...items].map((eq, i) => (
+              <div
+                key={eq.id}
+                style={{
+                  background: '#ffffff',
+                  border:     `2px solid ${BORDER_TAN}`,
+                  borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
+                  padding:    '8px 10px',
+                  display:    'flex',
+                  gap:        0,
+                  alignItems: 'stretch',
+                }}
+              >
+                {/* Left 50%: name + cost */}
+                <div style={{ width: '50%', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, paddingRight: 10 }}>
+                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {eq.name}
                   </span>
-                  <span style={{ ...BASKERVILLE, fontSize: 18, color: TEXT_DARK, flex: 1, textAlign: isArmor ? 'right' : 'left', lineHeight: 1.3 }}>
+                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
+                    {eq.cost > 0 ? `${eq.cost}gp` : '—'}
+                  </span>
+                </div>
+                {/* Divider */}
+                <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
+                {/* Right 50%: description */}
+                <div style={{ flex: 1, paddingLeft: 10, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE, fontSize: 22, color: TEXT_DARK, lineHeight: 1.3 }}>
                     {eq.description}
                   </span>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>

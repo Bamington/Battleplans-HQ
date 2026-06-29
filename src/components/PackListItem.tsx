@@ -95,6 +95,8 @@ export interface PackListItemProps {
   onDelete?: () => void;
   /** Override the Delete menu item's label. Defaults to "Delete Pack". */
   deleteLabel?: string;
+  /** When true, renders a green "Official" pill above the pack title */
+  official?: boolean;
   /** Extra Tailwind classes on the outer element */
   className?: string;
 }
@@ -111,6 +113,7 @@ const PackListItem = ({
   cta,
   onDelete,
   deleteLabel = 'Delete Pack',
+  official    = false,
   className   = '',
 }: PackListItemProps) => {
   return (
@@ -139,6 +142,11 @@ const PackListItem = ({
 
         {/* Title + game name */}
         <div className="flex-1 min-w-0 flex flex-col self-stretch justify-center">
+          {official && (
+            <span className="inline-flex self-start items-center px-2 py-0.5 mb-1 rounded-full text-[11px] font-semibold font-body bg-green-600 text-white leading-none">
+              Official
+            </span>
+          )}
           <p className="font-heading text-[18px] leading-6 text-white truncate">
             {name}
           </p>

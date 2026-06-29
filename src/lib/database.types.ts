@@ -1,9 +1,9 @@
-// BattleCards — database types
+﻿// BattleCards â€” database types
 // Mirrors the schema in supabase/schema.sql
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
-// ── Stat schema ───────────────────────────────────────────────────────────────
+// â”€â”€ Stat schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** The field types supported in a game's or addon_type's stat_schema. */
 export type StatFieldType = 'text' | 'number'
@@ -21,7 +21,7 @@ export interface StatField {
   userSpecific?: boolean
 }
 
-// ── Game-specific stat shapes ─────────────────────────────────────────────────
+// â”€â”€ Game-specific stat shapes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface BloodBowlStats {
   teamName?:           string
@@ -67,11 +67,11 @@ export interface KillTeamStats {
 /**
  * One tier row in StarcraftStats.supplyTiers.
  *
- * Storage carries only `maxModels` and `supply` per tier — the *minimum*
+ * Storage carries only `maxModels` and `supply` per tier â€” the *minimum*
  * model count and the validation lower-bound for `supply` are derived
  * from the previous tier:
- *   • Tier 0: model range starts at 1, supply min = 0
- *   • Tier N: model range starts at (tiers[N-1].maxModels + 1),
+ *   â€¢ Tier 0: model range starts at 1, supply min = 0
+ *   â€¢ Tier N: model range starts at (tiers[N-1].maxModels + 1),
  *             supply min = (tiers[N-1].supply + 1)
  */
 export interface StarcraftSupplyTier {
@@ -89,22 +89,21 @@ export interface StarcraftStats {
   unitName?:     string
   /** Scalar movement value. */
   speed?:        number
-  /** Die threshold base value — the card renders as "{evade}+". */
+  /** Die threshold base value â€” the card renders as "{evade}+". */
   evade?:        number
-  /** Die threshold base value — the card renders as "{armour}+". */
+  /** Die threshold base value â€” the card renders as "{armour}+". */
   armour?:       number
   hitPoints?:    number
   size?:         number
   /** Total point cost of the unit including weapons and upgrades. */
   pointsCost?:   number
-  /** 1–3 tier rows defining models-to-supply cost brackets. */
+  /** 1â€“3 tier rows defining models-to-supply cost brackets. */
   supplyTiers?:  StarcraftSupplyTier[]
   /** Free-text, comma-separated (e.g. "Core, Light, Biological, Ground, Terran"). */
   tags?:         string
 }
 
 export interface RygStats {
-  type?:    string
   sept?:    string
   offense?: number
   defense?: number
@@ -113,14 +112,104 @@ export interface RygStats {
   fate?:    number
 }
 
+export interface RygTalentParamField {
+  key:            string
+  label:          string
+  options:        string[]
+  /** Maximum number of options the warrior may select. Omit for no limit. */
+  maxSelections?: number
+}
+
+export interface RygTalentStats {
+  prerequisites?: string
+  repeatable?:    boolean
+  /** When present, attaching this talent to a warrior requires a per-warrior
+   *  selection (e.g. magic type for Spellcasting). Stored in card_addons.params. */
+  paramsSchema?:  RygTalentParamField[]
+}
+
+export interface RygWarriorTypeStats {
+  offense?:   number
+  defense?:   number
+  life?:      number
+  tactics?:   number
+  fate?:      number
+  /** IDs of predefined talent addons (legacy — params not stored). */
+  talentIds?: string[]
+  /** Predefined talents with per-talent params. Supersedes talentIds when present. */
+  talents?: Array<{ id: string; name?: string; params?: Record<string, string[]>; deferred?: boolean; deferredLabel?: string }>
+}
+
+export interface RygSeptStats {
+  /** "Must not have" requirement free text. */
+  prohibited?:  string
+  /** "Must have" requirement free text. */
+  required?:    string
+  /** "May not use / is restricted" requirement free text. */
+  restricted?:  string
+  /** IDs of sept-benefit addons bundled with this sept. */
+  benefitIds?:  string[]
+  /** Display names of the benefits (kept in sync with benefitIds for subtitle display). */
+  benefitNames?: string[]
+}
+
+export interface RygDestinyStats {
+  /** Flavour / rules text describing the destiny goal. */
+  description?: string
+  /** The curse applied if the destiny is failed. */
+  curse?:       string
+}
+
+export interface RygSeptBenefitStats {
+  /** The benefit rule description. */
+  description?: string
+}
+
+export interface RygGodStats {
+  /** God's special ability description. */
+  specialAbility?:  string
+  /** Tier 1 — Minions benefit description. */
+  minions?:         string
+  /** Tier 2 — Servants benefit description. */
+  servants?:        string
+  /** Tier 3 — Lieutenants benefit description. */
+  lieutenants?:     string
+  /** Tier 4 — Champions benefit description. */
+  champions?:       string
+}
+
 export interface RygWeaponStats {
   /** Free-text die spec, e.g. "1D6+3". */
   damage?: string
-  /** Range in inches. 0 = melee (rendered as "—"). */
+  /** Range in inches; 0 = melee (omitted from display). */
   range?:  number
+  /** Cost in gold pieces. */
+  cost?:   number
 }
 
-// ── Addon-specific stat shapes ────────────────────────────────────────────────
+export interface RygArmorStats {
+  /** Cost in gold pieces. */
+  cost?: number
+}
+
+export interface RygItemStats {
+  /** Cost in gold pieces. */
+  cost?: number
+}
+
+export type RygSpellType = 'Blood Magic' | 'Elementalism' | 'Sorcery'
+
+export interface RygSpellStats {
+  type?:         RygSpellType
+  range?:        number
+  /** 0 or absent = no radius (not an area spell). */
+  radius?:       number
+  target?:       string
+  fateModifier?: string
+  effect?:       string
+}
+
+// â”€â”€ Addon-specific stat shapes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface BloodBowlSkillStats {
   description?: string
@@ -147,14 +236,14 @@ export interface KillTeamAbilityStats {
 }
 
 /**
- * Turn phase — where the addon (weapon or ability) lives on the card.
+ * Turn phase â€” where the addon (weapon or ability) lives on the card.
  * The card body groups items into headed sections by this value.
- * `null` ≡ "None" / unassigned.
+ * `null` â‰¡ "None" / unassigned.
  */
 export type StarcraftPhase = 'movement' | 'assault' | 'combat' | 'special_abilities'
 
 /**
- * Activation timing — the coloured chip (Active / Passive / Reaction)
+ * Activation timing â€” the coloured chip (Active / Passive / Reaction)
  * rendered next to an addon's name. Independent of turn phase: an addon
  * can have any combination of phase and timing, both optional in storage.
  */
@@ -172,7 +261,7 @@ export interface StarcraftWeaponStats {
   /** Damage. */
   dmg?:       number
   surgeType?: string
-  /** Surge dice spec — free text so values like "D3+1" are valid. */
+  /** Surge dice spec â€” free text so values like "D3+1" are valid. */
   sDice?:     string
 }
 
@@ -191,7 +280,7 @@ export interface StarcraftRuleStats {
   upgradeCost?: number | null
 }
 
-// ── Database row types ────────────────────────────────────────────────────────
+// â”€â”€ Database row types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Profile {
   id:           string
@@ -208,9 +297,9 @@ export interface Game {
   slug:        string
   status:      GameStatus
   stat_schema: StatField[]
-  /** [width_mm, height_mm] — card dimensions for printing (no bleed) */
+  /** [width_mm, height_mm] â€” card dimensions for printing (no bleed) */
   print_size:  [number, number]
-  /** [width_mm, height_mm] — card dimensions for printing (with bleed) */
+  /** [width_mm, height_mm] â€” card dimensions for printing (with bleed) */
   bleed_size:  [number, number]
   created_at:  string
 }
@@ -236,6 +325,7 @@ export interface Pack {
   name:          string
   description:   string | null
   is_public:     boolean
+  is_official:   boolean
   created_at:    string
   updated_at:    string
 }
@@ -268,22 +358,52 @@ export interface PackImport {
   imported_at: string
 }
 
+/** One talent required as a prerequisite. */
+export interface AddonPrerequisiteItem {
+  /** ID of the required talent addon. */
+  addonId: string
+  /** Denormalised name for display without a DB round-trip. */
+  name:    string
+  /**
+   * Optional param values that must be present on the talent's card_addon.
+   * Key = param key (e.g. 'type'), value = acceptable values (OR within the
+   * array). Empty object or empty array = any value (or no params) satisfies.
+   */
+  params:  Record<string, string[]>
+}
+
+/** Top-level prerequisites structure stored in addon.prerequisites. */
+export interface AddonPrerequisites {
+  /** When true ALL items must be satisfied; when false ANY one item suffices. */
+  requireAll: boolean
+  items:      AddonPrerequisiteItem[]
+}
+
+/** @deprecated use AddonPrerequisites */
+export interface AddonPrerequisite {
+  addonTypeSlug: string
+  paramKey:      string
+  paramValue:    string
+}
+
 export interface Addon {
   id:            string
   user_id:       string
   addon_type_id: string
-  /** Denormalised from addon_type — auto-populated by DB trigger. */
+  /** Denormalised from addon_type â€” auto-populated by DB trigger. */
   game_id:       string
   name:          string
   description:   string | null
   stats:         Record<string, Json>
   /**
-   * Optional parent addon — when set, this addon is rendered as an indented
+   * Optional parent addon â€” when set, this addon is rendered as an indented
    * upgrade row under its parent on every card it's attached to. Same-game
    * constraint enforced by trigger; one level of nesting (no
    * grandchildren) enforced by the UI.
    */
   parent_addon_id: string | null
+  /** Rules controlling which card addons must be present before this addon can be added. */
+  prerequisites:        AddonPrerequisites | null
   /** Set when this row IS a pack source addon (owned by a pack). */
   pack_id:              string | null
   /** Set when this row is a CLONE created on import from a pack source. */
@@ -389,7 +509,7 @@ export interface AddonKeyword {
   created_at:  string
 }
 
-// ── Token types ─────────────────────────────────────────────────────────────
+// â”€â”€ Token types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** How a linked keyword param or stat value affects a token. */
 export type TokenValueRole = 'max' | 'min' | 'starting'
@@ -411,10 +531,10 @@ export interface TokenDefinition {
   max_value:           number | null
   /** Net change applied each New Turn: +N adds up to max, -N removes down to min. 0 = no refresh. */
   refresh_on_turn:     number
-  /** True if this token represents unit activation — drives the "New Turn" button styling. */
+  /** True if this token represents unit activation â€” drives the "New Turn" button styling. */
   is_activation_token: boolean
   sort_order:          number | null
-  /** Set on User-Created Tokens (UCTs) — scopes the row to a single deck.
+  /** Set on User-Created Tokens (UCTs) â€” scopes the row to a single deck.
    *  Null = built-in game token, visible to every user. */
   deck_id:             string | null
   /** Hex colour for badge-rendered tokens (UCTs) and the fill colour for
@@ -429,10 +549,10 @@ export interface TokenDefinition {
    *  (eventually) badges when an SVG asset isn't available. */
   color_set:           string | null
   /** Per-row discriminator for how the token paints on the card.
-   *  'icon' (default) — uses `icon` / `icon_off` asset paths.
-   *  'badge'          — coloured circle + glyph (UCTs).
-   *  'bar'            — vertical bar with the centred remaining count.
-   *  'pips'           — reserved; renderer not yet wired. */
+   *  'icon' (default) â€” uses `icon` / `icon_off` asset paths.
+   *  'badge'          â€” coloured circle + glyph (UCTs).
+   *  'bar'            â€” vertical bar with the centred remaining count.
+   *  'pips'           â€” reserved; renderer not yet wired. */
   display_style:       'icon' | 'badge' | 'bar' | 'pips'
   /** Optional custom label for the TokenMenu's increment action. When
    *  set, replaces the entire default ("Add X", "Mark as X", "Add Xs")
@@ -445,7 +565,7 @@ export interface TokenDefinition {
   created_at:          string
 }
 
-// ── Rule types ───────────────────────────────────────────────────────────────
+// â”€â”€ Rule types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Rule {
   id:          string
@@ -464,7 +584,7 @@ export interface DeckRule {
   created_at:  string
 }
 
-// ── Constraint types ─────────────────────────────────────────────────────────
+// â”€â”€ Constraint types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Validation rules for a single field (stat or direct column). */
 export interface FieldConstraint {
@@ -497,7 +617,7 @@ export interface GameConstraint {
   created_at:    string
 }
 
-// ── Join types (common query shapes) ─────────────────────────────────────────
+// â”€â”€ Join types (common query shapes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface DeckWithGame extends Deck {
   game: Game
@@ -530,3 +650,4 @@ export interface AddonKeywordWithKeyword extends AddonKeyword {
 export interface DeckRuleWithRule extends DeckRule {
   rule: Rule
 }
+

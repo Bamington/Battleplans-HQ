@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AddKeywordModal.tsx — Multi-step modal for adding keywords to a weapon/addon
  *
  * STEP 1 (pick): Shows a "Create New Keyword" button and a paginated list of
@@ -86,6 +86,9 @@ export interface AddKeywordModalProps {
   /** Blood Bowl: hide star-player-only keywords from the picker list. Set true
    *  when editing a regular (non-star) player so they can't be attached. */
   excludeStarPlayerKeywords?: boolean;
+  /** When provided, newly created keywords are scoped to this pack (pack_id
+   *  is set on insert) so they don't appear in the user's personal library. */
+  packId?: string;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -110,6 +113,7 @@ const AddKeywordModal = ({
   constraints = {},
   showStarPlayerFlag = false,
   excludeStarPlayerKeywords = false,
+  packId,
 }: AddKeywordModalProps) => {
   const [step, setStep]               = useState<Step>('loading');
   const [keywords, setKeywords]       = useState<Keyword[]>([]);
@@ -393,6 +397,7 @@ const AddKeywordModal = ({
           .insert({
             user_id: userId,
             game_id: gameId,
+            ...(packId ? { pack_id: packId } : {}),
             name: newName.trim(),
             description: newDescription.trim() || null,
             params_schema: paramsSchema,
