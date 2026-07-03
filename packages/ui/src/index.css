@@ -49,7 +49,7 @@
  */
 @font-face {
   font-family: 'Brothers';
-  src: url('./assets/games/fonts/brothers-regular.woff') format('woff');
+  src: url('./assets/fonts/brothers-regular.woff') format('woff');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -61,7 +61,7 @@
  */
 @font-face {
   font-family: 'Aller';
-  src: url('./assets/games/fonts/Aller_Std_Rg.ttf') format('truetype');
+  src: url('./assets/fonts/Aller_Std_Rg.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -69,7 +69,7 @@
 
 @font-face {
   font-family: 'Aller';
-  src: url('./assets/games/fonts/Aller_Std_Bd.ttf') format('truetype');
+  src: url('./assets/fonts/Aller_Std_Bd.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -80,7 +80,7 @@
  */
 @font-face {
   font-family: 'Industry Test';
-  src: url('./assets/games/fonts/IndustryTest-Black.otf') format('opentype');
+  src: url('./assets/fonts/IndustryTest-Black.otf') format('opentype');
   font-weight: 900;
   font-style: normal;
   font-display: swap;
@@ -94,56 +94,56 @@
  */
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Regular.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Regular.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Italic.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Italic.otf') format('opentype');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Medium.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Medium.otf') format('opentype');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Medium Italic.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Medium Italic.otf') format('opentype');
   font-weight: 500;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Bold.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Bold.otf') format('opentype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Bold Italic.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Bold Italic.otf') format('opentype');
   font-weight: 700;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Black.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Black.otf') format('opentype');
   font-weight: 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro';
-  src: url('./assets/games/fonts/Eurostile Pro Black Italic.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Black Italic.otf') format('opentype');
   font-weight: 900;
   font-style: italic;
   font-display: swap;
@@ -151,28 +151,28 @@
 
 @font-face {
   font-family: 'Eurostile Pro Condensed';
-  src: url('./assets/games/fonts/Eurostile Pro Condensed.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Condensed.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro Condensed';
-  src: url('./assets/games/fonts/Eurostile Pro Condensed Bold.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Condensed Bold.otf') format('opentype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro Condensed';
-  src: url('./assets/games/fonts/Eurostile Pro Condensed Black.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Condensed Black.otf') format('opentype');
   font-weight: 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Eurostile Pro Condensed';
-  src: url('./assets/games/fonts/Eurostile Pro Condensed Black Italic.otf') format('opentype');
+  src: url('./assets/fonts/Eurostile Pro Condensed Black Italic.otf') format('opentype');
   font-weight: 900;
   font-style: italic;
   font-display: swap;
@@ -184,7 +184,7 @@
  */
 @font-face {
   font-family: 'LLTextur';
-  src: url('./assets/games/fonts/LLTERG.woff2') format('woff2');
+  src: url('./assets/fonts/LLTERG.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -195,7 +195,7 @@
  */
 @font-face {
   font-family: 'Libre Baskerville';
-  src: url('./assets/games/fonts/LibreBaskerville-VariableFont_wght.woff2') format('woff2');
+  src: url('./assets/fonts/LibreBaskerville-VariableFont_wght.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -203,7 +203,7 @@
 
 @font-face {
   font-family: 'Libre Baskerville';
-  src: url('./assets/games/fonts/LibreBaskerville-Italic-VariableFont_wght.woff2') format('woff2');
+  src: url('./assets/fonts/LibreBaskerville-Italic-VariableFont_wght.woff2') format('woff2');
   font-weight: 100 900;
   font-style: italic;
   font-display: swap;
@@ -215,35 +215,35 @@
  */
 @font-face {
   font-family: 'Source Sans 3';
-  src: url('./assets/games/fonts/SourceSans3-Regular.ttf') format('truetype');
+  src: url('./assets/fonts/SourceSans3-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Sans 3';
-  src: url('./assets/games/fonts/SourceSans3-Italic.ttf') format('truetype');
+  src: url('./assets/fonts/SourceSans3-Italic.ttf') format('truetype');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Sans 3';
-  src: url('./assets/games/fonts/SourceSans3-Bold.ttf') format('truetype');
+  src: url('./assets/fonts/SourceSans3-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Sans 3';
-  src: url('./assets/games/fonts/SourceSans3-BoldItalic.ttf') format('truetype');
+  src: url('./assets/fonts/SourceSans3-BoldItalic.ttf') format('truetype');
   font-weight: 700;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Source Sans 3';
-  src: url('./assets/games/fonts/SourceSans3-Black.ttf') format('truetype');
+  src: url('./assets/fonts/SourceSans3-Black.ttf') format('truetype');
   font-weight: 900;
   font-style: normal;
   font-display: swap;
