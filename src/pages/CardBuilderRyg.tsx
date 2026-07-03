@@ -208,6 +208,7 @@ const weaponSubtitle = (addon: Addon): string => {
   if (s.damage) parts.push(String(s.damage));
   if (typeof s.range === 'number' && s.range > 0) parts.push(`${s.range}"`);
   if (typeof s.cost === 'number' && s.cost > 0) parts.push(`${s.cost}gp`);
+  if (typeof s.keywords === 'string' && s.keywords) parts.push(s.keywords);
   return parts.join(' · ') || 'No stats';
 };
 

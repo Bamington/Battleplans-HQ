@@ -97,7 +97,8 @@ export default function RygWeaponForm({
     if (!canSave) return;
     if (!isEditing) onPendingKeywords?.(attachedKeywords);
     try {
-      const addonId = await onSave(name.trim(), description.trim() || null, { damage, range, cost });
+      const kwStr = attachedKeywords.map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName).join(', ');
+      const addonId = await onSave(name.trim(), description.trim() || null, { damage, range, cost, keywords: kwStr || null });
       if (addonId) {
         await supabase.from('addon_keywords').delete().eq('addon_id', addonId);
         if (attachedKeywords.length > 0) {
