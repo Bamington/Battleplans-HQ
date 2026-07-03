@@ -18,8 +18,8 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
 
 export interface SaveTemplateModalProps {
   open:    boolean;

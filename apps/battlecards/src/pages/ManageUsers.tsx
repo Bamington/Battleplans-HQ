@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import Navbar from '../components/Navbar';
-import Button from '../components/Button';
-import Badge from '../components/Badge';
-import Modal from '../components/Modal';
-import Checkbox from '../components/Checkbox';
-import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
-import type { BadgeColor } from '../components/Badge';
-import AltArrowLeft from '../icons/AltArrowLeft';
-import UsersGroupRounded from '../icons/UsersGroupRounded';
-import MenuDots from '../icons/MenuDots';
-import Pen2 from '../icons/Pen2';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import { supabase } from '@battleplans/ui';
+import Navbar from '@battleplans/ui';
+import Button from '@battleplans/ui';
+import Badge from '@battleplans/ui';
+import Modal from '@battleplans/ui';
+import Checkbox from '@battleplans/ui';
+import Dropdown, { DropdownItem, DropdownDivider } from '@battleplans/ui';
+import type { BadgeColor } from '@battleplans/ui';
+import AltArrowLeft from '@battleplans/ui';
+import UsersGroupRounded from '@battleplans/ui';
+import MenuDots from '@battleplans/ui';
+import Pen2 from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 
 type UserRow = {
   id:         string;

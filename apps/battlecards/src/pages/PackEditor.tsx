@@ -23,10 +23,10 @@
  */
 
 import { useState, useEffect, useMemo, useRef, type ComponentType } from 'react';
-import { useIsAdmin } from '../hooks/useIsAdmin';
+import { useIsAdmin } from '@battleplans/ui';
 import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Button from '../components/Button';
+import Navbar from '@battleplans/ui';
+import Button from '@battleplans/ui';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
 import AddKeywordModal from '../components/AddKeywordModal';
@@ -57,23 +57,23 @@ import BloodBowlCardForm from '../components/BloodBowlCardForm';
 import KillTeamCardForm from '../components/KillTeamCardForm';
 import StarcraftCardForm from '../components/StarcraftCardForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
-import AddCircle from '../icons/AddCircle';
-import UserRounded from '../icons/UserRounded';
-import FileText from '../icons/FileText';
-import Star from '../icons/Star';
-import Bookmark from '../icons/Bookmark';
-import MenuDots from '../icons/MenuDots';
-import Pen2 from '../icons/Pen2';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
-import Copy from '../icons/Copy';
-import AltArrowLeft from '../icons/AltArrowLeft';
-import AltArrowRight from '../icons/AltArrowRight';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
-import Dropdown, { DropdownItem } from '../components/Dropdown';
-import Modal from '../components/Modal';
-import Input from '../components/Input';
-import { supabase } from '../lib/supabase';
+import AddCircle from '@battleplans/ui';
+import UserRounded from '@battleplans/ui';
+import FileText from '@battleplans/ui';
+import Star from '@battleplans/ui';
+import Bookmark from '@battleplans/ui';
+import MenuDots from '@battleplans/ui';
+import Pen2 from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
+import Copy from '@battleplans/ui';
+import AltArrowLeft from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
+import Dropdown, { DropdownItem } from '@battleplans/ui';
+import Modal from '@battleplans/ui';
+import Input from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 import type {
   PackWithGame, Card, Addon, Keyword, AddonType, Json,
 } from '../lib/database.types';

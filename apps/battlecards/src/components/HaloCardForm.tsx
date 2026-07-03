@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@battleplans/ui';
 import type { AddonType, Addon, Json } from '../lib/database.types';
 import Button from './Button';
 import Input from './Input';
@@ -11,8 +11,8 @@ import AddKeywordModal from './AddKeywordModal';
 import AddToPackModal from './AddToPackModal';
 import UploadPhotoModal from './UploadPhotoModal';
 import { haloWeaponSubtitle } from '../lib/addonSubtitles';
-import AddCircle from '../icons/AddCircle';
-import AltArrowRight from '../icons/AltArrowRight';
+import AddCircle from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
 
 export interface HaloCardFormProps {
   packId: string;

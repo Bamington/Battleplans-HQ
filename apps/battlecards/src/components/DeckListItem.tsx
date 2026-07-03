@@ -40,9 +40,9 @@
 
 import React from 'react';
 import Dropdown, { DropdownItem } from './Dropdown';
-import MenuDots from '../icons/MenuDots';
-import Copy from '../icons/Copy';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import MenuDots from '@battleplans/ui';
+import Copy from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

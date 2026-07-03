@@ -37,30 +37,30 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useIsAdmin } from '../hooks/useIsAdmin';
+import { useIsAdmin } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Button from '../components/Button';
+import Navbar from '@battleplans/ui';
+import Button from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
 import PackListItem, { type PackBadge } from '../components/PackListItem';
 import BlogEntryPreview from '../components/BlogEntryPreview';
-import Modal from '../components/Modal';
+import Modal from '@battleplans/ui';
 import GamePickerItem from '../components/GamePickerItem';
-import Input from '../components/Input';
-import HR from '../components/HR';
+import Input from '@battleplans/ui';
+import HR from '@battleplans/ui';
 import ImportListModal from '../components/ImportListModal';
-import AddCircle from '../icons/AddCircle';
-import Pen2 from '../icons/Pen2';
-import Box from '../icons/Box';
-import Widget2 from '../icons/Widget2';
-import Layers from '../icons/Layers';
-import InfoCircle from '../icons/InfoCircle';
-import AltArrowRight from '../icons/AltArrowRight';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
-import UserRounded from '../icons/UserRounded';
-import FileText from '../icons/FileText';
-import Star from '../icons/Star';
-import { supabase } from '../lib/supabase';
+import AddCircle from '@battleplans/ui';
+import Pen2 from '@battleplans/ui';
+import Box from '@battleplans/ui';
+import Widget2 from '@battleplans/ui';
+import Layers from '@battleplans/ui';
+import InfoCircle from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
+import UserRounded from '@battleplans/ui';
+import FileText from '@battleplans/ui';
+import Star from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 import { duplicateDeck } from '../lib/duplicateDeck';
 import type { DeckWithGame, PackWithGame } from '../lib/database.types';
 

@@ -27,12 +27,12 @@ import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
 import Dropdown, { DropdownItem } from './Dropdown';
-import AddCircle from '../icons/AddCircle';
-import AltArrowLeft  from '../icons/AltArrowLeft';
-import AltArrowRight from '../icons/AltArrowRight';
-import Magnifer from '../icons/Magnifer';
-import MenuDots from '../icons/MenuDots';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import AddCircle from '@battleplans/ui';
+import AltArrowLeft  from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
+import Magnifer from '@battleplans/ui';
+import MenuDots from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 
 export interface NewCardModalTemplate {
   id:       string;

@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@battleplans/ui';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 
 import type { AddonFormProps } from './AddAddonModal';
@@ -23,9 +23,9 @@ import Counter from './Counter';
 import Button from './Button';
 import Badge from './Badge';
 import HR from './HR';
-import AddCircle from '../icons/AddCircle';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
+import AddCircle from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 

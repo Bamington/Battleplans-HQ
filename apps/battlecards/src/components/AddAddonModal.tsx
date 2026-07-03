@@ -32,13 +32,13 @@ import Modal from './Modal';
 import AddonListItem from './AddonListItem';
 import Button from './Button';
 import Input from './Input';
-import AddCircle from '../icons/AddCircle';
-import Magnifer from '../icons/Magnifer';
-import CheckCircle from '../icons/CheckCircle';
-import AltArrowLeft from '../icons/AltArrowLeft';
-import AltArrowRight from '../icons/AltArrowRight';
-import Lock from '../icons/Lock';
-import { supabase } from '../lib/supabase';
+import AddCircle from '@battleplans/ui';
+import Magnifer from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import AltArrowLeft from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
+import Lock from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 import type { Addon, AddonPrerequisites } from '../lib/database.types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

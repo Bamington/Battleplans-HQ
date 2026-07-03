@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@battleplans/ui';
 import type { CardBuilderConfig } from '../types/cardBuilder';
 
 export interface UseCardBuilderResult {

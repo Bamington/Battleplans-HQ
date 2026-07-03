@@ -25,7 +25,7 @@
  *   className — Extra Tailwind classes on the outer element.
  */
 
-import ArrowRight from '../icons/ArrowRight';
+import ArrowRight from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

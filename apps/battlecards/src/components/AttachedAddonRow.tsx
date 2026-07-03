@@ -18,7 +18,7 @@
  *   />
  */
 
-import CloseCircle from '../icons/CloseCircle';
+import CloseCircle from '@battleplans/ui';
 
 export interface AttachedAddonRowProps {
   /** Primary label (e.g. weapon or ability name). */

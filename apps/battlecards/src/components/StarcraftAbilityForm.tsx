@@ -39,10 +39,10 @@ import Button from './Button';
 import Badge from './Badge';
 import HR from './HR';
 import StarcraftAddKeywordModal from './StarcraftAddKeywordModal';
-import AddCircle from '../icons/AddCircle';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
-import { supabase } from '../lib/supabase';
+import AddCircle from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 import type { AddonFormProps } from './AddAddonModal';
 import type {
   StarcraftKeywordAttachment,

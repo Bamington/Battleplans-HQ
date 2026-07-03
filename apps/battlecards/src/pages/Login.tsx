@@ -14,11 +14,11 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, redirectTo } from '../lib/supabase';
-import Navbar from '../components/Navbar';
-import Input from '../components/Input';
-import Button from '../components/Button';
-import Checkbox from '../components/Checkbox';
+import { supabase, redirectTo } from '@battleplans/ui';
+import Navbar from '@battleplans/ui';
+import Input from '@battleplans/ui';
+import Button from '@battleplans/ui';
+import Checkbox from '@battleplans/ui';
 
 // ── Inline icons ──────────────────────────────────────────────────────────────
 

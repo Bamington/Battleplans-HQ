@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react';
 import Input from './Input';
 import Button from './Button';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
 import type { AddonFormProps } from './AddAddonModal';
 
 export interface RygTalentFormProps extends AddonFormProps {

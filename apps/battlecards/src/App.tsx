@@ -28,7 +28,7 @@
 
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './lib/supabase';
+import { supabase } from '@battleplans/ui';
 import ComponentGallery from './pages/ComponentGallery';
 import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
 import CardBuilderHaloFlashpoint from './pages/CardBuilderHaloFlashpoint';

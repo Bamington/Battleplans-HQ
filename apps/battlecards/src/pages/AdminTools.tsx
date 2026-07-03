@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Button from '../components/Button';
-import AltArrowLeft from '../icons/AltArrowLeft';
-import AltArrowRight from '../icons/AltArrowRight';
-import Shield from '../icons/Shield';
+import Navbar from '@battleplans/ui';
+import Button from '@battleplans/ui';
+import AltArrowLeft from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
+import Shield from '@battleplans/ui';
 
 interface AdminLinkProps {
   title: string;

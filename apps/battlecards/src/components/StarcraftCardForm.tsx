@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@battleplans/ui';
 import type { AddonType, Addon, Json } from '../lib/database.types';
 import type { StarcraftSupplyTier } from './StarcraftCard';
 import Button from './Button';
@@ -13,8 +13,8 @@ import StarcraftSupplyTiersModal from './StarcraftSupplyTiersModal';
 import StarcraftAddKeywordModal from './StarcraftAddKeywordModal';
 import AddToPackModal from './AddToPackModal';
 import { starcraftWeaponSubtitle, starcraftAbilitySubtitle } from '../lib/addonSubtitles';
-import AddCircle from '../icons/AddCircle';
-import AltArrowRight from '../icons/AltArrowRight';
+import AddCircle from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
 
 export interface StarcraftCardFormProps {
   packId:    string;

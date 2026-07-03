@@ -33,10 +33,10 @@ import Modal from './Modal';
 import Button from './Button';
 import Counter from './Counter';
 import HR from './HR';
-import AddCircle from '../icons/AddCircle';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import AddCircle from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 import type { StarcraftSupplyTier } from './StarcraftCard';
 
 // ── Constants ────────────────────────────────────────────────────────────────

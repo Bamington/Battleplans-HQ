@@ -46,11 +46,11 @@ import Modal from './Modal';
 import Button from './Button';
 import Input from './Input';
 import SelectableListItem from './SelectableListItem';
-import AddCircle from '../icons/AddCircle';
-import AltArrowLeft  from '../icons/AltArrowLeft';
-import AltArrowRight from '../icons/AltArrowRight';
-import Magnifer from '../icons/Magnifer';
-import { supabase } from '../lib/supabase';
+import AddCircle from '@battleplans/ui';
+import AltArrowLeft  from '@battleplans/ui';
+import AltArrowRight from '@battleplans/ui';
+import Magnifer from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

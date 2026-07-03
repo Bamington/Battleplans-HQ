@@ -55,8 +55,8 @@ import React from 'react';
 import Badge from './Badge';
 import Button from './Button';
 import Dropdown, { DropdownItem } from './Dropdown';
-import MenuDots from '../icons/MenuDots';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import MenuDots from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

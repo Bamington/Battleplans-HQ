@@ -31,14 +31,14 @@ import BloodBowlCard from './BloodBowlCard';
 import KillTeamCard from './KillTeamCard';
 import StarcraftCard from './StarcraftCard';
 import RygCard from './RygCard';
-import Camera from '../icons/Camera';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
-import ArrowLeft from '../icons/ArrowLeft';
-import ArrowRight from '../icons/ArrowRight';
-import Magnifer from '../icons/Magnifer';
-import UploadMinimalistic from '../icons/UploadMinimalistic';
-import { supabase } from '../lib/supabase';
+import Camera from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
+import ArrowLeft from '@battleplans/ui';
+import ArrowRight from '@battleplans/ui';
+import Magnifer from '@battleplans/ui';
+import UploadMinimalistic from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

@@ -29,18 +29,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import Navbar      from '../components/Navbar';
+import Navbar      from '@battleplans/ui';
 import EditSubnav  from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
 import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
 import { useCardBuilder } from '../hooks/useCardBuilder';
-import Button      from '../components/Button';
-import Input       from '../components/Input';
-import Counter     from '../components/Counter';
-import HR          from '../components/HR';
-import Modal       from '../components/Modal';
+import Button      from '@battleplans/ui';
+import Input       from '@battleplans/ui';
+import Counter     from '@battleplans/ui';
+import HR          from '@battleplans/ui';
+import Modal       from '@battleplans/ui';
 import StarcraftCard, {
   type StarcraftAbility,
   type StarcraftWeapon,
@@ -57,12 +57,12 @@ import UnitListEntry        from '../components/UnitListEntry';
 import CardCarousel         from '../components/CardCarousel';
 import AttachedAddonRow     from '../components/AttachedAddonRow';
 import StarcraftSupplyTiersModal from '../components/StarcraftSupplyTiersModal';
-import AddCircle             from '../icons/AddCircle';
-import TrashBinMinimalistic  from '../icons/TrashBinMinimalistic';
-import UserRounded           from '../icons/UserRounded';
-import Diskette              from '../icons/Diskette';
-import Pen2                  from '../icons/Pen2';
-import { supabase } from '../lib/supabase';
+import AddCircle             from '@battleplans/ui';
+import TrashBinMinimalistic  from '@battleplans/ui';
+import UserRounded           from '@battleplans/ui';
+import Diskette              from '@battleplans/ui';
+import Pen2                  from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 import type { Addon, DeckWithGame, StarcraftStats, StarcraftWeaponStats, StarcraftRuleStats } from '../lib/database.types';
 // rowToKeywords is the same function the pack editor's StarCraft card
 // shaper uses to assemble keyword attachments — keep one canonical copy

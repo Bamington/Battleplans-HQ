@@ -25,9 +25,9 @@ import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
 import TokenBadge from './TokenBadge';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 
 // ── Brand palette ───────────────────────────────────────────────────────────
 // Six swatches that match the existing visuals (placeholder KT token SVGs

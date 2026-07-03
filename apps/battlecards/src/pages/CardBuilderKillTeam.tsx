@@ -19,8 +19,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import ModeToggle, { type Mode } from '../components/ModeToggle';
+import Navbar from '@battleplans/ui';
+import ModeToggle, { type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
@@ -28,14 +28,14 @@ import CenterViewport from '../components/CenterViewport';
 import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
-import Dropdown, { DropdownItem } from '../components/Dropdown';
-import AltArrowDown from '../icons/AltArrowDown';
-import Play from '../icons/Play';
+import Dropdown, { DropdownItem } from '@battleplans/ui';
+import AltArrowDown from '@battleplans/ui';
+import Play from '@battleplans/ui';
 import UnitListEntry from '../components/UnitListEntry';
-import Input from '../components/Input';
-import Counter from '../components/Counter';
-import Button from '../components/Button';
-import HR from '../components/HR';
+import Input from '@battleplans/ui';
+import Counter from '@battleplans/ui';
+import Button from '@battleplans/ui';
+import HR from '@battleplans/ui';
 import Markdown from 'react-markdown';
 import KillTeamCard, {
   CARD_OUTER_W_WITH_BARS,
@@ -44,11 +44,11 @@ import KillTeamCard, {
   CARD_OUTER_H_WITH_BARS_MOBILE,
 } from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
-import Card, { CardBody } from '../components/Card';
-import Magnifer from '../icons/Magnifer';
+import Card, { CardBody } from '@battleplans/ui';
+import Magnifer from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import TokenMenu from '../components/TokenMenu';
-import Modal from '../components/Modal';
+import Modal from '@battleplans/ui';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddonInfoModal from '../components/AddonInfoModal';
 import SaveTemplateModal from '../components/SaveTemplateModal';
@@ -58,16 +58,16 @@ import AddKeywordModal, { type KeywordSelection } from '../components/AddKeyword
 import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
 import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
-import UserRounded from '../icons/UserRounded';
-import AddCircle from '../icons/AddCircle';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
-import ArrowRight from '../icons/ArrowRight';
-import Pen2 from '../icons/Pen2';
-import HamburgerMenu from '../icons/HamburgerMenu';
-import Diskette from '../icons/Diskette';
-import { supabase } from '../lib/supabase';
+import UserRounded from '@battleplans/ui';
+import AddCircle from '@battleplans/ui';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
+import ArrowRight from '@battleplans/ui';
+import Pen2 from '@battleplans/ui';
+import HamburgerMenu from '@battleplans/ui';
+import Diskette from '@battleplans/ui';
+import { supabase } from '@battleplans/ui';
 import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoKillTeam from '../assets/games/logo-kill-team.png';

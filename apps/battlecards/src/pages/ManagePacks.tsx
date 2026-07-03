@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import Navbar from '../components/Navbar';
-import Button from '../components/Button';
-import Badge from '../components/Badge';
-import Modal from '../components/Modal';
-import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
-import AltArrowLeft from '../icons/AltArrowLeft';
-import Box from '../icons/Box';
-import MenuDots from '../icons/MenuDots';
-import Pen2 from '../icons/Pen2';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import { supabase } from '@battleplans/ui';
+import Navbar from '@battleplans/ui';
+import Button from '@battleplans/ui';
+import Badge from '@battleplans/ui';
+import Modal from '@battleplans/ui';
+import Dropdown, { DropdownItem, DropdownDivider } from '@battleplans/ui';
+import AltArrowLeft from '@battleplans/ui';
+import Box from '@battleplans/ui';
+import MenuDots from '@battleplans/ui';
+import Pen2 from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 import type { PackWithGame } from '../lib/database.types';
 
 export default function ManagePacks() {

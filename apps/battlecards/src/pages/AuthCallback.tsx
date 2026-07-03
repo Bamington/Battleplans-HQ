@@ -11,7 +11,7 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@battleplans/ui';
 
 export default function AuthCallback() {
   const navigate = useNavigate();

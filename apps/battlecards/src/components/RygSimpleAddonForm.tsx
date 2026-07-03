@@ -10,8 +10,8 @@ import Input from './Input';
 import Counter from './Counter';
 import Button from './Button';
 import HR from './HR';
-import CheckCircle from '../icons/CheckCircle';
-import CloseCircle from '../icons/CloseCircle';
+import CheckCircle from '@battleplans/ui';
+import CloseCircle from '@battleplans/ui';
 import type { AddonFormProps } from './AddAddonModal';
 
 interface RygSimpleAddonFormProps extends AddonFormProps {

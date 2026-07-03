@@ -13,10 +13,10 @@
  */
 
 import React from 'react';
-import CheckCircle from '../icons/CheckCircle';
-import DangerCircle from '../icons/DangerCircle';
-import Copy from '../icons/Copy';
-import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
+import CheckCircle from '@battleplans/ui';
+import DangerCircle from '@battleplans/ui';
+import Copy from '@battleplans/ui';
+import TrashBinMinimalistic from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

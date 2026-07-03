@@ -17,8 +17,8 @@
 
 import Modal from './Modal';
 import Button from './Button';
-import CheckCircle from '../icons/CheckCircle';
-import Pen2 from '../icons/Pen2';
+import CheckCircle from '@battleplans/ui';
+import Pen2 from '@battleplans/ui';
 
 export interface KeywordInfoModalProps {
   open: boolean;
