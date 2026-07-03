@@ -19,9 +19,9 @@
  *   />
  */
 
-import Button from './Button';
-import Layers from '@battleplans/ui';
-import Settings from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Layers } from '@battleplans/ui';
+import { Settings } from '@battleplans/ui';
 
 export interface EditSubnavProps {
   /** Whether the card-list panel is currently open */

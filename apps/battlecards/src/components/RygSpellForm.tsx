@@ -10,16 +10,16 @@ import type {
 } from '../lib/database.types';
 import AddKeywordModal, { type KeywordSelection } from './AddKeywordModal';
 import KeywordInfoModal from './KeywordInfoModal';
-import Modal from './Modal';
-import Input from './Input';
-import Counter from './Counter';
-import Button from './Button';
-import Badge from './Badge';
-import HR from './HR';
+import { Modal } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Badge } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
 import RygTalentForm from './RygTalentForm';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
 
 const SPELL_TYPES: RygSpellType[] = ['Blood Magic', 'Elementalism', 'Sorcery'];
 

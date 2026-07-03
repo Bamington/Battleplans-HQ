@@ -13,17 +13,17 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@battleplans/ui';
-import Input from './Input';
-import Counter from './Counter';
-import Button from './Button';
-import HR from './HR';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
 import AddAddonModal from './AddAddonModal';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import AddCircle from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
 import type { AddonFormProps } from './AddAddonModal';
 import type { RygWarriorTypeStats, RygTalentStats, RygTalentParamField } from '../lib/database.types';
-import Modal from './Modal';
+import { Modal } from '@battleplans/ui';
 import RygTalentForm from './RygTalentForm';
 
 // ── Props ─────────────────────────────────────────────────────────────────────

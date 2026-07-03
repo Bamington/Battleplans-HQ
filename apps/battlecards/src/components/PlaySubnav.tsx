@@ -13,8 +13,8 @@
  *   onTabChange  — Callback fired when the user clicks the other tab.
  */
 
-import FileText from '@battleplans/ui';
-import ListCheck from '@battleplans/ui';
+import { FileText } from '@battleplans/ui';
+import { ListCheck } from '@battleplans/ui';
 
 export type PlayTab = 'units' | 'rules';
 

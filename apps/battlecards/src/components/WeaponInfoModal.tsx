@@ -15,11 +15,11 @@
  *   />
  */
 
-import Modal from './Modal';
-import Button from './Button';
-import Badge from './Badge';
-import CheckCircle from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Badge } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

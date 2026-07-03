@@ -11,7 +11,7 @@
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@battleplans/ui/src/index.css'; // Global styles — includes Tailwind
+import '../../../packages/ui/src/index.css'; // Global styles — includes Tailwind
 import App from './App.tsx';
 import { preloadAssets } from './lib/preloadAssets';
 

@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@battleplans/ui';
 import type { AddonType, Addon, Json } from '../lib/database.types';
-import Button from './Button';
-import Input from './Input';
-import Counter from './Counter';
-import Modal from './Modal';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
 import AddonListItem from './AddonListItem';
 import KillTeamWeaponForm from './KillTeamWeaponForm';
 import KillTeamAbilityForm from './KillTeamAbilityForm';
@@ -12,8 +12,8 @@ import AddKeywordModal from './AddKeywordModal';
 import AddToPackModal from './AddToPackModal';
 import UploadPhotoModal from './UploadPhotoModal';
 import { killTeamWeaponSubtitle, killTeamAbilitySubtitle } from '../lib/addonSubtitles';
-import AddCircle from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
 
 export interface KillTeamCardFormProps {
   packId:    string;

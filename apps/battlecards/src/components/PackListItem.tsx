@@ -52,11 +52,11 @@
  */
 
 import React from 'react';
-import Badge from './Badge';
-import Button from './Button';
-import Dropdown, { DropdownItem } from './Dropdown';
-import MenuDots from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
+import { Badge } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

@@ -15,10 +15,16 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@battleplans/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

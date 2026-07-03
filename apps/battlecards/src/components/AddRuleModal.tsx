@@ -23,20 +23,20 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Modal from './Modal';
+import { Modal } from '@battleplans/ui';
 import AddonListItem from './AddonListItem';
-import Button from './Button';
-import Input from './Input';
-import RichTextEditor from './RichTextEditor';
-import Dropdown, { DropdownItem } from './Dropdown';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
-import MenuDots from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
-import AltArrowLeft from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { RichTextEditor } from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { AltArrowLeft } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import { getMaxLength } from '../lib/constraints';
 import type { Rule, EntityConstraints } from '../lib/database.types';

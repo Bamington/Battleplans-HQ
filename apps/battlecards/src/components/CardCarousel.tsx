@@ -46,9 +46,9 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 import Card3DWrapper from './Card3DWrapper';
-import Button from './Button';
-import MinusCircle from '@battleplans/ui';
-import AddCircle from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { MinusCircle } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

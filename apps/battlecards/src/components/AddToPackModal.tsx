@@ -42,14 +42,14 @@
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Modal from './Modal';
-import Button from './Button';
-import Input from './Input';
-import SelectableListItem from './SelectableListItem';
-import AddCircle from '@battleplans/ui';
-import AltArrowLeft  from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { SelectableListItem } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { AltArrowLeft } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────

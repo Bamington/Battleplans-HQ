@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@battleplans/ui';
-import Input from './Input';
-import Button from './Button';
-import HR from './HR';
+import { Input } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
 import AddAddonModal from './AddAddonModal';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import AddCircle from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
 import type { AddonFormProps } from './AddAddonModal';
 import type { RygSeptStats } from '../lib/database.types';
 import RygSeptBenefitForm from './RygSeptBenefitForm';

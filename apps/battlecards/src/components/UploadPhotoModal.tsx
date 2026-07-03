@@ -22,22 +22,22 @@
 import { useState, useRef, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
-import Modal from './Modal';
-import VR from './VR';
-import Button from './Button';
+import { Modal } from '@battleplans/ui';
+import { VR } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
 import UnitListEntry from './UnitListEntry';
 import HaloFlashpointCard from './HaloFlashpointCard';
 import BloodBowlCard from './BloodBowlCard';
 import KillTeamCard from './KillTeamCard';
 import StarcraftCard from './StarcraftCard';
 import RygCard from './RygCard';
-import Camera from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import ArrowLeft from '@battleplans/ui';
-import ArrowRight from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
-import UploadMinimalistic from '@battleplans/ui';
+import { Camera } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { ArrowLeft } from '@battleplans/ui';
+import { ArrowRight } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
+import { UploadMinimalistic } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 
 // ── Constants ────────────────────────────────────────────────────────────────

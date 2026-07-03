@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import Input from './Input';
-import Button from './Button';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
 import type { AddonFormProps } from './AddAddonModal';
 import type { RygDestinyStats } from '../lib/database.types';
 

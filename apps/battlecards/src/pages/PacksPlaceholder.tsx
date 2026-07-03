@@ -14,10 +14,10 @@
  */
 
 import { useNavigate, useParams } from 'react-router-dom';
-import Navbar from '@battleplans/ui';
-import Button from '@battleplans/ui';
-import Box from '@battleplans/ui';
-import AltArrowLeft from '@battleplans/ui';
+import { Navbar } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Box } from '@battleplans/ui';
+import { AltArrowLeft } from '@battleplans/ui';
 
 interface Props {
   mode: 'manage' | 'create' | 'edit';

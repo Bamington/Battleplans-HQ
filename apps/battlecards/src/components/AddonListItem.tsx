@@ -19,10 +19,10 @@
  *   />
  */
 
-import Dropdown, { DropdownItem } from './Dropdown';
-import MenuDots from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

@@ -11,12 +11,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@battleplans/ui';
-import Button from '@battleplans/ui';
-import Select from '@battleplans/ui';
-import Checkbox from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Select } from '@battleplans/ui';
+import { Checkbox } from '@battleplans/ui';
 import PrintCardGrid from '../components/PrintCardGrid';
-import Eye from '@battleplans/ui';
-import EyeClosed from '@battleplans/ui';
+import { Eye } from '@battleplans/ui';
+import { EyeClosed } from '@battleplans/ui';
 import type {
   PaperSize,
   PrintableBloodBowlCard,

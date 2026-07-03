@@ -22,7 +22,11 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@battleplans/ui": ["../../packages/ui/src/index.ts"],
+      "@battleplans/ui/*": ["../../packages/ui/src/*"]
+    }
   },
   "include": ["src"]
 }
