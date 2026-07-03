@@ -973,11 +973,6 @@ const CardBuilderRyg = () => {
         <Navbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
-            {appMode === 'play' && (
-              <Button variant="outline" color="secondary" size="xs" onClick={handleNewTurn}>
-                New Round
-              </Button>
-            )}
             {deckId && (
               <Link to={`/app/print?deckId=${deckId}`}>
                 <Button variant="ghost" color="secondary" size="xs">Print</Button>
@@ -1006,9 +1001,6 @@ const CardBuilderRyg = () => {
               <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => handleModeChange('play')}>
                 Play
               </DropdownItem>
-            )}
-            {appMode === 'play' && (
-              <DropdownItem onClick={handleNewTurn}>New Round</DropdownItem>
             )}
             {deckId && (
               <DropdownItem onClick={() => navigate(`/app/print?deckId=${deckId}`)}>
@@ -1193,7 +1185,7 @@ const CardBuilderRyg = () => {
                   const overlay = buildTokenOverlayProp(card);
                   return (
                     <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
-                      <RygCard {...props} />
+                      <RygCard {...props} onTalentClick={setViewingTalent} />
                       {overlay && (
                         <TokenOverlay
                           gameSlug="ryg"
@@ -1218,6 +1210,25 @@ const CardBuilderRyg = () => {
                   />
                 );
               }}
+              bottomLeftSlot={
+                appMode === 'play' ? (
+                  <Button
+                    variant="outline"
+                    color="primary"
+                    shape="pill"
+                    size="sm"
+                    onClick={handleNewTurn}
+                    leftIcon={
+                      <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true">
+                        <path d="M21 12a9 9 0 1 1-3-6.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <path d="M21 4v5h-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    }
+                  >
+                    New Round
+                  </Button>
+                ) : null
+              }
               bottomRightSlot={
                 appMode === 'play' ? (
                   <TokenMenu
