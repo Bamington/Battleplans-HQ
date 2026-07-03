@@ -25,6 +25,14 @@ export default defineConfig({
       '@battleplans/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
+  server: {
+    fs: {
+      // Allow serving files from the entire monorepo root so that assets
+      // (fonts, images) in packages/ui — which is outside the Vite project
+      // root (apps/battlecards) — are accessible in dev mode.
+      allow: [resolve(__dirname, '../..')],
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
