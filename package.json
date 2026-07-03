@@ -1,0 +1,14 @@
+{
+  "name": "battleplans-hq",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev:battlecards": "pnpm --filter @battleplans/battlecards dev",
+    "dev:battlepack": "pnpm --filter @battleplans/battlepack dev",
+    "build:battlecards": "pnpm --filter @battleplans/battlecards build",
+    "build:battlepack": "pnpm --filter @battleplans/battlepack build"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}
