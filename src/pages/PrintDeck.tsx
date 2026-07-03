@@ -156,7 +156,7 @@ const PrintDeck = () => {
       setPrintSize(resolvePrintDim(game?.print_size, fb.print, 'print_size', slug));
       setBleedSize(resolvePrintDim(game?.bleed_size, fb.bleed, 'bleed_size', slug));
 
-      setGameSlug(slug);
+      setGameSlug(slug as 'halo-flashpoint' | 'kill-team' | 'ryg' | 'blood-bowl');
 
       // 2. Fetch cards based on game
       if (slug === 'blood-bowl') {
@@ -617,21 +617,25 @@ const PrintDeck = () => {
 
           if (slug === 'weapons') {
             weapons.push({
+              id:       ca.addon_id,
               name,
-              damage: String(ws.damage ?? ''),
-              range:  typeof ws.range === 'number' ? ws.range : 0,
-              cost:   typeof ws.cost  === 'number' ? ws.cost  : 0,
+              damage:   String(ws.damage ?? ''),
+              range:    typeof ws.range === 'number' ? ws.range : 0,
+              cost:     typeof ws.cost  === 'number' ? ws.cost  : 0,
+              keywords: '',
             });
           } else if (slug === 'armor') {
             armor.push({
+              id:          ca.addon_id,
               name,
-              defense: typeof ws.defense === 'number' ? ws.defense : 0,
-              cost:    typeof ws.cost    === 'number' ? ws.cost    : 0,
+              cost:        typeof ws.cost === 'number' ? ws.cost : 0,
+              description: ca.addons!.description ?? '',
             });
           } else if (slug === 'items') {
-            items.push({ name, description: ca.addons!.description ?? '' });
+            items.push({ id: ca.addon_id, name, cost: typeof ws.cost === 'number' ? ws.cost : 0, description: ca.addons!.description ?? '' });
           } else if (slug === 'spells') {
-            spells.push({ name, description: ca.addons!.description ?? '' });
+            const ss = ws as { type?: string; fateModifier?: string };
+            spells.push({ id: ca.addon_id, name, spellType: ss.type ?? '', fateModifier: ss.fateModifier ?? '', description: ca.addons!.description ?? '' });
           } else if (slug === 'talents') {
             const params = (ca.params ?? {}) as Record<string, string[]>;
             const vals: string[] = [];
