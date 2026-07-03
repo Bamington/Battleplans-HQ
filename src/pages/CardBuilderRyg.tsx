@@ -12,9 +12,13 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import ModeToggle, { type Mode } from '../components/ModeToggle';
 import EditSubnav from '../components/EditSubnav';
+import Dropdown, { DropdownItem } from '../components/Dropdown';
+import AltArrowDown from '../icons/AltArrowDown';
+import Play from '../icons/Play';
 import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
 import CardListPanel from '../components/CardListPanel';
@@ -31,6 +35,9 @@ import Modal from '../components/Modal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import { type KeywordSelection } from '../components/AddKeywordModal';
 import RygCard, { CARD_W, CARD_H, type RygSpell } from '../components/RygCard';
+import TokenOverlay from '../components/TokenOverlay';
+import TokenMenu from '../components/TokenMenu';
+import type { TokenDefinition } from '../lib/database.types';
 import SeptCard from '../components/SeptCard';
 import GodCard from '../components/GodCard';
 import RygWeaponForm, { type RygWeaponFormProps } from '../components/RygWeaponForm';
@@ -137,6 +144,7 @@ interface RygCardData {
   items:       LocalItem[];
   spells:      LocalSpell[];
   portraitUrl: string | null;
+  tokenState:  Record<string, number>;
 }
 
 const defaultCard = (): RygCardData => ({
@@ -157,6 +165,7 @@ const defaultCard = (): RygCardData => ({
   items:       [],
   spells:      [],
   portraitUrl: null,
+  tokenState:  {},
 });
 
 const cardStats = (c: RygCardData) => ({
@@ -223,6 +232,10 @@ const armorSubtitle = (addon: Addon): string => {
 const CardBuilderRyg = () => {
   const [searchParams] = useSearchParams();
   const deckId         = searchParams.get('deckId');
+  const navigate       = useNavigate();
+
+  const [appMode, setAppMode] = useState<Mode>('edit');
+  const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
 
   const builder = useCardBuilder({ deckId });
   const {
@@ -265,6 +278,96 @@ const CardBuilderRyg = () => {
       ...s,
       cards: s.cards.map(c => c.id === s.activeCardId ? { ...c, ...patch } : c),
     }));
+  };
+
+  // ── Token definitions ─────────────────────────────────────────────────────
+  const reloadTokenDefinitions = useCallback(async () => {
+    const { data: game } = await supabase
+      .from('games').select('id').eq('slug', 'ryg').single();
+    if (!game) return;
+    const { data: gameTokens } = await supabase
+      .from('token_definitions').select('*')
+      .eq('game_id', game.id)
+      .is('deck_id', null)
+      .order('sort_order');
+    setTokenDefinitions((gameTokens as TokenDefinition[]) ?? []);
+  }, []);
+
+  useEffect(() => { void reloadTokenDefinitions(); }, [reloadTokenDefinitions]);
+
+  const resolveTokenMax = (def: TokenDefinition, card: RygCardData): number | null => {
+    if (def.max_value != null) return def.max_value;
+    if (def.stat_key && def.stat_role === 'max') {
+      const statVal = (card as unknown as Record<string, unknown>)[def.stat_key];
+      if (typeof statVal === 'number') return statVal;
+    }
+    return null;
+  };
+
+  const handleTokenChangeForCard = (cardId: string, tokenDefId: string, newValue: number) => {
+    setCardState(prev => ({
+      ...prev,
+      cards: prev.cards.map(c =>
+        c.id === cardId
+          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
+          : c
+      ),
+    }));
+  };
+
+  const handleModeChange = useCallback((next: Mode) => {
+    if (next === 'play' && tokenDefinitions.length > 0) {
+      setCardState(prev => ({
+        ...prev,
+        cards: prev.cards.map(c => {
+          if (Object.keys(c.tokenState).length > 0) return c;
+          const ts: Record<string, number> = {};
+          for (const def of tokenDefinitions) {
+            if (def.starting_value != null) ts[def.id] = def.starting_value;
+          }
+          return { ...c, tokenState: ts };
+        }),
+      }));
+    }
+    setAppMode(next);
+  }, [tokenDefinitions]);
+
+  const handleNewTurn = () => {
+    const turnDefs = tokenDefinitions.filter(d => d.refresh_on_turn !== 0);
+    if (turnDefs.length === 0) return;
+    setCardState(prev => ({
+      ...prev,
+      cards: prev.cards.map(card => {
+        const ts = { ...card.tokenState };
+        for (const def of turnDefs) {
+          const current = ts[def.id] ?? def.starting_value ?? 0;
+          const effMax = resolveTokenMax(def, card);
+          const lo = def.min_value ?? 0;
+          const hi = effMax ?? Number.POSITIVE_INFINITY;
+          ts[def.id] = Math.max(lo, Math.min(hi, current + def.refresh_on_turn));
+        }
+        return { ...card, tokenState: ts };
+      }),
+    }));
+  };
+
+  const isCardActivated = (card: RygCardData): boolean => {
+    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
+    if (actDefs.length === 0) return false;
+    return actDefs.every(def => {
+      const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
+      const effMax = resolveTokenMax(def, card);
+      return effMax != null ? current >= effMax : current >= 1;
+    });
+  };
+
+  const buildTokenOverlayProp = (card: RygCardData) => {
+    if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
+    return {
+      definitions: tokenDefinitions,
+      cardInfo: { stats: { life: card.life }, unitKeywords: [] as { keywordName: string; paramValue: number | null }[] },
+      state: card.tokenState,
+    };
   };
 
   // ── Load deck cards ───────────────────────────────────────────────────────
@@ -421,6 +524,7 @@ const CardBuilderRyg = () => {
                 items,
                 spells,
                 portraitUrl,
+                tokenState: {},
               } as RygCardData;
             });
 
@@ -853,7 +957,7 @@ const CardBuilderRyg = () => {
           avatarSrc={card.portraitUrl ?? logoRyg}
           status={status}
           active={activeView === 'warriors' && card.id === activeCardId}
-          activated={false}
+          activated={appMode === 'play' ? isCardActivated(card) : false}
           editMode={editMode}
           onClick={() => { setCardState(s => ({ ...s, activeCardId: card.id })); setActiveView('warriors'); }}
           onDuplicate={undefined}
@@ -867,24 +971,63 @@ const CardBuilderRyg = () => {
     <BuilderShell
       navbar={
         <Navbar fixed={false}>
-          {deckId && (
-            <Link
-              to={`/app/print?deckId=${deckId}`}
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            >
-              Print
-            </Link>
-          )}
+          {/* Desktop (lg+): full mode toggle + Print link */}
+          <div className="hidden lg:flex items-center gap-3">
+            {appMode === 'play' && (
+              <Button variant="outline" color="secondary" size="xs" onClick={handleNewTurn}>
+                New Round
+              </Button>
+            )}
+            {deckId && (
+              <Link to={`/app/print?deckId=${deckId}`}>
+                <Button variant="ghost" color="secondary" size="xs">Print</Button>
+              </Link>
+            )}
+            <ModeToggle mode={appMode} onModeChange={handleModeChange} />
+          </div>
+
+          {/* Tablet/Mobile (<lg): collapsed mode dropdown */}
+          <Dropdown
+            align="right"
+            className="lg:hidden"
+            menuClassName="w-36"
+            trigger={
+              <Button color="primary" size="xs" rightIcon={<AltArrowDown className="w-4 h-4" />}>
+                {appMode === 'edit' ? 'Edit' : 'Play'}
+              </Button>
+            }
+          >
+            {appMode !== 'edit' && (
+              <DropdownItem icon={<Pen2 className="w-4 h-4" />} onClick={() => handleModeChange('edit')}>
+                Edit
+              </DropdownItem>
+            )}
+            {appMode !== 'play' && (
+              <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => handleModeChange('play')}>
+                Play
+              </DropdownItem>
+            )}
+            {appMode === 'play' && (
+              <DropdownItem onClick={handleNewTurn}>New Round</DropdownItem>
+            )}
+            {deckId && (
+              <DropdownItem onClick={() => navigate(`/app/print?deckId=${deckId}`)}>
+                Print
+              </DropdownItem>
+            )}
+          </Dropdown>
         </Navbar>
       }
       topBar={
-        <EditSubnav
-          className="lg:hidden"
-          cardListOpen={cardListOpen}
-          editorOpen={editorOpen}
-          onToggleCardList={toggleCardList}
-          onToggleEditor={toggleEditor}
-        />
+        appMode === 'edit' ? (
+          <EditSubnav
+            className="lg:hidden"
+            cardListOpen={cardListOpen}
+            editorOpen={editorOpen}
+            onToggleCardList={toggleCardList}
+            onToggleEditor={toggleEditor}
+          />
+        ) : null
       }
       leftPanelOpen={cardListOpen}
       leftPanel={
@@ -895,7 +1038,7 @@ const CardBuilderRyg = () => {
           onStartEdit={startDeckNameEdit}
           onCommit={n => commitDeckName(n, { persist: true })}
           onCancelEdit={() => setEditingDeckName(false)}
-          headerAction={
+          headerAction={appMode === 'edit' ? (
             <button
               onClick={() => setEditMode(m => !m)}
               className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
@@ -903,14 +1046,12 @@ const CardBuilderRyg = () => {
             >
               {editMode ? <CheckCircle className="w-5 h-5" /> : <Pen2 className="w-5 h-5" />}
             </button>
-          }
-          footer={
-            !editMode && (
-              <Button className="w-full" onClick={addCard}>
-                <AddCircle className="w-4 h-4" /> Add Warrior
-              </Button>
-            )
-          }
+          ) : undefined}
+          footer={appMode === 'edit' && !editMode ? (
+            <Button className="w-full" onClick={addCard}>
+              <AddCircle className="w-4 h-4" /> Add Warrior
+            </Button>
+          ) : undefined}
         >
           <nav className="flex flex-col gap-1">
             {/* Sept + God cards always appear first */}
@@ -949,7 +1090,41 @@ const CardBuilderRyg = () => {
               <span className="flex-1 h-px bg-gray-700" />
             </h3>
 
-            {cards.map((card, i) => renderCardRow(card, i))}
+            {appMode !== 'play' ? (
+              cards.map((card, i) => renderCardRow(card, i))
+            ) : (() => {
+              const ready:     typeof cards = [];
+              const activated: typeof cards = [];
+              const dead:      typeof cards = [];
+              const lifeDef = tokenDefinitions.find(d => d.stat_key === 'life' && !d.is_toggle);
+              for (const c of cards) {
+                const damage = lifeDef ? (c.tokenState[lifeDef.id] ?? 0) : 0;
+                if (c.life > 0 && damage >= c.life) dead.push(c);
+                else if (isCardActivated(c)) activated.push(c);
+                else ready.push(c);
+              }
+              return (
+                <>
+                  {ready.map((c, i) => renderCardRow(c, i))}
+                  {activated.length > 0 && (
+                    <>
+                      <h3 className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]">
+                        <span>Activated</span><span className="flex-1 h-px bg-gray-700" />
+                      </h3>
+                      {activated.map((c, i) => renderCardRow(c, i))}
+                    </>
+                  )}
+                  {dead.length > 0 && (
+                    <>
+                      <h3 className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]">
+                        <span>Fallen</span><span className="flex-1 h-px bg-gray-700" />
+                      </h3>
+                      {dead.map((c, i) => renderCardRow(c, i))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </nav>
         </CardListPanel>
       }
@@ -1012,25 +1187,55 @@ const CardBuilderRyg = () => {
               cardWidth={CARD_W}
               cardHeight={CARD_H}
               className="w-full flex-1 min-h-0"
-              renderItem={(card, role) => (
-                <RygCard
-                  {...cardToProps(card)}
-                  onTalentClick={setViewingTalent}
-                  {...(role === 'active' ? {
-                    onChangeName:    (v: string) => updateActive({ warriorName: v }),
-                    onChangeSept:    (v: string) => updateActive({ sept: v }),
-                    onChangeTalents: (v: string) => updateActive({ talents: v }),
-                  } : {})}
-                />
-              )}
+              renderItem={(card, role) => {
+                const props = cardToProps(card);
+                if (appMode === 'play') {
+                  const overlay = buildTokenOverlayProp(card);
+                  return (
+                    <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
+                      <RygCard {...props} />
+                      {overlay && (
+                        <TokenOverlay
+                          gameSlug="ryg"
+                          tokenDefinitions={overlay.definitions}
+                          card={overlay.cardInfo}
+                          tokenState={overlay.state}
+                          onTokenChange={(defId, val) => handleTokenChangeForCard(card.id, defId, val)}
+                        />
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <RygCard
+                    {...props}
+                    onTalentClick={setViewingTalent}
+                    {...(role === 'active' ? {
+                      onChangeName:    (v: string) => updateActive({ warriorName: v }),
+                      onChangeSept:    (v: string) => updateActive({ sept: v }),
+                      onChangeTalents: (v: string) => updateActive({ talents: v }),
+                    } : {})}
+                  />
+                );
+              }}
+              bottomRightSlot={
+                appMode === 'play' ? (
+                  <TokenMenu
+                    tokenDefinitions={tokenDefinitions}
+                    card={{ stats: { life: activeCard.life }, unitKeywords: [] }}
+                    tokenState={activeCard.tokenState}
+                    onTokenChange={(defId, val) => handleTokenChangeForCard(activeCardId, defId, val)}
+                  />
+                ) : null
+              }
               layoutDeps={layoutDeps}
             />
           </CenterViewport>
         )
       }
       rightPanelOpen={editorOpen}
-      rightPanel={
-        activeView === 'sept' ? (
+      rightPanel={appMode !== 'edit' ? null
+        : activeView === 'sept' ? (
           <EditorPanel title="Sept Card">
             <div className="flex flex-col gap-4 p-4">
               {/* Sept */}

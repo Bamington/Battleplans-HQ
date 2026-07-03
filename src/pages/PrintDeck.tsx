@@ -24,8 +24,12 @@ import type {
   PrintableKillTeamCard,
   PrintableKillTeamRule,
   PrintableRule,
+  PrintableRygCard,
+  PrintableRygSept,
+  PrintableRygGod,
 } from '../components/PrintCardGrid';
-import type { BloodBowlStats, HaloFlashpointStats, KillTeamStats } from '../lib/database.types';
+import type { RygWeapon, RygArmor, RygItem, RygSpell } from '../components/RygCard';
+import type { BloodBowlStats, HaloFlashpointStats, KillTeamStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
 
 // ── Keyword display helper (duplicated from builders — small pure fn) ────────
 
@@ -56,6 +60,7 @@ const GAME_PRINT_FALLBACKS: Record<string, { print: [number, number]; bleed: [nu
   'blood-bowl':      { print: [63,  88], bleed: [69,  94] },
   'halo-flashpoint': { print: [127, 89], bleed: [133, 95] },
   'kill-team':       { print: [127, 89], bleed: [133, 95] },
+  'ryg':             { print: [63,  89], bleed: [69,  95] },
 };
 
 /** Pick a valid [w, h] mm pair: prefer DB value, fall back to the per-game
@@ -91,7 +96,7 @@ const PrintDeck = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setDeckName] = useState('');
-  const [gameSlug, setGameSlug] = useState<'blood-bowl' | 'halo-flashpoint' | 'kill-team' | null>(null);
+  const [gameSlug, setGameSlug] = useState<'blood-bowl' | 'halo-flashpoint' | 'kill-team' | 'ryg' | null>(null);
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [showBleed, setShowBleed] = useState(true);
@@ -107,6 +112,9 @@ const PrintDeck = () => {
   const [rules, setRules] = useState<PrintableRule[]>([]);
   const [killTeamCards, setKillTeamCards] = useState<PrintableKillTeamCard[]>([]);
   const [killTeamRules, setKillTeamRules] = useState<PrintableKillTeamRule[]>([]);
+  const [rygCards, setRygCards] = useState<PrintableRygCard[]>([]);
+  const [rygSeptCard, setRygSeptCard] = useState<PrintableRygSept | null>(null);
+  const [rygGodCard, setRygGodCard] = useState<PrintableRygGod | null>(null);
 
   // ── Dynamic @page size injection ─────────────────────────────────────────
   useEffect(() => {
@@ -134,7 +142,8 @@ const PrintDeck = () => {
       const slug = game?.slug as string;
       setDeckName(deck.name);
 
-      if (slug !== 'blood-bowl' && slug !== 'halo-flashpoint' && slug !== 'kill-team') {
+      const SUPPORTED = ['blood-bowl', 'halo-flashpoint', 'kill-team', 'ryg'];
+      if (!SUPPORTED.includes(slug)) {
         setError(`Unsupported game: ${slug}`);
         setLoading(false);
         return;
@@ -154,6 +163,8 @@ const PrintDeck = () => {
         await loadBloodBowlCards(deckId);
       } else if (slug === 'kill-team') {
         await loadKillTeamCards(deckId);
+      } else if (slug === 'ryg') {
+        await loadRygCards(deckId);
       } else {
         await Promise.all([
           loadHaloCards(deckId),
@@ -497,6 +508,176 @@ const PrintDeck = () => {
     setKillTeamRules(ruleCards);
   };
 
+  // ── RYG loader ───────────────────────────────────────────────────────────
+  const loadRygCards = async (deckId: string) => {
+    // Build typeIdToSlug for 'ryg' addon types
+    const { data: addonTypes } = await supabase
+      .from('addon_types')
+      .select('id, slug, games!inner(slug)')
+      .eq('games.slug', 'ryg');
+    const typeIdToSlug: Record<string, string> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (addonTypes as any[] | null)?.forEach(t => { typeIdToSlug[t.id] = t.slug; });
+
+    type CardRow = {
+      id: string;
+      name: string;
+      card_type: string | null;
+      stats: Record<string, unknown>;
+      card_addons: {
+        addon_id: string;
+        sort_order: number | null;
+        params: Record<string, unknown> | null;
+        addons: {
+          name: string;
+          description: string | null;
+          stats: Record<string, unknown>;
+          addon_type_id: string;
+        } | null;
+      }[];
+      card_images: { file_path: string; image_type: string }[];
+    };
+
+    const { data, error } = await supabase
+      .from('cards')
+      .select('id, name, card_type, stats, card_addons(addon_id, sort_order, params, addons(name, description, stats, addon_type_id)), card_images(file_path, image_type)')
+      .eq('deck_id', deckId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error || !data) return;
+
+    const warriors: PrintableRygCard[] = [];
+    let septCard: PrintableRygSept | null = null;
+    let godCard: PrintableRygGod | null = null;
+
+    for (const row of (data as unknown as CardRow[])) {
+      const s = row.stats ?? {};
+      const sortedAddons = [...(row.card_addons ?? [])]
+        .filter(ca => ca.addons != null)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+      const allImages = row.card_images ?? [];
+      const portraitImg = allImages.find(i => i.image_type === 'portrait');
+      const avatarImg   = allImages.find(i => i.image_type === 'avatar');
+      const portraitUrl = portraitImg
+        ? supabase.storage.from('card-images').getPublicUrl(portraitImg.file_path).data.publicUrl
+        : null;
+      const avatarUrl = avatarImg
+        ? supabase.storage.from('card-images').getPublicUrl(avatarImg.file_path).data.publicUrl
+        : null;
+
+      if (row.card_type === 'sept') {
+        // Sept card: find septs, destinies, sept-benefits addons
+        const septAddon    = sortedAddons.find(ca => typeIdToSlug[ca.addons!.addon_type_id] === 'septs');
+        const destinyAddon = sortedAddons.find(ca => typeIdToSlug[ca.addons!.addon_type_id] === 'destinies');
+        const benefits     = sortedAddons.filter(ca => typeIdToSlug[ca.addons!.addon_type_id] === 'sept-benefits');
+
+        const septStats   = (septAddon?.addons?.stats ?? {}) as RygSeptStats;
+        const destStats   = (destinyAddon?.addons?.stats ?? {}) as RygDestinyStats;
+
+        septCard = {
+          id:           row.id,
+          septName:     septAddon?.addons?.name ?? row.name,
+          prohibited:   septStats.prohibited   ?? '',
+          required:     septStats.required     ?? '',
+          restricted:   septStats.restricted   ?? '',
+          benefits:     benefits.map(ca => ({
+            name:        ca.addons!.name,
+            description: String((ca.addons!.stats as { description?: string }).description ?? ''),
+          })),
+          destinyName:  destinyAddon?.addons?.name ?? '',
+          destinyDesc:  destStats.description ?? '',
+          destinyCurse: destStats.curse       ?? '',
+        };
+      } else if (row.card_type === 'god') {
+        const godAddon = sortedAddons.find(ca => typeIdToSlug[ca.addons!.addon_type_id] === 'gods');
+        const godStats = (godAddon?.addons?.stats ?? {}) as RygGodStats;
+        godCard = {
+          id:             row.id,
+          godName:        godAddon?.addons?.name ?? row.name,
+          specialAbility: godStats.specialAbility ?? '',
+          minions:        godStats.minions        ?? '',
+          servants:       godStats.servants       ?? '',
+          lieutenants:    godStats.lieutenants    ?? '',
+          champions:      godStats.champions      ?? '',
+        };
+      } else {
+        // Warrior card (card_type='operative')
+        const weapons:   RygWeapon[]  = [];
+        const armor:     RygArmor[]   = [];
+        const items:     RygItem[]    = [];
+        const spells:    RygSpell[]   = [];
+        const talentList: PrintableRygCard['talentList'] = [];
+
+        for (const ca of sortedAddons) {
+          const slug = typeIdToSlug[ca.addons!.addon_type_id];
+          const ws = ca.addons!.stats as Record<string, unknown>;
+          const name = ca.addons!.name;
+
+          if (slug === 'weapons') {
+            weapons.push({
+              name,
+              damage: String(ws.damage ?? ''),
+              range:  typeof ws.range === 'number' ? ws.range : 0,
+              cost:   typeof ws.cost  === 'number' ? ws.cost  : 0,
+            });
+          } else if (slug === 'armor') {
+            armor.push({
+              name,
+              defense: typeof ws.defense === 'number' ? ws.defense : 0,
+              cost:    typeof ws.cost    === 'number' ? ws.cost    : 0,
+            });
+          } else if (slug === 'items') {
+            items.push({ name, description: ca.addons!.description ?? '' });
+          } else if (slug === 'spells') {
+            spells.push({ name, description: ca.addons!.description ?? '' });
+          } else if (slug === 'talents') {
+            const params = (ca.params ?? {}) as Record<string, string[]>;
+            const vals: string[] = [];
+            Object.values(params).forEach(v => { if (Array.isArray(v)) vals.push(...v); });
+            const displayName = vals.length ? `${name} (${vals.join(', ')})` : name;
+            talentList.push({
+              addonId:     ca.addon_id,
+              name,
+              description: ca.addons!.description ?? '',
+              displayName,
+            });
+          }
+        }
+
+        const talents = talentList.map(t => t.displayName).join(', ');
+        const warriorTypAddon = sortedAddons.find(ca => typeIdToSlug[ca.addons!.addon_type_id] === 'warrior-type');
+        const wtStats = (warriorTypAddon?.addons?.stats ?? {}) as { offense?: number; defense?: number; life?: number; tactics?: number; fate?: number };
+
+        warriors.push({
+          id:               row.id,
+          warriorName:      row.name,
+          type:             warriorTypAddon?.addons?.name ?? '',
+          sept:             String(s.sept ?? ''),
+          offense:          typeof s.offense === 'number' ? s.offense : (wtStats.offense ?? 0),
+          defense:          typeof s.defense === 'number' ? s.defense : (wtStats.defense ?? 0),
+          life:             typeof s.life    === 'number' ? s.life    : (wtStats.life    ?? 0),
+          tactics:          typeof s.tactics === 'number' ? s.tactics : (wtStats.tactics ?? 0),
+          fate:             typeof s.fate    === 'number' ? s.fate    : (wtStats.fate    ?? 0),
+          talents,
+          talentList,
+          specialAbilityDesc: String(s.specialAbilityDesc ?? ''),
+          weapons,
+          armor,
+          items,
+          spells,
+          portrait:   portraitUrl,
+          avatarUrl,
+        });
+      }
+    }
+
+    setRygCards(warriors);
+    setRygSeptCard(septCard);
+    setRygGodCard(godCard);
+  };
+
   // ── Toggle helpers ────────────────────────────────────────────────────────
   const toggleExclude = (id: string) => {
     setExcludedIds(prev => {
@@ -511,6 +692,7 @@ const PrintDeck = () => {
   const builderPath =
     gameSlug === 'blood-bowl'      ? `/app/builder/blood-bowl?deckId=${deckId}`      :
     gameSlug === 'kill-team'       ? `/app/builder/kill-team?deckId=${deckId}`       :
+    gameSlug === 'ryg'             ? `/app/builder/ryg?deckId=${deckId}`             :
     `/app/builder/halo-flashpoint?deckId=${deckId}`;
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -544,11 +726,17 @@ const PrintDeck = () => {
   const sidebarUnits: SidebarItem[] =
     gameSlug === 'blood-bowl' ? bloodBowlCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.playerRole || c.teamName || '', avatarUrl: c.avatarUrl })) :
     gameSlug === 'kill-team'  ? killTeamCards.map(c => ({ id: c.id, name: c.operativeName || 'New Operative', subtitle: c.role || c.teamName || '', avatarUrl: c.avatarUrl })) :
+    gameSlug === 'ryg'        ? [
+      ...rygCards.map(c => ({ id: c.id, name: c.warriorName || 'New Warrior', subtitle: c.type || c.sept || '', avatarUrl: c.avatarUrl })),
+      ...(rygSeptCard ? [{ id: rygSeptCard.id, name: rygSeptCard.septName || 'Sept', subtitle: 'Sept Card', avatarUrl: null }] : []),
+      ...(rygGodCard  ? [{ id: rygGodCard.id,  name: rygGodCard.godName   || 'God',  subtitle: 'God Card',  avatarUrl: null }] : []),
+    ] :
     haloCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.keywords || '', avatarUrl: c.avatarUrl }));
 
   const sidebarRules: SidebarItem[] =
     gameSlug === 'kill-team'
       ? killTeamRules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Faction Rule', avatarUrl: null }))
+      : gameSlug === 'ryg' ? []
       : rules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Rule', avatarUrl: null }));
 
   return (
@@ -676,6 +864,9 @@ const PrintDeck = () => {
           rules={rules}
           killTeamCards={killTeamCards}
           killTeamRules={killTeamRules}
+          rygCards={rygCards}
+          rygSeptCard={rygSeptCard ?? undefined}
+          rygGodCard={rygGodCard ?? undefined}
         />
       </div>
     </div>

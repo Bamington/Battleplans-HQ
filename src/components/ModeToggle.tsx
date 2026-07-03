@@ -23,26 +23,31 @@ interface ModeToggleProps {
   mode: Mode;
   /** Fires when the user selects a different mode */
   onModeChange: (mode: Mode) => void;
+  /** Modes that are visually greyed-out and non-interactive */
+  disabledModes?: Mode[];
 }
 
-const ModeToggle = ({ mode, onModeChange }: ModeToggleProps) => {
+const ModeToggle = ({ mode, onModeChange, disabledModes = [] }: ModeToggleProps) => {
   const base =
-    'flex items-center justify-center gap-2 px-3 py-2 text-sm font-body font-medium text-white transition-colors cursor-pointer w-[132px]';
+    'flex items-center justify-center gap-2 px-3 py-2 text-sm font-body font-medium transition-colors w-[132px]';
 
-  const activeClasses = 'bg-blue-600 hover:bg-blue-700';
-  const inactiveClasses = 'border border-blue-500 hover:bg-blue-950';
+  const activeClasses   = 'bg-blue-600 hover:bg-blue-700 cursor-pointer text-white';
+  const inactiveClasses = 'border border-blue-500 hover:bg-blue-950 cursor-pointer text-white';
+  const disabledClasses = 'border border-gray-700 text-gray-600 cursor-not-allowed';
+
+  const btnClass = (m: Mode) => {
+    if (disabledModes.includes(m)) return [base, m === 'edit' ? 'rounded-l-lg' : 'rounded-r-lg', disabledClasses].join(' ');
+    return [base, m === 'edit' ? 'rounded-l-lg' : 'rounded-r-lg', mode === m ? activeClasses : inactiveClasses].join(' ');
+  };
 
   return (
     <div className="flex h-8 shrink-0">
       {/* ── Edit button (left) ──────────────────────────────── */}
       <button
         type="button"
-        onClick={() => onModeChange('edit')}
-        className={[
-          base,
-          'rounded-l-lg',
-          mode === 'edit' ? activeClasses : inactiveClasses,
-        ].join(' ')}
+        onClick={() => !disabledModes.includes('edit') && onModeChange('edit')}
+        className={btnClass('edit')}
+        disabled={disabledModes.includes('edit')}
       >
         <Pen2 className="w-4 h-4" />
         <span>Edit</span>
@@ -51,12 +56,9 @@ const ModeToggle = ({ mode, onModeChange }: ModeToggleProps) => {
       {/* ── Play button (right) ─────────────────────────────── */}
       <button
         type="button"
-        onClick={() => onModeChange('play')}
-        className={[
-          base,
-          'rounded-r-lg',
-          mode === 'play' ? activeClasses : inactiveClasses,
-        ].join(' ')}
+        onClick={() => !disabledModes.includes('play') && onModeChange('play')}
+        className={btnClass('play')}
+        disabled={disabledModes.includes('play')}
       >
         <Play className="w-4 h-4" />
         <span>Play</span>

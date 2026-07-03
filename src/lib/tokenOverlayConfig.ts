@@ -82,10 +82,23 @@ const KILL_TEAM_MOBILE: OverlayZoneConfig = {
   },
 };
 
+/** RYG warrior card (890×1270 portrait).
+ *  Bar and badges both sit BELOW the card so they don't obscure artwork.
+ *  Bar: a full-width horizontal life strip at y=1286.
+ *  Badges: condition chips in a row at y=1382. */
+const RYG: OverlayZoneConfig = {
+  other:  { x: 20,   y: -70,  gap: 57 },
+  shield: { x: 480,  y: -70,  gap: 57 },
+  damage: { x: 710,  y: 160,  offset: 30 },
+  badge:  { x: 6,    y: 1382, gap: 10 },
+  bar:    { x: 6,    y: 1286, width: 878, height: 80, gap: 12, orientation: 'horizontal' },
+};
+
 export const TOKEN_OVERLAY_CONFIG: Record<string, OverlayZoneConfig> = {
   'halo-flashpoint':  HALO_FLASHPOINT,
   'kill-team':        KILL_TEAM,
   'kill-team-mobile': KILL_TEAM_MOBILE,
+  'ryg':              RYG,
 };
 
 /** Fallback used when a game slug isn't listed — same as Halo's. */

@@ -4031,7 +4031,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      </div>{/* end sm:ml-64 content wrapper */}
+</div>{/* end sm:ml-64 content wrapper */}
     </div>
   );
 };

@@ -16,6 +16,9 @@ import HaloFlashpointRuleCard from './HaloFlashpointRuleCard';
 import KillTeamCard, { type KillTeamWeapon, type KillTeamAbility } from './KillTeamCard';
 import KillTeamRuleCard from './KillTeamRuleCard';
 import type { HaloWeapon } from './HaloFlashpointCard';
+import RygCard, { type RygWeapon, type RygArmor, type RygItem, type RygSpell } from './RygCard';
+import SeptCard from './SeptCard';
+import GodCard from './GodCard';
 
 // Print background assets — each is sized to the BLEED area (includes the
 // 3mm margin on each edge that the trimmer cuts away).
@@ -31,6 +34,13 @@ import bgPrintKillTeamUnit    from '../assets/games/card assets/kill-team/bg-pri
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import bgPrintKillTeamRule    from '../assets/games/card assets/kill-team/bg-portrait-print.svg';
+// RYG doesn't have separate print backgrounds yet — reuse the standard card backgrounds.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import bgRygWarrior           from '../assets/games/card assets/ryg/bg-print.svg';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import bgRygSeptGod           from '../assets/games/card assets/ryg/bg-septgod-print.png';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,9 +110,52 @@ export interface PrintableKillTeamRule {
   ability: KillTeamAbility | null;
 }
 
+export interface PrintableRygCard {
+  id: string;
+  warriorName: string;
+  type: string;
+  sept: string;
+  offense: number;
+  defense: number;
+  life: number;
+  tactics: number;
+  fate: number;
+  talents: string;
+  talentList: Array<{ addonId: string; name: string; description: string; displayName: string }>;
+  specialAbilityDesc: string;
+  weapons: RygWeapon[];
+  armor: RygArmor[];
+  items: RygItem[];
+  spells: RygSpell[];
+  portrait: string | null;
+  avatarUrl: string | null;
+}
+
+export interface PrintableRygSept {
+  id: string;
+  septName: string;
+  prohibited: string;
+  required: string;
+  restricted: string;
+  benefits: Array<{ name: string; description: string }>;
+  destinyName: string;
+  destinyDesc: string;
+  destinyCurse: string;
+}
+
+export interface PrintableRygGod {
+  id: string;
+  godName: string;
+  specialAbility: string;
+  minions: string;
+  servants: string;
+  lieutenants: string;
+  champions: string;
+}
+
 export type PaperSize = 'a4' | 'letter';
 
-export type PrintGameSlug = 'blood-bowl' | 'halo-flashpoint' | 'kill-team';
+export type PrintGameSlug = 'blood-bowl' | 'halo-flashpoint' | 'kill-team' | 'ryg';
 
 export interface PrintCardGridProps {
   gameSlug: PrintGameSlug;
@@ -121,6 +174,9 @@ export interface PrintCardGridProps {
   rules?: PrintableRule[];
   killTeamCards?: PrintableKillTeamCard[];
   killTeamRules?: PrintableKillTeamRule[];
+  rygCards?: PrintableRygCard[];
+  rygSeptCard?: PrintableRygSept | null;
+  rygGodCard?: PrintableRygGod | null;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -150,7 +206,7 @@ const MARGIN_MM = 10;
 // `ITEM_PROFILE_OVERRIDES` table below. Each profile-grouping prints on its
 // own set of pages so the page-level grid never has to mix slot sizes.
 
-type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule';
+type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule' | 'ryg-warrior' | 'ryg-sept' | 'ryg-god';
 
 interface PrintProfile {
   /** Native pixel dimensions of the card component (matches its SVG canvas). */
@@ -182,15 +238,38 @@ const ITEM_PROFILE_OVERRIDES: Partial<Record<PrintItemType, ProfileOverride>> = 
     bleedMm: [76, 126],
     bg:      bgPrintKillTeamRule,
   },
+  // RYG warrior cards use the warrior background.
+  'ryg-warrior': {
+    native:  { w: 890, h: 1270 },
+    printMm: [63, 89],
+    bleedMm: [69, 95],
+    bg:      bgRygWarrior,
+  },
+  // RYG sept and god cards share the sept/god background.
+  'ryg-sept': {
+    native:  { w: 890, h: 1270 },
+    printMm: [63, 89],
+    bleedMm: [69, 95],
+    bg:      bgRygSeptGod,
+  },
+  'ryg-god': {
+    native:  { w: 890, h: 1270 },
+    printMm: [63, 89],
+    bleedMm: [69, 95],
+    bg:      bgRygSeptGod,
+  },
 };
 
 /** Native pixel canvas for non-overridden item types. */
 const DEFAULT_NATIVE: Record<PrintItemType, { w: number; h: number }> = {
-  'blood-bowl': { w: 750,  h: 1100 },
-  'halo-unit':  { w: 1270, h: 890 },
-  'halo-rule':  { w: 1270, h: 890 },
-  'kt-unit':    { w: 1270, h: 890 },
-  'kt-rule':    { w: 700,  h: 1200 }, // only used if override is removed
+  'blood-bowl':  { w: 750,  h: 1100 },
+  'halo-unit':   { w: 1270, h: 890  },
+  'halo-rule':   { w: 1270, h: 890  },
+  'kt-unit':     { w: 1270, h: 890  },
+  'kt-rule':     { w: 700,  h: 1200 }, // only used if override is removed
+  'ryg-warrior': { w: 890,  h: 1270 },
+  'ryg-sept':    { w: 890,  h: 1270 },
+  'ryg-god':     { w: 890,  h: 1270 },
 };
 
 const profileForItem = (
@@ -260,16 +339,20 @@ const PrintCardGrid = ({
   rules = [],
   killTeamCards = [],
   killTeamRules = [],
+  rygCards = [],
+  rygSeptCard = null,
+  rygGodCard = null,
 }: PrintCardGridProps) => {
   const paper = PAPER[paperSize];
   const pageW = (paper.w - MARGIN_MM * 2) * MM;
   const pageH = (paper.h - MARGIN_MM * 2) * MM;
 
   // Default bleed background for this game — the operative/main bg. Rule
-  // cards (kt-rule) override this via ITEM_PROFILE_OVERRIDES.
+  // cards (kt-rule, ryg-sept, ryg-god) override this via ITEM_PROFILE_OVERRIDES.
   const defaultBg =
     gameSlug === 'blood-bowl' ? bgPrintBloodBowl :
     gameSlug === 'kill-team'  ? bgPrintKillTeamUnit :
+    gameSlug === 'ryg'        ? bgRygWarrior :
     bgPrintHalo;
 
   // ── Build typed items in deck order ──────────────────────────────────────
@@ -287,6 +370,16 @@ const PrintCardGrid = ({
     for (const r of killTeamRules) {
       if (!excludedIds.has(r.id)) items.push({ id: r.id, type: 'kt-rule', data: r });
     }
+  } else if (gameSlug === 'ryg') {
+    for (const c of rygCards) {
+      if (!excludedIds.has(c.id)) items.push({ id: c.id, type: 'ryg-warrior', data: c });
+    }
+    if (rygSeptCard && !excludedIds.has(rygSeptCard.id)) {
+      items.push({ id: rygSeptCard.id, type: 'ryg-sept', data: rygSeptCard });
+    }
+    if (rygGodCard && !excludedIds.has(rygGodCard.id)) {
+      items.push({ id: rygGodCard.id, type: 'ryg-god', data: rygGodCard });
+    }
   } else {
     for (const c of haloCards) {
       if (!excludedIds.has(c.id)) items.push({ id: c.id, type: 'halo-unit', data: c });
@@ -301,6 +394,7 @@ const PrintCardGrid = ({
   const totalLoaded =
     gameSlug === 'blood-bowl' ? bloodBowlCards.length :
     gameSlug === 'kill-team'  ? killTeamCards.length + killTeamRules.length :
+    gameSlug === 'ryg'        ? rygCards.length + (rygSeptCard ? 1 : 0) + (rygGodCard ? 1 : 0) :
     haloCards.length + rules.length;
 
   if (items.length === 0) {
@@ -507,6 +601,57 @@ const PrintCardGrid = ({
                             title={r.title}
                             description={r.description}
                             ability={r.ability}
+                          />
+                        );
+                      })()}
+                      {item.type === 'ryg-warrior' && (() => {
+                        const c = item.data as PrintableRygCard;
+                        return (
+                          <RygCard
+                            warriorName={c.warriorName}
+                            type={c.type}
+                            sept={c.sept}
+                            offense={c.offense}
+                            defense={c.defense}
+                            life={c.life}
+                            tactics={c.tactics}
+                            fate={c.fate}
+                            talents={c.talents}
+                            talentList={c.talentList}
+                            specialAbilityDesc={c.specialAbilityDesc}
+                            weapons={c.weapons}
+                            armor={c.armor}
+                            items={c.items}
+                            spells={c.spells}
+                            portrait={c.portrait ?? undefined}
+                          />
+                        );
+                      })()}
+                      {item.type === 'ryg-sept' && (() => {
+                        const s = item.data as PrintableRygSept;
+                        return (
+                          <SeptCard
+                            septName={s.septName}
+                            prohibited={s.prohibited}
+                            required={s.required}
+                            restricted={s.restricted}
+                            benefits={s.benefits}
+                            destinyName={s.destinyName}
+                            destinyDesc={s.destinyDesc}
+                            destinyCurse={s.destinyCurse}
+                          />
+                        );
+                      })()}
+                      {item.type === 'ryg-god' && (() => {
+                        const g = item.data as PrintableRygGod;
+                        return (
+                          <GodCard
+                            godName={g.godName}
+                            specialAbility={g.specialAbility}
+                            minions={g.minions}
+                            servants={g.servants}
+                            lieutenants={g.lieutenants}
+                            champions={g.champions}
                           />
                         );
                       })()}
