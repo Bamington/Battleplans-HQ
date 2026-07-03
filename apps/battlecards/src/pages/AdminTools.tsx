@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
+import AppNavbar from '../components/AppNavbar';
 import { Button } from '@battleplans/ui';
 import { AltArrowLeft } from '@battleplans/ui';
 import { AltArrowRight } from '@battleplans/ui';
@@ -37,7 +37,7 @@ export default function AdminTools() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
 
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       <div className="flex-1 flex flex-col items-center p-8 pt-12">
         <div className="w-full max-w-lg flex flex-col gap-6">

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PackEditor.tsx — The pack-editing page
  *
  * Layout:
@@ -23,9 +23,9 @@
  */
 
 import { useState, useEffect, useMemo, useRef, type ComponentType } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useIsAdmin } from '@battleplans/ui';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
@@ -718,7 +718,7 @@ export default function PackEditor() {
     <div className="min-h-screen flex flex-col bg-gray-950">
 
       {/* No mode switcher in the pack editor — pass no children to Navbar. */}
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       <div className="flex-1 flex flex-col px-3 py-6 md:px-9 md:py-9 gap-8">
 

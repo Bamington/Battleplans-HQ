@@ -14,7 +14,7 @@
  */
 
 import { useNavigate, useParams } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
+import AppNavbar from '../components/AppNavbar';
 import { Button } from '@battleplans/ui';
 import { Box } from '@battleplans/ui';
 import { AltArrowLeft } from '@battleplans/ui';
@@ -54,7 +54,7 @@ export default function PacksPlaceholder({ mode }: Props) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
 
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="max-w-md w-full flex flex-col items-center gap-4 text-center">

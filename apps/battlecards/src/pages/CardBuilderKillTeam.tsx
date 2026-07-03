@@ -18,8 +18,8 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
 import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
@@ -1800,7 +1800,7 @@ const CardBuilderKillTeam = () => {
   return (
     <BuilderShell
       navbar={
-        <Navbar fixed={false}>
+        <AppNavbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1838,7 +1838,7 @@ const CardBuilderKillTeam = () => {
               </DropdownItem>
             )}
           </Dropdown>
-        </Navbar>
+        </AppNavbar>
       }
       topBar={
         // Play mode → Units/Rules tabs. Edit mode → mobile-only panel

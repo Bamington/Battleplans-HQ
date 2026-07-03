@@ -18,7 +18,6 @@ import { Text } from '@battleplans/ui';
 import { List } from '@battleplans/ui';
 import { TextLink } from '@battleplans/ui';
 import { HR } from '@battleplans/ui';
-import { Navbar } from '@battleplans/ui';
 import { Sidebar, SidebarItem } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
 import { Badge } from '@battleplans/ui';
@@ -81,6 +80,7 @@ import CenterViewport from '../components/CenterViewport';
 import TokenMenu from '../components/TokenMenu';
 import TokenOverlay from '../components/TokenOverlay';
 import PrintCardGrid from '../components/PrintCardGrid';
+import AppNavbar from '../components/AppNavbar';
 import type { TokenDefinition } from '../lib/database.types';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces, TS path resolver struggles but Vite handles fine
@@ -312,7 +312,7 @@ const BuilderShellDemo = () => {
   return (
     <div className="w-full h-[600px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 [&>div]:!h-full">
       <BuilderShell
-        navbar={<Navbar fixed={false} />}
+        navbar={<AppNavbar fixed={false} />}
         topBar={
           <EditSubnav
             className="lg:hidden"
@@ -496,7 +496,7 @@ const ComponentGallery = () => {
         <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
 
           {/* Navbar rendered with fixed=false so it stays inside the preview */}
-          <Navbar fixed={false} />
+          <AppNavbar fixed={false} />
 
           {/* Simulated page body beneath the navbar */}
           <div className="h-24 bg-gray-50 dark:bg-gray-950 flex items-center

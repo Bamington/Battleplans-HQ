@@ -8,8 +8,8 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
 import EditSubnav from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
@@ -189,7 +189,7 @@ export default function CardBuilderGod() {
     <>
       <BuilderShell
         navbar={
-          <Navbar fixed={false}>
+          <AppNavbar fixed={false}>
             {deckId && (
               <Link
                 to={`/app/print?deckId=${deckId}`}
@@ -198,7 +198,7 @@ export default function CardBuilderGod() {
                 Print
               </Link>
             )}
-          </Navbar>
+          </AppNavbar>
         }
         topBar={
           <EditSubnav

@@ -28,8 +28,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
 import EditSubnav  from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
 import CardListPanel from '../components/CardListPanel';
@@ -622,7 +622,7 @@ const CardBuilderStarcraft = () => {
 
   return (
     <BuilderShell
-      navbar={<Navbar fixed={false} />}
+      navbar={<AppNavbar fixed={false} />}
       topBar={
         <EditSubnav
           className="lg:hidden"

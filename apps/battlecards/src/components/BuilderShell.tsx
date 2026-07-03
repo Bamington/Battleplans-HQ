@@ -19,7 +19,7 @@
  *   const builder = useCardBuilder({ deckId });
  *   return (
  *     <BuilderShell
- *       navbar={<Navbar>{...}</Navbar>}
+ *       navbar={<AppNavbar>{...}</AppNavbar>}
  *       topBar={<EditSubnav className="lg:hidden" {...} />}
  *       leftPanel={<CardListPanel {...}>{cardListBody}</CardListPanel>}
  *       leftPanelOpen={builder.cardListOpen}
@@ -34,7 +34,7 @@
 import type { ReactNode } from 'react';
 
 export interface BuilderShellProps {
-  /** Top navbar — always rendered. Pass an already-configured <Navbar> element. */
+  /** Top navbar — always rendered. Pass an already-configured <AppNavbar> element. */
   navbar: ReactNode;
   /** Optional sub-bar below the navbar (EditSubnav, PlaySubnav, etc.). */
   topBar?: ReactNode;

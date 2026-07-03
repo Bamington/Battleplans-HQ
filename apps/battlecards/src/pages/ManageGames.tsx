@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@battleplans/ui';
-import { Navbar } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
 import { Badge } from '@battleplans/ui';
 import { Modal } from '@battleplans/ui';
@@ -129,7 +129,7 @@ export default function ManageGames() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
 
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       <div className="flex-1 flex flex-col items-center p-8 pt-10">
         <div className="w-full max-w-2xl flex flex-col gap-6">

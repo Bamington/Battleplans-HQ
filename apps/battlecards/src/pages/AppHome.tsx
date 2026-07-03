@@ -37,9 +37,9 @@
  */
 
 import { useState, useEffect } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useIsAdmin } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
 import PackListItem, { type PackBadge } from '../components/PackListItem';
@@ -636,7 +636,7 @@ export default function AppHome() {
     <div className="min-h-screen flex flex-col bg-gray-950">
 
       {/* Navbar — in-flow (not fixed) so content sits naturally below it */}
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 md:pt-9 md:px-9 pt-3 px-3">

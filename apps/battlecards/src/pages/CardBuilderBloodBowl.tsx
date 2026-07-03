@@ -21,9 +21,9 @@
  */
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
-import { Navbar } from '@battleplans/ui';
 import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
@@ -1444,7 +1444,7 @@ const CardBuilderBloodBowl = () => {
   return (
     <BuilderShell
       navbar={
-        <Navbar fixed={false}>
+        <AppNavbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1482,7 +1482,7 @@ const CardBuilderBloodBowl = () => {
               </DropdownItem>
             )}
           </Dropdown>
-        </Navbar>
+        </AppNavbar>
       }
       topBar={
         appMode === 'play' ? (
