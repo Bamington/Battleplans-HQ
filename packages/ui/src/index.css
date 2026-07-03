@@ -8,6 +8,10 @@
 /* ── Tailwind v4 ────────────────────────────────────────────────────────────── */
 @import "tailwindcss";
 
+/* Scan the shared UI package for Tailwind class names — needed because
+   packages/ui lives outside the Vite project root (apps/battlecards). */
+@source ".";
+
 /* ── Print styles ──────────────────────────────────────────────────────────── */
 @import "./print.css";
 
