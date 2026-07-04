@@ -155,6 +155,7 @@ interface BloodBowlCardData {
   teamName:      string;
   unitName:      string;
   playerRole:    string;
+  playerNumber:  string;
   cost:          string;
   move:          number;
   strength:      number;
@@ -176,6 +177,7 @@ const defaultCard = (): BloodBowlCardData => ({
   teamName:      '',
   unitName:      '',
   playerRole:    '',
+  playerNumber:  '',
   cost:          '',
   move:          0,
   strength:      0,
@@ -211,6 +213,7 @@ const isBloodBowlCardBlank = (c: BloodBowlCardData): boolean =>
 const toBloodBowlStats = (c: BloodBowlCardData): BloodBowlStats => ({
   teamName:           c.teamName,
   playerRole:         c.playerRole,
+  playerNumber:       c.playerNumber,
   cost:               c.cost,
   primaryAttribute:   c.primaryAttr.join(', '),
   secondaryAttribute: c.secondaryAttr.join(', '),
@@ -306,7 +309,13 @@ const CardBuilderBloodBowl = () => {
 
   const addBlankCard = () => {
     const card = defaultCard();
-    setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
+    setCardState(s => {
+      // Carry the team name over from the most recent card that has one,
+      // so building a roster doesn't mean retyping the team on every player.
+      const inheritedTeamName = [...s.cards].reverse().find(c => c.teamName)?.teamName;
+      const newCard = inheritedTeamName ? { ...card, teamName: inheritedTeamName } : card;
+      return { cards: [...s.cards, newCard], activeCardId: card.id };
+    });
   };
 
   const deleteCard = async (cardId: string) => {
@@ -442,12 +451,19 @@ const CardBuilderBloodBowl = () => {
 
     const src = tmpl as unknown as TemplateRow;
 
+    // Carry the team name over from the most recent card that has one, unless
+    // the template already specifies its own team.
+    const inheritedTeamName = [...cards].reverse().find(c => c.teamName)?.teamName;
+    const effectiveStats: BloodBowlStats = (src.stats?.teamName || !inheritedTeamName)
+      ? (src.stats ?? {})
+      : { ...src.stats, teamName: inheritedTeamName };
+
     const { data: newRow, error: insertErr } = await supabase
       .from('cards')
       .insert({
         deck_id:    deckId,
         name:       src.name,
-        stats:      src.stats,
+        stats:      effectiveStats,
         sort_order: cards.length,
       })
       .select('id')
@@ -480,13 +496,14 @@ const CardBuilderBloodBowl = () => {
         starPlayerOnly: k.keywords!.extra?.starPlayerOnly === true,
       }));
 
-    const s = (src.stats ?? {}) as BloodBowlStats;
+    const s = effectiveStats;
     const localCard: BloodBowlCardData = {
       id:            crypto.randomUUID(),
       dbId:          newRow.id,
       teamName:      s.teamName   ?? '',
       unitName:      src.name,
       playerRole:    s.playerRole ?? '',
+      playerNumber:  s.playerNumber ?? '',
       cost:          s.cost       ?? '',
       move:          s.ma         ?? 0,
       strength:      s.st         ?? 0,
@@ -747,6 +764,7 @@ const CardBuilderBloodBowl = () => {
             teamName:      s.teamName      ?? '',
             unitName:      row.name,
             playerRole:    s.playerRole    ?? '',
+            playerNumber:  s.playerNumber  ?? '',
             cost:          s.cost          ?? '',
             move:          s.ma            ?? 0,
             strength:      s.st            ?? 0,
@@ -1179,6 +1197,14 @@ const CardBuilderBloodBowl = () => {
           onChange={e => updateActiveCard({ playerRole: e.target.value })}
         />
         <Input
+          label="Player Number"
+          placeholder="e.g. 7"
+          leftIcon={<UserRounded className="w-4 h-4" />}
+          value={activeCard.playerNumber}
+          maxLength={getMaxLength(cardConstraints, 'stats.playerNumber')}
+          onChange={e => updateActiveCard({ playerNumber: e.target.value })}
+        />
+        <Input
           label="Cost"
           required
           placeholder="Cost in your roster."
@@ -1569,6 +1595,7 @@ const CardBuilderBloodBowl = () => {
                 <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
                   <UnitListEntry
                     status={card.dbId ? 'complete' : 'blank'}
+                    number={card.playerNumber || undefined}
                     unitName={card.unitName || undefined}
                     unitType={card.playerRole || undefined}
                     addonSummary={card.unitKeywords.map(k => k.keywordName).filter(Boolean).join(', ') || undefined}

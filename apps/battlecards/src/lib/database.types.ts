@@ -26,6 +26,9 @@ export interface StatField {
 export interface BloodBowlStats {
   teamName?:           string
   playerRole?:         string
+  /** The player's jersey/roster number. Stored as a string so it can be
+   *  left blank. Shown on the card list only — not rendered on the card. */
+  playerNumber?:       string
   cost?:               string
   primaryAttribute?:   string
   secondaryAttribute?: string

@@ -26,7 +26,7 @@ const ATTR_OPTIONS = ['General', 'Agility', 'Passing', 'Strength', 'Mutations'];
 type Phase = { type: 'stats' } | { type: 'content'; cardId: string };
 
 interface Fields {
-  unitName: string; teamName: string; playerRole: string; cost: string;
+  unitName: string; teamName: string; playerRole: string; playerNumber: string; cost: string;
   move: number; strength: number; agility: number; passing: number; armor: number;
   primaryAttr: string[]; secondaryAttr: string[];
 }
@@ -41,12 +41,13 @@ export default function BloodBowlCardForm({
 }: BloodBowlCardFormProps) {
   const [phase, setPhase] = useState<Phase>({ type: 'stats' });
   const [f, setF] = useState<Fields>(() => {
-    if (!editingCard) return { unitName: '', teamName: '', playerRole: '', cost: '', move: 0, strength: 0, agility: 0, passing: 0, armor: 0, primaryAttr: [], secondaryAttr: [] };
+    if (!editingCard) return { unitName: '', teamName: '', playerRole: '', playerNumber: '', cost: '', move: 0, strength: 0, agility: 0, passing: 0, armor: 0, primaryAttr: [], secondaryAttr: [] };
     const s = (editingCard.stats ?? {}) as Record<string, unknown>;
     return {
       unitName:    editingCard.name,
       teamName:    String(s.teamName ?? ''),
       playerRole:  String(s.playerRole ?? ''),
+      playerNumber: String(s.playerNumber ?? ''),
       cost:        String(s.cost ?? ''),
       move:        Number(s.ma ?? 0),
       strength:    Number(s.st ?? 0),
@@ -91,7 +92,7 @@ export default function BloodBowlCardForm({
   async function handleCreate() {
     setSaving(true); setError(null);
     const newStats = {
-      teamName: f.teamName, playerRole: f.playerRole, cost: f.cost,
+      teamName: f.teamName, playerRole: f.playerRole, playerNumber: f.playerNumber, cost: f.cost,
       primaryAttribute: f.primaryAttr.join(', '), secondaryAttribute: f.secondaryAttr.join(', '),
       ma: f.move, st: f.strength, ag: f.agility, pa: f.passing, av: f.armor,
     };
@@ -128,6 +129,7 @@ export default function BloodBowlCardForm({
           <Input label="Player Name" value={f.unitName}   onChange={e => setF(p => ({ ...p, unitName: e.target.value }))}   placeholder="e.g. Griff Oberwald" disabled={saving} />
           <Input label="Team Name"   value={f.teamName}   onChange={e => setF(p => ({ ...p, teamName: e.target.value }))}   placeholder="e.g. Reikland Reavers" disabled={saving} />
           <Input label="Position"    value={f.playerRole} onChange={e => setF(p => ({ ...p, playerRole: e.target.value }))} placeholder="e.g. Blitzer" disabled={saving} />
+          <Input label="Number"      value={f.playerNumber} onChange={e => setF(p => ({ ...p, playerNumber: e.target.value }))} placeholder="e.g. 7" disabled={saving} />
           <Input label="Cost (gp)"   value={f.cost}       onChange={e => setF(p => ({ ...p, cost: e.target.value }))}       placeholder="e.g. 80,000" disabled={saving} />
         </div>
 

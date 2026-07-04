@@ -906,6 +906,15 @@ const ComponentGallery = () => {
             </div>
           </div>
 
+          {/* Number badge — e.g. Blood Bowl jersey numbers */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Number badge</p>
+            <div className="space-y-1">
+              <UnitListEntry status="complete" number="7"  unitName="Griff Oberwald" unitType="Blitzer" />
+              <UnitListEntry status="complete" number="12" active unitName="Karla von Kill" unitType="Blitzer" />
+            </div>
+          </div>
+
         </div>
       </GallerySection>
 

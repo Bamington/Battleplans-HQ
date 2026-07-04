@@ -46,6 +46,11 @@ export interface UnitListEntryProps {
   activated?: boolean;
   /** Primary label — the unit's display name */
   unitName?: string;
+  /**
+   * Optional leading number badge shown before the unit name
+   * (e.g. a Blood Bowl player's jersey number). Hidden when empty.
+   */
+  number?: string;
   /** Secondary label — unit faction or type (e.g. "Spartan ZVEZDA") */
   unitType?: string;
   /** Tertiary label — comma-separated addon/keyword preview (e.g. weapon names) */
@@ -94,6 +99,7 @@ const UnitListEntry = ({
   active    = false,
   activated = false,
   unitName,
+  number,
   unitType,
   addonSummary,
   avatarSrc,
@@ -167,6 +173,11 @@ const UnitListEntry = ({
       {/* Text */}
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <p className={`text-base font-medium font-body leading-6 truncate ${nameColor}`}>
+          {number && (
+            <span className="mr-1.5 font-bold text-gray-400 tabular-nums">
+              #{number}
+            </span>
+          )}
           {displayName}
         </p>
         {subtitle && (
