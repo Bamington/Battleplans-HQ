@@ -2,11 +2,14 @@
   "name": "battleplans-hq",
   "private": true,
   "version": "0.0.1",
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev:battlecards": "pnpm --filter @battleplans/battlecards dev",
     "dev:battlepack": "pnpm --filter @battleplans/battlepack dev",
+    "dev:battleplan": "pnpm --filter @battleplans/battleplan dev",
     "build:battlecards": "pnpm --filter @battleplans/battlecards build",
-    "build:battlepack": "pnpm --filter @battleplans/battlepack build"
+    "build:battlepack": "pnpm --filter @battleplans/battlepack build",
+    "build:battleplan": "pnpm --filter @battleplans/battleplan build"
   },
   "devDependencies": {
     "@capacitor/core": "^8.4.1",
