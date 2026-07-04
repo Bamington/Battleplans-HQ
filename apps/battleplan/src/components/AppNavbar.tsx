@@ -4,7 +4,7 @@ import type { AppEntry } from '@battleplans/ui';
 const APPS: AppEntry[] = [
   {
     name: 'BattleCards',
-    href: 'https://www.battlecards.app',
+    href: 'https://battleplans-hq-battlecards-one.vercel.app/app',
     description: 'Build and manage unit cards',
   },
   {

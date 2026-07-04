@@ -15,7 +15,7 @@ const APPS: AppEntry[] = [
   },
   {
     name: 'BattlePlan',
-    href: 'https://www.battleplan.app',
+    href: 'https://battleplans-hq-battleplan-xi.vercel.app/app',
     description: 'Find stores and book tables',
   },
   {
