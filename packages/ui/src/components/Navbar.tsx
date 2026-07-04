@@ -55,6 +55,11 @@ interface NavbarProps {
    * Apps with href '#' are shown as coming soon (disabled).
    */
   apps?: AppEntry[];
+  /**
+   * Custom logo element. Defaults to the BattleCards SVG logotype.
+   * Pass a <img> or text node to use a different brand mark.
+   */
+  logo?: React.ReactNode;
 }
 
 /** Extract up to two uppercase initials from a name or email. */
@@ -102,7 +107,7 @@ const LogoutIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
-const Navbar = ({ fixed = true, className = '', children, apps }: NavbarProps) => {
+const Navbar = ({ fixed = true, className = '', children, apps, logo }: NavbarProps) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -165,7 +170,7 @@ const Navbar = ({ fixed = true, className = '', children, apps }: NavbarProps) =
                 className="shrink-0 flex items-center gap-1.5 cursor-pointer group"
                 aria-label="Switch platform"
               >
-                <img src={logotype} alt="BattleCards" className="h-4 w-auto" />
+                {logo ?? <img src={logotype} alt="BattleCards" className="h-4 w-auto" />}
                 {/* chevron */}
                 <svg className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors" viewBox="0 0 24 24" fill="none">
                   <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -198,7 +203,7 @@ const Navbar = ({ fixed = true, className = '', children, apps }: NavbarProps) =
           </Dropdown>
         ) : (
           <Link to="/app" className="shrink-0 flex items-center">
-            <img src={logotype} alt="BattleCards" className="h-4 w-auto" />
+            {logo ?? <img src={logotype} alt="BattleCards" className="h-4 w-auto" />}
           </Link>
         )}
 
@@ -218,11 +223,11 @@ const Navbar = ({ fixed = true, className = '', children, apps }: NavbarProps) =
                     type="button"
                     className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-xl
                                border border-transparent
-                               hover:bg-blue-950 hover:border-blue-900
+                               hover:bg-primary-950 hover:border-primary-900
                                transition-colors cursor-pointer"
                   >
                     {/* Avatar circle */}
-                    <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-blue-900 flex items-center justify-center">
+                    <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-primary-900 flex items-center justify-center">
                       <span className="font-body font-bold text-xs text-gray-300 uppercase tracking-[1.2px] leading-4">
                         {initials}
                       </span>

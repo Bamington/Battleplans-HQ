@@ -18,7 +18,9 @@ ios/App/build/
 .env
 .env.txt
 .env.local
+.env.local.txt
 .env.*.local
+.env*.txt
 
 # ---- Editor & OS files ----
 .DS_Store

@@ -61,7 +61,7 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
       <div
         className={[
           'relative z-10 w-full',
-          /max-w-/.test(className) ? '' : 'max-w-lg',
+          /max-w-/.test(className) ? '' : 'max-w-[50vw]',
           'bg-gray-800 border border-gray-700 rounded-lg shadow-xl',
           className,
         ].filter(Boolean).join(' ')}

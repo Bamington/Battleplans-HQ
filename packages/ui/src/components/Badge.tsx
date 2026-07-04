@@ -61,7 +61,7 @@ const shapeClasses: Record<BadgeShape, string> = {
 
 const colorClasses: Record<BadgeVariant, Record<BadgeColor, string>> = {
   solid: {
-    primary: 'bg-blue-100   text-blue-800   dark:bg-blue-900   dark:text-blue-300',
+    primary: 'bg-primary-100   text-primary-800   dark:bg-primary-900   dark:text-primary-300',
     gray:    'bg-gray-100   text-gray-800   dark:bg-gray-700   dark:text-gray-300',
     success: 'bg-green-100  text-green-800  dark:bg-green-900  dark:text-green-300',
     danger:  'bg-red-100    text-red-800    dark:bg-red-900    dark:text-red-300',
@@ -69,7 +69,7 @@ const colorClasses: Record<BadgeVariant, Record<BadgeColor, string>> = {
     purple:  'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
   },
   outline: {
-    primary: 'border border-blue-400   text-blue-700   dark:border-blue-400   dark:text-blue-400',
+    primary: 'border border-primary-400   text-primary-700   dark:border-primary-400   dark:text-primary-400',
     gray:    'border border-gray-400   text-gray-700   dark:border-gray-500   dark:text-gray-400',
     success: 'border border-green-400  text-green-700  dark:border-green-400  dark:text-green-400',
     danger:  'border border-red-400    text-red-700    dark:border-red-400    dark:text-red-400',
@@ -80,7 +80,7 @@ const colorClasses: Record<BadgeVariant, Record<BadgeColor, string>> = {
 
 /** Dot fill colours — rendered independently of badge variant */
 const dotColorClasses: Record<BadgeColor, string> = {
-  primary: 'bg-blue-500',
+  primary: 'bg-primary-500',
   gray:    'bg-gray-500',
   success: 'bg-green-500',
   danger:  'bg-red-500',
