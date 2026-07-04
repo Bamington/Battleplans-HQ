@@ -18,14 +18,14 @@ import { formatKeywordLabel } from '../lib/cardShape/util';
 import type { AddonFormProps } from './AddAddonModal';
 import AddKeywordModal, { type KeywordSelection } from './AddKeywordModal';
 import KeywordInfoModal from './KeywordInfoModal';
-import Input from './Input';
-import Counter from './Counter';
-import Button from './Button';
-import Badge from './Badge';
-import HR from './HR';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Badge } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 

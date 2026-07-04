@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PackEditor.tsx — The pack-editing page
  *
  * Layout:
@@ -23,10 +23,10 @@
  */
 
 import { useState, useEffect, useMemo, useRef, type ComponentType } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useIsAdmin } from '@battleplans/ui';
 import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from '@battleplans/ui';
-import Button from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
 import AddKeywordModal from '../components/AddKeywordModal';
@@ -57,22 +57,22 @@ import BloodBowlCardForm from '../components/BloodBowlCardForm';
 import KillTeamCardForm from '../components/KillTeamCardForm';
 import StarcraftCardForm from '../components/StarcraftCardForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
-import AddCircle from '@battleplans/ui';
-import UserRounded from '@battleplans/ui';
-import FileText from '@battleplans/ui';
-import Star from '@battleplans/ui';
-import Bookmark from '@battleplans/ui';
-import MenuDots from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
-import Copy from '@battleplans/ui';
-import AltArrowLeft from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import Dropdown, { DropdownItem } from '@battleplans/ui';
-import Modal from '@battleplans/ui';
-import Input from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { UserRounded } from '@battleplans/ui';
+import { FileText } from '@battleplans/ui';
+import { Star } from '@battleplans/ui';
+import { Bookmark } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { Copy } from '@battleplans/ui';
+import { AltArrowLeft } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type {
   PackWithGame, Card, Addon, Keyword, AddonType, Json,
@@ -718,7 +718,7 @@ export default function PackEditor() {
     <div className="min-h-screen flex flex-col bg-gray-950">
 
       {/* No mode switcher in the pack editor — pass no children to Navbar. */}
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       <div className="flex-1 flex flex-col px-3 py-6 md:px-9 md:py-9 gap-8">
 

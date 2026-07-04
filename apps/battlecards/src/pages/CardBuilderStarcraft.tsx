@@ -28,19 +28,19 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import Navbar      from '@battleplans/ui';
 import EditSubnav  from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
 import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
 import { useCardBuilder } from '../hooks/useCardBuilder';
-import Button      from '@battleplans/ui';
-import Input       from '@battleplans/ui';
-import Counter     from '@battleplans/ui';
-import HR          from '@battleplans/ui';
-import Modal       from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
 import StarcraftCard, {
   type StarcraftAbility,
   type StarcraftWeapon,
@@ -57,21 +57,21 @@ import UnitListEntry        from '../components/UnitListEntry';
 import CardCarousel         from '../components/CardCarousel';
 import AttachedAddonRow     from '../components/AttachedAddonRow';
 import StarcraftSupplyTiersModal from '../components/StarcraftSupplyTiersModal';
-import AddCircle             from '@battleplans/ui';
-import TrashBinMinimalistic  from '@battleplans/ui';
-import UserRounded           from '@battleplans/ui';
-import Diskette              from '@battleplans/ui';
-import Pen2                  from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { UserRounded } from '@battleplans/ui';
+import { Diskette } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type { Addon, DeckWithGame, StarcraftStats, StarcraftWeaponStats, StarcraftRuleStats } from '../lib/database.types';
 // rowToKeywords is the same function the pack editor's StarCraft card
 // shaper uses to assemble keyword attachments — keep one canonical copy
 // in src/lib/cardShape/starcraft.ts so the two contexts stay in lockstep.
 import { rowToKeywords } from '../lib/cardShape/starcraft';
-import logoStarcraft from '../assets/games/logo-starcraft.svg';
+import logoStarcraft from '../../../../packages/ui/src/assets/games/logos/logo-starcraft.svg';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
-import iconStarcraft from '../assets/games/card assets/starcraft/icon.svg';
+import iconStarcraft from '../../../../packages/ui/src/assets/games/icons/starcraft.svg';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -622,7 +622,7 @@ const CardBuilderStarcraft = () => {
 
   return (
     <BuilderShell
-      navbar={<Navbar fixed={false} />}
+      navbar={<AppNavbar fixed={false} />}
       topBar={
         <EditSubnav
           className="lg:hidden"

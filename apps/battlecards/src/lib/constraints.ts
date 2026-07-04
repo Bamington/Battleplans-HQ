@@ -4,7 +4,7 @@
 // cached for the lifetime of the page.  Card components use `clampNumber` and
 // `getMaxLength` to replace the old hardcoded 0–9 / unlimited logic.
 
-import { supabase } from './supabase'
+import { supabase } from '@battleplans/ui'
 import type { EntityConstraints, FieldConstraint } from './database.types'
 
 // ── In-memory cache ──────────────────────────────────────────────────────────

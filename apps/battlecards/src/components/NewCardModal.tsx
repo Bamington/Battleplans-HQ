@@ -23,16 +23,16 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import Modal from './Modal';
-import Input from './Input';
-import Button from './Button';
-import Dropdown, { DropdownItem } from './Dropdown';
-import AddCircle from '@battleplans/ui';
-import AltArrowLeft  from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
-import MenuDots from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { AltArrowLeft } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
 
 export interface NewCardModalTemplate {
   id:       string;

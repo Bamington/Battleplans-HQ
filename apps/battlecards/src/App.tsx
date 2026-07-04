@@ -47,7 +47,7 @@ import AdminTools from './pages/AdminTools';
 import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
 import ManagePacks from './pages/ManagePacks';
-import AdminRoute from './components/AdminRoute';
+import { AdminRoute } from '@battleplans/ui';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.

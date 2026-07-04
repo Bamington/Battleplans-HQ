@@ -29,8 +29,8 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import type { TokenDefinition } from '../lib/database.types';
 import { resolveTokenIcon } from '../lib/tokenIcons';
 import TokenBadge from './TokenBadge';
-import AddCircle from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

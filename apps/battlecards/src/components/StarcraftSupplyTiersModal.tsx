@@ -29,14 +29,14 @@
  */
 
 import { useState } from 'react';
-import Modal from './Modal';
-import Button from './Button';
-import Counter from './Counter';
-import HR from './HR';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
 import type { StarcraftSupplyTier } from './StarcraftCard';
 
 // ── Constants ────────────────────────────────────────────────────────────────

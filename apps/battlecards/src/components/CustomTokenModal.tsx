@@ -21,13 +21,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import Modal from './Modal';
-import Input from './Input';
-import Button from './Button';
+import { Modal } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
 import TokenBadge from './TokenBadge';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
 
 // ── Brand palette ───────────────────────────────────────────────────────────
 // Six swatches that match the existing visuals (placeholder KT token SVGs

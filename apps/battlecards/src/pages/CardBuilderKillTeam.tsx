@@ -18,9 +18,9 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import Navbar from '@battleplans/ui';
-import ModeToggle, { type Mode } from '@battleplans/ui';
+import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
@@ -28,14 +28,14 @@ import CenterViewport from '../components/CenterViewport';
 import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
-import Dropdown, { DropdownItem } from '@battleplans/ui';
-import AltArrowDown from '@battleplans/ui';
-import Play from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { AltArrowDown } from '@battleplans/ui';
+import { Play } from '@battleplans/ui';
 import UnitListEntry from '../components/UnitListEntry';
-import Input from '@battleplans/ui';
-import Counter from '@battleplans/ui';
-import Button from '@battleplans/ui';
-import HR from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
 import Markdown from 'react-markdown';
 import KillTeamCard, {
   CARD_OUTER_W_WITH_BARS,
@@ -44,11 +44,11 @@ import KillTeamCard, {
   CARD_OUTER_H_WITH_BARS_MOBILE,
 } from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
-import Card, { CardBody } from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
+import { Card, CardBody } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import TokenMenu from '../components/TokenMenu';
-import Modal from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddonInfoModal from '../components/AddonInfoModal';
 import SaveTemplateModal from '../components/SaveTemplateModal';
@@ -58,20 +58,20 @@ import AddKeywordModal, { type KeywordSelection } from '../components/AddKeyword
 import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
 import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
-import UserRounded from '@battleplans/ui';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
-import ArrowRight from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
-import HamburgerMenu from '@battleplans/ui';
-import Diskette from '@battleplans/ui';
+import { UserRounded } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { ArrowRight } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
+import { HamburgerMenu } from '@battleplans/ui';
+import { Diskette } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
 import { formatKeywordLabel } from '../lib/cardShape/util';
-import logoKillTeam from '../assets/games/logo-kill-team.png';
-import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
+import logoKillTeam from '../../../../packages/ui/src/assets/games/logos/logo-kill-team.png';
+import iconKillTeam from '../../../../packages/ui/src/assets/games/icons/kill-team.png';
 
 // ── Card native dimensions ────────────────────────────────────────────────────
 // Operative cards are landscape (matches KillTeamCard); rule cards are
@@ -1800,7 +1800,7 @@ const CardBuilderKillTeam = () => {
   return (
     <BuilderShell
       navbar={
-        <Navbar fixed={false}>
+        <AppNavbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1838,7 +1838,7 @@ const CardBuilderKillTeam = () => {
               </DropdownItem>
             )}
           </Dropdown>
-        </Navbar>
+        </AppNavbar>
       }
       topBar={
         // Play mode → Units/Rules tabs. Edit mode → mobile-only panel

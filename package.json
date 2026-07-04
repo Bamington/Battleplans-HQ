@@ -9,6 +9,13 @@
     "build:battlepack": "pnpm --filter @battleplans/battlepack build"
   },
   "devDependencies": {
+    "@capacitor/core": "^8.4.1",
+    "@tiptap/extension-underline": "^3.27.1",
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tiptap-markdown": "^0.9.0",
     "turbo": "^2.0.0"
   }
 }

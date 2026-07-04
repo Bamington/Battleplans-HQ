@@ -12,26 +12,26 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import Navbar from '@battleplans/ui';
-import ModeToggle, { type Mode } from '@battleplans/ui';
+import { ModeToggle, type Mode } from '@battleplans/ui';
 import EditSubnav from '../components/EditSubnav';
-import Dropdown, { DropdownItem } from '@battleplans/ui';
-import AltArrowDown from '@battleplans/ui';
-import Play from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { AltArrowDown } from '@battleplans/ui';
+import { Play } from '@battleplans/ui';
 import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
 import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
-import Input from '@battleplans/ui';
-import Counter from '@battleplans/ui';
-import Button from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import AddAddonModal from '../components/AddAddonModal';
 import UploadPhotoModal from '../components/UploadPhotoModal';
-import Modal from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import { type KeywordSelection } from '../components/AddKeywordModal';
 import RygCard, { CARD_W, CARD_H, type RygSpell } from '../components/RygCard';
@@ -49,18 +49,18 @@ import RygSeptForm from '../components/RygSeptForm';
 import RygDestinyForm from '../components/RygDestinyForm';
 import RygSeptBenefitForm from '../components/RygSeptBenefitForm';
 import RygGodForm from '../components/RygGodForm';
-import UserRounded from '@battleplans/ui';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
+import { UserRounded } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type { Addon, RygWarriorTypeStats, RygTalentStats, RygTalentParamField, RygSpellStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 // @ts-ignore
-import logoRyg from '../assets/games/card assets/ryg/icon.svg';
-import logoRygLarge from '../assets/games/logo-ryg.png';
+import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
+import logoRygLarge from '../../../../packages/ui/src/assets/games/logos/logo-ryg.png';
 
 // ── Card-local data shapes ────────────────────────────────────────────────────
 
@@ -971,7 +971,7 @@ const CardBuilderRyg = () => {
   return (
     <BuilderShell
       navbar={
-        <Navbar fixed={false}>
+        <AppNavbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1009,7 +1009,7 @@ const CardBuilderRyg = () => {
               </DropdownItem>
             )}
           </Dropdown>
-        </Navbar>
+        </AppNavbar>
       }
       topBar={
         appMode === 'edit' ? (

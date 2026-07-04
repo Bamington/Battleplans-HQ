@@ -28,8 +28,19 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import logotype from '../assets/battlecards-logotype-svg.svg';
 import Button from './Button';
-import Dropdown, { DropdownItem, DropdownDivider } from './Dropdown';
+import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropdown';
 import Settings from '../icons/Settings';
+
+export interface AppEntry {
+  /** Display name shown in the switcher */
+  name: string;
+  /** URL to navigate to. Use '#' for apps not yet launched. */
+  href: string;
+  /** Short tagline shown below the name */
+  description?: string;
+  /** Marks this as the currently active app */
+  active?: boolean;
+}
 
 interface NavbarProps {
   /** Pin navbar to top of viewport. Set false for in-flow layouts. */
@@ -38,6 +49,17 @@ interface NavbarProps {
   className?: string;
   /** Right-side content — buttons, links, etc. Rendered before the user area. */
   children?: React.ReactNode;
+  /**
+   * When provided, the logo becomes a platform switcher dropdown.
+   * List all Battleplans apps; mark the current one with active: true.
+   * Apps with href '#' are shown as coming soon (disabled).
+   */
+  apps?: AppEntry[];
+  /**
+   * Custom logo element. Defaults to the BattleCards SVG logotype.
+   * Pass a <img> or text node to use a different brand mark.
+   */
+  logo?: React.ReactNode;
 }
 
 /** Extract up to two uppercase initials from a name or email. */
@@ -85,7 +107,7 @@ const LogoutIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
-const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
+const Navbar = ({ fixed = true, className = '', children, apps, logo }: NavbarProps) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,10 +159,53 @@ const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
     >
       <div className="px-3 pt-3 pb-[13px] flex items-center">
 
-        {/* ── Logo ─────────────────────────────────────────────────────── */}
-        <Link to="/app" className="shrink-0 flex items-center">
-          <img src={logotype} alt="BattleCards" className="h-4 w-auto" />
-        </Link>
+        {/* ── Logo / platform switcher ─────────────────────────────── */}
+        {apps && apps.length > 0 ? (
+          <Dropdown
+            align="left"
+            menuClassName="w-56"
+            trigger={
+              <button
+                type="button"
+                className="shrink-0 flex items-center gap-1.5 cursor-pointer group"
+                aria-label="Switch platform"
+              >
+                {logo ?? <img src={logotype} alt="BattleCards" className="h-4 w-auto" />}
+                {/* chevron */}
+                <svg className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            }
+          >
+            <DropdownHeader>
+              <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wider">Switch platform</p>
+            </DropdownHeader>
+            {apps.map((app) => (
+              <DropdownItem
+                key={app.name}
+                disabled={app.href === '#'}
+                onClick={app.href !== '#' && !app.active ? () => { window.location.href = app.href; } : undefined}
+                className={app.active ? 'opacity-100' : ''}
+              >
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className={`font-body font-semibold text-sm leading-none ${app.active ? 'text-blue-400' : ''}`}>
+                    {app.name}
+                    {app.active && <span className="ml-1.5 text-[10px] font-normal text-blue-500">Current</span>}
+                    {app.href === '#' && <span className="ml-1.5 text-[10px] font-normal text-gray-500">Coming soon</span>}
+                  </span>
+                  {app.description && (
+                    <span className="font-body text-xs text-gray-500 leading-none">{app.description}</span>
+                  )}
+                </div>
+              </DropdownItem>
+            ))}
+          </Dropdown>
+        ) : (
+          <Link to="/app" className="shrink-0 flex items-center">
+            {logo ?? <img src={logotype} alt="BattleCards" className="h-4 w-auto" />}
+          </Link>
+        )}
 
         {/* ── Right-side slot ──────────────────────────────────────────── */}
         <div className="flex flex-1 items-center justify-end gap-3 min-w-0">
@@ -158,11 +223,11 @@ const Navbar = ({ fixed = true, className = '', children }: NavbarProps) => {
                     type="button"
                     className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-xl
                                border border-transparent
-                               hover:bg-blue-950 hover:border-blue-900
+                               hover:bg-primary-950 hover:border-primary-900
                                transition-colors cursor-pointer"
                   >
                     {/* Avatar circle */}
-                    <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-blue-900 flex items-center justify-center">
+                    <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-primary-900 flex items-center justify-center">
                       <span className="font-body font-bold text-xs text-gray-300 uppercase tracking-[1.2px] leading-4">
                         {initials}
                       </span>

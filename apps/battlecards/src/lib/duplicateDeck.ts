@@ -25,7 +25,7 @@
  * Returns the new deck's id.
  */
 
-import { supabase } from './supabase';
+import { supabase } from '@battleplans/ui';
 
 /** Drop server-managed / remapped keys from a fetched row before re-insert. */
 function stripRowKeys<T extends Record<string, unknown>>(row: T, keys: string[]): Partial<T> {

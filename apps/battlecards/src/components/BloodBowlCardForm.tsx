@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { supabase } from '@battleplans/ui';
 import type { Json } from '../lib/database.types';
-import Button from './Button';
-import Input from './Input';
-import Counter from './Counter';
-import MultiSelectDropdown from './MultiSelectDropdown';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { MultiSelectDropdown } from '@battleplans/ui';
 import AddonListItem from './AddonListItem';
-import Modal from './Modal';
+import { Modal } from '@battleplans/ui';
 import AddKeywordModal from './AddKeywordModal';
 import AddToPackModal from './AddToPackModal';
 import UploadPhotoModal from './UploadPhotoModal';
-import AddCircle from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
 
 export interface BloodBowlCardFormProps {
   packId: string;

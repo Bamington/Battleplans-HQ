@@ -37,29 +37,29 @@
  */
 
 import { useState, useEffect } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useIsAdmin } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '@battleplans/ui';
-import Button from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
 import PackListItem, { type PackBadge } from '../components/PackListItem';
 import BlogEntryPreview from '../components/BlogEntryPreview';
-import Modal from '@battleplans/ui';
+import { Modal } from '@battleplans/ui';
 import GamePickerItem from '../components/GamePickerItem';
-import Input from '@battleplans/ui';
-import HR from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
 import ImportListModal from '../components/ImportListModal';
-import AddCircle from '@battleplans/ui';
-import Pen2 from '@battleplans/ui';
-import Box from '@battleplans/ui';
-import Widget2 from '@battleplans/ui';
-import Layers from '@battleplans/ui';
-import InfoCircle from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
-import UserRounded from '@battleplans/ui';
-import FileText from '@battleplans/ui';
-import Star from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { Pen2 } from '@battleplans/ui';
+import { Box } from '@battleplans/ui';
+import { Widget2 } from '@battleplans/ui';
+import { Layers } from '@battleplans/ui';
+import { InfoCircle } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
+import { UserRounded } from '@battleplans/ui';
+import { FileText } from '@battleplans/ui';
+import { Star } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import { duplicateDeck } from '../lib/duplicateDeck';
 import type { DeckWithGame, PackWithGame } from '../lib/database.types';
@@ -82,25 +82,25 @@ type PackForList = PackWithGame & {
 // Vite resolves these statically at build time.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces, TS path resolver struggles but Vite handles fine
-import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
+import iconBloodBowl from '../../../../packages/ui/src/assets/games/icons/blood-bowl.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import iconHalo from '../assets/games/card assets/halo/icon.png';
+import iconHalo from '../../../../packages/ui/src/assets/games/icons/halo.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
+import iconKillTeam from '../../../../packages/ui/src/assets/games/icons/kill-team.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
-import iconStarcraft from '../assets/games/card assets/starcraft/icon.svg';
+import iconStarcraft from '../../../../packages/ui/src/assets/games/icons/starcraft.svg';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
-import iconRyg from '../assets/games/card assets/ryg/icon.svg';
-import logoRyg from '../assets/games/logo-ryg.png';
-import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
-import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
-import logoKillTeam from '../assets/games/logo-kill-team.png';
+import iconRyg from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
+import logoRyg from '../../../../packages/ui/src/assets/games/logos/logo-ryg.png';
+import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
+import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-blood-bowl.png';
+import logoKillTeam from '../../../../packages/ui/src/assets/games/logos/logo-kill-team.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
-import logoStarcraft from '../assets/games/logo-starcraft.svg';
+import logoStarcraft from '../../../../packages/ui/src/assets/games/logos/logo-starcraft.svg';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
 // Keyed by the game's slug (matches the value seeded into public.games).
@@ -636,7 +636,7 @@ export default function AppHome() {
     <div className="min-h-screen flex flex-col bg-gray-950">
 
       {/* Navbar — in-flow (not fixed) so content sits naturally below it */}
-      <Navbar fixed={false} />
+      <AppNavbar fixed={false} />
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 md:pt-9 md:px-9 pt-3 px-3">

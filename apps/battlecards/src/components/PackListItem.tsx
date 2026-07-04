@@ -52,11 +52,11 @@
  */
 
 import React from 'react';
-import Badge from './Badge';
-import Button from './Button';
-import Dropdown, { DropdownItem } from './Dropdown';
-import MenuDots from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
+import { Badge } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
@@ -143,8 +143,8 @@ const PackListItem = ({
         {/* Title + game name */}
         <div className="flex-1 min-w-0 flex flex-col self-stretch justify-center">
           {official && (
-            <span className="inline-flex self-start items-center px-2 py-0.5 mb-1 rounded-full text-[11px] font-semibold font-body bg-green-600 text-white leading-none">
-              Official
+            <span className="self-start mb-1">
+              <Badge color="success" shape="pill">Official</Badge>
             </span>
           )}
           <p className="font-heading text-[18px] leading-6 text-white truncate">

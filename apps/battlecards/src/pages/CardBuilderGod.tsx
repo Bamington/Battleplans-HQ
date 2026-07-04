@@ -8,8 +8,8 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, Link } from 'react-router-dom';
-import Navbar from '@battleplans/ui';
 import EditSubnav from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
@@ -17,16 +17,16 @@ import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
-import Button from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import AddAddonModal from '../components/AddAddonModal';
 import GodCard, { CARD_W, CARD_H } from '../components/GodCard';
 import RygGodForm from '../components/RygGodForm';
-import AddCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
 // @ts-ignore
-import logoRyg from '../assets/games/card assets/ryg/icon.svg';
-import logoRygLarge from '../assets/games/logo-ryg.png';
+import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
+import logoRygLarge from '../../../../packages/ui/src/assets/games/logos/logo-ryg.png';
 import { supabase } from '@battleplans/ui';
 import type { RygGodStats } from '../lib/database.types';
 
@@ -189,7 +189,7 @@ export default function CardBuilderGod() {
     <>
       <BuilderShell
         navbar={
-          <Navbar fixed={false}>
+          <AppNavbar fixed={false}>
             {deckId && (
               <Link
                 to={`/app/print?deckId=${deckId}`}
@@ -198,7 +198,7 @@ export default function CardBuilderGod() {
                 Print
               </Link>
             )}
-          </Navbar>
+          </AppNavbar>
         }
         topBar={
           <EditSubnav

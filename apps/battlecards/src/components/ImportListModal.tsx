@@ -23,27 +23,27 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import Modal from './Modal';
-import Button from './Button';
-import Input from './Input';
+import { Modal } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
 import GamePickerItem from './GamePickerItem';
-import HR from './HR';
-import UploadMinimalistic from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import AddCircle from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
-import DangerCircle from '@battleplans/ui';
-import FileText from '@battleplans/ui';
-import Clipboard from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
+import { UploadMinimalistic } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
+import { DangerCircle } from '@battleplans/ui';
+import { FileText } from '@battleplans/ui';
+import { Clipboard } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import { parseHaloList, parseKeywordRef, splitKeywords } from '../lib/parseHaloList';
 import type { ParsedList, ParsedWeapon } from '../lib/parseHaloList';
 
-import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
-import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
+import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
+import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-blood-bowl.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
-import logoStarcraft from '../assets/games/logo-starcraft.svg';
+import logoStarcraft from '../../../../packages/ui/src/assets/games/logos/logo-starcraft.svg';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 

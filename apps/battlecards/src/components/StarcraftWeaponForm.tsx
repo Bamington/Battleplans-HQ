@@ -27,17 +27,17 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import Input from './Input';
-import Counter from './Counter';
-import Select from './Select';
-import Checkbox from './Checkbox';
-import Button from './Button';
-import Badge from './Badge';
-import HR from './HR';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Select } from '@battleplans/ui';
+import { Checkbox } from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Badge } from '@battleplans/ui';
+import { HR } from '@battleplans/ui';
 import StarcraftAddKeywordModal from './StarcraftAddKeywordModal';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type { Addon } from '../lib/database.types';
 import type { AddonFormProps } from './AddAddonModal';

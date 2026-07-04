@@ -39,10 +39,10 @@
  */
 
 import React from 'react';
-import Dropdown, { DropdownItem } from './Dropdown';
-import MenuDots from '@battleplans/ui';
-import Copy from '@battleplans/ui';
-import TrashBinMinimalistic from '@battleplans/ui';
+import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { MenuDots } from '@battleplans/ui';
+import { Copy } from '@battleplans/ui';
+import { TrashBinMinimalistic } from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 

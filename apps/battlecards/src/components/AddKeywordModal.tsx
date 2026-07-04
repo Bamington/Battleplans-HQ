@@ -25,18 +25,18 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Modal from './Modal';
+import { Modal } from '@battleplans/ui';
 import AddonListItem from './AddonListItem';
-import Button from './Button';
-import Input from './Input';
-import Counter from './Counter';
-import Checkbox from './Checkbox';
-import AddCircle from '@battleplans/ui';
-import CheckCircle from '@battleplans/ui';
-import CloseCircle from '@battleplans/ui';
-import Magnifer from '@battleplans/ui';
-import AltArrowLeft from '@battleplans/ui';
-import AltArrowRight from '@battleplans/ui';
+import { Button } from '@battleplans/ui';
+import { Input } from '@battleplans/ui';
+import { Counter } from '@battleplans/ui';
+import { Checkbox } from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { CheckCircle } from '@battleplans/ui';
+import { CloseCircle } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
+import { AltArrowLeft } from '@battleplans/ui';
+import { AltArrowRight } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import { getMaxLength } from '../lib/constraints';
 import type { Keyword, EntityConstraints } from '../lib/database.types';

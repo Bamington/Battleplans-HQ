@@ -28,8 +28,8 @@
 
 import { useState, type CSSProperties } from 'react';
 import type { TokenPalette } from '../lib/tokenColorSets';
-import AddCircle   from '@battleplans/ui';
-import MinusCircle from '@battleplans/ui';
+import { AddCircle } from '@battleplans/ui';
+import { MinusCircle } from '@battleplans/ui';
 
 export interface TokenBarProps {
   /** Maximum value of the underlying stat (e.g. card.wounds = 20). */

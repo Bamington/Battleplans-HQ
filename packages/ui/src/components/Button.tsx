@@ -74,8 +74,8 @@ const shapeClasses: Record<ButtonShape, string> = {
 const colorClasses: Record<ButtonVariant, Record<ButtonColor, string>> = {
   filled: {
     primary:
-      'bg-blue-600 text-white hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 ' +
-      'dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800',
+      'bg-primary-600 text-white hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 ' +
+      'dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800',
     secondary:
       'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-4 focus:ring-gray-100 ' +
       'dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700',
@@ -94,8 +94,8 @@ const colorClasses: Record<ButtonVariant, Record<ButtonColor, string>> = {
   },
   outline: {
     primary:
-      'border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-4 focus:ring-blue-300 ' +
-      'dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-950 dark:focus:ring-blue-800',
+      'border border-primary-600 text-primary-600 hover:bg-primary-50 focus:ring-4 focus:ring-primary-300 ' +
+      'dark:border-primary-500 dark:text-primary-500 dark:hover:bg-primary-950 dark:focus:ring-primary-800',
     secondary:
       'border border-gray-400 text-gray-700 hover:bg-gray-50 focus:ring-4 focus:ring-gray-200 ' +
       'dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:focus:ring-gray-700',
@@ -113,7 +113,7 @@ const colorClasses: Record<ButtonVariant, Record<ButtonColor, string>> = {
       'dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:focus:ring-gray-700',
   },
   ghost: {
-    primary:   'text-blue-600  hover:bg-blue-50   dark:text-blue-400  dark:hover:bg-blue-950',
+    primary:   'text-primary-600  hover:bg-primary-50   dark:text-primary-400  dark:hover:bg-primary-950',
     secondary: 'text-gray-600  hover:bg-gray-100  dark:text-gray-400  dark:hover:bg-gray-800',
     success:   'text-green-600 hover:bg-green-50  dark:text-green-400 dark:hover:bg-green-950',
     danger:    'text-red-600   hover:bg-red-50    dark:text-red-400   dark:hover:bg-red-950',

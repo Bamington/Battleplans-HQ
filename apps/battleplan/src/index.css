@@ -1,0 +1,23 @@
+/* ── Base styles (shared tokens, fonts, Tailwind) ───────────────────────── */
+@import '../../../packages/ui/src/index.css';
+
+/*
+ * BattlePlan theme — violet primary
+ *
+ * Overrides the blue primary defined in packages/ui with violet so every
+ * component that uses primary-* tokens renders violet here while Battlecards
+ * (which imports packages/ui directly) keeps its blue.
+ */
+@theme {
+  --color-primary-50:  #f5f3ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #ddd6fe;
+  --color-primary-300: #c4b5fd;
+  --color-primary-400: #a78bfa;
+  --color-primary-500: #8b5cf6;
+  --color-primary-600: #7c3aed;
+  --color-primary-700: #6d28d9;
+  --color-primary-800: #5b21b6;
+  --color-primary-900: #4c1d95;
+  --color-primary-950: #2e1065;
+}
