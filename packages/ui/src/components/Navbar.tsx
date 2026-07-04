@@ -185,7 +185,13 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo }: NavbarPr
               <DropdownItem
                 key={app.name}
                 disabled={app.href === '#'}
-                onClick={app.href !== '#' && !app.active ? () => { window.location.href = app.href; } : undefined}
+                onClick={
+                  app.href === '#'
+                    ? undefined
+                    : app.active
+                      ? () => navigate('/app')
+                      : () => { window.location.href = app.href; }
+                }
                 className={app.active ? 'opacity-100' : ''}
               >
                 <div className="flex flex-col gap-0.5 min-w-0">
