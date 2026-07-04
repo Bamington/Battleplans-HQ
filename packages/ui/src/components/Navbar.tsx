@@ -25,7 +25,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, appendSessionToUrl } from '../lib/supabase';
 import logotype from '../assets/battlecards-logotype-svg.svg';
 import Button from './Button';
 import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropdown';
@@ -190,7 +190,7 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo }: NavbarPr
                     ? undefined
                     : app.active
                       ? () => navigate('/app')
-                      : () => { window.location.href = app.href; }
+                      : async () => { window.location.href = await appendSessionToUrl(app.href); }
                 }
                 className={app.active ? 'opacity-100' : ''}
               >

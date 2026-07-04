@@ -11,6 +11,7 @@
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { consumeSessionFromUrl } from '@battleplans/ui';
 import '../../../packages/ui/src/index.css'; // Global styles — includes Tailwind
 import App from './App.tsx';
 import { preloadAssets } from './lib/preloadAssets';
@@ -19,8 +20,12 @@ import { preloadAssets } from './lib/preloadAssets';
 // so they're cached before the user navigates to a card builder.
 preloadAssets();
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+// Restore a session handed off from another Battleplans app (via URL hash)
+// before rendering, so the app boots already logged in.
+consumeSessionFromUrl().finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+});

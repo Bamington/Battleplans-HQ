@@ -163,5 +163,5 @@ export { default as VideocameraBold } from './icons/bold/Videocamera'
 export { default as Widget2Bold } from './icons/bold/Widget2'
 
 // Auth & lib
-export { supabase, redirectTo } from './lib/supabase'
+export { supabase, redirectTo, appendSessionToUrl, consumeSessionFromUrl } from './lib/supabase'
 export { useIsAdmin } from './hooks/useIsAdmin'
