@@ -661,7 +661,7 @@ export default function AppHome() {
             {/* ── Left panel: Packs ───────────────────────────────────── */}
             <div
               className={[
-                'shrink-0 w-[90vw] max-w-[90vw] snap-start',
+                'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
                 'md:w-[40vw] md:max-w-[40vw]',
                 'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
                 'self-stretch flex flex-col',
@@ -836,7 +836,7 @@ export default function AppHome() {
             {/* ── Middle panel: Your Decks ────────────────────────────── */}
             <div
               className={[
-                'shrink-0 w-[90vw] max-w-[90vw] snap-start',
+                'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
                 'md:w-[40vw] md:max-w-[40vw]',
                 'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
                 'self-stretch flex flex-col',
@@ -961,7 +961,7 @@ export default function AppHome() {
             {/* ── Right panel: News & Updates ─────────────────────────── */}
             <div
               className={[
-                'shrink-0 w-[90vw] max-w-[90vw] snap-start',
+                'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
                 'md:w-[40vw] md:max-w-[40vw]',
                 'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
                 'self-stretch flex flex-col',

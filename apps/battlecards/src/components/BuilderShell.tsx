@@ -188,7 +188,7 @@ const DrawerAside = ({
     <aside ref={asideRef} className={`${className} ${transition}`} style={style}>
       {/* Grab handle — drag up to expand, down to dismiss (< lg only). */}
       <div
-        className="lg:hidden shrink-0 flex justify-center pt-2 pb-1 touch-none cursor-grab active:cursor-grabbing"
+        className="lg:hidden shrink-0 flex justify-center pt-4 pb-2 touch-none cursor-grab active:cursor-grabbing"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

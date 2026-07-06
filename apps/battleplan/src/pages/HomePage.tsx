@@ -303,7 +303,7 @@ function BookingCard({ userId }: { userId: string | null }) {
 
   return (
     <>
-      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
+      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
         <div className="flex flex-col gap-4 items-center p-5 flex-1">
 
           <BoxIcon />
@@ -447,7 +447,7 @@ function BookingItem({ bookingId, gameIcon, gameName, location, date, time, cust
 
 function NewsCard() {
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
       <div className="flex flex-col gap-4 items-center p-5 flex-1">
 
         <InfoCircleIcon />
@@ -521,7 +521,7 @@ function UpcomingBookingsCard({ locationIds }: { locationIds: string[] }) {
   useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
       <div className="flex flex-col gap-4 items-center p-5 flex-1">
 
         <CalendarIcon />
