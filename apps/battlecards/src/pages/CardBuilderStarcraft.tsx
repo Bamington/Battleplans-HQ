@@ -303,7 +303,7 @@ const CardBuilderStarcraft = () => {
   // ── Shared builder chrome (panel toggles, responsive, deck-name) ──────────
   const builder = useCardBuilder({ deckId });
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isShortHeight, mobilePanelOpen,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
@@ -633,6 +633,7 @@ const CardBuilderStarcraft = () => {
         />
       }
       leftPanelOpen={cardListOpen}
+      onClosePanels={closePanels}
       leftPanel={
         <CardListPanel
           deckName={deckName}

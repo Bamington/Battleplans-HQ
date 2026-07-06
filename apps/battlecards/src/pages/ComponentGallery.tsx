@@ -19,6 +19,7 @@ import { List } from '@battleplans/ui';
 import { TextLink } from '@battleplans/ui';
 import { HR } from '@battleplans/ui';
 import { Sidebar, SidebarItem } from '@battleplans/ui';
+import { AppFooter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
 import { Badge } from '@battleplans/ui';
 import { Avatar, AvatarGroup } from '@battleplans/ui';
@@ -507,6 +508,22 @@ const ComponentGallery = () => {
           </div>
 
         </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          APP FOOTER
+          Version / build-date strip shown at the bottom of each app home.
+          Single centred line on tablet/desktop; stacks to two lines and
+          drops the "–" separator below md (768px). The breakpoint is
+          viewport-driven, so resize the window to see the mobile layout.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-app-footer" title="App Footer / Default">
+        <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950">
+          <AppFooter appName="Battlecards" version="0.16.0" buildDate="06/07/2026" />
+        </div>
+        <p className="font-body text-xs text-gray-400 italic mt-2">
+          Resize below 768px (md) to see it stack onto two lines.
+        </p>
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════

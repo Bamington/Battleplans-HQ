@@ -1,5 +1,7 @@
 // Components
 export { default as AdminRoute } from './components/AdminRoute'
+export { default as AppFooter } from './components/AppFooter'
+export type { AppFooterProps } from './components/AppFooter'
 
 // Pages
 export { default as AdminToolsPage } from './pages/AdminToolsPage'

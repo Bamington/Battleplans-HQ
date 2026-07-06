@@ -240,7 +240,7 @@ const CardBuilderRyg = () => {
 
   const builder = useCardBuilder({ deckId });
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isMobile, isShortHeight, mobilePanelOpen, layoutDeps,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
@@ -1023,6 +1023,7 @@ const CardBuilderRyg = () => {
         ) : null
       }
       leftPanelOpen={cardListOpen}
+      onClosePanels={closePanels}
       leftPanel={
         <CardListPanel
           deckName={deckName}

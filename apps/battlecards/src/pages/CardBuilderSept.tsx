@@ -99,7 +99,7 @@ export default function CardBuilderSept() {
   const dirtyRef = useRef(false);
 
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isShortHeight, mobilePanelOpen,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
@@ -241,6 +241,7 @@ export default function CardBuilderSept() {
           />
         }
         leftPanelOpen={cardListOpen}
+        onClosePanels={closePanels}
         leftPanel={
           <CardListPanel
             deckName={deckName}

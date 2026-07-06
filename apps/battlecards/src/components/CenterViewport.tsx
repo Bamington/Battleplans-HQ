@@ -56,8 +56,11 @@ const CenterViewport = ({
 }: CenterViewportProps) => {
   const hideLogo = mobilePanelOpen || isShortHeight || isMobile;
 
+  // The centre always fills the body. Below lg the slide-in panels are bottom
+  // drawers that overlay the content (see BuilderShell), so the card viewport
+  // no longer collapses to make room for an open panel.
   return (
-    <main className={`order-1 md:order-2 flex flex-col items-center overflow-hidden bg-gray-950 ${mobilePanelOpen ? 'flex-none' : 'flex-1'}`}>
+    <main className="order-1 md:order-2 flex-1 flex flex-col items-center overflow-hidden bg-gray-950">
       {logo != null && (
         <div className={`flex items-center justify-center w-full shrink-0 py-3 ${hideLogo ? 'hidden' : ''}`}>
           {logo}

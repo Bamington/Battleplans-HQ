@@ -30,6 +30,9 @@ export interface UseCardBuilderResult {
   editorOpen:      boolean;
   toggleCardList:  () => void;
   toggleEditor:    () => void;
+  /** Close both slide-in panels. Used by the responsive drawer backdrop
+   *  (tap-outside-to-close) and anywhere else that needs a hard reset. */
+  closePanels:     () => void;
 
   // ── Responsive ───────────────────────────────────────────────────────────
   isMobile:        boolean;
@@ -79,6 +82,10 @@ export function useCardBuilder(config: CardBuilderConfig): UseCardBuilderResult 
     setEditorOpen(o => !o);
     setCardListOpen(false);
   }, []);
+  const closePanels = useCallback(() => {
+    setCardListOpen(false);
+    setEditorOpen(false);
+  }, []);
 
   // ── Responsive state ───────────────────────────────────────────────────────
   const [isMobile, setIsMobile] = useState(() =>
@@ -127,7 +134,7 @@ export function useCardBuilder(config: CardBuilderConfig): UseCardBuilderResult 
   }, [deckName, deckId, decksTable]);
 
   return {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isMobile, isShortHeight, mobilePanelOpen,
     layoutDeps: [cardListOpen, editorOpen, isMobile, isShortHeight, mobilePanelOpen],
     deckName, setDeckName, editingDeckName, setEditingDeckName,

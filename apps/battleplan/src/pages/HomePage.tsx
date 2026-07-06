@@ -12,7 +12,7 @@ const GAME_ICONS: Record<string, string> = {
   'ryg':             iconRyg as string,
   'starcraft':       iconStarcraft as string,
 };
-import { supabase, Button, Modal, Dropdown, DropdownItem, Input, Select, SearchSelect, TrashBinMinimalistic, ArrowRight, AltArrowLeft, AltArrowRight, UserRounded, Widget2 } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Dropdown, DropdownItem, Input, Select, SearchSelect, TrashBinMinimalistic, ArrowRight, AltArrowLeft, AltArrowRight, UserRounded, Widget2 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
   useGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
@@ -303,7 +303,7 @@ function BookingCard({ userId }: { userId: string | null }) {
 
   return (
     <>
-      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px flex-1 max-w-sm flex flex-col shadow-md overflow-hidden">
+      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
         <div className="flex flex-col gap-4 items-center p-5 flex-1">
 
           <BoxIcon />
@@ -447,7 +447,7 @@ function BookingItem({ bookingId, gameIcon, gameName, location, date, time, cust
 
 function NewsCard() {
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px flex-1 max-w-sm flex flex-col shadow-md overflow-hidden">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
       <div className="flex flex-col gap-4 items-center p-5 flex-1">
 
         <InfoCircleIcon />
@@ -521,7 +521,7 @@ function UpcomingBookingsCard({ locationIds }: { locationIds: string[] }) {
   useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px flex-1 max-w-sm flex flex-col shadow-md overflow-hidden">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
       <div className="flex flex-col gap-4 items-center p-5 flex-1">
 
         <CalendarIcon />
@@ -622,23 +622,15 @@ export default function HomePage() {
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />} />
 
-      <main className="flex flex-1 items-stretch pt-9 px-9 w-full">
-        <div className="flex flex-1 items-stretch gap-2.5 justify-center">
+      <main className="flex flex-1 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
+        <div className="flex flex-1 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           <BookingCard userId={userId} />
           {isLocationAdmin && <UpcomingBookingsCard locationIds={adminLocationIds} />}
           <NewsCard />
         </div>
       </main>
 
-      <footer className="flex items-center justify-center gap-3 py-1.5">
-        <span className="font-body font-bold text-xs text-neutral-800 uppercase tracking-[1.2px]">
-          BattlePlan version {__APP_VERSION__}
-        </span>
-        <span className="font-body font-bold text-xs text-neutral-800 uppercase tracking-[1.2px]">–</span>
-        <span className="font-body font-bold text-xs text-neutral-800 uppercase tracking-[1.2px]">
-          Build date {__APP_BUILD_DATE__}
-        </span>
-      </footer>
+      <AppFooter appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
   );

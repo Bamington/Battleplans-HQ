@@ -80,7 +80,7 @@ export default function CardBuilderGod() {
   const dirtyRef = useRef(false);
 
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isShortHeight, mobilePanelOpen,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
@@ -210,6 +210,7 @@ export default function CardBuilderGod() {
           />
         }
         leftPanelOpen={cardListOpen}
+        onClosePanels={closePanels}
         leftPanel={
           <CardListPanel
             deckName={deckName}

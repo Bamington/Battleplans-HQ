@@ -238,7 +238,7 @@ const CardBuilderBloodBowl = () => {
   // ── Shared builder chrome (panel toggles, responsive, deck-name) ────────────
   const builder = useCardBuilder({ deckId });
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isMobile, isShortHeight, mobilePanelOpen,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit,
@@ -1524,6 +1524,7 @@ const CardBuilderBloodBowl = () => {
         ) : null
       }
       leftPanelOpen={cardListOpen}
+      onClosePanels={closePanels}
       leftPanel={appMode === 'edit' ? (
         <CardListPanel
           deckName={deckName}

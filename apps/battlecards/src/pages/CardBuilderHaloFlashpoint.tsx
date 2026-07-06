@@ -189,7 +189,7 @@ const CardBuilderHaloFlashpoint = () => {
   // ── Shared builder chrome (panel toggles, responsive, deck-name) ────────────
   const builder = useCardBuilder({ deckId });
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isMobile, isShortHeight, mobilePanelOpen,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit,
@@ -1643,6 +1643,7 @@ const CardBuilderHaloFlashpoint = () => {
         ) : null
       }
       leftPanelOpen={cardListOpen}
+      onClosePanels={closePanels}
       leftPanel={
         // Panel renders in BOTH edit and play modes — play mode needs it
         // for the activation/rules grouping. Edit-only chrome (header

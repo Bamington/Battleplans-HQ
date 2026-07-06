@@ -283,7 +283,7 @@ const CardBuilderKillTeam = () => {
   // buttons + carousel relayout work identically here.
   const builder = useCardBuilder({ deckId });
   const {
-    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    cardListOpen, editorOpen, toggleCardList, toggleEditor, closePanels,
     isMobile, isShortHeight, mobilePanelOpen, layoutDeps,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
@@ -1857,6 +1857,7 @@ const CardBuilderKillTeam = () => {
         ) : null
       }
       leftPanelOpen={cardListOpen}
+      onClosePanels={closePanels}
       leftPanel={
         <CardListPanel
           deckName={deckName}

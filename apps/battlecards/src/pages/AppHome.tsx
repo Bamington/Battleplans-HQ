@@ -18,15 +18,18 @@
  *   Empty    — onboarding copy when the user has no decks yet (Figma node 293:3712)
  *   Populated — deck list + "Create New Deck" button
  *
- * Responsive behaviour (matches Figma):
- *   Desktop / Tablet (≥ md, 768 px+)
+ * Responsive behaviour:
+ *   Desktop (≥ lg, 1024 px+)
  *     Panels sit side-by-side, centred in the viewport, max-w-[384px] each.
- *     Body padding: 36px desktop, 12px tablet.
+ *     No horizontal scroll.
+ *
+ *   Tablet (md–lg, 768–1023 px)
+ *     Each panel is capped at 40vw. If the panels overflow the viewport the
+ *     row scrolls horizontally so the user can swipe between them.
  *
  *   Mobile (< md)
- *     Panels remain side-by-side but the container overflows horizontally,
- *     so the user can swipe to see the second panel.
- *     Each panel has a minimum width of 300px.
+ *     Each panel is capped at 90vw (roughly one panel per screen with a peek
+ *     of the next). The row overflows horizontally so the user can swipe.
  *
  * Matches Figma:
  *   Desktop — node 191:8220
@@ -38,6 +41,7 @@
 
 import { useState, useEffect } from 'react';
 import AppNavbar from '../components/AppNavbar';
+import { AppFooter } from '@battleplans/ui';
 import { useIsAdmin } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@battleplans/ui';
@@ -639,26 +643,27 @@ export default function AppHome() {
       <AppNavbar fixed={false} />
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 md:pt-9 md:px-9 pt-3 px-3">
+      <div className="flex flex-col flex-1 pt-3 md:pt-9 lg:px-9">
 
         {/* ── Main content ─────────────────────────────────────────────────
             On desktop/tablet: fills remaining height, centres panels both
             horizontally and vertically.
             On mobile: allows horizontal scroll so both panels are reachable.
         ─────────────────────────────────────────────────────────────────── */}
-        <div className="flex flex-1 items-stretch md:justify-center">
+        <div className="flex flex-1 items-stretch lg:justify-center">
 
           {/* ── Panel row ─────────────────────────────────────────────────
               Mobile: overflows horizontally (horizontal-scroll UX)
               Desktop: centred flex row with gap
           ────────────────────────────────────────────────────────────── */}
-          <div className="flex gap-2.5 items-stretch overflow-x-auto md:overflow-x-visible w-full md:w-auto md:flex-1 md:justify-center">
+          <div className="flex gap-2.5 items-stretch overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none w-full lg:w-auto lg:flex-1 lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
 
             {/* ── Left panel: Packs ───────────────────────────────────── */}
             <div
               className={[
-                'shrink-0 min-w-[300px]',
-                'md:flex-1 md:max-w-[384px] md:min-w-0',
+                'shrink-0 w-[90vw] max-w-[90vw] snap-start',
+                'md:w-[40vw] md:max-w-[40vw]',
+                'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
                 'self-stretch flex flex-col',
                 'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
               ].join(' ')}
@@ -831,8 +836,9 @@ export default function AppHome() {
             {/* ── Middle panel: Your Decks ────────────────────────────── */}
             <div
               className={[
-                'shrink-0 min-w-[300px]',
-                'md:flex-1 md:max-w-[384px] md:min-w-0',
+                'shrink-0 w-[90vw] max-w-[90vw] snap-start',
+                'md:w-[40vw] md:max-w-[40vw]',
+                'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
                 'self-stretch flex flex-col',
                 'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
               ].join(' ')}
@@ -955,8 +961,9 @@ export default function AppHome() {
             {/* ── Right panel: News & Updates ─────────────────────────── */}
             <div
               className={[
-                'shrink-0 min-w-[300px]',
-                'md:flex-1 md:max-w-[384px] md:min-w-0',
+                'shrink-0 w-[90vw] max-w-[90vw] snap-start',
+                'md:w-[40vw] md:max-w-[40vw]',
+                'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
                 'self-stretch flex flex-col',
                 'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
               ].join(' ')}
@@ -986,11 +993,7 @@ export default function AppHome() {
         </div>
 
         {/* ── Version footer ────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-center gap-3 py-1.5 font-body font-bold text-xs text-gray-800 tracking-[1.2px] uppercase whitespace-nowrap">
-          <span>Battlecards version {__APP_VERSION__}</span>
-          <span>–</span>
-          <span>Build date {__APP_BUILD_DATE__}</span>
-        </div>
+        <AppFooter appName="Battlecards" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
       </div>
 
