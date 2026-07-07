@@ -281,6 +281,73 @@ const CardCarousel = <T extends { id: string }>({
     window.cancelAnimationFrame(rafRef.current);
   }, []);
 
+  // ── Desktop click-drag to scroll ──────────────────────────────────────────
+  // Users without a horizontal scroll wheel can grab the strip and drag it
+  // sideways. Mouse only — touch and pen already pan natively, and hijacking
+  // them would break that. A drag past a small threshold sets `suppressClick`
+  // so the `click` that ends the drag is swallowed; a clean press-release
+  // (under threshold) is left untouched, so click-through to keywords etc.
+  // still works. We pan by writing `scrollLeft` directly with snap disabled,
+  // then re-enable snap on release so the nearest card re-centres.
+  const DRAG_THRESHOLD = 6; // px before a press becomes a drag
+  const dragRef = useRef({ down: false, dragging: false, startX: 0, startScroll: 0 });
+  const suppressClickRef = useRef(false);
+
+  const onWinPointerMove = useCallback((e: PointerEvent) => {
+    const el = scrollerRef.current;
+    const st = dragRef.current;
+    if (!el || !st.down) return;
+    const dx = e.clientX - st.startX;
+    if (!st.dragging) {
+      if (Math.abs(dx) < DRAG_THRESHOLD) return;
+      st.dragging = true;
+      el.style.scrollSnapType = 'none';   // free-pan; re-enabled on release
+      el.style.cursor = 'grabbing';
+    }
+    e.preventDefault();
+    el.scrollLeft = st.startScroll - dx;
+  }, []);
+
+  const onWinPointerUp = useCallback(() => {
+    const el = scrollerRef.current;
+    const st = dragRef.current;
+    window.removeEventListener('pointermove', onWinPointerMove);
+    window.removeEventListener('pointerup', onWinPointerUp);
+    if (el && st.dragging) {
+      el.style.scrollSnapType = '';       // mandatory snap re-applies → nearest card centres
+      el.style.cursor = '';
+      suppressClickRef.current = true;    // swallow the click that ends the drag
+      detectActiveRef.current();          // report the newly-centred card
+    }
+    st.down = false;
+    st.dragging = false;
+  }, [onWinPointerMove]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    suppressClickRef.current = false;
+    dragRef.current = { down: true, dragging: false, startX: e.clientX, startScroll: el.scrollLeft };
+    window.addEventListener('pointermove', onWinPointerMove);
+    window.addEventListener('pointerup', onWinPointerUp);
+  }, [onWinPointerMove, onWinPointerUp]);
+
+  // Capture-phase: if a drag just ended, eat the trailing click before it
+  // reaches a card's keyword button.
+  const handleClickCapture = useCallback((e: React.MouseEvent) => {
+    if (suppressClickRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      suppressClickRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    window.removeEventListener('pointermove', onWinPointerMove);
+    window.removeEventListener('pointerup', onWinPointerUp);
+  }, [onWinPointerMove, onWinPointerUp]);
+
   // Leading/trailing spacers let the first and last cards scroll to centre.
   // (Real spacer elements — not scroller padding — because a flex scroll
   // container drops its trailing padding, leaving the last card off-centre.)
@@ -318,8 +385,10 @@ const CardCarousel = <T extends { id: string }>({
       <div className="relative w-full flex-1 min-h-0">
         <div
           ref={scrollerRef}
+          onPointerDown={handlePointerDown}
+          onClickCapture={handleClickCapture}
           className="absolute inset-0 flex items-center overflow-x-auto overflow-y-hidden
-                     snap-x snap-mandatory select-none
+                     snap-x snap-mandatory select-none cursor-grab
                      [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           style={scrollerStyle}
         >
