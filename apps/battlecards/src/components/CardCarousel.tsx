@@ -1,37 +1,29 @@
 /**
- * CardCarousel.tsx — Generic horizontal card carousel for any game's card view.
+ * CardCarousel.tsx — Horizontal card viewer for every card-builder.
  *
- * NEW UNIVERSAL CONTAINER — use this for every game's builder going forward.
- * Originally lifted from CardBuilderHaloFlashpoint and made game-agnostic.
- * In use by: Starcraft, Kill Team. TODO: migrate Blood Bowl and Halo Flashpoint
- * builders to use this in place of their inline carousel + zoom code (each has
- * a duplicated copy of the same logic that this component now owns).
+ * Renders the WHOLE deck as one horizontal scroll-snap strip: every card is
+ * mounted up-front (no windowing), each sits in a fixed fit-to-viewport slot,
+ * and snaps to centre as you scroll. The card whose slot is centred is reported
+ * via `onActiveChange` so the editor edits it.
  *
- * Three-slot strip (prev / active / next), with:
- *   • Pointer drag to swipe between items, with live scale+opacity interpolation
- *   • Click on an adjacent slot to navigate to it
- *   • Wrap-around navigation when there are ≥ 2 items
- *   • Container ResizeObserver → auto-fit scale
- *   • Zoom slider (0.5–1.0, in 0.1 steps) below the viewport
- *   • Active card optionally wrapped in `Card3DWrapper` for the hover tilt
- *   • Bottom-left / bottom-right overlay slots (for game-specific UI like
- *     play-mode buttons or token menus)
+ * Zoom scales the card *inside* its fixed slot via a transform, so zooming is
+ * smooth (GPU transform, animated) and never shifts the scroll geometry — the
+ * centred card stays centred and the snap points don't move. Fit-scale (auto
+ * fit to the viewport) resizes the slots and is applied instantly.
  *
- * The carousel is item-agnostic — pass any `T extends { id: string }` and a
- * `renderItem(item, role)` function. The role tells the renderer whether
- * the slot is `prev`, `active`, or `next`, so consumers can skip expensive
- * editing UI for the off-screen-ish slots.
+ * Shared by every game builder. The prop API is kept stable so callers don't
+ * need to change; `role`/`onNavigateStart`/`use3D` are preserved for
+ * compatibility (role is 'active' for the centred card, 'prev' otherwise).
  *
  * USAGE:
  *   <CardCarousel
- *     items={[card1, card2, card3]}
+ *     items={cards}
  *     activeId={activeCardId}
  *     onActiveChange={setActiveCardId}
- *     cardWidth={1270}
- *     cardHeight={890}
- *     renderItem={(card, role) =>
- *       <MyGameCard {...card} {...(role === 'active' ? editHandlers : {})} />
- *     }
+ *     cardWidth={CARD_W}
+ *     cardHeight={CARD_H}
+ *     renderItem={card => <SomeCard {...card} />}
+ *     className="w-full flex-1 min-h-0"
  *   />
  */
 
@@ -41,33 +33,22 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type DependencyList,
   type ReactNode,
 } from 'react';
-import { flushSync } from 'react-dom';
 import Card3DWrapper from './Card3DWrapper';
-import { Button } from '@battleplans/ui';
-import { MinusCircle } from '@battleplans/ui';
-import { AddCircle } from '@battleplans/ui';
+import ZoomControls from './ZoomControls';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const ADJACENT_SCALE = 0.7;     // adjacent cards render at 70% of active scale
-const CARD_GAP       = 40;      // px gap between cards
-const ANIM           = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-const CARD_TRANS     = `${ANIM}, opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)`;
-const DRAG_THRESHOLD = 80;      // px past which a release commits the swap
-const CLICK_THRESHOLD = 5;      // px below which a release counts as a click
-
-// Drop-shadow used on every slot wrapper. Applying the same shadow to all
-// three slots (rather than a smaller one to prev/next and a bigger one to
-// the active slot) prevents a one-frame "shadow jump" at the end of a swipe:
-// the card growing into the centre would otherwise carry the smaller
-// adjacent-shadow up to full size, then snap to the larger active-shadow on
-// the swap commit. Filter is rendered before transform, so the shadow scales
-// naturally with each slot's transform and reads as smaller on the dimmed,
-// 70%-scaled adjacent cards.
-const CARD_SHADOW    = 'drop-shadow(0 5.571px 75.215px rgba(30,31,110,0.75))';
+const CARD_SHADOW = 'drop-shadow(0 5.571px 75.215px rgba(30,31,110,0.75))';
+const CARD_GAP    = 20; // px gap between the visible cards, at any zoom level
+// The centred card fills at most this fraction of the viewport width, so the
+// neighbouring cards always peek in on each side (signalling "more cards").
+const FIT_WIDTH_FRACTION = 0.8;
+const ZOOM_MS   = 320;                            // zoom animation duration
+const ZOOM_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,47 +58,33 @@ export interface CardCarouselProps<T extends { id: string }> {
   items:          T[];
   activeId:       string;
   onActiveChange: (id: string) => void;
-  /** Carousel bounding-box width. Used as the default per-item width when
-   *  `getItemDimensions` is omitted, AND drives the fit-scale calculation so
-   *  every item renders at the same scale (avoids size jumps when navigating
-   *  between cards of different shapes). For mixed decks, pass the **max**
-   *  width across all card types. */
+  /** Bounding-box width. Drives the fit-scale so every card renders at the same
+   *  scale. For mixed decks pass the **max** width across all card types. */
   cardWidth:      number;
-  /** Carousel bounding-box height. Same role as `cardWidth` on the vertical
-   *  axis — also used as a floor for the strip height so slots can be
-   *  vertically centred within. For mixed decks pass the **max** height. */
+  /** Bounding-box height. Same role as `cardWidth` on the vertical axis. For
+   *  mixed decks pass the **max** height. */
   cardHeight:     number;
-  /** Optional per-item dimension override. Returned values are the item's
-   *  native size; the carousel sizes its slot to match and vertically
-   *  centres the slot within the strip. Useful for mixed decks (e.g. Kill
-   *  Team operative cards 1270×890 alongside rule cards 700×1200). */
+  /** Optional per-item dimension override (native size). Useful for mixed
+   *  decks (e.g. Kill Team operative cards alongside taller rule cards). */
   getItemDimensions?: (item: T) => { width: number; height: number };
-  /** Render the card content for an item, given the slot role. */
+  /** Render the card content for an item, given its role ('active' when centred). */
   renderItem:     (item: T, role: CardCarouselRole) => ReactNode;
-  /** Called BEFORE navigation animation starts (e.g. to fade out a popover). */
+  /** Called when the centred (active) card changes (e.g. to fade a popover). */
   onNavigateStart?: () => void;
-  /** Wrap the active card in Card3DWrapper (hover-tilt effect). Default true. */
+  /** Wrap each card in Card3DWrapper (hover-tilt effect). Default true. */
   use3D?:         boolean;
-  /** Initial zoom level (0.5–1.0). Default 0.7. */
+  /** Initial zoom level (0.5–1.0). Default 1.0 (max). */
   initialZoom?:   number;
-  /** Optional bottom overlay content rendered inside the viewport. */
+  /** Optional bottom overlay content rendered over the viewport. */
   bottomLeftSlot?:  ReactNode;
   bottomRightSlot?: ReactNode;
-  /**
-   * Force a re-measure of the container size when these change. Useful for
-   * panel-toggle, mode-switch, or breakpoint changes.
-   */
+  /** Force a re-measure of the viewport when these change (panel toggle, mode
+   *  switch, breakpoint flip). */
   layoutDeps?:    DependencyList;
   /** Hide the zoom controls below the viewport. Default false. */
   hideZoomControls?: boolean;
-  /** Icon-only zoom buttons (no "Zoom In/Out" labels). Used on mobile
-   *  where horizontal space is scarce. Default false. */
-  compactZoomControls?: boolean;
-  /** Render zoom buttons centred inside the bottom overlay strip (between
-   *  the bottomLeftSlot and bottomRightSlot) instead of as a row beneath
-   *  the carousel. Used on mobile in play mode so the zoom controls sit
-   *  next to the New Turn / Token buttons rather than below the card.
-   *  Default false. */
+  /** Render zoom buttons centred inside the bottom overlay strip instead of a
+   *  row beneath the carousel. Default false. */
   zoomControlsInline?: boolean;
   /** Extra classes for the outer flex column. */
   className?:     string;
@@ -135,426 +102,294 @@ const CardCarousel = <T extends { id: string }>({
   renderItem,
   onNavigateStart,
   use3D            = true,
-  initialZoom      = 0.7,
+  initialZoom      = 1.0,
   bottomLeftSlot,
   bottomRightSlot,
   layoutDeps,
   hideZoomControls    = false,
-  compactZoomControls = false,
   zoomControlsInline  = false,
   className           = '',
 }: CardCarouselProps<T>) => {
 
-  // ── Active item resolution ────────────────────────────────────────────────
-  const idx       = items.findIndex(i => i.id === activeId);
-  const safeIdx   = idx === -1 ? 0 : idx;
-  const total     = items.length;
-  const activeItem = items[safeIdx] ?? null;
-  const prevItem   = total >= 2 ? items[(safeIdx - 1 + total) % total] : null;
-  const nextItem   = total >= 2 ? items[(safeIdx + 1) % total]         : null;
-
-  // ── Per-item dimensions ──────────────────────────────────────────────────
-  const dimsOf = (item: T | null): { width: number; height: number } =>
-    item && getItemDimensions
-      ? getItemDimensions(item)
-      : { width: cardWidth, height: cardHeight };
-
-  const activeDims = dimsOf(activeItem);
-  const prevDims   = dimsOf(prevItem);
-  const nextDims   = dimsOf(nextItem);
-
-  /** Strip's vertical bounding box. Tall enough to fit the tallest of the
-   *  three visible slots so the others can be vertically centred within. */
-  const stripHeight = Math.max(activeDims.height, prevDims.height, nextDims.height, cardHeight);
+  const total = items.length;
+  const dimsOf = (item: T): { width: number; height: number } =>
+    getItemDimensions ? getItemDimensions(item) : { width: cardWidth, height: cardHeight };
 
   // ── Zoom & fit-scale ──────────────────────────────────────────────────────
-  const [zoomLevel, setZoomLevel] = useState(initialZoom);
-  const [fitScale,  setFitScale]  = useState(1);
+  const [zoomLevel,    setZoomLevel]    = useState(initialZoom);
+  const [fitScale,     setFitScale]     = useState(0);   // 0 until first measure
+  const [containerW,   setContainerW]   = useState(0);
+  const [zoomAnim,     setZoomAnim]     = useState(false); // true during a zoom transition
   const cardScale = fitScale * zoomLevel;
 
-  const containerRef     = useRef<HTMLDivElement>(null);
-  const containerWidthRef = useRef(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const cardEls     = useRef(new Map<string, HTMLDivElement>());
+  const activeIdRef = useRef(activeId); activeIdRef.current = activeId;
+  const lastReportedRef = useRef(activeId);
+  const programmaticRef = useRef(false);
+  const progTimerRef    = useRef<number>(0);
+  const scrollTimerRef   = useRef<number>(0);
+  const zoomAnimatingRef = useRef(false);
+  const zoomTimerRef     = useRef<number>(0);
+  const rafRef           = useRef<number>(0);
 
-  // Fit scale uses the prop-supplied bounding box (cardWidth × cardHeight)
-  // rather than the active item's dims, so navigating between cards of
-  // different sizes does NOT change the global scale — every card renders at
-  // the same fitScale × zoom. Without this, switching from a 1270×890 card to
-  // a 700×1200 card causes the new active to "pop" to a different visual
-  // size after the slide animation ends. Consumers with per-item sizing
-  // should pass the *bounding box* (max width × max height across all card
-  // types) as cardWidth/cardHeight.
+  // Fit scale = fit the bounding box into the viewport (so mixed decks don't
+  // pop when navigating). Measured off the scroll viewport's BORDER box
+  // (getBoundingClientRect), never the content box — the side padding we add to
+  // centre the first/last cards would otherwise shrink the content box and feed
+  // back into the measurement, leaving the ends off-centre.
   useEffect(() => {
-    const el = containerRef.current;
+    const el = scrollerRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      containerWidthRef.current = width;
-      setFitScale(Math.min(width / cardWidth, height / cardHeight));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setContainerW(r.width);
+      setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, r.height / cardHeight));
+    };
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
   }, [cardWidth, cardHeight]);
 
   // Re-measure on layout-affecting external changes.
   useEffect(() => {
-    const el = containerRef.current;
+    const el = scrollerRef.current;
     if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    containerWidthRef.current = width;
-    setFitScale(Math.min(width / cardWidth, height / cardHeight));
+    const r = el.getBoundingClientRect();
+    setContainerW(r.width);
+    setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, r.height / cardHeight));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, layoutDeps ?? []);
 
-  const zoomOut = () => setZoomLevel(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(1))));
-  const zoomIn  = () => setZoomLevel(z => Math.min(1.0, parseFloat((z + 0.1).toFixed(1))));
-
-  // ── Carousel slot refs ────────────────────────────────────────────────────
-  const stripRef       = useRef<HTMLDivElement>(null);
-  const prevCardRef    = useRef<HTMLDivElement>(null);
-  const activeCardRef  = useRef<HTMLDivElement>(null);
-  const nextCardRef    = useRef<HTMLDivElement>(null);
-
-  const cardScaleRef = useRef(cardScale); cardScaleRef.current = cardScale;
-  const totalRef     = useRef(total);     totalRef.current     = total;
-
-  const phaseRef     = useRef<'idle' | 'transitioning'>('idle');
-  const pendingIdRef = useRef<string | null>(null);
-  const draggingRef  = useRef(false);
-  const dragStartRef = useRef(0);
-
-  // ── Geometry helpers ──────────────────────────────────────────────────────
-  // Strip's resting translateX positions the active card in the centre of
-  // the viewport. The adjacent cards sit `CARD_GAP` away from each side.
-  // With per-item sizing the prev slot's adjacent width is used here.
-  const getBaseTranslateX = useCallback(() => {
-    const cs        = cardScaleRef.current;
-    const prevAdjW  = prevDims.width * cs * ADJACENT_SCALE;
-    const activeWpx = activeDims.width * cs;
-    return containerWidthRef.current / 2 - prevAdjW - CARD_GAP - activeWpx / 2;
-  }, [prevDims.width, activeDims.width]);
-
-  /** How far the strip slides during a single navigation step in `dir`. */
-  const getSlideDistance = useCallback((dir: 'prev' | 'next') => {
-    const cs       = cardScaleRef.current;
-    const adjItem  = dir === 'next' ? nextDims : prevDims;
-    return activeDims.width * cs / 2 + CARD_GAP + adjItem.width * cs * ADJACENT_SCALE / 2;
-  }, [activeDims.width, prevDims.width, nextDims.width]);
-
-  const applyStripTransform = useCallback((extra: number, animate: boolean) => {
-    const strip = stripRef.current;
-    if (!strip) return;
-    strip.style.transition = animate ? ANIM : 'none';
-    strip.style.transform  = `translateX(${getBaseTranslateX() + extra}px)`;
-  }, [getBaseTranslateX]);
-
-  /** Set transform + opacity on all three slots imperatively, no React re-render. */
-  const applyCardStyles = useCallback((
-    prevS: number, activeS: number, nextS: number,
-    prevO: number, activeO: number, nextO: number,
-    animate: boolean,
-  ) => {
-    const t = animate ? CARD_TRANS : 'none';
-    if (prevCardRef.current)   { prevCardRef.current.style.transition   = t; prevCardRef.current.style.transform   = `scale(${prevS})`;   prevCardRef.current.style.opacity   = String(prevO);   }
-    if (activeCardRef.current) { activeCardRef.current.style.transition = t; activeCardRef.current.style.transform = `scale(${activeS})`; activeCardRef.current.style.opacity = String(activeO); }
-    if (nextCardRef.current)   { nextCardRef.current.style.transition   = t; nextCardRef.current.style.transform   = `scale(${nextS})`;   nextCardRef.current.style.opacity   = String(nextO);   }
-  }, []);
-
-  const resetCardStyles = useCallback((animate: boolean) => {
-    const cs   = cardScaleRef.current;
-    const as   = cs * ADJACENT_SCALE;
-    const adjO = totalRef.current >= 2 ? 0.5 : 0;
-    applyCardStyles(as, cs, as, adjO, 1, adjO, animate);
-  }, [applyCardStyles]);
-
-  // ── Navigation ────────────────────────────────────────────────────────────
-  const navigate = useCallback((targetId: string, direction: 'prev' | 'next') => {
-    if (phaseRef.current !== 'idle') return;
-    onNavigateStart?.();
-
-    const cs     = cardScaleRef.current;
-    const as     = cs * ADJACENT_SCALE;
-    const offset = direction === 'next' ? -getSlideDistance('next') : getSlideDistance('prev');
-    phaseRef.current     = 'transitioning';
-    pendingIdRef.current = targetId;
-    applyStripTransform(offset, true);
-    if (direction === 'next') {
-      // active dims + shrinks; next brightens + grows
-      applyCardStyles(as, as, cs, 0.5, 0.5, 1, true);
-    } else {
-      // prev brightens + grows; active dims + shrinks
-      applyCardStyles(cs, as, as, 1, 0.5, 0.5, true);
-    }
-  }, [applyStripTransform, applyCardStyles, getSlideDistance, onNavigateStart]);
-
-  /**
-   * After a transition finishes, hide the strip → swap state → layout-effect
-   * snaps everything back to resting before the browser paints again, which
-   * eliminates the old-card flash that would otherwise appear in the strip.
-   */
-  const needsSnapRef = useRef(false);
-
-  const handleStripTransitionEnd = (e: React.TransitionEvent) => {
-    if (e.target !== stripRef.current) return;
-    if (phaseRef.current !== 'transitioning' || !pendingIdRef.current) return;
-    const targetId = pendingIdRef.current;
-    pendingIdRef.current = null;
-    const strip = stripRef.current;
-    if (strip) strip.style.visibility = 'hidden';
-    needsSnapRef.current = true;
-    // flushSync forces React to commit the state update + run all layout
-    // effects (including the snap that re-shows the strip with the new
-    // resting positions) BEFORE the next browser paint. Without this, the
-    // browser can paint after the visibility:hidden is set but before the
-    // state update lands — producing a brief flash where either the strip
-    // is empty or the new slots show up at end-of-slide transforms.
-    flushSync(() => onActiveChange(targetId));
+  // Snap the active card to the viewport centre using its CURRENT (possibly
+  // mid-transition) size. Sets scrollLeft directly — no smooth behaviour.
+  const centreActiveNow = () => {
+    const scroller = scrollerRef.current;
+    const el = cardEls.current.get(activeIdRef.current);
+    if (!scroller || !el) return;
+    scroller.scrollLeft = Math.max(0, el.offsetLeft + el.offsetWidth / 2 - scroller.clientWidth / 2);
   };
 
-  useLayoutEffect(() => {
-    if (needsSnapRef.current) {
-      needsSnapRef.current = false;
-      phaseRef.current     = 'idle';
-      applyStripTransform(0, false);
-      resetCardStyles(false);
-      const strip = stripRef.current;
-      if (strip) strip.style.visibility = 'visible';
-    }
-  });
+  // Zoom with a smooth transition: the slot size + card transform animate
+  // together, and a rAF loop re-centres the active card every frame so it stays
+  // put while the cards around it resize (keeping the 20px gap constant).
+  const runZoom = (next: (z: number) => number) => {
+    setZoomAnim(true);
+    zoomAnimatingRef.current = true;
+    setZoomLevel(next);
+    window.cancelAnimationFrame(rafRef.current);
+    window.clearTimeout(zoomTimerRef.current);
+    // Re-centre the active card every frame while the sizes animate. (No
+    // programmaticRef guard needed — the card stays centred, so if the scroll
+    // listener fires it just re-detects the same active card, a no-op.)
+    const startedAt = performance.now();
+    const step = () => {
+      centreActiveNow();
+      if (performance.now() - startedAt < ZOOM_MS + 40) {
+        rafRef.current = window.requestAnimationFrame(step);
+      }
+    };
+    rafRef.current = window.requestAnimationFrame(step);
+    // Settle: drop the transition once the animation is done.
+    zoomTimerRef.current = window.setTimeout(() => {
+      zoomAnimatingRef.current = false;
+      setZoomAnim(false);
+      centreActiveNow();
+    }, ZOOM_MS + 40);
+  };
+  const zoomOut = () => runZoom(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(1))));
+  const zoomIn  = () => runZoom(z => Math.min(1.0, parseFloat((z + 0.1).toFixed(1))));
 
-  // Re-centre + reset whenever fit scale, zoom, the active item's size, or
-  // layout deps change.
+  // ── Centre a card in the viewport ─────────────────────────────────────────
+  const centerCard = useCallback((id: string, behavior: ScrollBehavior) => {
+    const scroller = scrollerRef.current;
+    const el = cardEls.current.get(id);
+    if (!scroller || !el) return;
+    const target = el.offsetLeft + el.offsetWidth / 2 - scroller.clientWidth / 2;
+    programmaticRef.current = true;
+    window.clearTimeout(progTimerRef.current);
+    scroller.scrollTo({ left: Math.max(0, target), behavior });
+    // Release the guard once the (possibly smooth) scroll has settled.
+    progTimerRef.current = window.setTimeout(
+      () => { programmaticRef.current = false; },
+      behavior === 'smooth' ? 450 : 60,
+    );
+  }, []);
+
+  // Keep the active card centred on zoom / fit-scale / layout changes. The
+  // slots resize with cardScale (so the gap between cards stays constant), so
+  // zoom must re-centre the active card — done instantly, before paint.
   useLayoutEffect(() => {
-    if (phaseRef.current !== 'transitioning' && !needsSnapRef.current) {
-      applyStripTransform(0, false);
-      resetCardStyles(false);
-    }
+    // During a zoom the rAF loop owns centring; skip the instant snap so they
+    // don't fight.
+    if (fitScale > 0 && !zoomAnimatingRef.current) centerCard(activeIdRef.current, 'auto');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardScale, activeDims.width, activeDims.height, prevDims.width, nextDims.width, ...(layoutDeps ?? [])]);
+  }, [cardScale, containerW, ...(layoutDeps ?? [])]);
 
-  // Initial reset before first paint.
-  useLayoutEffect(() => { resetCardStyles(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Centre when the active card is changed from OUTSIDE (list click, new card).
+  // Skip when the change came from our own scroll detection.
+  useEffect(() => {
+    if (activeId === lastReportedRef.current) return;
+    lastReportedRef.current = activeId;
+    centerCard(activeId, 'smooth');
+  }, [activeId, centerCard]);
 
-  // ── Layout positions for the three slots ──────────────────────────────────
-  // Each slot's CSS `left` places its (unscaled) box so that, after the
-  // centre-origin scale transform, the visible centre lands at the
-  // calculated centre-x within the strip.
-  const prevAdjW   = prevDims.width  * cardScale * ADJACENT_SCALE;
-  const nextAdjW   = nextDims.width  * cardScale * ADJACENT_SCALE;
-  const activeWpx  = activeDims.width * cardScale;
-  // Centre x of each slot within the strip:
-  const prevCenter   = prevAdjW / 2;
-  const activeCenter = prevAdjW + CARD_GAP + activeWpx / 2;
-  const nextCenter   = prevAdjW + CARD_GAP + activeWpx + CARD_GAP + nextAdjW / 2;
-  const prevLeft   = prevCenter   - prevDims.width   / 2;
-  const activeLeft = activeCenter - activeDims.width / 2;
-  const nextLeft   = nextCenter   - nextDims.width   / 2;
-  // Slot vertical centres within the strip (strip height is the max of all
-  // visible slot heights so each one centres cleanly).
-  const prevTop   = (stripHeight - prevDims.height)   / 2;
-  const activeTop = (stripHeight - activeDims.height) / 2;
-  const nextTop   = (stripHeight - nextDims.height)   / 2;
+  // ── Active-card detection on scroll ───────────────────────────────────────
+  // Latest detection logic kept in a ref so the once-attached native listener
+  // always sees current props without re-binding.
+  const detectActiveRef = useRef<() => void>(() => {});
+  detectActiveRef.current = () => {
+    const scroller = scrollerRef.current;
+    // Skip while a zoom is animating (the active card is being held centred) or
+    // during a programmatic scroll — either would spuriously change the active.
+    if (!scroller || programmaticRef.current || zoomAnimatingRef.current) return;
+    const centre = scroller.scrollLeft + scroller.clientWidth / 2;
+    let bestId: string | null = null;
+    let bestDist = Infinity;
+    cardEls.current.forEach((el, id) => {
+      const c = el.offsetLeft + el.offsetWidth / 2;
+      const d = Math.abs(c - centre);
+      if (d < bestDist) { bestDist = d; bestId = id; }
+    });
+    if (bestId && bestId !== activeIdRef.current) {
+      lastReportedRef.current = bestId;
+      onNavigateStart?.();
+      onActiveChange(bestId);
+    }
+  };
+
+  // Native scroll listener (not React onScroll / rAF): fires reliably for real
+  // scrolls and isn't tied to the frame pipeline. Debounced so it resolves the
+  // settled/snapped card. Attached once; reads latest logic via the ref.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (programmaticRef.current || zoomAnimatingRef.current) return;
+      window.clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = window.setTimeout(() => detectActiveRef.current(), 120);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => () => {
+    window.clearTimeout(scrollTimerRef.current);
+    window.clearTimeout(progTimerRef.current);
+    window.clearTimeout(zoomTimerRef.current);
+    window.cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  // Leading/trailing spacers let the first and last cards scroll to centre.
+  // (Real spacer elements — not scroller padding — because a flex scroll
+  // container drops its trailing padding, leaving the last card off-centre.)
+  // Each spacer is sized from THAT end's actual card width (decks can mix card
+  // sizes, e.g. operatives + narrower rule cards), and the flex columnGap
+  // already covers part of the centring margin.
+  const firstSlotW = (total ? dimsOf(items[0]).width         : cardWidth) * cardScale;
+  const lastSlotW  = (total ? dimsOf(items[total - 1]).width : cardWidth) * cardScale;
+  const leadSpacerW  = Math.max(0, (containerW - firstSlotW) / 2 - CARD_GAP);
+  const trailSpacerW = Math.max(0, (containerW - lastSlotW)  / 2 - CARD_GAP);
+
+  const setCardEl = (id: string) => (el: HTMLDivElement | null) => {
+    if (el) cardEls.current.set(id, el);
+    else    cardEls.current.delete(id);
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (total === 0) {
     return <div className={`flex flex-col items-center ${className}`} />;
   }
 
+  const scrollerStyle: CSSProperties = {
+    columnGap:  CARD_GAP,
+    // Hide until the first measure so cards don't flash at fitScale 0/1.
+    visibility: fitScale > 0 ? 'visible' : 'hidden',
+  };
+  const spacerStyleFor = (w: number): CSSProperties => ({
+    width:      w,
+    transition: zoomAnim ? `width ${ZOOM_MS}ms ${ZOOM_EASE}` : 'none',
+  });
+
   return (
-    <div className={`flex flex-col items-center overflow-hidden ${className}`}>
-      {/* ── Viewport ─────────────────────────────────────────────────────── */}
-      <div
-        ref={containerRef}
-        className="w-full overflow-hidden relative select-none touch-pan-y flex-1 min-h-0"
-        onPointerDown={e => {
-          if (phaseRef.current !== 'idle') return;
-          draggingRef.current  = true;
-          dragStartRef.current = e.clientX;
-        }}
-        onPointerMove={e => {
-          if (!draggingRef.current) return;
-          const delta = e.clientX - dragStartRef.current;
-          if (Math.abs(delta) > 5 && !(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          }
-          applyStripTransform(delta, false);
-          // Live scale + opacity interpolated by drag progress
-          const cs   = cardScaleRef.current;
-          const as   = cs * ADJACENT_SCALE;
-          const adjO = totalRef.current >= 2 ? 0.5 : 0;
-          // Pick the slide distance for the direction the user is dragging
-          // toward: positive delta drags right (toward "prev"), negative left
-          // (toward "next").
-          const slideDir: 'prev' | 'next' = delta >= 0 ? 'prev' : 'next';
-          const t    = Math.min(1, Math.max(-1, delta / getSlideDistance(slideDir)));
-          applyCardStyles(
-            as   + (cs - as) * Math.max(0,  t),    // prev grows when dragging right
-            cs   - (cs - as) * Math.abs(t),          // active shrinks
-            as   + (cs - as) * Math.max(0, -t),    // next grows when dragging left
-            adjO + (1  - adjO) * Math.max(0,  t),
-            1    - (1  - adjO) * Math.abs(t),
-            adjO + (1  - adjO) * Math.max(0, -t),
-            false,
-          );
-        }}
-        onPointerUp={e => {
-          if (!draggingRef.current) return;
-          draggingRef.current = false;
-          const delta = e.clientX - dragStartRef.current;
-          if (Math.abs(delta) < CLICK_THRESHOLD) {
-            applyStripTransform(0, true);
-            resetCardStyles(true);
-          } else if (delta < -DRAG_THRESHOLD && total >= 2 && nextItem) {
-            navigate(nextItem.id, 'next');
-          } else if (delta > DRAG_THRESHOLD && total >= 2 && prevItem) {
-            navigate(prevItem.id, 'prev');
-          } else {
-            applyStripTransform(0, true);
-            resetCardStyles(true);
-          }
-        }}
-        onPointerCancel={() => {
-          draggingRef.current = false;
-          applyStripTransform(0, true);
-          resetCardStyles(true);
-        }}
-      >
-        {/* Strip */}
+    <div className={`flex flex-col items-center ${className}`}>
+      {/* Viewport — position:relative anchors the bottom overlays. */}
+      <div className="relative w-full flex-1 min-h-0">
         <div
-          ref={stripRef}
-          style={{
-            position:   'absolute',
-            top:        '50%',
-            left:       0,
-            height:     stripHeight,
-            marginTop:  -(stripHeight / 2),
-            willChange: 'transform',
-          }}
-          onTransitionEnd={handleStripTransitionEnd}
+          ref={scrollerRef}
+          className="absolute inset-0 flex items-center overflow-x-auto overflow-y-hidden
+                     snap-x snap-mandatory select-none
+                     [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          style={scrollerStyle}
         >
-          {/* Prev slot */}
-          <div
-            ref={prevCardRef}
-            style={{
-              position:        'absolute',
-              top:             prevTop,
-              left:            prevLeft,
-              width:           prevDims.width,
-              height:          prevDims.height,
-              transformOrigin: 'center center',
-              cursor:          prevItem ? 'pointer' : 'default',
-              pointerEvents:   prevItem ? 'auto' : 'none',
-              filter:          CARD_SHADOW,
-            }}
-            onClick={() => prevItem && navigate(prevItem.id, 'prev')}
-          >
-            {prevItem && renderItem(prevItem, 'prev')}
-          </div>
-
-          {/* Active slot — wrapper carries the shadow (same as adjacent slots)
-              so it reads consistently across navigation; Card3DWrapper just
-              handles the hover tilt. */}
-          <div
-            ref={activeCardRef}
-            style={{
-              position:        'absolute',
-              top:             activeTop,
-              left:            activeLeft,
-              width:           activeDims.width,
-              height:          activeDims.height,
-              transformOrigin: 'center center',
-              filter:          CARD_SHADOW,
-            }}
-          >
-            {activeItem && (
-              use3D ? (
-                <Card3DWrapper style={{ width: activeDims.width, height: activeDims.height }}>
-                  {renderItem(activeItem, 'active')}
-                </Card3DWrapper>
-              ) : (
-                <div style={{ width: activeDims.width, height: activeDims.height }}>
-                  {renderItem(activeItem, 'active')}
-                </div>
-              )
-            )}
-          </div>
-
-          {/* Next slot */}
-          <div
-            ref={nextCardRef}
-            style={{
-              position:        'absolute',
-              top:             nextTop,
-              left:            nextLeft,
-              width:           nextDims.width,
-              height:          nextDims.height,
-              transformOrigin: 'center center',
-              cursor:          nextItem ? 'pointer' : 'default',
-              pointerEvents:   nextItem ? 'auto' : 'none',
-              filter:          CARD_SHADOW,
-            }}
-            onClick={() => nextItem && navigate(nextItem.id, 'next')}
-          >
-            {nextItem && renderItem(nextItem, 'next')}
-          </div>
+          {/* Leading spacer — lets the first card scroll to centre. */}
+          <div aria-hidden="true" className="shrink-0" style={spacerStyleFor(leadSpacerW)} />
+          {items.map(item => {
+            const d = dimsOf(item);
+            // Slot tracks the card's *visible* size (dims × cardScale) so the
+            // gap between cards stays a constant CARD_GAP at every zoom level.
+            const slotW = d.width  * cardScale;
+            const slotH = d.height * cardScale;
+            const isActive = item.id === activeId;
+            const card = (
+              <div
+                style={{
+                  width:           d.width,
+                  height:          d.height,
+                  transform:       `scale(${cardScale})`,
+                  transformOrigin: 'center center',
+                  transition:      zoomAnim ? `transform ${ZOOM_MS}ms ${ZOOM_EASE}` : 'none',
+                  filter:          CARD_SHADOW,
+                }}
+              >
+                {use3D ? (
+                  <Card3DWrapper style={{ width: d.width, height: d.height }}>
+                    {renderItem(item, isActive ? 'active' : 'prev')}
+                  </Card3DWrapper>
+                ) : (
+                  renderItem(item, isActive ? 'active' : 'prev')
+                )}
+              </div>
+            );
+            return (
+              <div
+                key={item.id}
+                ref={setCardEl(item.id)}
+                data-card-id={item.id}
+                className="shrink-0 snap-center snap-always flex items-center justify-center"
+                style={{
+                  width:      slotW,
+                  height:     slotH,
+                  transition: zoomAnim ? `width ${ZOOM_MS}ms ${ZOOM_EASE}, height ${ZOOM_MS}ms ${ZOOM_EASE}` : 'none',
+                }}
+              >
+                {card}
+              </div>
+            );
+          })}
+          {/* Trailing spacer — lets the last card scroll to centre. */}
+          <div aria-hidden="true" className="shrink-0" style={spacerStyleFor(trailSpacerW)} />
         </div>
 
         {/* Bottom overlays (game-specific buttons / menus) */}
         {bottomLeftSlot  && <div className="absolute bottom-4 left-4 z-40">{bottomLeftSlot}</div>}
         {bottomRightSlot && <div className="absolute bottom-4 right-4 z-40">{bottomRightSlot}</div>}
-        {/* Inline zoom controls — centred horizontally inside the bottom
-            overlay strip. Used on mobile in play mode so the zoom buttons
-            sit between New Turn (left slot) and Token (right slot). */}
         {!hideZoomControls && zoomControlsInline && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2">
-            {renderZoomButtons({ compact: compactZoomControls, zoomLevel, zoomIn, zoomOut })}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40">
+            <ZoomControls zoomLevel={zoomLevel} onZoomOut={zoomOut} onZoomIn={zoomIn} />
           </div>
         )}
       </div>
 
-      {/* ── Zoom controls (default position — row below the viewport) ─── */}
+      {/* Zoom controls — default position: a row below the viewport. */}
       {!hideZoomControls && !zoomControlsInline && (
-        <div className="shrink-0 flex items-center gap-2 py-3">
-          {renderZoomButtons({ compact: compactZoomControls, zoomLevel, zoomIn, zoomOut })}
+        <div className="shrink-0 flex items-center justify-center py-3">
+          <ZoomControls zoomLevel={zoomLevel} onZoomOut={zoomOut} onZoomIn={zoomIn} />
         </div>
       )}
     </div>
   );
 };
-
-// ── Zoom button group ─────────────────────────────────────────────────────────
-// Module-scoped helper so both the inline and below-viewport placements
-// produce identical buttons. `compact` drops the text labels and renders
-// icon-only buttons — used on mobile where space is at a premium.
-const renderZoomButtons = ({
-  compact, zoomLevel, zoomIn, zoomOut,
-}: {
-  compact:   boolean;
-  zoomLevel: number;
-  zoomIn:    () => void;
-  zoomOut:   () => void;
-}) => (
-  <>
-    <Button
-      leftIcon={compact ? undefined : <MinusCircle className="w-4 h-4" />}
-      variant="outline"
-      size="sm"
-      disabled={zoomLevel <= 0.5}
-      onClick={zoomOut}
-      aria-label="Zoom out"
-    >
-      {compact ? <MinusCircle className="w-4 h-4" /> : 'Zoom Out'}
-    </Button>
-    <Button
-      rightIcon={compact ? undefined : <AddCircle className="w-4 h-4" />}
-      variant="outline"
-      size="sm"
-      disabled={zoomLevel >= 1.0}
-      onClick={zoomIn}
-      aria-label="Zoom in"
-    >
-      {compact ? <AddCircle className="w-4 h-4" /> : 'Zoom In'}
-    </Button>
-  </>
-);
 
 export default CardCarousel;

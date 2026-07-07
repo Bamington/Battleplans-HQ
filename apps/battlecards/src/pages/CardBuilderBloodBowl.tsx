@@ -20,7 +20,7 @@
  * Route: /app/builder/blood-bowl?deckId=<uuid>
  */
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
@@ -31,6 +31,7 @@ import BuilderShell from '../components/BuilderShell';
 import CardListPanel from '../components/CardListPanel';
 import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
+import CardCarousel from '../components/CardCarousel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
 import UnitListEntry from '../components/UnitListEntry';
@@ -43,7 +44,6 @@ import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import type { CardSkillInfo } from '../components/BloodBowlCard';
 import { Checkbox } from '@battleplans/ui';
-import Card3DWrapper from '../components/Card3DWrapper';
 import { Modal } from '@battleplans/ui';
 import AddKeywordModal from '../components/AddKeywordModal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
@@ -57,7 +57,6 @@ import { UsersGroupRounded } from '@battleplans/ui';
 import { UserRounded } from '@battleplans/ui';
 import { Star } from '@battleplans/ui';
 import { AddCircle } from '@battleplans/ui';
-import { MinusCircle } from '@battleplans/ui';
 import { CheckCircle } from '@battleplans/ui';
 import { AltArrowDown } from '@battleplans/ui';
 import { TrashBinMinimalistic } from '@battleplans/ui';
@@ -79,13 +78,6 @@ import iconBloodBowl from '../../../../packages/ui/src/assets/games/icons/blood-
 const CARD_W = 750;
 const CARD_H = 1100;
 
-// ── Carousel constants ────────────────────────────────────────────────────────
-// TODO: migrate this builder to the universal `CardCarousel` component
-// (src/components/CardCarousel.tsx). All the carousel + zoom + fit-scale logic
-// below duplicates what CardCarousel now owns. Kill Team and Starcraft already
-// use it; this builder still has the inline copy.
-const ADJACENT_SCALE = 0.7;  // Adjacent cards are 70 % of the active card's scale
-const CARD_GAP       = 40;   // Gap in px between carousel card slots
 
 // ── Blood Bowl attribute options ──────────────────────────────────────────────
 const ATTRIBUTE_OPTIONS = ['Agility', 'General', 'Mutations', 'Passing', 'Strength', 'Devious'];
@@ -995,143 +987,6 @@ const CardBuilderBloodBowl = () => {
     }));
   }, []);
 
-  // ── Card scaling ──────────────────────────────────────────────────────────────
-  const cardContainerRef = useRef<HTMLDivElement>(null);
-  const [fitScale, setFitScale]   = useState(1);
-  const [zoomLevel, setZoomLevel] = useState(0.7);
-  // On mobile with a panel open, the carousel container is given an explicit
-  // size so the card fits with 16px margins — ignore user zoom in that mode.
-  const cardScale = mobilePanelOpen ? fitScale : fitScale * zoomLevel;
-
-  // Reset zoom on panel toggle or short-height change.
-  // Short viewports default to 1.0 (card fills available space); otherwise 0.7.
-  useEffect(() => {
-    setZoomLevel(isShortHeight ? 1.0 : 0.7);
-  }, [cardListOpen, editorOpen, isShortHeight]);
-
-  useEffect(() => {
-    const el = cardContainerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      containerWidthRef.current = width;
-      setFitScale(Math.min(width / CARD_W, height / CARD_H));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const zoomOut = () => setZoomLevel(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(1))));
-  const zoomIn  = () => setZoomLevel(z => Math.min(1.0, parseFloat((z + 0.1).toFixed(1))));
-
-  // ── Carousel refs & helpers ───────────────────────────────────────────────────
-  const stripRef          = useRef<HTMLDivElement>(null);
-  const prevCardRef       = useRef<HTMLDivElement>(null);
-  const activeCardRef     = useRef<HTMLDivElement>(null);
-  const nextCardRef       = useRef<HTMLDivElement>(null);
-  const containerWidthRef = useRef(0);
-  const cardScaleRef      = useRef(cardScale);
-  cardScaleRef.current    = cardScale;
-  const cardsLengthRef    = useRef(cards.length);
-  cardsLengthRef.current  = cards.length;
-
-  // Navigation animation phase
-  const phaseRef       = useRef<'idle' | 'transitioning'>('idle');
-  const pendingIdRef   = useRef<string | null>(null);
-
-  // Drag tracking
-  const draggingRef    = useRef(false);
-  const dragStartXRef  = useRef(0);
-
-  const getBaseTranslateX = () => {
-    const cs   = cardScaleRef.current;
-    const adjW = CARD_W * cs * ADJACENT_SCALE;
-    return containerWidthRef.current / 2 - adjW - CARD_GAP - CARD_W * cs / 2;
-  };
-
-  const getSlideDistance = () => {
-    const cs = cardScaleRef.current;
-    return CARD_W * cs / 2 + CARD_GAP + CARD_W * cs * ADJACENT_SCALE / 2;
-  };
-
-  const applyStripTransform = (extra: number, animate: boolean) => {
-    const strip = stripRef.current;
-    if (!strip) return;
-    strip.style.transition = animate
-      ? 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)'
-      : 'none';
-    strip.style.transform = `translateX(${getBaseTranslateX() + extra}px)`;
-  };
-
-  // Set transform + opacity on all three card containers via refs — no React re-render needed
-  const CARD_TRANS = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-  const applyCardStyles = (
-    prevS: number, activeS: number, nextS: number,
-    prevO: number, activeO: number, nextO: number,
-    animate: boolean,
-  ) => {
-    const t = animate ? CARD_TRANS : 'none';
-    if (prevCardRef.current)   { prevCardRef.current.style.transition   = t; prevCardRef.current.style.transform   = `scale(${prevS})`; prevCardRef.current.style.opacity   = String(prevO);   }
-    if (activeCardRef.current) { activeCardRef.current.style.transition = t; activeCardRef.current.style.transform = `scale(${activeS})`; activeCardRef.current.style.opacity = String(activeO); }
-    if (nextCardRef.current)   { nextCardRef.current.style.transition   = t; nextCardRef.current.style.transform   = `scale(${nextS})`; nextCardRef.current.style.opacity   = String(nextO);   }
-  };
-
-  const resetCardStyles = (animate: boolean) => {
-    const cs   = cardScaleRef.current;
-    const as   = cs * ADJACENT_SCALE;
-    const adjO = cardsLengthRef.current >= 2 ? 0.5 : 0;
-    applyCardStyles(as, cs, as, adjO, 1, adjO, animate);
-  };
-
-  const navigateCarousel = (targetId: string, direction: 'prev' | 'next') => {
-    if (phaseRef.current !== 'idle') return;
-    setKwFading(true); // fade out keywords in sync with the slide
-    const cs     = cardScaleRef.current;
-    const as     = cs * ADJACENT_SCALE;
-    const offset = direction === 'next' ? -getSlideDistance() : getSlideDistance();
-    phaseRef.current     = 'transitioning';
-    pendingIdRef.current = targetId;
-    // Slide strip + animate scale and opacity simultaneously
-    applyStripTransform(offset, true);
-    if (direction === 'next') {
-      applyCardStyles(as, as, cs, 0.5, 0.5, 1, true); // active dims + shrinks, next brightens + grows
-    } else {
-      applyCardStyles(cs, as, as, 1, 0.5, 0.5, true); // prev brightens + grows, active dims + shrinks
-    }
-  };
-
-  const handleStripTransitionEnd = () => {
-    if (phaseRef.current !== 'transitioning' || !pendingIdRef.current) return;
-    const targetId       = pendingIdRef.current;
-    pendingIdRef.current = null;
-    phaseRef.current     = 'idle';
-    // Snap strip and card styles back instantly, then swap content
-    const strip = stripRef.current;
-    if (strip) { strip.style.transition = 'none'; strip.style.transform = `translateX(${getBaseTranslateX()}px)`; }
-    resetCardStyles(false);
-    setCardState(s => ({ ...s, activeCardId: targetId }));
-  };
-
-  // Re-centre strip and reset card styles whenever zoom or layout changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    if (phaseRef.current !== 'transitioning') { applyStripTransform(0, false); resetCardStyles(false); }
-  }, [cardScale, appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight]);
-
-  // When mode or panel state changes, the container size changes (panels hide/show,
-  // mobile breakpoint flips on rotation). Force a re-measure so the carousel fits
-  // the new dimensions immediately.
-  useEffect(() => {
-    const el = cardContainerRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    containerWidthRef.current = width;
-    setFitScale(Math.min(width / CARD_W, height / CARD_H));
-  }, [appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight]);
-
-  // Set initial card styles before first paint
-  useLayoutEffect(() => { resetCardStyles(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Derived values ────────────────────────────────────────────────────────────
   const skillsString = activeCard.skills;
 
@@ -1667,197 +1522,39 @@ const CardBuilderBloodBowl = () => {
             mobilePanelOpen={mobilePanelOpen}
             isShortHeight={isShortHeight}
           >
-          {/* Carousel viewport — overflow hidden hides off-screen adjacent cards */}
-          <div
-            ref={cardContainerRef}
-            className={`w-full overflow-hidden relative select-none touch-pan-y ${mobilePanelOpen ? 'flex-none' : 'flex-1 min-h-0'}`}
-            style={mobilePanelOpen ? { height: `calc((100vw - 32px) * ${CARD_H / CARD_W})` } : undefined}
-            onPointerDown={e => {
-              if (phaseRef.current !== 'idle') return;
-              draggingRef.current   = true;
-              dragStartXRef.current = e.clientX;
-            }}
-            onPointerMove={e => {
-              if (!draggingRef.current) return;
-              const delta = e.clientX - dragStartXRef.current;
-              // Capture pointer once the user has dragged a meaningful distance
-              if (Math.abs(delta) > 5 && !(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-              }
-              applyStripTransform(delta, false);
-              // Live scale + opacity: interpolate proportional to drag progress
-              const cs   = cardScaleRef.current;
-              const as   = cs * ADJACENT_SCALE;
-              const adjO = cardsLengthRef.current >= 2 ? 0.5 : 0;
-              const t    = Math.min(1, Math.max(-1, delta / getSlideDistance()));
-              applyCardStyles(
-                as   + (cs   - as)   * Math.max(0,  t),  // prev scale grows right
-                cs   - (cs   - as)   * Math.abs(t),       // active scale shrinks
-                as   + (cs   - as)   * Math.max(0, -t),  // next scale grows left
-                adjO + (1    - adjO) * Math.max(0,  t),  // prev opacity brightens right
-                1    - (1    - adjO) * Math.abs(t),       // active opacity dims
-                adjO + (1    - adjO) * Math.max(0, -t),  // next opacity brightens left
-                false,
+          <CardCarousel
+            items={cards}
+            activeId={activeCardId}
+            onActiveChange={id => setCardState(s => ({ ...s, activeCardId: id }))}
+            onNavigateStart={() => setKwFading(true)}
+            cardWidth={CARD_W}
+            cardHeight={CARD_H}
+            className="w-full flex-1 min-h-0"
+            layoutDeps={[appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight, mobilePanelOpen]}
+            renderItem={(card, role) => {
+              // Adjacent cards render read-only; the centred card gets the
+              // inline-edit props (edit mode) + resolved skill/special-rule data.
+              if (role !== 'active') return renderStaticCard(card);
+              return card.isStarPlayer ? (
+                <StarPlayerCard
+                  {...staticCardProps(card)}
+                  skills={skillsString}
+                  skillData={toCardSkillInfo(skillKeywords(card))}
+                  specialRules={toCardSkillInfo(specialRuleKeywords(card))}
+                  {...activeCardEditProps}
+                />
+              ) : (
+                <BloodBowlCard
+                  {...staticCardProps(card)}
+                  skills={skillsString}
+                  skillData={toCardSkillInfo(skillKeywords(card))}
+                  primaryAttribute={card.primaryAttr.length   ? card.primaryAttr.join(', ')   : '—'}
+                  secondaryAttribute={card.secondaryAttr.length ? card.secondaryAttr.join(', ') : '—'}
+                  {...activeCardEditProps}
+                />
               );
             }}
-            onPointerUp={e => {
-              if (!draggingRef.current) return;
-              draggingRef.current = false;
-              const delta     = e.clientX - dragStartXRef.current;
-              const threshold = 80;
-              const idx       = cards.findIndex(c => c.id === activeCardId);
-              if (Math.abs(delta) < 5) {
-                // Treat as click — snap any micro-offset back
-                applyStripTransform(0, true);
-                resetCardStyles(true);
-              } else if (delta < -threshold && cards.length >= 2) {
-                navigateCarousel(cards[(idx + 1) % cards.length].id, 'next');
-              } else if (delta > threshold && cards.length >= 2) {
-                navigateCarousel(cards[(idx - 1 + cards.length) % cards.length].id, 'prev');
-              } else {
-                // Didn't cross threshold — spring everything back
-                applyStripTransform(0, true);
-                resetCardStyles(true);
-              }
-            }}
-            onPointerCancel={() => {
-              draggingRef.current = false;
-              applyStripTransform(0, true);
-              resetCardStyles(true);
-            }}
-          >
-            {/* Strip — absolute, vertically centred; card divs are native-size with center-origin scale */}
-            {(() => {
-              const idx      = cards.findIndex(c => c.id === activeCardId);
-              // Circular: wrap around so the last card shows the first as its "next" and vice-versa
-              const prevCard = cards.length >= 2 ? cards[(idx - 1 + cards.length) % cards.length] : null;
-              const nextCard = cards.length >= 2 ? cards[(idx + 1) % cards.length] : null;
-              // Visual widths at current zoom
-              const adjW    = CARD_W * cardScale * ADJACENT_SCALE;
-              const activeW = CARD_W * cardScale;
-              // Left edge of each card div so its visual centre lands where we want it.
-              // With transformOrigin:center the div centre == visual centre, so:
-              //   divLeft = visualCentre - CARD_W/2
-              const prevLeft   = adjW / 2                                           - CARD_W / 2;
-              const activeLeft = adjW + CARD_GAP + activeW / 2                      - CARD_W / 2;
-              const nextLeft   = adjW + CARD_GAP + activeW + CARD_GAP + adjW / 2   - CARD_W / 2;
-              return (
-                <div
-                  ref={stripRef}
-                  style={{
-                    position:   'absolute',
-                    top:        '50%',
-                    left:       0,
-                    height:     CARD_H,
-                    marginTop:  -(CARD_H / 2),
-                    willChange: 'transform',
-                  }}
-                  onTransitionEnd={handleStripTransitionEnd}
-                >
-                  {/* ── Prev card — ref-controlled scale+opacity, neither in JSX ── */}
-                  <div
-                    ref={prevCardRef}
-                    style={{
-                      position:        'absolute',
-                      top:             0,
-                      left:            prevLeft,
-                      width:           CARD_W,
-                      height:          CARD_H,
-                      transformOrigin: 'center center',
-                      cursor:          prevCard ? 'pointer' : 'default',
-                      pointerEvents:   prevCard ? 'auto' : 'none',
-                      filter:          'drop-shadow(0 4.179px 56.411px rgba(30,31,110,0.75))',
-                    }}
-                    onClick={() => prevCard && navigateCarousel(prevCard.id, 'prev')}
-                  >
-                    {prevCard && renderStaticCard(prevCard)}
-                  </div>
-
-                  {/* ── Active card — ref-controlled scale, no transform in JSX ── */}
-                  <div
-                    ref={activeCardRef}
-                    style={{
-                      position:        'absolute',
-                      top:             0,
-                      left:            activeLeft,
-                      width:           CARD_W,
-                      height:          CARD_H,
-                      transformOrigin: 'center center',
-                    }}
-                  >
-                    <Card3DWrapper
-                      style={{
-                        width:  CARD_W,
-                        height: CARD_H,
-                        filter: 'drop-shadow(0 5.571px 75.215px rgba(30,31,110,0.75))',
-                      }}
-                    >
-                      {activeCard.isStarPlayer ? (
-                        <StarPlayerCard
-                          {...staticCardProps(activeCard)}
-                          skills={skillsString}
-                          skillData={toCardSkillInfo(skillKeywords(activeCard))}
-                          specialRules={toCardSkillInfo(specialRuleKeywords(activeCard))}
-                          {...activeCardEditProps}
-                        />
-                      ) : (
-                        <BloodBowlCard
-                          {...staticCardProps(activeCard)}
-                          skills={skillsString}
-                          skillData={toCardSkillInfo(skillKeywords(activeCard))}
-                          primaryAttribute={activeCard.primaryAttr.length   ? activeCard.primaryAttr.join(', ')   : '—'}
-                          secondaryAttribute={activeCard.secondaryAttr.length ? activeCard.secondaryAttr.join(', ') : '—'}
-                          {...activeCardEditProps}
-                        />
-                      )}
-                    </Card3DWrapper>
-                  </div>
-
-                  {/* ── Next card — ref-controlled scale+opacity, neither in JSX ── */}
-                  <div
-                    ref={nextCardRef}
-                    style={{
-                      position:        'absolute',
-                      top:             0,
-                      left:            nextLeft,
-                      width:           CARD_W,
-                      height:          CARD_H,
-                      transformOrigin: 'center center',
-                      cursor:          nextCard ? 'pointer' : 'default',
-                      pointerEvents:   nextCard ? 'auto' : 'none',
-                      filter:          'drop-shadow(0 4.179px 56.411px rgba(30,31,110,0.75))',
-                    }}
-                    onClick={() => nextCard && navigateCarousel(nextCard.id, 'next')}
-                  >
-                    {nextCard && renderStaticCard(nextCard)}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Zoom controls — hidden on mobile with a panel open (card auto-fits);
-              padding tightens on short viewports to give the card more vertical room */}
-          <div className={`shrink-0 items-center gap-2 ${isShortHeight ? 'py-1' : 'py-3'} ${mobilePanelOpen ? 'hidden' : 'flex'}`}>
-            <Button
-              leftIcon={<MinusCircle className="w-4 h-4" />}
-              variant="outline"
-              size="sm"
-              disabled={zoomLevel <= 0.5}
-              onClick={zoomOut}
-            >
-              Zoom Out
-            </Button>
-            <Button
-              rightIcon={<AddCircle className="w-4 h-4" />}
-              variant="outline"
-              size="sm"
-              disabled={zoomLevel >= 1.0}
-              onClick={zoomIn}
-            >
-              Zoom In
-            </Button>
-          </div>
+          />
 
           {/* ── Play mode: skill cards for the active unit ─────────────── */}
           {appMode === 'play' && playTab === 'units' && (

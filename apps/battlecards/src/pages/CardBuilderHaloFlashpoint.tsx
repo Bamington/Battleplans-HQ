@@ -1889,7 +1889,6 @@ const CardBuilderHaloFlashpoint = () => {
             cardHeight={CARD_H}
             onNavigateStart={() => setKwFading(true)}
             layoutDeps={[appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight, mobilePanelOpen]}
-            initialZoom={isShortHeight ? 1.0 : 0.7}
             className={`w-full ${mobilePanelOpen ? 'flex-none' : 'flex-1 min-h-0'}`}
             bottomLeftSlot={
               appMode === 'play' && playTab === 'units' && !activeRule && tokenDefinitions.some(d => d.refresh_on_turn !== 0) ? (

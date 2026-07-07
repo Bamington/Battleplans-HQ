@@ -218,7 +218,7 @@ const BuilderShell = ({
   const closePanels = onClosePanels ?? (() => {});
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
+    <div className="flex flex-col h-dvh bg-gray-950 overflow-hidden">
       {navbar}
       {topBar}
 

@@ -31,7 +31,30 @@ export interface ModalProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+// Desktop max-width lookup. Callers pass an unprefixed `max-w-*` (e.g.
+// "max-w-md") to set the width; below lg we ignore it and cap every modal at
+// 90vw so it isn't cramped on phones/tablets, then re-apply the caller's width
+// only at lg+. The lg: variants must be written as literals here — Tailwind's
+// JIT only generates classes it sees verbatim in source, so a dynamically
+// built `lg:${token}` would never be emitted.
+const LG_MAX_W: Record<string, string> = {
+  'max-w-xs':    'lg:max-w-xs',
+  'max-w-sm':    'lg:max-w-sm',
+  'max-w-md':    'lg:max-w-md',
+  'max-w-lg':    'lg:max-w-lg',
+  'max-w-xl':    'lg:max-w-xl',
+  'max-w-2xl':   'lg:max-w-2xl',
+  'max-w-[80%]': 'lg:max-w-[80%]',
+};
+const DEFAULT_LG_MAX_W = 'lg:max-w-[50vw]';
+
 const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
+  // Split the caller's desktop max-width out of className: below lg every modal
+  // is 90vw; the caller's width only applies at lg+.
+  const callerMaxW = className.match(/max-w-\S+/)?.[0];
+  const lgMaxW     = (callerMaxW && LG_MAX_W[callerMaxW]) || DEFAULT_LG_MAX_W;
+  const restClass  = callerMaxW ? className.replace(callerMaxW, '').trim() : className;
+
   // Lock body scroll while open
   useEffect(() => {
     if (open) {
@@ -57,13 +80,13 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* Panel — full-width up to 90vw on mobile/tablet, caller's width at lg+ */}
       <div
         className={[
-          'relative z-10 w-full',
-          /max-w-/.test(className) ? '' : 'max-w-[50vw]',
+          'relative z-10 w-full max-w-[90vw]',
+          lgMaxW,
           'bg-gray-800 border border-gray-700 rounded-lg shadow-xl',
-          className,
+          restClass,
         ].filter(Boolean).join(' ')}
       >
         {children}

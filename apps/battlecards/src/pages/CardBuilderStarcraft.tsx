@@ -711,7 +711,6 @@ const CardBuilderStarcraft = () => {
             onActiveChange={setActiveCardId}
             cardWidth={CARD_W}
             cardHeight={CARD_H}
-            initialZoom={isShortHeight ? 1.0 : 0.7}
             layoutDeps={builder.layoutDeps}
             renderItem={card => (
               <StarcraftCard

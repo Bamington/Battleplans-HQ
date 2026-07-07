@@ -2089,16 +2089,10 @@ const CardBuilderKillTeam = () => {
             cardWidth={carouselBboxW}
             cardHeight={carouselBboxH}
             getItemDimensions={dimsForCard}
-            // Mobile: fill the available viewport — the portrait layout already
-            // sits within a tight column with no adjacent-slot competition.
-            // Desktop keeps 0.85 to leave breathing room for the adjacent
-            // prev/next slots and the hover-tilt shadow.
-            initialZoom={isMobile ? 1.0 : 0.85}
-            // Mobile: drop the "Zoom In/Out" labels (icons only); in play
-            // mode also slot the zoom buttons into the bottom overlay strip
-            // between New Turn (left) and Token menu (right) instead of a
-            // dedicated row below the carousel.
-            compactZoomControls={isMobile}
+            // In play mode on mobile, slot the zoom buttons into the bottom
+            // overlay strip between New Turn (left) and Token menu (right)
+            // instead of a dedicated row below the carousel. (The mobile
+            // icon-only styling is handled by ZoomControls itself now.)
             zoomControlsInline={isMobile && appMode === 'play'}
             bottomLeftSlot={
               appMode === 'play' && playTab === 'units' && tokenDefinitions.some(d => d.refresh_on_turn !== 0) ? (

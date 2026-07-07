@@ -1123,16 +1123,30 @@ const CardBuilderRyg = () => {
         </CardListPanel>
       }
       center={
-        activeView === 'sept' ? (
-          <CenterViewport logo={<img src={logoRygLarge} alt="Repent Ye Foolish Gods" className="h-10 w-auto" />} mobilePanelOpen={mobilePanelOpen} isShortHeight={isShortHeight} isMobile={isMobile}>
-            <CardCarousel
-              items={[{ id: 'sept-card' }]}
-              activeId="sept-card"
-              onActiveChange={() => {}}
-              cardWidth={CARD_W}
-              cardHeight={CARD_H}
-              className="w-full flex-1 min-h-0"
-              renderItem={() => (
+        /* One universal carousel for the whole deck: the Sept card, the God
+           card, then every warrior — same order as the card list. The centred
+           card drives `activeView` (and `activeCardId` for warriors), so the
+           editor panel + list highlight follow along, and you can swipe
+           straight from the Sept/God cards into the warriors. */
+        <CenterViewport
+          logo={<img src={logoRygLarge} alt="Repent Ye Foolish Gods" className="h-10 w-auto" />}
+          mobilePanelOpen={mobilePanelOpen}
+          isShortHeight={isShortHeight}
+          isMobile={isMobile}
+        >
+          <CardCarousel
+            items={[{ id: 'sept-card' }, { id: 'god-card' }, ...cards] as { id: string }[]}
+            activeId={activeView === 'sept' ? 'sept-card' : activeView === 'god' ? 'god-card' : activeCardId}
+            onActiveChange={id => {
+              if (id === 'sept-card')      setActiveView('sept');
+              else if (id === 'god-card')  setActiveView('god');
+              else { setActiveView('warriors'); setCardState(s => ({ ...s, activeCardId: id })); }
+            }}
+            cardWidth={CARD_W}
+            cardHeight={CARD_H}
+            className="w-full flex-1 min-h-0"
+            renderItem={(item, role) => {
+              if (item.id === 'sept-card') return (
                 <SeptCard
                   septName={septState.sept?.name ?? ''}
                   prohibited={septState.sept?.prohibited}
@@ -1143,19 +1157,8 @@ const CardBuilderRyg = () => {
                   destinyDesc={septState.destiny?.description}
                   destinyCurse={septState.destiny?.curse}
                 />
-              )}
-            />
-          </CenterViewport>
-        ) : activeView === 'god' ? (
-          <CenterViewport logo={<img src={logoRygLarge} alt="Repent Ye Foolish Gods" className="h-10 w-auto" />} mobilePanelOpen={mobilePanelOpen} isShortHeight={isShortHeight} isMobile={isMobile}>
-            <CardCarousel
-              items={[{ id: 'god-card' }]}
-              activeId="god-card"
-              onActiveChange={() => {}}
-              cardWidth={CARD_W}
-              cardHeight={CARD_H}
-              className="w-full flex-1 min-h-0"
-              renderItem={() => (
+              );
+              if (item.id === 'god-card') return (
                 <GodCard
                   godName={godState.god?.name}
                   specialAbility={godState.god?.specialAbility}
@@ -1164,87 +1167,70 @@ const CardBuilderRyg = () => {
                   lieutenants={godState.god?.lieutenants}
                   champions={godState.god?.champions}
                 />
-              )}
-            />
-          </CenterViewport>
-        ) : (
-          <CenterViewport
-            logo={<img src={logoRygLarge} alt="Repent Ye Foolish Gods" className="h-10 w-auto" />}
-            mobilePanelOpen={mobilePanelOpen}
-            isShortHeight={isShortHeight}
-            isMobile={isMobile}
-          >
-            <CardCarousel
-              items={cards}
-              activeId={activeCardId}
-              onActiveChange={id => setCardState(s => ({ ...s, activeCardId: id }))}
-              cardWidth={CARD_W}
-              cardHeight={CARD_H}
-              className="w-full flex-1 min-h-0"
-              renderItem={(card, role) => {
-                const props = cardToProps(card);
-                if (appMode === 'play') {
-                  const overlay = buildTokenOverlayProp(card);
-                  return (
-                    <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
-                      <RygCard {...props} onTalentClick={setViewingTalent} />
-                      {overlay && (
-                        <TokenOverlay
-                          gameSlug="ryg"
-                          tokenDefinitions={overlay.definitions}
-                          card={overlay.cardInfo}
-                          tokenState={overlay.state}
-                          onTokenChange={(defId, val) => handleTokenChangeForCard(card.id, defId, val)}
-                        />
-                      )}
-                    </div>
-                  );
-                }
+              );
+              const card = item as RygCardData;
+              const props = cardToProps(card);
+              if (appMode === 'play') {
+                const overlay = buildTokenOverlayProp(card);
                 return (
-                  <RygCard
-                    {...props}
-                    onTalentClick={setViewingTalent}
-                    {...(role === 'active' ? {
-                      onChangeName:    (v: string) => updateActive({ warriorName: v }),
-                      onChangeSept:    (v: string) => updateActive({ sept: v }),
-                      onChangeTalents: (v: string) => updateActive({ talents: v }),
-                    } : {})}
-                  />
+                  <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
+                    <RygCard {...props} onTalentClick={setViewingTalent} />
+                    {overlay && (
+                      <TokenOverlay
+                        gameSlug="ryg"
+                        tokenDefinitions={overlay.definitions}
+                        card={overlay.cardInfo}
+                        tokenState={overlay.state}
+                        onTokenChange={(defId, val) => handleTokenChangeForCard(card.id, defId, val)}
+                      />
+                    )}
+                  </div>
                 );
-              }}
-              bottomLeftSlot={
-                appMode === 'play' ? (
-                  <Button
-                    variant="outline"
-                    color="primary"
-                    shape="pill"
-                    size="sm"
-                    onClick={handleNewTurn}
-                    leftIcon={
-                      <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true">
-                        <path d="M21 12a9 9 0 1 1-3-6.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <path d="M21 4v5h-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    }
-                  >
-                    New Round
-                  </Button>
-                ) : null
               }
-              bottomRightSlot={
-                appMode === 'play' ? (
-                  <TokenMenu
-                    tokenDefinitions={tokenDefinitions}
-                    card={{ stats: { life: activeCard.life }, unitKeywords: [] }}
-                    tokenState={activeCard.tokenState}
-                    onTokenChange={(defId, val) => handleTokenChangeForCard(activeCardId, defId, val)}
-                  />
-                ) : null
-              }
-              layoutDeps={layoutDeps}
-            />
-          </CenterViewport>
-        )
+              return (
+                <RygCard
+                  {...props}
+                  onTalentClick={setViewingTalent}
+                  {...(role === 'active' ? {
+                    onChangeName:    (v: string) => updateActive({ warriorName: v }),
+                    onChangeSept:    (v: string) => updateActive({ sept: v }),
+                    onChangeTalents: (v: string) => updateActive({ talents: v }),
+                  } : {})}
+                />
+              );
+            }}
+            bottomLeftSlot={
+              appMode === 'play' && activeView === 'warriors' ? (
+                <Button
+                  variant="outline"
+                  color="primary"
+                  shape="pill"
+                  size="sm"
+                  onClick={handleNewTurn}
+                  leftIcon={
+                    <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-3-6.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M21 4v5h-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                >
+                  New Round
+                </Button>
+              ) : null
+            }
+            bottomRightSlot={
+              appMode === 'play' && activeView === 'warriors' ? (
+                <TokenMenu
+                  tokenDefinitions={tokenDefinitions}
+                  card={{ stats: { life: activeCard.life }, unitKeywords: [] }}
+                  tokenState={activeCard.tokenState}
+                  onTokenChange={(defId, val) => handleTokenChangeForCard(activeCardId, defId, val)}
+                />
+              ) : null
+            }
+            layoutDeps={layoutDeps}
+          />
+        </CenterViewport>
       }
       rightPanelOpen={editorOpen}
       rightPanel={appMode !== 'edit' ? null

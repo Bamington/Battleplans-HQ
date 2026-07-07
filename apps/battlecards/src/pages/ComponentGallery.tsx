@@ -54,6 +54,7 @@ import DeckListItem from '../components/DeckListItem';
 import PackListItem from '../components/PackListItem';
 import { SelectableListItem } from '@battleplans/ui';
 import AddToPackModal from '../components/AddToPackModal';
+import ZoomControls from '../components/ZoomControls';
 import AddonListItem from '../components/AddonListItem';
 import { RichTextEditor } from '@battleplans/ui';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
@@ -259,6 +260,27 @@ const AddToPackModalGalleryDemo = () => {
         onCreateNew={() => alert('New keyword flow')}
         onAdded={() => setOpen(false)}
       />
+    </div>
+  );
+};
+
+// ── ZoomControlsGalleryDemo ──────────────────────────────────────────────────
+
+/** Live ZoomControls preview. Outline + labels at md+, secondary icon-only
+ *  below md — resize the window to see the mobile treatment. Buttons disable
+ *  at the 0.5 / 1.0 bounds. */
+const ZoomControlsGalleryDemo = () => {
+  const [zoom, setZoom] = useState(0.7);
+  return (
+    <div className="flex flex-col gap-2">
+      <ZoomControls
+        zoomLevel={zoom}
+        onZoomOut={() => setZoom(z => Math.max(0.5, +(z - 0.1).toFixed(1)))}
+        onZoomIn={() => setZoom(z => Math.min(1.0, +(z + 0.1).toFixed(1)))}
+      />
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Zoom level: {zoom.toFixed(1)} · resize below 768px (md) for the mobile icon-only style.
+      </p>
     </div>
   );
 };
@@ -524,6 +546,15 @@ const ComponentGallery = () => {
         <p className="font-body text-xs text-gray-400 italic mt-2">
           Resize below 768px (md) to see it stack onto two lines.
         </p>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ZOOM CONTROLS
+          Shared card-viewer zoom buttons. Outline + labels at md+; secondary
+          icon-only below md. Used by CardCarousel and the Blood Bowl builder.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-zoom-controls" title="Zoom Controls / Default">
+        <ZoomControlsGalleryDemo />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
