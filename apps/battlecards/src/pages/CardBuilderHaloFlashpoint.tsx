@@ -30,7 +30,8 @@ import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
-import UnitListEntry from '../components/UnitListEntry';
+import { type UnitStatus } from '../components/UnitListEntry';
+import DeckCardList from '../components/DeckCardList';
 import { Input } from '@battleplans/ui';
 import { Counter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
@@ -64,11 +65,11 @@ import { ArrowRight } from '@battleplans/ui';
 import { Pen2 } from '@battleplans/ui';
 import { Play } from '@battleplans/ui';
 import { AltArrowDown } from '@battleplans/ui';
-import { HamburgerMenu } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import { fetchConstraints, getMaxLength, getMaxAddons, getMaxKeywords, getMaxRules, isAtLimit } from '../lib/constraints';
 import TokenMenu from '../components/TokenMenu';
-import type { Addon, HaloFlashpointStats, EntityConstraints, TokenDefinition } from '../lib/database.types';
+import type { Addon, HaloFlashpointStats, EntityConstraints } from '../lib/database.types';
+import { useDeckTokens } from '../hooks/useDeckTokens';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 import { haloWeaponSubtitle } from '../lib/addonSubtitles';
 import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
@@ -198,70 +199,15 @@ const CardBuilderHaloFlashpoint = () => {
 
   const [ruleSearchQuery, setRuleSearchQuery] = useState('');
 
-  // ── Keyword card fade-out/fade-in transition ────────────────────────────────
-  const [kwDisplayId, setKwDisplayId] = useState<string>('');
-  const [kwFading, setKwFading] = useState(false);
-
   /** When switching to play mode, pick the initial subnav tab based on what's currently viewed. */
   const handleModeChange = (mode: Mode) => {
     if (mode === 'play') {
       setPlayTab(ruleState.activeRuleId ? 'rules' : 'units');
       setRuleSearchQuery('');
-      // Initialise token starting values for cards that haven't been touched yet
-      if (tokenDefinitions.length > 0) {
-        setCardState(prev => ({
-          ...prev,
-          cards: prev.cards.map(c => {
-            if (Object.keys(c.tokenState).length > 0) return c;
-            const ts: Record<string, number> = {};
-            for (const def of tokenDefinitions) {
-              if (def.starting_value != null) ts[def.id] = def.starting_value;
-            }
-            return { ...c, tokenState: ts };
-          }),
-        }));
-      }
+      // Seed token starting values for untouched cards (shared token engine).
+      seedPlayTokens();
     }
     setAppMode(mode);
-  };
-
-  /** Update a token value for the active card. */
-  const handleTokenChange = (tokenDefId: string, newValue: number) => {
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(c =>
-        c.id === prev.activeCardId
-          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
-          : c
-      ),
-    }));
-  };
-
-  /** Update a token value for a specific card (used for direct overlay clicks). */
-  const handleTokenChangeForCard = (cardId: string, tokenDefId: string, newValue: number) => {
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(c =>
-        c.id === cardId
-          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
-          : c
-      ),
-    }));
-  };
-
-  /** Build the tokenOverlay prop for a card — only in play mode with tokens loaded. */
-  const buildTokenOverlayProp = (c: HaloCardData) => {
-    if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
-    return {
-      definitions: tokenDefinitions,
-      unitKeywords: c.unitKeywords.map(k => ({
-        keywordName: k.keywordName,
-        paramValue:  k.paramValue,
-      })),
-      state: c.tokenState,
-      onChange: (tokenDefId: string, newValue: number) =>
-        handleTokenChangeForCard(c.id, tokenDefId, newValue),
-    };
   };
 
   // ── Edit mode (reorder + rename + duplicate + delete) ────────────────────────
@@ -280,6 +226,34 @@ const CardBuilderHaloFlashpoint = () => {
   const { cards, activeCardId } = cardState;
   const activeCard = cards.find(c => c.id === activeCardId) ?? cards[0];
 
+  // ── Play-mode tokens (shared engine) ──────────────────────────────────────────
+  // Halo's tokens run through the same `useDeckTokens` hook as every other game.
+  // All cards are token-eligible; `hp` backs any stat-capped max and keywords
+  // come off `unitKeywords`.
+  const {
+    tokenDefinitions,
+    seedPlayTokens,
+    handleTokenChange,
+    buildTokenOverlay: buildTokenOverlayProp,
+    newTurn:           handleNewTurn,
+    isCardActivated,
+    allActivated,
+  } = useDeckTokens<HaloCardData>({
+    gameSlug:     'halo-flashpoint',
+    deckId,
+    inPlayMode:   appMode === 'play',
+    cards,
+    activeCardId,
+    updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
+    getTokenState:  c => c.tokenState,
+    withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    resolveStat:  (c, statKey) => (statKey === 'hp' ? c.hp : undefined),
+    getUnitKeywords: c => c.unitKeywords.map(k => ({
+      keywordName: k.keywordName,
+      paramValue:  k.paramValue,
+    })),
+  });
+
   // ── Dirty tracking (cards that need saving) ───────────────────────────────────
   const dirtyCardsRef = useRef<Set<string>>(new Set());
 
@@ -287,21 +261,11 @@ const CardBuilderHaloFlashpoint = () => {
   const [cardConstraints, setCardConstraints] = useState<EntityConstraints>({});
   const [weaponConstraints, setWeaponConstraints] = useState<EntityConstraints>({});
   const [keywordConstraints, setKeywordConstraints] = useState<EntityConstraints>({});
-  const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
   useEffect(() => {
     fetchConstraints('halo-flashpoint', 'card').then(setCardConstraints);
     fetchConstraints('halo-flashpoint', 'addon', 'weapons').then(setWeaponConstraints);
     fetchConstraints('halo-flashpoint', 'keyword').then(setKeywordConstraints);
-    // Fetch token definitions for play mode
-    (async () => {
-      const { data: game } = await supabase
-        .from('games').select('id').eq('slug', 'halo-flashpoint').single();
-      if (!game) return;
-      const { data } = await supabase
-        .from('token_definitions').select('*')
-        .eq('game_id', game.id).order('sort_order');
-      if (data) setTokenDefinitions(data as TokenDefinition[]);
-    })();
+    // Token definitions are fetched by the shared `useDeckTokens` hook above.
   }, []);
 
   // ── Rule state (deck-level) ────────────────────────────────────────────────
@@ -327,14 +291,6 @@ const CardBuilderHaloFlashpoint = () => {
     ...sortedRules.map(r => ({ id: r.id, kind: 'rule' as const })),
   ];
   const activeItemId = activeRuleId || activeCardId;
-
-  // When activeItemId changes (after carousel transition ends), swap displayed keywords and fade in
-  useEffect(() => {
-    if (!kwDisplayId) { setKwDisplayId(activeItemId); return; }
-    if (activeItemId === kwDisplayId) return;
-    setKwDisplayId(activeItemId);
-    setKwFading(false);
-  }, [activeItemId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Play mode: combined rules + keywords list ─────────────────────────────
   const playRulesAndKeywords = (() => {
@@ -362,72 +318,8 @@ const CardBuilderHaloFlashpoint = () => {
     return [...ruleItems, ...kwItems];
   })();
 
-  // ── Token turn helpers (New Turn button) ──────────────────────────────────
-  /**
-   * Resolve the effective max for a token on a given card, following the same
-   * rules as TokenOverlay: stat_role='max' or keyword_value_role='max' override
-   * the static max_value.
-   */
-  const resolveTokenMax = (
-    def: TokenDefinition,
-    card: HaloCardData,
-  ): number | null => {
-    let effMax: number | null = def.max_value ?? null;
-    if (def.stat_key === 'hp' && def.stat_role === 'max') effMax = card.hp;
-    if (def.keyword_name && def.keyword_value_role === 'max') {
-      const kw = card.unitKeywords.find(
-        k => k.keywordName.toLowerCase() === def.keyword_name!.toLowerCase()
-      );
-      if (kw?.paramValue != null) effMax = kw.paramValue;
-    }
-    return effMax;
-  };
-
-  /**
-   * "New Turn" handler: for every card, apply each token's `refresh_on_turn`
-   * delta, clamped to [min_value ?? 0, effectiveMax].
-   */
-  const handleNewTurn = () => {
-    const turnDefs = tokenDefinitions.filter(d => d.refresh_on_turn !== 0);
-    if (turnDefs.length === 0) return;
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(card => {
-        const ts = { ...card.tokenState };
-        for (const def of turnDefs) {
-          const current = ts[def.id] ?? def.starting_value ?? 0;
-          const effMax = resolveTokenMax(def, card);
-          const lo = def.min_value ?? 0;
-          const hi = effMax ?? Number.POSITIVE_INFINITY;
-          ts[def.id] = Math.max(lo, Math.min(hi, current + def.refresh_on_turn));
-        }
-        return { ...card, tokenState: ts };
-      }),
-    }));
-  };
-
-  /** True when this specific card has all its activation tokens at their
-   *  effective max — i.e. the unit has been activated this turn. Drives
-   *  the unit-list "filled in" treatment in play mode. */
-  const isCardActivated = (card: HaloCardData): boolean => {
-    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
-    if (actDefs.length === 0) return false;
-    return actDefs.every(def => {
-      const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
-      const effMax = resolveTokenMax(def, card);
-      return effMax != null ? current >= effMax : current >= 1;
-    });
-  };
-
-  /**
-   * Primary-styled when every card has all of its activation tokens fully on
-   * (current value equals effective max, or ≥ 1 when no max is set).
-   */
-  const allActivated = (() => {
-    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
-    if (actDefs.length === 0 || cards.length === 0) return false;
-    return cards.every(isCardActivated);
-  })();
+  // Token turn helpers (New Turn), activation detection, and effective-max
+  // resolution are provided by the shared `useDeckTokens` hook above.
 
   const [ruleConstraints, setRuleConstraints]           = useState<EntityConstraints>({});
   const dirtyRulesRef = useRef<Set<string>>(new Set());
@@ -1709,132 +1601,49 @@ const CardBuilderHaloFlashpoint = () => {
             </>
           ) : undefined}
         >
-            {(() => {
-              // Render a single unit row. `dragIndex` is the card's index
-              // in the full `cards` array (used by edit-mode drag handlers);
-              // pass -1 in play mode where drag handlers don't fire.
-              const renderRow = (card: HaloCardData, dragIndex: number) => (
-                <div
-                  key={card.id}
-                  className={`flex items-center gap-1 ${
-                    editMode && dragOverIndex === dragIndex ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
-                  }`}
-                  onDragOver={editMode ? (e) => handleDragOver(e, dragIndex) : undefined}
-                  onDrop={editMode ? handleDrop : undefined}
-                >
-                  {editMode && (
-                    <div
-                      draggable
-                      onDragStart={() => handleDragStart(dragIndex)}
-                      onDragEnd={handleDragEnd}
-                      className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
-                    >
-                      <HamburgerMenu className="w-4 h-4" />
-                    </div>
-                  )}
-                  <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
-                    <UnitListEntry
-                      status={card.dbId ? 'complete' : 'blank'}
-                      unitName={card.unitName || undefined}
-                      addonSummary={card.weapons.map(w => w.name).filter(Boolean).join(', ') || undefined}
-                      avatarSrc={card.avatarUrl ?? iconHaloFlashpoint}
-                      active={card.id === activeCardId && !activeRuleId}
-                      activated={appMode === 'play' && isCardActivated(card)}
-                      editMode={editMode}
-                      onDuplicate={() => duplicateCard(card.id)}
-                      onDelete={() => setConfirmDeleteCardId(card.id)}
-                      onClick={() => selectCard(card.id)}
-                    />
-                  </div>
-                  {editMode && (
-                    <button
-                      type="button"
-                      aria-label={`Delete ${card.unitName || 'unit'}`}
-                      onClick={e => {
-                        e.stopPropagation();
-                        requestDeleteCard(card);
-                      }}
-                      disabled={cards.length <= 1}
-                      className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
-                    >
-                      <TrashBinMinimalistic className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              );
-
-              // Edit mode (and any non-play state): deck order so drag
-              // reordering tracks the user's intended position.
-              if (appMode !== 'play') {
-                return cards.map((card, i) => renderRow(card, i));
-              }
-
-              // Play mode: non-activated units first, then an Activated
-              // sub-section (only when populated) pinned beneath them.
-              // Rules continue to render in the separate block below.
-              const nonActivated: HaloCardData[] = [];
-              const activated:    HaloCardData[] = [];
-              for (const c of cards) {
-                if (isCardActivated(c)) activated.push(c);
-                else                    nonActivated.push(c);
-              }
-
-              return (
-                <>
-                  {nonActivated.map(card => renderRow(card, -1))}
-
-                  {activated.length > 0 && (
-                    <>
-                      <h3
-                        key="activated-header"
-                        className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
-                      >
-                        <span>Activated</span>
-                        <span className="flex-1 h-px bg-gray-700" />
-                      </h3>
-                      {activated.map(card => renderRow(card, -1))}
-                    </>
-                  )}
-                </>
-              );
-            })()}
-
-            {/* Rules sub-header — only in play mode, only when there are
-                rules to list. Matches the "Activated" header styling so
-                the play-mode list reads as clearly-grouped sections. */}
-            {appMode === 'play' && deckRules.length > 0 && (
-              <h3
-                key="rules-header"
-                className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
-              >
-                <span>Rules</span>
-                <span className="flex-1 h-px bg-gray-700" />
-              </h3>
-            )}
-
-            {/* Rules — listed after units, sorted alphabetically */}
-            {[...deckRules].sort((a, b) => a.title.localeCompare(b.title)).map(rule => (
-              <div key={rule.id} className="flex items-center gap-1">
-                {editMode && (
-                  <div className="shrink-0 p-0.5 text-gray-700">
-                    <HamburgerMenu className="w-4 h-4" />
-                  </div>
-                )}
-                <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
-                  <UnitListEntry
-                    status={rule.cardId ? 'complete' : 'blank'}
-                    unitName={rule.title || 'New Rule'}
-                    unitType="Rule"
-                    active={rule.id === activeRuleId}
-                    editMode={editMode}
-                    onDuplicate={() => duplicateRule(rule.id)}
-                    onDelete={() => removeRule(rule.id)}
-                    onClick={() => selectRule(rule.id)}
-                  />
-                </div>
-              </div>
-            ))}
+            <DeckCardList
+              entries={[
+                ...cards.map((card, i) => ({
+                  id:   card.id,
+                  kind: 'unit' as const,
+                  status: (card.dbId ? 'complete' : 'blank') as UnitStatus,
+                  name: card.unitName || undefined,
+                  addonSummary: card.weapons.map(w => w.name).filter(Boolean).join(', ') || undefined,
+                  avatarSrc: card.avatarUrl ?? iconHaloFlashpoint,
+                  activated: isCardActivated(card),
+                  dragIndex: i,
+                  deleteDisabled: cards.length <= 1,
+                })),
+                ...[...deckRules].sort((a, b) => a.title.localeCompare(b.title)).map(rule => ({
+                  id:   rule.id,
+                  kind: 'rule' as const,
+                  status: (rule.cardId ? 'complete' : 'blank') as UnitStatus,
+                  name: rule.title || 'New Rule',
+                  type: 'Rule',
+                })),
+              ]}
+              activeId={activeItemId}
+              editMode={editMode}
+              playMode={appMode === 'play'}
+              onSelect={id => {
+                if (deckRules.some(r => r.id === id)) selectRule(id);
+                else                                  selectCard(id);
+              }}
+              onDuplicate={id => {
+                if (deckRules.some(r => r.id === id)) duplicateRule(id);
+                else                                  duplicateCard(id);
+              }}
+              onDelete={id => {
+                if (deckRules.some(r => r.id === id)) { removeRule(id); return; }
+                const card = cards.find(c => c.id === id);
+                if (card) requestDeleteCard(card);
+              }}
+              dragOverIndex={dragOverIndex}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
         </CardListPanel>
       }
       center={
@@ -1887,7 +1696,6 @@ const CardBuilderHaloFlashpoint = () => {
             }}
             cardWidth={CARD_W}
             cardHeight={CARD_H}
-            onNavigateStart={() => setKwFading(true)}
             layoutDeps={[appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight, mobilePanelOpen]}
             className={`w-full ${mobilePanelOpen ? 'flex-none' : 'flex-1 min-h-0'}`}
             bottomLeftSlot={
@@ -2006,64 +1814,6 @@ const CardBuilderHaloFlashpoint = () => {
               );
             }}
           />
-
-
-          {/* ── Play mode: keyword + weapon cards for the active unit ──── */}
-          {appMode === 'play' && playTab === 'units' && (
-            <div
-              className="w-full overflow-y-auto px-5 pb-5 space-y-2.5"
-              style={{
-                height: '40vh',
-                flexShrink: 0,
-                opacity: kwFading ? 0 : 1,
-                transition: 'opacity 120ms ease-out',
-              }}
-            >
-              {!activeRule && (() => {
-                // Use kwDisplayId to find the card whose keywords to show
-                const displayCard = cards.find(c => c.id === kwDisplayId) ?? activeCard;
-
-                // Gather unit keywords + weapon keywords (deduplicated), all sorted
-                const unitKws = displayCard.unitKeywords
-                  .slice()
-                  .sort((a, b) => a.keywordName.localeCompare(b.keywordName))
-                  .map(kw => ({ ...kw, key: `kw-${kw.keywordId}` }));
-
-                const unitKwIds = new Set(displayCard.unitKeywords.map(k => k.keywordId));
-                const seen = new Set<string>();
-                const weaponKws: typeof unitKws = [];
-                for (const w of displayCard.weapons) {
-                  for (const k of w.weaponKeywords) {
-                    if (!unitKwIds.has(k.keywordId) && !seen.has(k.keywordId)) {
-                      seen.add(k.keywordId);
-                      weaponKws.push({ ...k, key: `wkw-${k.keywordId}` });
-                    }
-                  }
-                }
-                weaponKws.sort((a, b) => a.keywordName.localeCompare(b.keywordName));
-
-                return [...unitKws, ...weaponKws].map((kw, i) => (
-                  <Card
-                    key={kw.key}
-                    className="!bg-gray-800 !border-gray-700"
-                    style={!kwFading ? {
-                      opacity: 0,
-                      animation: `fadeInUp 150ms ease-out ${i * 40}ms forwards`,
-                    } : undefined}
-                  >
-                    <CardBody className="p-5 space-y-3">
-                      <h5 className="font-heading text-xl text-white">
-                        {kw.paramValue != null ? `${kw.keywordName} (${kw.paramValue})` : kw.keywordName}
-                      </h5>
-                      <div className="font-body text-base text-gray-300">
-                        <Markdown>{kw.description}</Markdown>
-                      </div>
-                    </CardBody>
-                  </Card>
-                ));
-              })()}
-            </div>
-          )}
           </CenterViewport>
         )
       }

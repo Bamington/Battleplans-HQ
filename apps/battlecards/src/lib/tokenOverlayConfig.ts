@@ -94,11 +94,24 @@ const RYG: OverlayZoneConfig = {
   bar:    { x: 6,    y: 1286, width: 878, height: 80, gap: 12, orientation: 'horizontal' },
 };
 
+/** Blood Bowl player card (750×1100 portrait).
+ *  Knocked Out / Casualty are single on/off badges; they sit in a row just
+ *  below the card so they read as player-state annotations without covering
+ *  the artwork. `y` is a touch past the 1100px card height. */
+const BLOOD_BOWL: OverlayZoneConfig = {
+  other:  { x: 20,  y: -60,  gap: 50 },
+  shield: { x: 400, y: -60,  gap: 50 },
+  damage: { x: 600, y: 140,  offset: 30 },
+  badge:  { x: 6,   y: 1120, gap: 10 },
+  bar:    { x: 6,   y: 1120, width: 738, height: 70, gap: 12, orientation: 'horizontal' },
+};
+
 export const TOKEN_OVERLAY_CONFIG: Record<string, OverlayZoneConfig> = {
   'halo-flashpoint':  HALO_FLASHPOINT,
   'kill-team':        KILL_TEAM,
   'kill-team-mobile': KILL_TEAM_MOBILE,
   'ryg':              RYG,
+  'blood-bowl':       BLOOD_BOWL,
 };
 
 /** Fallback used when a game slug isn't listed — same as Halo's. */

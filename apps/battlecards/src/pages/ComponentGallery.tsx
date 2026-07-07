@@ -77,6 +77,7 @@ import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
 import BuilderShell from '../components/BuilderShell';
 import CardListPanel from '../components/CardListPanel';
+import DeckCardList from '../components/DeckCardList';
 import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
 import TokenMenu from '../components/TokenMenu';
@@ -960,6 +961,55 @@ const ComponentGallery = () => {
             <div className="space-y-1">
               <UnitListEntry status="complete" number="7"  unitName="Griff Oberwald" unitType="Blitzer" />
               <UnitListEntry status="complete" number="12" active unitName="Karla von Kill" unitType="Blitzer" />
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          LISTS — Deck card list (shared by every game builder)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Lists / Deck Card List">
+        <div className="w-full max-w-sm space-y-6">
+
+          {/* Edit mode — one flat list in deck order; rules are inline
+              entries (kind: 'rule'), not a separate section. */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Edit mode — flat deck order</p>
+            <div className="space-y-1">
+              <DeckCardList
+                entries={[
+                  { id: 'u1', kind: 'unit', status: 'complete', name: 'Jane-664',        type: 'Spartan ZVEZDA', dragIndex: 0, deleteDisabled: false },
+                  { id: 'u2', kind: 'unit', status: 'pending',  name: 'Mk. VII Warrior', type: 'UNSC Marine',    dragIndex: 1 },
+                  { id: 'r1', kind: 'rule', status: 'complete', name: 'Flashpoint Objectives', type: 'Faction Rule' },
+                ]}
+                activeId="u1"
+                editMode
+                playMode={false}
+                onSelect={() => {}}
+                onDelete={() => {}}
+                onDuplicate={() => {}}
+              />
+            </div>
+          </div>
+
+          {/* Play mode — grouped: non-activated units, an "Activated"
+              sub-section, then rules pinned to the bottom. */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Play mode — grouped</p>
+            <div className="space-y-1">
+              <DeckCardList
+                entries={[
+                  { id: 'u1', kind: 'unit', status: 'complete', name: 'Jane-664',        type: 'Spartan ZVEZDA', activated: false },
+                  { id: 'u2', kind: 'unit', status: 'complete', name: 'Mk. VII Warrior', type: 'UNSC Marine',    activated: true },
+                  { id: 'r1', kind: 'rule', status: 'complete', name: 'Flashpoint Objectives', type: 'Faction Rule' },
+                ]}
+                activeId="u1"
+                editMode={false}
+                playMode
+                onSelect={() => {}}
+              />
             </div>
           </div>
 

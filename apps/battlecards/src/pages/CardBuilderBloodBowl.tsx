@@ -43,6 +43,9 @@ import { MultiSelectDropdown } from '@battleplans/ui';
 import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import type { CardSkillInfo } from '../components/BloodBowlCard';
+import TokenOverlay from '../components/TokenOverlay';
+import TokenMenu from '../components/TokenMenu';
+import { useDeckTokens } from '../hooks/useDeckTokens';
 import { Checkbox } from '@battleplans/ui';
 import { Modal } from '@battleplans/ui';
 import AddKeywordModal from '../components/AddKeywordModal';
@@ -161,6 +164,7 @@ interface BloodBowlCardData {
   portraitUrl:   string | null;
   avatarUrl:     string | null;
   isStarPlayer:  boolean;       // star players swap Development for Special Rules
+  tokenState:    Record<string, number>; // play-mode token values (KO / Casualty)
 }
 
 const defaultCard = (): BloodBowlCardData => ({
@@ -183,6 +187,7 @@ const defaultCard = (): BloodBowlCardData => ({
   portraitUrl:   null,
   avatarUrl:     null,
   isStarPlayer:  false,
+  tokenState:    {},
 });
 
 // ── Persistence helpers ────────────────────────────────────────────────────────
@@ -239,10 +244,6 @@ const CardBuilderBloodBowl = () => {
   const [playTab, setPlayTab] = useState<PlayTab>('units');
   const [ruleSearchQuery, setRuleSearchQuery] = useState('');
 
-  // ── Keyword card fade-out/fade-in transition ────────────────────────────────
-  const [kwDisplayId, setKwDisplayId] = useState<string>('');
-  const [kwFading, setKwFading] = useState(false);
-
   // ── Edit mode (reorder + rename + duplicate + delete) ────────────────────────
   const [editMode, setEditMode] = useState(false);
   const [savingEdits, setSavingEdits] = useState(false);
@@ -259,13 +260,41 @@ const CardBuilderBloodBowl = () => {
   const { cards, activeCardId } = cardState;
   const activeCard = cards.find(c => c.id === activeCardId) ?? cards[0];
 
-  // When activeCardId changes (after carousel transition ends), swap displayed keywords and fade in
-  useEffect(() => {
-    if (!kwDisplayId) { setKwDisplayId(activeCardId); return; }
-    if (activeCardId === kwDisplayId) return;
-    setKwDisplayId(activeCardId);
-    setKwFading(false);
-  }, [activeCardId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Play-mode tokens (shared engine) ──────────────────────────────────────
+  // Blood Bowl players carry "Knocked Out" and "Casualty" toggle tokens
+  // (seeded by migration_blood_bowl_tokens.sql). All player cards are
+  // token-eligible; the tokens are simple on/off badges with no stat- or
+  // keyword-driven maxes and no per-turn refresh.
+  const {
+    tokenDefinitions,
+    seedPlayTokens,
+    handleTokenChange,
+    handleTokenChangeForCard,
+  } = useDeckTokens<BloodBowlCardData>({
+    gameSlug:     'blood-bowl',
+    deckId,
+    inPlayMode:   appMode === 'play',
+    cards,
+    activeCardId,
+    updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
+    getTokenState:  c => c.tokenState,
+    withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    getUnitKeywords: c => c.unitKeywords.map(k => ({
+      keywordName: k.keywordName,
+      paramValue:  k.paramValue,
+    })),
+  });
+
+  const handleModeChange = (next: Mode) => {
+    if (next === 'play') seedPlayTokens();
+    setAppMode(next);
+  };
+
+  /** Numeric stats exposed to tokens (none stat-linked yet, but kept for
+   *  parity with the other games' overlay/menu wiring). */
+  const cardStatsForTokens = (c: BloodBowlCardData): Record<string, number> => ({
+    ma: c.move, st: c.strength, ag: c.agility, pa: c.passing, av: c.armor,
+  });
 
   // ── Play mode: combined keywords list (Blood Bowl has no rules) ────────────
   const playKeywords = (() => {
@@ -509,6 +538,7 @@ const CardBuilderBloodBowl = () => {
       portraitUrl:   null,
       avatarUrl:     null,
       isStarPlayer:  s.isStarPlayer ?? false,
+      tokenState:    {},
     };
     setCardState(st => ({ cards: [...st.cards, localCard], activeCardId: localCard.id }));
     setNewCardModalOpen(false);
@@ -770,6 +800,7 @@ const CardBuilderBloodBowl = () => {
             portraitUrl,
             avatarUrl,
             isStarPlayer: s.isStarPlayer ?? false,
+            tokenState:   {},
           } as BloodBowlCardData;
         });
         setCardState({ cards: loaded, activeCardId: loaded[0].id });
@@ -1333,7 +1364,7 @@ const CardBuilderBloodBowl = () => {
                 <Button variant="ghost" color="secondary" size="xs">Print</Button>
               </Link>
             )}
-            <ModeToggle mode={appMode} onModeChange={setAppMode} />
+            <ModeToggle mode={appMode} onModeChange={handleModeChange} />
           </div>
 
           {/* Tablet/Mobile (<lg): collapsed mode dropdown */}
@@ -1348,12 +1379,12 @@ const CardBuilderBloodBowl = () => {
             }
           >
             {appMode !== 'edit' && (
-              <DropdownItem icon={<Pen2 className="w-4 h-4" />} onClick={() => setAppMode('edit')}>
+              <DropdownItem icon={<Pen2 className="w-4 h-4" />} onClick={() => handleModeChange('edit')}>
                 Edit
               </DropdownItem>
             )}
             {appMode !== 'play' && (
-              <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => setAppMode('play')}>
+              <DropdownItem icon={<Play className="w-4 h-4" />} onClick={() => handleModeChange('play')}>
                 Play
               </DropdownItem>
             )}
@@ -1526,7 +1557,6 @@ const CardBuilderBloodBowl = () => {
             items={cards}
             activeId={activeCardId}
             onActiveChange={id => setCardState(s => ({ ...s, activeCardId: id }))}
-            onNavigateStart={() => setKwFading(true)}
             cardWidth={CARD_W}
             cardHeight={CARD_H}
             className="w-full flex-1 min-h-0"
@@ -1535,7 +1565,7 @@ const CardBuilderBloodBowl = () => {
               // Adjacent cards render read-only; the centred card gets the
               // inline-edit props (edit mode) + resolved skill/special-rule data.
               if (role !== 'active') return renderStaticCard(card);
-              return card.isStarPlayer ? (
+              const cardEl = card.isStarPlayer ? (
                 <StarPlayerCard
                   {...staticCardProps(card)}
                   skills={skillsString}
@@ -1553,47 +1583,44 @@ const CardBuilderBloodBowl = () => {
                   {...activeCardEditProps}
                 />
               );
+              // Play mode: overlay the KO / Casualty token badges on the card.
+              if (appMode !== 'play' || tokenDefinitions.length === 0) return cardEl;
+              return (
+                <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
+                  {cardEl}
+                  <TokenOverlay
+                    gameSlug="blood-bowl"
+                    tokenDefinitions={tokenDefinitions}
+                    card={{
+                      stats: cardStatsForTokens(card),
+                      unitKeywords: card.unitKeywords.map(k => ({
+                        keywordName: k.keywordName,
+                        paramValue:  k.paramValue,
+                      })),
+                    }}
+                    tokenState={card.tokenState}
+                    onTokenChange={(defId, val) => handleTokenChangeForCard(card.id, defId, val)}
+                  />
+                </div>
+              );
             }}
+            bottomRightSlot={
+              appMode === 'play' && tokenDefinitions.length > 0 ? (
+                <TokenMenu
+                  tokenDefinitions={tokenDefinitions}
+                  card={{
+                    stats: cardStatsForTokens(activeCard),
+                    unitKeywords: activeCard.unitKeywords.map(k => ({
+                      keywordName: k.keywordName,
+                      paramValue:  k.paramValue,
+                    })),
+                  }}
+                  tokenState={activeCard.tokenState}
+                  onTokenChange={handleTokenChange}
+                />
+              ) : null
+            }
           />
-
-          {/* ── Play mode: skill cards for the active unit ─────────────── */}
-          {appMode === 'play' && playTab === 'units' && (
-            <div
-              className="w-full overflow-y-auto px-5 pb-5 space-y-2.5"
-              style={{
-                height: '40vh',
-                flexShrink: 0,
-                opacity: kwFading ? 0 : 1,
-                transition: 'opacity 120ms ease-out',
-              }}
-            >
-              {(() => {
-                const displayCard = cards.find(c => c.id === kwDisplayId) ?? activeCard;
-                return displayCard.unitKeywords
-                  .slice()
-                  .sort((a, b) => a.keywordName.localeCompare(b.keywordName))
-                  .map((kw, i) => (
-                    <Card
-                      key={`kw-${kw.keywordId}`}
-                      className="!bg-gray-800 !border-gray-700"
-                      style={!kwFading ? {
-                        opacity: 0,
-                        animation: `fadeInUp 150ms ease-out ${i * 40}ms forwards`,
-                      } : undefined}
-                    >
-                      <CardBody className="p-5 space-y-3">
-                        <h5 className="font-heading text-xl text-white">
-                          {kw.paramValue != null ? `${kw.keywordName} (${kw.paramValue})` : kw.keywordName}
-                        </h5>
-                        <div className="font-body text-base text-gray-300">
-                          <Markdown>{kw.description}</Markdown>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ));
-              })()}
-            </div>
-          )}
           </CenterViewport>
         )
       }

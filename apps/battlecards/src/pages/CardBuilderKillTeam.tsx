@@ -31,7 +31,7 @@ import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
 import { AltArrowDown } from '@battleplans/ui';
 import { Play } from '@battleplans/ui';
-import UnitListEntry from '../components/UnitListEntry';
+import DeckCardList from '../components/DeckCardList';
 import { Input } from '@battleplans/ui';
 import { Counter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
@@ -65,10 +65,10 @@ import { CloseCircle } from '@battleplans/ui';
 import { TrashBinMinimalistic } from '@battleplans/ui';
 import { ArrowRight } from '@battleplans/ui';
 import { Pen2 } from '@battleplans/ui';
-import { HamburgerMenu } from '@battleplans/ui';
 import { Diskette } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
+import { useDeckTokens } from '../hooks/useDeckTokens';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoKillTeam from '../../../../packages/ui/src/assets/games/logos/logo-kill-team.png';
 import iconKillTeam from '../../../../packages/ui/src/assets/games/icons/kill-team.png';
@@ -329,98 +329,47 @@ const CardBuilderKillTeam = () => {
   // Both share the same TokenDefinition shape, so TokenMenu / TokenOverlay
   // render them through a single pipeline.
 
-  const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
-
-  /** Pull both game tokens and this deck's UCTs in one go. Called on mount
-   *  and after any UCT mutation so the menu/overlay reflect changes
-   *  immediately. */
-  const reloadTokenDefinitions = useCallback(async () => {
-    const { data: game } = await supabase
-      .from('games').select('id').eq('slug', 'kill-team').single();
-    if (!game) return;
-
-    // Game tokens.
-    const { data: gameTokens } = await supabase
-      .from('token_definitions').select('*')
-      .eq('game_id', game.id)
-      .is('deck_id', null)
-      .order('sort_order');
-
-    // Deck UCTs (if we're in a deck).
-    let deckTokens: TokenDefinition[] = [];
-    if (deckId) {
-      const { data } = await supabase
-        .from('token_definitions').select('*')
-        .eq('deck_id', deckId)
-        .order('created_at');
-      if (data) deckTokens = data as TokenDefinition[];
-    }
-
-    setTokenDefinitions([...(gameTokens as TokenDefinition[] ?? []), ...deckTokens]);
-  }, [deckId]);
-
-  useEffect(() => { void reloadTokenDefinitions(); }, [reloadTokenDefinitions]);
-
-  /** Update a token value for the active card. */
-  const handleTokenChange = (tokenDefId: string, newValue: number) => {
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(c =>
-        c.id === prev.activeCardId
-          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
-          : c
-      ),
-    }));
-  };
-
-  /** Update a token for a specific card (used by direct overlay clicks). */
-  const handleTokenChangeForCard = (cardId: string, tokenDefId: string, newValue: number) => {
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(c =>
-        c.id === cardId
-          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
-          : c
-      ),
-    }));
-  };
-
-  /** Build the tokenOverlay prop for a card — only in play mode with tokens loaded. */
-  const buildTokenOverlayProp = (c: KillTeamCardData) => {
-    if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
-    if (c.cardType !== 'operative') return undefined;
-    return {
-      definitions:  tokenDefinitions,
-      unitKeywords: c.weapons.flatMap(w => w.weaponKeywords).map(k => ({
-        keywordName: k.keywordName,
-        paramValue:  k.paramValue,
-      })),
-      state:        c.tokenState,
-      onChange:     (tokenDefId: string, newValue: number) =>
-        handleTokenChangeForCard(c.id, tokenDefId, newValue),
-    };
-  };
+  // Play-mode tokens run through the shared `useDeckTokens` engine so every
+  // game behaves identically. Kill Team is the reference: operatives hold
+  // tokens (rules don't), `wounds` backs any stat-capped token max, and
+  // keywords come off each weapon. Custom tokens (UCTs) are added via the
+  // modal below, which calls `reloadTokenDefinitions` on save/delete.
+  const tokens = useDeckTokens<KillTeamCardData>({
+    gameSlug:     'kill-team',
+    deckId,
+    inPlayMode:   appMode === 'play',
+    cards,
+    activeCardId,
+    updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
+    getTokenState:  c => c.tokenState,
+    withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    isTokenEligible: c => c.cardType === 'operative',
+    resolveStat:  (c, statKey) => (statKey === 'wounds' ? c.wounds : undefined),
+    getUnitKeywords: c => c.weapons.flatMap(w => w.weaponKeywords).map(k => ({
+      keywordName: k.keywordName,
+      paramValue:  k.paramValue,
+    })),
+  });
+  const {
+    tokenDefinitions,
+    reload:            reloadTokenDefinitions,
+    seedPlayTokens,
+    handleTokenChange,
+    buildTokenOverlay: buildTokenOverlayProp,
+    newTurn:           handleNewTurn,
+    isCardActivated,
+    allActivated,
+  } = tokens;
 
   /** When switching to Play mode, seed `tokenState` from each definition's
-   *  `starting_value` for any card that hasn't been touched yet. Also
-   *  resets the Rules-tab search query so re-entering play starts fresh. */
+   *  `starting_value` for any card that hasn't been touched yet (delegated to
+   *  the shared token engine). Also resets the Rules-tab search query so
+   *  re-entering play starts fresh. */
   const handleModeChange = useCallback((next: Mode) => {
-    if (next === 'play' && tokenDefinitions.length > 0) {
-      setCardState(prev => ({
-        ...prev,
-        cards: prev.cards.map(c => {
-          if (Object.keys(c.tokenState).length > 0) return c;
-          const ts: Record<string, number> = {};
-          for (const def of tokenDefinitions) {
-            if (def.starting_value != null) ts[def.id] = def.starting_value;
-          }
-          return { ...c, tokenState: ts };
-        }),
-      }));
-    }
+    if (next === 'play') seedPlayTokens();
     setRuleSearchQuery('');
     setAppMode(next);
-  }, [tokenDefinitions]);
+  }, [seedPlayTokens]);
 
   /** Tab switch handler — also resets the Rules-tab search when the user
    *  navigates away so a stale query never lingers on the next visit. */
@@ -429,67 +378,8 @@ const CardBuilderKillTeam = () => {
     setPlayTab(next);
   };
 
-  // ── Token turn helpers (New Turn button) ──────────────────────────────────
-  /** Resolve effective max for a token on a given card — mirrors TokenOverlay's
-   *  precedence: stat_role='max' or keyword_value_role='max' override max_value. */
-  const resolveTokenMax = (def: TokenDefinition, card: KillTeamCardData): number | null => {
-    let effMax: number | null = def.max_value ?? null;
-    if (def.stat_key && def.stat_role === 'max') {
-      // KT cards expose `wounds` to tokens. Add more stat mappings here if
-      // other KT tokens need them later (e.g. movement-based caps).
-      const statMap: Record<string, number> = { wounds: card.wounds };
-      const v = statMap[def.stat_key];
-      if (v != null) effMax = v;
-    }
-    return effMax;
-  };
-
-  /** "New Turn" handler: apply each token's refresh_on_turn delta to every
-   *  card, clamped to [min_value ?? 0, effectiveMax]. */
-  const handleNewTurn = () => {
-    const turnDefs = tokenDefinitions.filter(d => d.refresh_on_turn !== 0);
-    if (turnDefs.length === 0) return;
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(card => {
-        if (card.cardType !== 'operative') return card;
-        const ts = { ...card.tokenState };
-        for (const def of turnDefs) {
-          const current = ts[def.id] ?? def.starting_value ?? 0;
-          const effMax = resolveTokenMax(def, card);
-          const lo = def.min_value ?? 0;
-          const hi = effMax ?? Number.POSITIVE_INFINITY;
-          ts[def.id] = Math.max(lo, Math.min(hi, current + def.refresh_on_turn));
-        }
-        return { ...card, tokenState: ts };
-      }),
-    }));
-  };
-
-  /** True when this specific card has all its activation tokens at their
-   *  effective max — i.e. the operative has been activated this turn.
-   *  Drives the unit-list "filled in" treatment in play mode. Returns
-   *  false for non-operative cards (rules) and for cards with no
-   *  activation tokens at all. */
-  const isCardActivated = (card: KillTeamCardData): boolean => {
-    if (card.cardType !== 'operative') return false;
-    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
-    if (actDefs.length === 0) return false;
-    return actDefs.every(def => {
-      const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
-      const effMax = resolveTokenMax(def, card);
-      return effMax != null ? current >= effMax : current >= 1;
-    });
-  };
-
-  /** Primary-styled when every operative has all activation tokens fully on. */
-  const allActivated = (() => {
-    const ops = cards.filter(c => c.cardType === 'operative');
-    if (ops.length === 0) return false;
-    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
-    if (actDefs.length === 0) return false;
-    return ops.every(isCardActivated);
-  })();
+  // Token turn helpers (New Turn), activation detection, and effective-max
+  // resolution are provided by the shared `useDeckTokens` hook above.
 
   // ── Carousel slot dimensions ──────────────────────────────────────────
   // Per-item width depends on appMode for operatives — in play mode each
@@ -1920,119 +1810,39 @@ const CardBuilderKillTeam = () => {
           }
         >
           <nav className="flex flex-col gap-1">
-            {(() => {
-              // Render a single card row. `dragIndex` is the card's index
-              // in the full `cards` array (used by edit-mode drag handlers);
-              // pass -1 in play mode where drag handlers don't fire anyway.
-              const renderRow = (card: KillTeamCardData, dragIndex: number) => (
-                <div
-                  key={card.id}
-                  className={`flex items-center gap-1 ${
-                    editMode && dragOverIndex === dragIndex ? 'border-t-2 border-blue-500' : 'border-t-2 border-transparent'
-                  }`}
-                  onDragOver={editMode ? (e) => handleDragOver(e, dragIndex) : undefined}
-                  onDrop={editMode ? handleDrop : undefined}
-                >
-                  {editMode && (
-                    <div
-                      draggable
-                      onDragStart={() => handleDragStart(dragIndex)}
-                      onDragEnd={handleDragEnd}
-                      className="shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-500 hover:text-gray-300"
-                    >
-                      <HamburgerMenu className="w-4 h-4" />
-                    </div>
-                  )}
-                  <div className={editMode ? 'flex-1 min-w-0' : 'w-full'}>
-                    <UnitListEntry
-                      status={card.dbId ? 'complete' : 'blank'}
-                      unitName={
-                        card.cardType === 'rule'
-                          ? (card.ruleTitle || undefined)
-                          : (card.operativeName || undefined)
-                      }
-                      unitType={
-                        card.cardType === 'rule'
-                          ? 'Faction Rule'
-                          : (card.role || undefined)
-                      }
-                      addonSummary={card.cardType !== 'rule'
-                        ? ([...card.weapons.map(w => w.name), ...card.abilities.map(a => a.name)].filter(Boolean).join(', ') || undefined)
-                        : undefined}
-                      avatarSrc={card.avatarUrl ?? iconKillTeam}
-                      active={card.id === activeCardId}
-                      activated={appMode === 'play' && isCardActivated(card)}
-                      onClick={() => setCardState(s => ({ ...s, activeCardId: card.id }))}
-                    />
-                  </div>
-                  {editMode && (
-                    <button
-                      type="button"
-                      aria-label={`Delete ${cardDisplayName(card)}`}
-                      onClick={e => {
-                        e.stopPropagation();
-                        requestDeleteCard(card);
-                      }}
-                      disabled={cards.length <= 1}
-                      className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      title={cards.length <= 1 ? 'At least one card is required' : 'Delete card'}
-                    >
-                      <TrashBinMinimalistic className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              );
-
-              // Edit mode (and any non-play state): flat deck order so drag
-              // reordering tracks the user's intended position.
-              if (appMode !== 'play') {
-                return cards.map((card, i) => renderRow(card, i));
-              }
-
-              // Play mode: three groups — non-activated operatives, then an
-              // Activated sub-section (only when populated), then rule
-              // cards pinned to the very bottom of the list.
-              const nonActivatedOps: KillTeamCardData[] = [];
-              const activatedOps:    KillTeamCardData[] = [];
-              const ruleCards:       KillTeamCardData[] = [];
-              for (const c of cards) {
-                if (c.cardType === 'rule') ruleCards.push(c);
-                else if (isCardActivated(c)) activatedOps.push(c);
-                else nonActivatedOps.push(c);
-              }
-
-              return (
-                <>
-                  {nonActivatedOps.map(card => renderRow(card, -1))}
-
-                  {activatedOps.length > 0 && (
-                    <>
-                      <h3
-                        key="activated-header"
-                        className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
-                      >
-                        <span>Activated</span>
-                        <span className="flex-1 h-px bg-gray-700" />
-                      </h3>
-                      {activatedOps.map(card => renderRow(card, -1))}
-                    </>
-                  )}
-
-                  {ruleCards.length > 0 && (
-                    <>
-                      <h3
-                        key="rules-header"
-                        className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]"
-                      >
-                        <span>Rules</span>
-                        <span className="flex-1 h-px bg-gray-700" />
-                      </h3>
-                      {ruleCards.map(card => renderRow(card, -1))}
-                    </>
-                  )}
-                </>
-              );
-            })()}
+            <DeckCardList
+              entries={cards.map((card, i) => ({
+                id:   card.id,
+                kind: card.cardType === 'rule' ? 'rule' : 'unit',
+                status: card.dbId ? 'complete' : 'blank',
+                name: card.cardType === 'rule'
+                  ? (card.ruleTitle || undefined)
+                  : (card.operativeName || undefined),
+                type: card.cardType === 'rule'
+                  ? 'Faction Rule'
+                  : (card.role || undefined),
+                addonSummary: card.cardType !== 'rule'
+                  ? ([...card.weapons.map(w => w.name), ...card.abilities.map(a => a.name)].filter(Boolean).join(', ') || undefined)
+                  : undefined,
+                avatarSrc: card.avatarUrl ?? iconKillTeam,
+                activated: isCardActivated(card),
+                dragIndex: i,
+                deleteDisabled: cards.length <= 1,
+              }))}
+              activeId={activeCardId}
+              editMode={editMode}
+              playMode={appMode === 'play'}
+              onSelect={id => setCardState(s => ({ ...s, activeCardId: id }))}
+              onDelete={id => {
+                const card = cards.find(c => c.id === id);
+                if (card) requestDeleteCard(card);
+              }}
+              dragOverIndex={dragOverIndex}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
           </nav>
         </CardListPanel>
       }

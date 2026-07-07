@@ -16,7 +16,11 @@ import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { ModeToggle, type Mode } from '@battleplans/ui';
 import EditSubnav from '../components/EditSubnav';
+import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
+import { Card, CardBody } from '@battleplans/ui';
+import { Magnifer } from '@battleplans/ui';
+import Markdown from 'react-markdown';
 import { AltArrowDown } from '@battleplans/ui';
 import { Play } from '@battleplans/ui';
 import BuilderShell from '../components/BuilderShell';
@@ -37,7 +41,7 @@ import { type KeywordSelection } from '../components/AddKeywordModal';
 import RygCard, { CARD_W, CARD_H, type RygSpell } from '../components/RygCard';
 import TokenOverlay from '../components/TokenOverlay';
 import TokenMenu from '../components/TokenMenu';
-import type { TokenDefinition } from '../lib/database.types';
+import { useDeckTokens } from '../hooks/useDeckTokens';
 import SeptCard from '../components/SeptCard';
 import GodCard from '../components/GodCard';
 import RygWeaponForm, { type RygWeaponFormProps } from '../components/RygWeaponForm';
@@ -236,7 +240,6 @@ const CardBuilderRyg = () => {
   const navigate       = useNavigate();
 
   const [appMode, setAppMode] = useState<Mode>('edit');
-  const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
 
   const builder = useCardBuilder({ deckId });
   const {
@@ -256,6 +259,16 @@ const CardBuilderRyg = () => {
 
   // ── Active view ───────────────────────────────────────────────────────────
   const [activeView, setActiveView] = useState<'warriors' | 'sept' | 'god'>('sept');
+
+  // ── Play-mode subnav (Units / Rules) ───────────────────────────────────────
+  // RYG has no rule cards, but for cross-game consistency the Rules tab lists
+  // the deck's keywords (talents + weapon keywords) exactly like Kill Team.
+  const [playTab, setPlayTab] = useState<PlayTab>('units');
+  const [ruleSearchQuery, setRuleSearchQuery] = useState('');
+  const handlePlayTabChange = (next: PlayTab) => {
+    if (next !== 'rules') setRuleSearchQuery('');
+    setPlayTab(next);
+  };
 
   // ── Sept / God card state ─────────────────────────────────────────────────
   const [septState, setSeptState] = useState<SeptCardState>({ sept: null, destiny: null, benefits: [] });
@@ -281,86 +294,37 @@ const CardBuilderRyg = () => {
     }));
   };
 
-  // ── Token definitions ─────────────────────────────────────────────────────
-  const reloadTokenDefinitions = useCallback(async () => {
-    const { data: game } = await supabase
-      .from('games').select('id').eq('slug', 'ryg').single();
-    if (!game) return;
-    const { data: gameTokens } = await supabase
-      .from('token_definitions').select('*')
-      .eq('game_id', game.id)
-      .is('deck_id', null)
-      .order('sort_order');
-    setTokenDefinitions((gameTokens as TokenDefinition[]) ?? []);
-  }, []);
-
-  useEffect(() => { void reloadTokenDefinitions(); }, [reloadTokenDefinitions]);
-
-  const resolveTokenMax = (def: TokenDefinition, card: RygCardData): number | null => {
-    if (def.max_value != null) return def.max_value;
-    if (def.stat_key && def.stat_role === 'max') {
-      const statVal = (card as unknown as Record<string, unknown>)[def.stat_key];
-      if (typeof statVal === 'number') return statVal;
-    }
-    return null;
-  };
-
-  const handleTokenChangeForCard = (cardId: string, tokenDefId: string, newValue: number) => {
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(c =>
-        c.id === cardId
-          ? { ...c, tokenState: { ...c.tokenState, [tokenDefId]: newValue } }
-          : c
-      ),
-    }));
-  };
+  // ── Play-mode tokens (shared engine) ──────────────────────────────────────
+  // RYG runs its warrior tokens through the same `useDeckTokens` hook as every
+  // other game. Every warrior card is token-eligible; `life` backs the
+  // life-bar token's max. RYG has no keyword-driven maxes, so no keyword
+  // adapter is supplied.
+  const {
+    tokenDefinitions,
+    seedPlayTokens,
+    handleTokenChangeForCard,
+    newTurn: handleNewTurn,
+    isCardActivated,
+  } = useDeckTokens<RygCardData>({
+    gameSlug:     'ryg',
+    deckId,
+    inPlayMode:   appMode === 'play',
+    cards,
+    activeCardId,
+    updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
+    getTokenState:  c => c.tokenState,
+    withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    resolveStat: (c, statKey) => {
+      const v = (c as unknown as Record<string, unknown>)[statKey];
+      return typeof v === 'number' ? v : undefined;
+    },
+  });
 
   const handleModeChange = useCallback((next: Mode) => {
-    if (next === 'play' && tokenDefinitions.length > 0) {
-      setCardState(prev => ({
-        ...prev,
-        cards: prev.cards.map(c => {
-          if (Object.keys(c.tokenState).length > 0) return c;
-          const ts: Record<string, number> = {};
-          for (const def of tokenDefinitions) {
-            if (def.starting_value != null) ts[def.id] = def.starting_value;
-          }
-          return { ...c, tokenState: ts };
-        }),
-      }));
-    }
+    if (next === 'play') seedPlayTokens();
+    setRuleSearchQuery('');
     setAppMode(next);
-  }, [tokenDefinitions]);
-
-  const handleNewTurn = () => {
-    const turnDefs = tokenDefinitions.filter(d => d.refresh_on_turn !== 0);
-    if (turnDefs.length === 0) return;
-    setCardState(prev => ({
-      ...prev,
-      cards: prev.cards.map(card => {
-        const ts = { ...card.tokenState };
-        for (const def of turnDefs) {
-          const current = ts[def.id] ?? def.starting_value ?? 0;
-          const effMax = resolveTokenMax(def, card);
-          const lo = def.min_value ?? 0;
-          const hi = effMax ?? Number.POSITIVE_INFINITY;
-          ts[def.id] = Math.max(lo, Math.min(hi, current + def.refresh_on_turn));
-        }
-        return { ...card, tokenState: ts };
-      }),
-    }));
-  };
-
-  const isCardActivated = (card: RygCardData): boolean => {
-    const actDefs = tokenDefinitions.filter(d => d.is_activation_token);
-    if (actDefs.length === 0) return false;
-    return actDefs.every(def => {
-      const current = card.tokenState[def.id] ?? def.starting_value ?? 0;
-      const effMax = resolveTokenMax(def, card);
-      return effMax != null ? current >= effMax : current >= 1;
-    });
-  };
+  }, [seedPlayTokens]);
 
   const buildTokenOverlayProp = (card: RygCardData) => {
     if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
@@ -370,6 +334,29 @@ const CardBuilderRyg = () => {
       state: card.tokenState,
     };
   };
+
+  // ── Play mode: keyword list for the Rules tab ───────────────────────────────
+  // RYG has no rule cards, so this is purely the deck's keywords — talents and
+  // weapon keywords across every warrior, deduped by name and alphabetised —
+  // mirroring the keyword half of Kill Team's Rules tab.
+  const playRulesAndKeywords = (() => {
+    const kwMap = new Map<string, { name: string; description: string }>();
+    for (const c of cards) {
+      for (const t of c.talentAddons) {
+        if (t.name && !kwMap.has(t.name)) kwMap.set(t.name, { name: t.name, description: t.description });
+      }
+      for (const w of c.weapons) {
+        for (const k of w.weaponKeywords) {
+          if (k.keywordName && !kwMap.has(k.keywordName)) {
+            kwMap.set(k.keywordName, { name: k.keywordName, description: k.description });
+          }
+        }
+      }
+    }
+    return [...kwMap.values()]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(k => ({ key: `kw-${k.name}`, title: k.name, description: k.description }));
+  })();
 
   // ── Load deck cards ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -1012,7 +999,9 @@ const CardBuilderRyg = () => {
         </AppNavbar>
       }
       topBar={
-        appMode === 'edit' ? (
+        appMode === 'play' ? (
+          <PlaySubnav tab={playTab} onTabChange={handlePlayTabChange} />
+        ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
             cardListOpen={cardListOpen}
@@ -1123,6 +1112,42 @@ const CardBuilderRyg = () => {
         </CardListPanel>
       }
       center={
+        /* Play mode + Rules tab → keyword list (RYG has no rule cards, so this
+           shows the deck's talents + weapon keywords, like Kill Team). */
+        appMode === 'play' && playTab === 'rules' ? (
+          <main className="flex-1 flex flex-col overflow-hidden bg-gray-950">
+            <div className="flex-1 overflow-y-auto py-5 px-5">
+              <Input
+                leftIcon={<Magnifer className="w-4 h-4" />}
+                placeholder="Search for a Keyword"
+                value={ruleSearchQuery}
+                onChange={e => setRuleSearchQuery(e.target.value)}
+                className="mb-4"
+              />
+              <div className="flex flex-col gap-2.5">
+                {playRulesAndKeywords
+                  .filter(item => {
+                    if (!ruleSearchQuery) return true;
+                    const q = ruleSearchQuery.toLowerCase();
+                    return item.title.toLowerCase().includes(q)
+                        || item.description.toLowerCase().includes(q);
+                  })
+                  .map(item => (
+                    <Card key={item.key} className="!bg-gray-800 !border-gray-700">
+                      <CardBody className="p-5 space-y-3">
+                        <h5 className="font-heading text-xl text-white">
+                          {item.title}
+                        </h5>
+                        <div className="font-body text-base text-gray-300">
+                          <Markdown>{item.description}</Markdown>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          </main>
+        ) : (
         /* One universal carousel for the whole deck: the Sept card, the God
            card, then every warrior — same order as the card list. The centred
            card drives `activeView` (and `activeCardId` for warriors), so the
@@ -1231,6 +1256,7 @@ const CardBuilderRyg = () => {
             layoutDeps={layoutDeps}
           />
         </CenterViewport>
+        )
       }
       rightPanelOpen={editorOpen}
       rightPanel={appMode !== 'edit' ? null
