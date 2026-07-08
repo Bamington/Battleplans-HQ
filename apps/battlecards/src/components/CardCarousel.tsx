@@ -47,6 +47,11 @@ const CARD_GAP    = 20; // px gap between the visible cards, at any zoom level
 // The centred card fills at most this fraction of the viewport width, so the
 // neighbouring cards always peek in on each side (signalling "more cards").
 const FIT_WIDTH_FRACTION = 0.8;
+// The card's drop-shadow "glow" spreads ~75px. The scroll container has to clip
+// (a horizontal scroll container can't show cross-axis overflow), so instead we
+// reserve this much vertical room around the card at fit-scale — the glow then
+// renders in full rather than being hard-cut at the container edge.
+const GLOW_MARGIN = 72;
 const ZOOM_MS   = 320;                            // zoom animation duration
 const ZOOM_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
@@ -144,7 +149,7 @@ const CardCarousel = <T extends { id: string }>({
     const measure = () => {
       const r = el.getBoundingClientRect();
       setContainerW(r.width);
-      setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, r.height / cardHeight));
+      setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, Math.max(0, r.height - GLOW_MARGIN * 2) / cardHeight));
     };
     const ro = new ResizeObserver(() => measure());
     ro.observe(el);
@@ -158,7 +163,7 @@ const CardCarousel = <T extends { id: string }>({
     if (!el) return;
     const r = el.getBoundingClientRect();
     setContainerW(r.width);
-    setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, r.height / cardHeight));
+    setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, Math.max(0, r.height - GLOW_MARGIN * 2) / cardHeight));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, layoutDeps ?? []);
 
@@ -281,60 +286,54 @@ const CardCarousel = <T extends { id: string }>({
     window.cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // ── Desktop click-drag to scroll ──────────────────────────────────────────
-  // Users without a horizontal scroll wheel can grab the strip and drag it
-  // sideways. Mouse only — touch and pen already pan natively, and hijacking
-  // them would break that. A drag past a small threshold sets `suppressClick`
-  // so the `click` that ends the drag is swallowed; a clean press-release
-  // (under threshold) is left untouched, so click-through to keywords etc.
-  // still works. We pan by writing `scrollLeft` directly with snap disabled,
-  // then re-enable snap on release so the nearest card re-centres.
-  const DRAG_THRESHOLD = 6; // px before a press becomes a drag
-  const dragRef = useRef({ down: false, dragging: false, startX: 0, startScroll: 0 });
+  // ── Desktop drag-to-navigate ────────────────────────────────────────────────
+  // A basic click-drag gesture (mouse only — touch/trackpad already swipe
+  // natively): press, drag sideways past a threshold, release, and the carousel
+  // advances ONE card in the drag direction (drag left → next, right → prev).
+  // We don't live-pan — we just detect the gesture on release and reuse the
+  // normal smooth centre-scroll. A gesture past the threshold swallows the
+  // trailing click so it doesn't also fire a keyword / click-to-centre.
+  const DRAG_THRESHOLD = 40; // px of horizontal travel before it counts as a drag
+  const dragRef = useRef({ startX: 0, active: false });
   const suppressClickRef = useRef(false);
 
-  const onWinPointerMove = useCallback((e: PointerEvent) => {
-    const el = scrollerRef.current;
-    const st = dragRef.current;
-    if (!el || !st.down) return;
-    const dx = e.clientX - st.startX;
-    if (!st.dragging) {
-      if (Math.abs(dx) < DRAG_THRESHOLD) return;
-      st.dragging = true;
-      el.style.scrollSnapType = 'none';   // free-pan; re-enabled on release
-      el.style.cursor = 'grabbing';
+  // Latest closure (current items/active) in a ref so the once-bound pointer
+  // handler always steps relative to live state. Returns true if it was a drag.
+  const dragEndRef = useRef<(dx: number) => boolean>(() => false);
+  dragEndRef.current = (dx: number) => {
+    if (Math.abs(dx) < DRAG_THRESHOLD) return false;   // too small — treat as a click
+    const idx = items.findIndex(i => i.id === activeIdRef.current);
+    if (idx !== -1) {
+      const step = dx < 0 ? 1 : -1;                    // drag left → next, right → prev
+      const target = items[Math.min(total - 1, Math.max(0, idx + step))];
+      if (target && target.id !== activeIdRef.current) {
+        // Don't touch lastReportedRef here — unlike scroll-detection (where the
+        // card is already centred), a drag hasn't moved the carousel yet, so we
+        // WANT the activeId effect to fire and smooth-scroll it into view.
+        onNavigateStart?.();
+        onActiveChange(target.id);
+      }
     }
-    e.preventDefault();
-    el.scrollLeft = st.startScroll - dx;
-  }, []);
+    return true;                                       // a drag happened — suppress the click
+  };
 
-  const onWinPointerUp = useCallback(() => {
-    const el = scrollerRef.current;
-    const st = dragRef.current;
-    window.removeEventListener('pointermove', onWinPointerMove);
+  const onWinPointerUp = useCallback((e: PointerEvent) => {
     window.removeEventListener('pointerup', onWinPointerUp);
-    if (el && st.dragging) {
-      el.style.scrollSnapType = '';       // mandatory snap re-applies → nearest card centres
-      el.style.cursor = '';
-      suppressClickRef.current = true;    // swallow the click that ends the drag
-      detectActiveRef.current();          // report the newly-centred card
-    }
-    st.down = false;
-    st.dragging = false;
-  }, [onWinPointerMove]);
+    const st = dragRef.current;
+    if (!st.active) return;
+    st.active = false;
+    if (dragEndRef.current(e.clientX - st.startX)) suppressClickRef.current = true;
+  }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    const el = scrollerRef.current;
-    if (!el) return;
     suppressClickRef.current = false;
-    dragRef.current = { down: true, dragging: false, startX: e.clientX, startScroll: el.scrollLeft };
-    window.addEventListener('pointermove', onWinPointerMove);
+    dragRef.current = { startX: e.clientX, active: true };
     window.addEventListener('pointerup', onWinPointerUp);
-  }, [onWinPointerMove, onWinPointerUp]);
+  }, [onWinPointerUp]);
 
   // Capture-phase: if a drag just ended, eat the trailing click before it
-  // reaches a card's keyword button.
+  // reaches a card's controls or the click-to-centre handler.
   const handleClickCapture = useCallback((e: React.MouseEvent) => {
     if (suppressClickRef.current) {
       e.preventDefault();
@@ -344,9 +343,8 @@ const CardCarousel = <T extends { id: string }>({
   }, []);
 
   useEffect(() => () => {
-    window.removeEventListener('pointermove', onWinPointerMove);
     window.removeEventListener('pointerup', onWinPointerUp);
-  }, [onWinPointerMove, onWinPointerUp]);
+  }, [onWinPointerUp]);
 
   // Leading/trailing spacers let the first and last cards scroll to centre.
   // (Real spacer elements — not scroller padding — because a flex scroll
@@ -387,8 +385,9 @@ const CardCarousel = <T extends { id: string }>({
           ref={scrollerRef}
           onPointerDown={handlePointerDown}
           onClickCapture={handleClickCapture}
+          onDragStart={(e) => e.preventDefault()}
           className="absolute inset-0 flex items-center overflow-x-auto overflow-y-hidden
-                     snap-x snap-mandatory select-none cursor-grab
+                     snap-x snap-mandatory select-none
                      [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           style={scrollerStyle}
         >
@@ -426,7 +425,16 @@ const CardCarousel = <T extends { id: string }>({
                 key={item.id}
                 ref={setCardEl(item.id)}
                 data-card-id={item.id}
-                className="shrink-0 snap-center snap-always flex items-center justify-center"
+                // Click a non-active (peeking) card to smooth-scroll it to
+                // centre. Capture-phase + stopPropagation so the click doesn't
+                // fire that card's own controls (keywords, etc.); the active
+                // card is skipped so its click-through keeps working.
+                onClickCapture={isActive ? undefined : (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onActiveChange(item.id);
+                }}
+                className={`shrink-0 snap-center snap-always flex items-center justify-center${isActive ? '' : ' cursor-pointer'}`}
                 style={{
                   width:      slotW,
                   height:     slotH,
