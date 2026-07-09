@@ -42,6 +42,13 @@ export interface AppEntry {
   active?: boolean;
 }
 
+export interface Breadcrumb {
+  /** Text shown for this crumb */
+  label: string;
+  /** If set, the crumb links here. Omit for the current-page (last) crumb. */
+  href?: string;
+}
+
 interface NavbarProps {
   /** Pin navbar to top of viewport. Set false for in-flow layouts. */
   fixed?: boolean;
@@ -49,6 +56,11 @@ interface NavbarProps {
   className?: string;
   /** Right-side content — buttons, links, etc. Rendered before the user area. */
   children?: React.ReactNode;
+  /**
+   * Breadcrumb trail shown after the logo. The last crumb is the current page.
+   * On narrow screens only the current page and its parent are shown.
+   */
+  breadcrumbs?: Breadcrumb[];
   /**
    * When provided, the logo becomes a platform switcher dropdown.
    * List all Battleplans apps; mark the current one with active: true.
@@ -107,7 +119,58 @@ const LogoutIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
-const Navbar = ({ fixed = true, className = '', children, apps, logo }: NavbarProps) => {
+/** Chevron separator between breadcrumb crumbs. */
+const CrumbChevron = ({ className = '' }: { className?: string }) => (
+  <svg className={`w-3.5 h-3.5 text-gray-600 shrink-0 ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/**
+ * Breadcrumbs — trail rendered after the logo. Intermediate crumbs link;
+ * the last crumb is the current page. On screens below `md` only the current
+ * page and its immediate parent are shown.
+ */
+function Breadcrumbs({ items }: { items: Breadcrumb[] }) {
+  if (items.length === 0) return null;
+  const last = items.length - 1;
+
+  return (
+    <nav aria-label="Breadcrumb" className="ml-3 min-w-0 flex items-center">
+      <ol className="flex items-center gap-1.5 min-w-0">
+        {items.map((c, i) => {
+          const isLast = i === last;
+          // Keep only the current page + its parent on mobile.
+          const hiddenOnMobile = i < last - 1;
+          // The parent is the first mobile crumb, so hide its leading chevron there.
+          const chevronMobileHidden = i === last - 1;
+          return (
+            <li key={i} className={`min-w-0 items-center gap-1.5 ${hiddenOnMobile ? 'hidden md:flex' : 'flex'}`}>
+              {i > 0 && <CrumbChevron className={chevronMobileHidden ? 'hidden md:block' : ''} />}
+              {c.href && !isLast ? (
+                <Link
+                  to={c.href}
+                  className="font-body text-sm text-gray-400 hover:text-gray-200 transition-colors whitespace-nowrap"
+                >
+                  {c.label}
+                </Link>
+              ) : (
+                <span
+                  className={`font-body text-sm whitespace-nowrap ${isLast ? 'text-gray-200 font-medium truncate' : 'text-gray-400'}`}
+                  aria-current={isLast ? 'page' : undefined}
+                >
+                  {c.label}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumbs = [] }: NavbarProps) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,6 +275,9 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo }: NavbarPr
             {logo ?? <img src={logotype} alt="BattleCards" className="h-4 w-auto" />}
           </Link>
         )}
+
+        {/* ── Breadcrumbs ──────────────────────────────────────────────── */}
+        <Breadcrumbs items={breadcrumbs} />
 
         {/* ── Right-side slot ──────────────────────────────────────────── */}
         <div className="flex flex-1 items-center justify-end gap-3 min-w-0">

@@ -4,6 +4,7 @@ import { supabase } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import HomePage from './pages/HomePage.tsx';
+import ManageStore from './pages/ManageStore.tsx';
 import AdminPage from './pages/AdminPage.tsx';
 import ManageUsers from './pages/admin/ManageUsers.tsx';
 import ManageLocations from './pages/admin/ManageLocations.tsx';
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/app" element={<HomePage />} />
+        <Route path="/app/manage-store" element={<ManageStore />} />
         <Route path="/app/admin" element={<AdminPage />} />
         <Route path="/app/admin/users" element={<ManageUsers />} />
         <Route path="/app/admin/locations" element={<ManageLocations />} />

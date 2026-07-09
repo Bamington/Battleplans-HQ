@@ -41,7 +41,7 @@ function parseDateLocal(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function formatDateLabel(iso: string): string {
+export function formatDateLabel(iso: string): string {
   const d = parseDateLocal(iso);
   const day  = DAY_NAMES[d.getDay()];
   const dd   = String(d.getDate()).padStart(2, '0');
@@ -198,10 +198,14 @@ export function useTimeslots(locationId: string | null, date: string | null) {
 
 export function useAdminLocations(userId: string | null) {
   const [adminLocations, setAdminLocations] = useState<Location[]>([]);
-  const [loading,        setLoading]        = useState(true);
+  // Which user the current adminLocations belong to. `loading` is derived from
+  // this rather than set asynchronously, so it's never stale within a render:
+  // the moment userId changes, loading flips true until its fetch resolves.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) { setAdminLocations([]); setLoading(false); return; }
+    let cancelled = false;
+    if (!userId) { setAdminLocations([]); setLoadedFor(null); return; }
 
     supabase
       .from('locations')
@@ -209,10 +213,15 @@ export function useAdminLocations(userId: string | null) {
       .contains('admins', [userId])
       .order('name')
       .then(({ data }) => {
+        if (cancelled) return;
         setAdminLocations(data ?? []);
-        setLoading(false);
+        setLoadedFor(userId);
       });
+
+    return () => { cancelled = true; };
   }, [userId]);
+
+  const loading = !!userId && loadedFor !== userId;
 
   return { adminLocations, loading };
 }
@@ -292,6 +301,82 @@ export function useUpcomingBookings(locationIds: string[]) {
   return { bookings, loading, refetch };
 }
 
+// ── useBookingsByDate ─────────────────────────────────────────────────────────
+// Returns every booking at a location on a specific date (past or future),
+// ordered by timeslot.
+
+export function useBookingsByDate(locationId: string | null, date: string | null) {
+  const [bookings, setBookings] = useState<UpcomingBooking[]>([]);
+  const [loading,  setLoading]  = useState(true);
+
+  const refetch = () => {
+    if (!locationId || !date) { setBookings([]); setLoading(false); return; }
+    setLoading(true);
+    supabase
+      .from('bookings')
+      .select(`
+        id, date, user_name,
+        game:games(id, name, slug),
+        location:locations(id, name),
+        timeslot:timeslots(id, name, start_time, end_time)
+      `)
+      .eq('location_id', locationId)
+      .eq('date', date)
+      .order('timeslot_id')
+      .then(({ data }) => {
+        setBookings((data as unknown as UpcomingBooking[]) ?? []);
+        setLoading(false);
+      });
+  };
+
+  useEffect(refetch, [locationId, date]);
+
+  return { bookings, loading, refetch };
+}
+
+// ── useBlockedDates ───────────────────────────────────────────────────────────
+// Returns upcoming blocked dates across the given location IDs, ordered by date.
+
+export interface BlockedDate {
+  id:             string;
+  date:           string;
+  description:    string | null;
+  blocked_tables: number | null;
+  location:       { id: string; name: string; icon: string };
+}
+
+export function useBlockedDates(locationIds: string[]) {
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [loading,      setLoading]      = useState(true);
+
+  // Stable key so the effect only re-runs when the set of venues changes.
+  const key = locationIds.join(',');
+
+  const refetch = () => {
+    if (locationIds.length === 0) { setBlockedDates([]); setLoading(false); return; }
+    setLoading(true);
+    const d     = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    supabase
+      .from('blocked_dates')
+      .select(`
+        id, date, description, blocked_tables,
+        location:locations(id, name, icon)
+      `)
+      .in('location_id', locationIds)
+      .gte('date', today)
+      .order('date')
+      .then(({ data }) => {
+        setBlockedDates((data as unknown as BlockedDate[]) ?? []);
+        setLoading(false);
+      });
+  };
+
+  useEffect(refetch, [key]);
+
+  return { blockedDates, loading, refetch };
+}
+
 // ── useTableAvailability ──────────────────────────────────────────────────────
 // Returns how many tables are free for a given location + date + timeslot.
 // null while loading, number when resolved.
@@ -311,20 +396,192 @@ export function useTableAvailability(
     setAvailable(null);
 
     Promise.all([
-      supabase.from('locations').select('tables').eq('id', locationId).single(),
+      // Total capacity = enabled tables that are available for this timeslot.
+      supabase.from('store_table_timeslots')
+        .select('table_id, store_tables!inner(id)', { count: 'exact', head: true })
+        .eq('timeslot_id', timeslotId)
+        .eq('store_tables.enabled', true),
       supabase.from('bookings').select('id', { count: 'exact', head: true })
         .eq('location_id', locationId)
         .eq('date', date)
         .eq('timeslot_id', timeslotId),
-    ]).then(([locRes, bookingsRes]) => {
-      const totalTables   = locRes.data?.tables ?? 0;
-      const bookedCount   = bookingsRes.count   ?? 0;
-      setAvailable(Math.max(0, totalTables - bookedCount));
+      // Blocked dates apply to the whole day, so they reduce the tables
+      // available for every timeslot on that date.
+      supabase.from('blocked_dates').select('blocked_tables')
+        .eq('location_id', locationId)
+        .eq('date', date),
+    ]).then(([tablesRes, bookingsRes, blockedRes]) => {
+      const totalTables = tablesRes.count ?? 0;
+      const bookedCount = bookingsRes.count ?? 0;
+
+      // A NULL blocked_tables means the entire venue is blocked that day.
+      const blocks        = blockedRes.data ?? [];
+      const fullyBlocked  = blocks.some(b => b.blocked_tables === null);
+      const blockedTables = fullyBlocked
+        ? totalTables
+        : blocks.reduce((sum, b) => sum + (b.blocked_tables ?? 0), 0);
+
+      const effectiveTables = Math.max(0, totalTables - blockedTables);
+      setAvailable(Math.max(0, effectiveTables - bookedCount));
       setLoading(false);
     });
   }, [locationId, date, timeslotId]);
 
   return { available, loading };
+}
+
+// ── useLocationTimeslots ──────────────────────────────────────────────────────
+// All timeslots for a location, regardless of day-of-week availability.
+
+export interface LocationTimeslot {
+  id:         string;
+  name:       string;
+  start_time: string;
+  end_time:   string;
+}
+
+export function useLocationTimeslots(locationId: string | null) {
+  const [timeslots, setTimeslots] = useState<LocationTimeslot[]>([]);
+  const [loading,   setLoading]   = useState(true);
+
+  useEffect(() => {
+    if (!locationId) { setTimeslots([]); setLoading(false); return; }
+    setLoading(true);
+    supabase
+      .from('timeslots')
+      .select('id, name, start_time, end_time')
+      .eq('location_id', locationId)
+      .order('start_time')
+      .then(({ data }) => {
+        setTimeslots(data ?? []);
+        setLoading(false);
+      });
+  }, [locationId]);
+
+  return { timeslots, loading };
+}
+
+// ── useStoreTables ────────────────────────────────────────────────────────────
+// Table objects for a location, each with the timeslot IDs it's available for.
+
+export type TableSize = 'wargaming' | 'tcg';
+
+export interface StoreTable {
+  id:          string;
+  name:        string;
+  size:        TableSize;
+  enabled:     boolean;
+  timeslotIds: string[];
+}
+
+export function useStoreTables(locationId: string | null) {
+  const [tables,  setTables]  = useState<StoreTable[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = () => {
+    if (!locationId) { setTables([]); setLoading(false); return; }
+    setLoading(true);
+    supabase
+      .from('store_tables')
+      .select('id, name, size, enabled, store_table_timeslots(timeslot_id)')
+      .eq('location_id', locationId)
+      .order('created_at')
+      .then(({ data }) => {
+        const rows = (data ?? []).map(r => ({
+          id:          r.id as string,
+          name:        r.name as string,
+          size:        r.size as TableSize,
+          enabled:     r.enabled as boolean,
+          timeslotIds: ((r.store_table_timeslots ?? []) as { timeslot_id: string }[]).map(t => t.timeslot_id),
+        }));
+        setTables(rows);
+        setLoading(false);
+      });
+  };
+
+  useEffect(refetch, [locationId]);
+
+  return { tables, loading, refetch };
+}
+
+// ── findImpactedBookings ──────────────────────────────────────────────────────
+// A capacity-reducing table change (turning it off, dropping timeslots, or
+// deleting it) can leave a date+timeslot with more bookings than tables.
+// Given the post-change capacity for each *losing* timeslot, this returns the
+// upcoming slots that would be over capacity, so the admin can be warned.
+
+export interface ImpactedSlot {
+  date:          string;
+  timeslotId:    string;
+  timeslotName:  string;
+  timeLabel:     string;
+  bookingCount:  number;
+  capacityAfter: number;
+  overflow:      number;
+  customers:     string[];
+}
+
+export async function findImpactedBookings(
+  locationId:              string,
+  capacityAfterByTimeslot: Record<string, number>,
+): Promise<ImpactedSlot[]> {
+  const timeslotIds = Object.keys(capacityAfterByTimeslot);
+  if (timeslotIds.length === 0) return [];
+
+  const d     = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const { data } = await supabase
+    .from('bookings')
+    .select('id, date, user_name, timeslot_id, timeslot:timeslots(name, start_time, end_time)')
+    .eq('location_id', locationId)
+    .in('timeslot_id', timeslotIds)
+    .gte('date', today);
+
+  interface Row {
+    date:        string;
+    user_name:   string | null;
+    timeslot_id: string;
+    timeslot:    { name: string; start_time: string; end_time: string } | null;
+  }
+  const rows = (data as unknown as Row[]) ?? [];
+
+  // Group bookings by date + timeslot.
+  const groups = new Map<string, {
+    date: string; timeslotId: string; timeslotName: string;
+    start: string; end: string; customers: string[];
+  }>();
+
+  for (const b of rows) {
+    const key = `${b.date}__${b.timeslot_id}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        date: b.date, timeslotId: b.timeslot_id,
+        timeslotName: b.timeslot?.name ?? '',
+        start: b.timeslot?.start_time ?? '', end: b.timeslot?.end_time ?? '',
+        customers: [],
+      };
+      groups.set(key, g);
+    }
+    g.customers.push(b.user_name ?? 'Guest');
+  }
+
+  const impacted: ImpactedSlot[] = [];
+  for (const g of groups.values()) {
+    const capacityAfter = capacityAfterByTimeslot[g.timeslotId] ?? 0;
+    if (g.customers.length > capacityAfter) {
+      impacted.push({
+        date: g.date, timeslotId: g.timeslotId, timeslotName: g.timeslotName,
+        timeLabel: formatBookingTime({ start_time: g.start, end_time: g.end }),
+        bookingCount: g.customers.length, capacityAfter,
+        overflow: g.customers.length - capacityAfter, customers: g.customers,
+      });
+    }
+  }
+
+  impacted.sort((a, b) => a.date.localeCompare(b.date) || a.timeLabel.localeCompare(b.timeLabel));
+  return impacted;
 }
 
 // ── useUserBookings ───────────────────────────────────────────────────────────

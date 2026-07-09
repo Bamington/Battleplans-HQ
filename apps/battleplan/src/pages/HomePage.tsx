@@ -1,24 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
-import iconBloodBowl  from '../../../../packages/ui/src/assets/games/icons/blood-bowl.png';
-import iconHalo       from '../../../../packages/ui/src/assets/games/icons/halo.png';
-import iconKillTeam   from '../../../../packages/ui/src/assets/games/icons/kill-team.png';
-import iconRyg        from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
-import iconStarcraft  from '../../../../packages/ui/src/assets/games/icons/starcraft.svg';
-
-const GAME_ICONS: Record<string, string> = {
-  'blood-bowl':      iconBloodBowl,
-  'halo-flashpoint': iconHalo as string,
-  'kill-team':       iconKillTeam,
-  'ryg':             iconRyg as string,
-  'starcraft':       iconStarcraft as string,
-};
-import { supabase, AppFooter, Button, Modal, Dropdown, DropdownItem, Input, Select, SearchSelect, TrashBinMinimalistic, ArrowRight, AltArrowLeft, AltArrowRight, UserRounded, Widget2 } from '@battleplans/ui';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, AltArrowLeft, AltArrowRight, UserRounded, Widget2 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
+import DatePickerInput from '../components/DatePickerInput';
+import { StoreSelector } from '../components/StoreSelector';
+import { BookingItem } from '../components/BookingItem';
+import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
   useAdminLocations, useUpcomingBookings,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
+import type { Location } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -42,14 +35,6 @@ const InfoCircleIcon = () => (
   </svg>
 );
 
-const MenuDotsIcon = () => (
-  <svg className="w-4 h-4 text-neutral-400" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="8" cy="3" r="1.2"/>
-    <circle cx="8" cy="8" r="1.2"/>
-    <circle cx="8" cy="13" r="1.2"/>
-  </svg>
-);
-
 const AddCircleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
@@ -68,49 +53,6 @@ const ArrowRightIcon = () => (
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
 );
-
-// ── DatePickerInput ───────────────────────────────────────────────────────────
-
-function formatDateDisplay(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  const day = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
-  return `${day}, ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
-}
-
-function DatePickerInput({ label, value, min, onChange }: {
-  label: string;
-  value: string;
-  min?: string;
-  onChange: (val: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <div className="w-full">
-      <label className="block mb-2 text-sm font-medium font-body dark:text-white">
-        {label}
-      </label>
-      <div
-        className="block w-full font-body rounded-lg border px-3 py-2.5 text-sm cursor-pointer dark:border-gray-600 dark:bg-gray-700"
-        onClick={() => inputRef.current?.showPicker?.()}
-      >
-        {value
-          ? <span className="dark:text-white">{formatDateDisplay(value)}</span>
-          : <span className="dark:text-gray-400">Select a date</span>
-        }
-      </div>
-      <input
-        ref={inputRef}
-        type="date"
-        value={value}
-        min={min}
-        onChange={e => onChange(e.target.value)}
-        className="sr-only"
-      />
-    </div>
-  );
-}
 
 // ── New Booking Modal ─────────────────────────────────────────────────────────
 
@@ -356,95 +298,6 @@ function BookingCard({ userId }: { userId: string | null }) {
   );
 }
 
-function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, onDeleted }: {
-  bookingId: string;
-  gameIcon?: string;
-  gameName: string;
-  location: string;
-  date: string;
-  time: string;
-  customerName?: string;
-  onDeleted?: () => void;
-}) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting,    setDeleting]    = useState(false);
-
-  const handleRemove = async () => {
-    setDeleting(true);
-    const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
-    setDeleting(false);
-    if (!error) { setConfirmOpen(false); onDeleted?.(); }
-  };
-
-  return (
-    <>
-      <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-center shadow-md">
-
-        {/* Game thumbnail */}
-        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
-          {gameIcon
-            ? <img src={gameIcon} alt={gameName} className="w-full h-full object-cover" />
-            : <span className="font-heading text-white text-xs text-center px-1 leading-tight">{gameName}</span>
-          }
-        </div>
-
-        {/* Text block */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <span className="font-heading text-lg text-white leading-6">{gameName}</span>
-          {customerName && <span className="font-body text-xs text-primary-300 leading-4">{customerName}</span>}
-          <span className="font-body text-xs text-neutral-300 leading-4">{location}</span>
-          <span className="font-body text-xs text-neutral-300 leading-4">{date}</span>
-          <span className="font-body text-xs text-neutral-300 leading-4">{time}</span>
-        </div>
-
-        {/* 3-dot menu */}
-        <Dropdown
-          align="right"
-          trigger={
-            <button type="button" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
-              <MenuDotsIcon />
-            </button>
-          }
-        >
-          <DropdownItem
-            icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />}
-            onClick={() => setConfirmOpen(true)}
-          >
-            <span className="text-red-400">Cancel Booking</span>
-          </DropdownItem>
-        </Dropdown>
-
-      </div>
-
-      {/* Delete confirmation modal */}
-      <Modal
-        open={confirmOpen}
-        onClose={() => !deleting && setConfirmOpen(false)}
-      >
-        <div className="flex flex-col gap-3 p-5">
-          <TrashBinMinimalistic className="w-8 h-8 text-primary-500" />
-          <h2 className="font-heading text-xl text-white">Cancel Booking</h2>
-          <p className="font-body text-base text-neutral-300">This table will be available for others to book. We'll let the venue know you've cancelled this booking.</p>
-          <div className="flex items-center justify-end gap-3 pt-1">
-            <Button variant="ghost" size="sm" disabled={deleting} onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              color="danger"
-              size="sm"
-              loading={deleting}
-              rightIcon={<ArrowRight className="w-4 h-4" />}
-              onClick={handleRemove}
-            >
-              Yes, Cancel my Booking
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </>
-  );
-}
-
 function NewsCard() {
   return (
     <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
@@ -509,8 +362,12 @@ function formatBookingDate(iso: string): string {
   return `${DAY_NAMES[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
 }
 
-function UpcomingBookingsCard({ locationIds }: { locationIds: string[] }) {
-  const { bookings, loading, refetch } = useUpcomingBookings(locationIds);
+function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]; selectedId: string }) {
+  // selectedId is chosen from the navbar venue picker; '' = all of this admin's
+  // venues, otherwise a single venue.
+  const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
+
+  const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
   const [page, setPage] = useState(0);
 
   const totalPages = Math.max(1, Math.ceil(bookings.length / UPCOMING_PAGE_SIZE));
@@ -519,6 +376,11 @@ function UpcomingBookingsCard({ locationIds }: { locationIds: string[] }) {
 
   // Snap back into range whenever the list shrinks (e.g. after a deletion)
   useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
+
+  // Jump back to the first page when switching which venue is shown
+  useEffect(() => { setPage(0); }, [selectedId]);
+
+  const navigate = useNavigate();
 
   return (
     <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
@@ -597,6 +459,15 @@ function UpcomingBookingsCard({ locationIds }: { locationIds: string[] }) {
           </div>
         )}
 
+        <Button
+          variant="outline"
+          color="primary"
+          className="w-full justify-center"
+          onClick={() => navigate('/app/manage-store')}
+        >
+          Manage Store
+        </Button>
+
       </div>
     </div>
   );
@@ -617,15 +488,28 @@ export default function HomePage() {
   const adminLocationIds   = adminLocations.map(l => l.id);
   const isLocationAdmin    = adminLocationIds.length > 0;
 
+  // Which venue's bookings the Upcoming Bookings panel shows; '' = all venues.
+  // Driven by the navbar venue picker (multi-venue admins only).
+  const [selectedVenueId, setSelectedVenueId] = useState('');
+
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">
 
-      <AppNavbar fixed={false} logo={<BattlePlanLogo />} />
+      <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
+        {adminLocations.length > 1 && (
+          <StoreSelector
+            locations={adminLocations}
+            selectedId={selectedVenueId}
+            onSelect={setSelectedVenueId}
+            allowAll
+          />
+        )}
+      </AppNavbar>
 
       <main className="flex flex-1 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         <div className="flex flex-1 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           <BookingCard userId={userId} />
-          {isLocationAdmin && <UpcomingBookingsCard locationIds={adminLocationIds} />}
+          {isLocationAdmin && <UpcomingBookingsCard locations={adminLocations} selectedId={selectedVenueId} />}
           <NewsCard />
         </div>
       </main>

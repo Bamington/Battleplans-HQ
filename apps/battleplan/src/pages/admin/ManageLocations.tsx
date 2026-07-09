@@ -15,7 +15,6 @@ import {
   TrashBinMinimalistic,
   UploadMinimalistic,
   UsersGroupRounded,
-  Widget2,
   supabase,
 } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
@@ -24,7 +23,6 @@ type LocationRow = {
   id: string;
   name: string;
   icon: string | null;
-  tables: number | null;
   store_email: string | null;
   admins: string[] | null;
 };
@@ -32,11 +30,10 @@ type LocationRow = {
 type LocationFormState = {
   name: string;
   icon: string;       // URL or empty string
-  tables: string;
   store_email: string;
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', icon: '', tables: '', store_email: '' };
+const EMPTY_FORM: LocationFormState = { name: '', icon: '', store_email: '' };
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -163,7 +160,7 @@ function ManageLocationsInner() {
     setLoading(true);
     const { data, error } = await supabase
       .from('locations')
-      .select('id, name, icon, tables, store_email, admins')
+      .select('id, name, icon, store_email, admins')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -187,7 +184,6 @@ function ManageLocationsInner() {
       .insert({
         name: addForm.name.trim(),
         icon: addForm.icon || null,
-        tables: addForm.tables ? parseInt(addForm.tables, 10) : null,
         store_email: addForm.store_email.trim() || null,
       })
       .select()
@@ -205,7 +201,6 @@ function ManageLocationsInner() {
     setEditForm({
       name: loc.name,
       icon: loc.icon ?? '',
-      tables: loc.tables != null ? String(loc.tables) : '',
       store_email: loc.store_email ?? '',
     });
     setEditError(null);
@@ -220,7 +215,6 @@ function ManageLocationsInner() {
       .update({
         name: editForm.name.trim(),
         icon: editForm.icon || null,
-        tables: editForm.tables ? parseInt(editForm.tables, 10) : null,
         store_email: editForm.store_email.trim() || null,
       })
       .eq('id', editTarget.id);
@@ -231,7 +225,6 @@ function ManageLocationsInner() {
             ...l,
             name: editForm.name.trim(),
             icon: editForm.icon || null,
-            tables: editForm.tables ? parseInt(editForm.tables, 10) : null,
             store_email: editForm.store_email.trim() || null,
           }
         : l
@@ -306,12 +299,6 @@ function ManageLocationsInner() {
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <p className="font-body text-sm font-medium text-white leading-none">{loc.name}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                      {loc.tables != null && (
-                        <span className="flex items-center gap-1 font-body text-xs text-neutral-400">
-                          <Widget2 className="size-3 shrink-0" />
-                          {loc.tables} {loc.tables === 1 ? 'table' : 'tables'}
-                        </span>
-                      )}
                       {loc.store_email && (
                         <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
                           <Letter className="size-3 shrink-0" />
@@ -324,7 +311,7 @@ function ManageLocationsInner() {
                           {loc.admins.length} {loc.admins.length === 1 ? 'admin' : 'admins'}
                         </span>
                       )}
-                      {!loc.tables && !loc.store_email && (
+                      {!loc.store_email && (!loc.admins || loc.admins.length === 0) && (
                         <span className="font-body text-xs text-neutral-600">No details set</span>
                       )}
                     </div>
@@ -396,14 +383,6 @@ function ManageLocationsInner() {
                 disabled={adding}
               />
               <Input
-                label="Tables"
-                type="number"
-                value={addForm.tables}
-                onChange={e => setAddForm(f => ({ ...f, tables: e.target.value }))}
-                placeholder="8"
-                disabled={adding}
-              />
-              <Input
                 label="Store Email"
                 type="email"
                 value={addForm.store_email}
@@ -450,13 +429,6 @@ function ManageLocationsInner() {
                   label="Name"
                   value={editForm.name}
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  disabled={saving}
-                />
-                <Input
-                  label="Tables"
-                  type="number"
-                  value={editForm.tables}
-                  onChange={e => setEditForm(f => ({ ...f, tables: e.target.value }))}
                   disabled={saving}
                 />
                 <Input
