@@ -21,7 +21,7 @@ const APPS: AppEntry[] = [
   },
   {
     name: 'BattleBox',
-    href: '#',
+    href: 'https://battleplans-hq-battlebox.vercel.app/app',
     description: 'Track your miniature collection',
   },
 ];
