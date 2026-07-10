@@ -10,9 +10,11 @@
     "dev:battlecards": "pnpm --filter @battleplans/battlecards dev",
     "dev:battlepack": "pnpm --filter @battleplans/battlepack dev",
     "dev:battleplan": "pnpm --filter @battleplans/battleplan dev",
+    "dev:battlebox": "pnpm --filter @battleplans/battlebox dev",
     "build:battlecards": "pnpm --filter @battleplans/battlecards build",
     "build:battlepack": "pnpm --filter @battleplans/battlepack build",
-    "build:battleplan": "pnpm --filter @battleplans/battleplan build"
+    "build:battleplan": "pnpm --filter @battleplans/battleplan build",
+    "build:battlebox": "pnpm --filter @battleplans/battlebox build"
   },
   "devDependencies": {
     "@capacitor/core": "^8.4.1",
