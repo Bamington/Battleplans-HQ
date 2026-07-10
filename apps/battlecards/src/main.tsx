@@ -16,6 +16,12 @@ import '../../../packages/ui/src/index.css'; // Global styles — includes Tailw
 import App from './App.tsx';
 import { preloadAssets } from './lib/preloadAssets';
 
+// In local dev, swap to the dev-tinted favicon so a local tab is instantly
+// distinguishable from production. Tree-shaken out of production builds.
+if (import.meta.env.DEV) {
+  document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.setAttribute('href', '/favicon-dev.svg');
+}
+
 // Kick off background preloading of all static assets (images + fonts)
 // so they're cached before the user navigates to a card builder.
 preloadAssets();
