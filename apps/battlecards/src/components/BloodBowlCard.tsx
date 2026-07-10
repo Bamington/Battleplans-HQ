@@ -26,7 +26,7 @@ import KeywordInfoModal    from './KeywordInfoModal';
 import { clampNumber, getMaxLength } from '../lib/constraints';
 import type { EntityConstraints }    from '../lib/database.types';
 import cardBackground      from '../assets/games/card assets/blood-bowl/bg.svg';
-import portraitPlaceholder from '../assets/games/card assets/blood-bowl/example-image.jpg';
+import portraitPlaceholder from '../assets/games/card assets/blood-bowl/placeholder.svg';
 
 // ── Font shorthands ───────────────────────────────────────────────────────────
 const BROTHERS = { fontFamily: "'Brothers', serif" } as const;
