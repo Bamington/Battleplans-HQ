@@ -39,10 +39,12 @@
  * Route: /app
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { AppFooter } from '@battleplans/ui';
 import { useIsAdmin } from '@battleplans/ui';
+import { useUpdates, MarkdownBody, UpdateModal, Pagination, useAutoPageSize } from '@battleplans/ui';
+import type { AppUpdate } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
@@ -153,12 +155,21 @@ type GameSlug = typeof GAMES[number]['id'];
 /** Returns the UI assets for a game slug, or undefined if unknown. */
 const gameAssets = (slug: string) => GAMES.find(g => g.id === slug);
 
-// ── Placeholder news post ─────────────────────────────────────────────────────
-
-const PLACEHOLDER_POST = {
-  title: 'Example Release Note',
-  body: "This is a placeholder release note. It has a maximum of 3 lines, after which the text will be truncated. But don't worry, there's a button to view the full update!",
-};
+// ── Column row heights ────────────────────────────────────────────────────────
+// The columns fill the viewport, so each list derives its page size from the
+// height left over (see useAutoPageSize). These must match the rows' rendered
+// height — change a row's design, change the constant with it.
+//
+// DeckListItem   = 64 thumbnail + 2 padding (p-px) + 2 border            -> 68
+// BlogEntryPreview: measured at 227px with a fully-clamped 5-line SM body.
+// Rounded up: a high value costs a little whitespace, a low one clips a row.
+//
+// The Packs column is deliberately absent: its rows are content-driven heights
+// (wrapping badges, free-text descriptions), so it scrolls instead.
+const DECK_ITEM_H = 68;
+const DECK_GAP    = 12;  // gap-3
+const NEWS_ITEM_H = 232;
+const NEWS_GAP    = 12;  // gap-3
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -166,8 +177,39 @@ export default function AppHome() {
   const navigate = useNavigate();
   const { isAdmin } = useIsAdmin();
 
+  // ── News & Updates ─────────────────────────────────────────────────────────
+  const { updates, loading: updatesLoading } = useUpdates('battlecards');
+  const [selectedUpdate, setSelectedUpdate] = useState<AppUpdate | null>(null);
+
+  const newsListRef  = useRef<HTMLDivElement>(null);
+  const newsPageSize = useAutoPageSize(newsListRef, NEWS_ITEM_H, NEWS_GAP);
+  const [newsPage, setNewsPage] = useState(0);
+
+  const newsTotalPages = Math.max(1, Math.ceil(updates.length / newsPageSize));
+  const newsSafePage   = Math.min(newsPage, newsTotalPages - 1);
+  const newsPaginated  = updates.slice(newsSafePage * newsPageSize, (newsSafePage + 1) * newsPageSize);
+
+  useEffect(() => {
+    if (newsPage > newsTotalPages - 1) setNewsPage(newsTotalPages - 1);
+  }, [newsTotalPages, newsPage]);
+
+  // ── Your Decks ─────────────────────────────────────────────────────────────
+  const deckListRef  = useRef<HTMLDivElement>(null);
+  const deckPageSize = useAutoPageSize(deckListRef, DECK_ITEM_H, DECK_GAP);
+  const [deckPage, setDeckPage] = useState(0);
+
   // ── Deck list state ────────────────────────────────────────────────────────
   const [decks,      setDecks]      = useState<DeckWithCards[]>([]);
+
+  // Deck paging — the refs/page state are declared above with the other columns.
+  const deckTotalPages = Math.max(1, Math.ceil(decks.length / deckPageSize));
+  const deckSafePage   = Math.min(deckPage, deckTotalPages - 1);
+  const decksPaginated = decks.slice(deckSafePage * deckPageSize, (deckSafePage + 1) * deckPageSize);
+
+  // Snap back into range when the list shrinks or the viewport resizes.
+  useEffect(() => {
+    if (deckPage > deckTotalPages - 1) setDeckPage(deckTotalPages - 1);
+  }, [deckTotalPages, deckPage]);
   const [gameIdMap,  setGameIdMap]  = useState<Record<string, string>>({});
   const [userId,     setUserId]     = useState<string | null>(null);
   const [loading,    setLoading]    = useState(true);
@@ -637,26 +679,26 @@ export default function AppHome() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-950">
+    <div className="h-dvh overflow-hidden flex flex-col bg-gray-950">
 
       {/* Navbar — in-flow (not fixed) so content sits naturally below it */}
       <AppNavbar fixed={false} />
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 pt-3 md:pt-9 lg:px-9">
+      <div className="flex flex-col flex-1 min-h-0 pt-3 md:pt-9 lg:px-9">
 
         {/* ── Main content ─────────────────────────────────────────────────
             On desktop/tablet: fills remaining height, centres panels both
             horizontally and vertically.
             On mobile: allows horizontal scroll so both panels are reachable.
         ─────────────────────────────────────────────────────────────────── */}
-        <div className="flex flex-1 items-stretch lg:justify-center">
+        <div className="flex flex-1 min-h-0 items-stretch lg:justify-center">
 
           {/* ── Panel row ─────────────────────────────────────────────────
               Mobile: overflows horizontally (horizontal-scroll UX)
               Desktop: centred flex row with gap
           ────────────────────────────────────────────────────────────── */}
-          <div className="flex gap-2.5 items-stretch overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none w-full lg:w-auto lg:flex-1 lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+          <div className="flex gap-2.5 min-h-0 items-stretch overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none w-full lg:w-auto lg:flex-1 lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
 
             {/* ── Left panel: Packs ───────────────────────────────────── */}
             <div
@@ -664,11 +706,11 @@ export default function AppHome() {
                 'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
                 'md:w-[40vw] md:max-w-[40vw]',
                 'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
-                'self-stretch flex flex-col',
+                'self-stretch flex flex-col min-h-0',
                 'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
               ].join(' ')}
             >
-              <div className="flex flex-col gap-4 items-center p-5 h-full">
+              <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
                 <Box className="size-12 text-blue-400" />
 
@@ -731,7 +773,10 @@ export default function AppHome() {
 
                     ) : (
 
-                      <div className="flex flex-col gap-4 w-full flex-1">
+                      // Packs rows are content-driven heights (wrapping badges,
+                      // free-text descriptions), so this column scrolls rather
+                      // than paginating. The CTA below stays pinned.
+                      <div className="flex flex-col gap-4 w-full flex-1 min-h-0 overflow-y-auto">
 
                         {/* Your Packs section — own + imported. Rows
                             navigate to the editor instead of showing
@@ -839,11 +884,11 @@ export default function AppHome() {
                 'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
                 'md:w-[40vw] md:max-w-[40vw]',
                 'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
-                'self-stretch flex flex-col',
+                'self-stretch flex flex-col min-h-0',
                 'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
               ].join(' ')}
             >
-              <div className="flex flex-col gap-4 items-center p-5 h-full">
+              <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
                 {loading ? (
 
@@ -922,8 +967,8 @@ export default function AppHome() {
                       <p className="font-body text-sm text-red-400 text-center">{duplicateError}</p>
                     )}
 
-                    <div className="flex flex-col gap-3 w-full">
-                      {decks.map(deck => {
+                    <div ref={deckListRef} className="flex flex-col gap-3 w-full flex-1 min-h-0 overflow-hidden">
+                      {decksPaginated.map(deck => {
                         const assets = gameAssets(deck.game.slug);
                         return (
                           <div key={deck.id} className="flex flex-col gap-1">
@@ -944,8 +989,11 @@ export default function AppHome() {
                         );
                       })}
                     </div>
+
+                    <Pagination page={deckSafePage} totalPages={deckTotalPages} onPage={setDeckPage} />
+
                     <Button
-                      className="w-full"
+                      className="w-full shrink-0"
                       leftIcon={<AddCircle className="size-4" />}
                       onClick={openModal}
                     >
@@ -964,11 +1012,11 @@ export default function AppHome() {
                 'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
                 'md:w-[40vw] md:max-w-[40vw]',
                 'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
-                'self-stretch flex flex-col',
+                'self-stretch flex flex-col min-h-0',
                 'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
               ].join(' ')}
             >
-              <div className="flex flex-col gap-4 items-center p-5 w-full">
+              <div className="flex flex-col gap-4 items-center p-5 w-full flex-1 min-h-0">
 
                 <InfoCircle className="size-12 text-blue-400" />
 
@@ -980,11 +1028,24 @@ export default function AppHome() {
                   Find out what's happening with Battlecards.
                 </p>
 
-                <BlogEntryPreview
-                  title={PLACEHOLDER_POST.title}
-                  body={PLACEHOLDER_POST.body}
-                  onRead={() => {}}
-                />
+                <div ref={newsListRef} className="flex flex-col gap-3 w-full flex-1 min-h-0 overflow-hidden">
+                  {updatesLoading ? (
+                    <p className="font-body text-sm text-gray-500">Loading…</p>
+                  ) : updates.length === 0 ? (
+                    <p className="font-body text-sm text-gray-500 text-center">
+                      No updates yet. Check back soon.
+                    </p>
+                  ) : newsPaginated.map(u => (
+                    <BlogEntryPreview
+                      key={u.id}
+                      title={u.title}
+                      body={<MarkdownBody>{u.body ?? ''}</MarkdownBody>}
+                      onRead={() => setSelectedUpdate(u)}
+                    />
+                  ))}
+                </div>
+
+                <Pagination page={newsSafePage} totalPages={newsTotalPages} onPage={setNewsPage} />
 
               </div>
             </div>
@@ -993,7 +1054,7 @@ export default function AppHome() {
         </div>
 
         {/* ── Version footer ────────────────────────────────────────────────── */}
-        <AppFooter appName="Battlecards" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+        <AppFooter className="shrink-0" appName="Battlecards" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
       </div>
 
@@ -1325,6 +1386,9 @@ export default function AppHome() {
 
         </div>
       </Modal>
+
+      {/* ── Full release note ─────────────────────────────────────────── */}
+      <UpdateModal open={!!selectedUpdate} onClose={() => setSelectedUpdate(null)} update={selectedUpdate} />
 
     </div>
   );

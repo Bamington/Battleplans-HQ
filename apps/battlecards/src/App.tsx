@@ -7,7 +7,7 @@
  *
  * Current routes:
  * - /                              → Auth-aware redirect (→ /login or /app)
- * - /login                         → Pre-login screen (sign in / continue as guest)
+ * - /login                         → Pre-login screen (sign in / sign up / Google)
  * - /gallery                       → Component gallery (dev tool — not a user-facing screen)
  * - /app                           → App home
  * - /app/admin                      → Admin Tools hub (admin only)
@@ -27,7 +27,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '@battleplans/ui';
 import ComponentGallery from './pages/ComponentGallery';
 import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
@@ -47,7 +47,8 @@ import AdminTools from './pages/AdminTools';
 import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
 import ManagePacks from './pages/ManagePacks';
-import { AdminRoute } from '@battleplans/ui';
+import ManageUpdates from './pages/ManageUpdates';
+import { AdminRoute, ProtectedRoute, WelcomeModal } from '@battleplans/ui';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -77,51 +78,66 @@ function App() {
     <BrowserRouter>
       <Routes>
 
+        {/* ── Public routes ─────────────────────────────────────────────── */}
+
         {/* ── Root — redirect based on auth state ── */}
         <Route path="/" element={<RootRedirect />} />
 
         {/* ── Login ── */}
         <Route path="/login" element={<Login />} />
 
-        {/* ── Component Gallery (dev tool) ── */}
-        <Route path="/gallery" element={<ComponentGallery />} />
-
-        {/* ── App home ── */}
-        <Route path="/app" element={<AppHome />} />
-
-        {/* ── Admin (guard: redirects non-admins to /app) ── */}
-        <Route path="/app/admin"        element={<AdminRoute><AdminTools /></AdminRoute>} />
-        <Route path="/app/admin/users"  element={<AdminRoute><ManageUsers /></AdminRoute>} />
-        <Route path="/app/admin/games"  element={<AdminRoute><ManageGames /></AdminRoute>} />
-        <Route path="/app/admin/packs"  element={<AdminRoute><ManagePacks /></AdminRoute>} />
-
-        {/* ── Packs — manage + create remain placeholders; edit is the real editor ── */}
-        <Route path="/app/packs"               element={<PacksPlaceholder mode="manage" />} />
-        <Route path="/app/packs/new"           element={<PacksPlaceholder mode="create" />} />
-        <Route path="/app/packs/:packId/edit"  element={<PackEditor />} />
-
         {/* ── OAuth callback — handles Google redirect ── */}
         <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* ── Card Builder — Blood Bowl ── */}
-        <Route path="/app/builder/blood-bowl" element={<CardBuilderBloodBowl />} />
+        {/* ── Component Gallery (dev tool) ── */}
+        <Route path="/gallery" element={<ComponentGallery />} />
 
-        {/* ── Card Builder — Halo Flashpoint ── */}
-        <Route path="/app/builder/halo-flashpoint" element={<CardBuilderHaloFlashpoint />} />
+        {/* ── Protected routes — require a signed-in user ─────────────────
+             The guard redirects unauthenticated users to /login. Every /app
+             route lives inside it. ── */}
+        <Route element={
+          <ProtectedRoute>
+            <WelcomeModal appName="BattleCards" fields={{ username: true }} />
+            <Outlet />
+          </ProtectedRoute>
+        }>
 
-        {/* ── Card Builder — Kill Team ── */}
-        <Route path="/app/builder/kill-team" element={<CardBuilderKillTeam />} />
+          {/* ── App home ── */}
+          <Route path="/app" element={<AppHome />} />
 
-        {/* ── Card Builder — StarCraft ── */}
-        <Route path="/app/builder/starcraft" element={<CardBuilderStarcraft />} />
+          {/* ── Admin (guard: redirects non-admins to /app) ── */}
+          <Route path="/app/admin"        element={<AdminRoute><AdminTools /></AdminRoute>} />
+          <Route path="/app/admin/users"  element={<AdminRoute><ManageUsers /></AdminRoute>} />
+          <Route path="/app/admin/games"  element={<AdminRoute><ManageGames /></AdminRoute>} />
+          <Route path="/app/admin/packs"  element={<AdminRoute><ManagePacks /></AdminRoute>} />
+          <Route path="/app/admin/updates" element={<AdminRoute><ManageUpdates /></AdminRoute>} />
 
-        {/* ── Card Builder — Repent Ye Foolish Gods ── */}
-        <Route path="/app/builder/ryg"      element={<CardBuilderRyg />} />
-        <Route path="/app/builder/ryg-sept" element={<CardBuilderSept />} />
-        <Route path="/app/builder/ryg-god"  element={<CardBuilderGod />} />
+          {/* ── Packs — manage + create remain placeholders; edit is the real editor ── */}
+          <Route path="/app/packs"               element={<PacksPlaceholder mode="manage" />} />
+          <Route path="/app/packs/new"           element={<PacksPlaceholder mode="create" />} />
+          <Route path="/app/packs/:packId/edit"  element={<PackEditor />} />
 
-        {/* ── Print Deck ── */}
-        <Route path="/app/print" element={<PrintDeck />} />
+          {/* ── Card Builder — Blood Bowl ── */}
+          <Route path="/app/builder/blood-bowl" element={<CardBuilderBloodBowl />} />
+
+          {/* ── Card Builder — Halo Flashpoint ── */}
+          <Route path="/app/builder/halo-flashpoint" element={<CardBuilderHaloFlashpoint />} />
+
+          {/* ── Card Builder — Kill Team ── */}
+          <Route path="/app/builder/kill-team" element={<CardBuilderKillTeam />} />
+
+          {/* ── Card Builder — StarCraft ── */}
+          <Route path="/app/builder/starcraft" element={<CardBuilderStarcraft />} />
+
+          {/* ── Card Builder — Repent Ye Foolish Gods ── */}
+          <Route path="/app/builder/ryg"      element={<CardBuilderRyg />} />
+          <Route path="/app/builder/ryg-sept" element={<CardBuilderSept />} />
+          <Route path="/app/builder/ryg-god"  element={<CardBuilderGod />} />
+
+          {/* ── Print Deck ── */}
+          <Route path="/app/print" element={<PrintDeck />} />
+
+        </Route>
 
       </Routes>
     </BrowserRouter>

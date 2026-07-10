@@ -4,9 +4,11 @@ import {
   AdminRoute,
   AltArrowLeft,
   Button,
+  Widget2,
   supabase,
 } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
+import { GAME_ICONS } from '../../components/gameIcons';
 
 type GameRow = {
   id: string;
@@ -84,6 +86,13 @@ function ManageGamesInner() {
             )}
             {!loading && !error && games.map(game => (
               <div key={game.id} className="flex items-center gap-4 px-5 py-3.5 bg-neutral-900">
+                {/* Icon — falls back to a placeholder for games without artwork yet */}
+                <span className="size-10 shrink-0 rounded overflow-hidden bg-neutral-700 flex items-center justify-center">
+                  {GAME_ICONS[game.slug]
+                    ? <img src={GAME_ICONS[game.slug]} alt="" className="w-full h-full object-cover" />
+                    : <Widget2 className="w-4 h-4 text-neutral-400" />}
+                </span>
+
                 <div className="flex-1 min-w-0">
                   <p className="font-body text-sm text-white">{game.name}</p>
                   <p className="font-body text-xs text-neutral-500">{game.slug}</p>

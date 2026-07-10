@@ -5,7 +5,6 @@
  *   1. Sign in with an email address and password
  *   2. Create a new account with email and password
  *   3. Continue with Google (OAuth)
- *   4. Continue as a guest (data saved to browser only)
  *
  * Matches the Figma "App (Pre-Login)" frame (node 170:1730).
  *
@@ -133,10 +132,6 @@ export default function Login() {
     } else {
       setError('Password reset email sent — check your inbox.');
     }
-  }
-
-  function handleGuest() {
-    navigate('/app');
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -288,33 +283,6 @@ export default function Login() {
               </form>
 
             )}
-
-            {/* ── OR divider ── */}
-            <div className="flex flex-row items-center md:flex-col md:justify-center md:gap-1.5 md:py-2.5 md:self-stretch">
-              <div className="flex-1 h-px bg-gray-700 md:h-auto md:w-px" />
-              <span className="font-body font-bold text-base text-gray-500 uppercase px-3 md:px-px shrink-0">
-                OR
-              </span>
-              <div className="flex-1 h-px bg-gray-700 md:h-auto md:w-px" />
-            </div>
-
-            {/* ── Right column: Continue as guest ── */}
-            <div className="w-full md:w-[450px] p-5 flex flex-col gap-4 justify-center">
-
-              <h2 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
-                Continue as guest
-              </h2>
-
-              <p className="font-body text-base text-gray-300 leading-6">
-                Please note: As a guest, your content will be saved to your
-                browser, but can often be lost and won't appear on other devices.
-              </p>
-
-              <Button className="w-full" onClick={handleGuest} type="button">
-                Continue as guest
-              </Button>
-
-            </div>
 
           </div>
         </div>

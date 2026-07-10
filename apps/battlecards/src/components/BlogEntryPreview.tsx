@@ -2,7 +2,7 @@
  * BlogEntryPreview.tsx — Blog / release-note preview card
  *
  * A compact card showing a post title, a short body excerpt clamped to
- * 3 lines, and a right-aligned "Read Update" link button.
+ * 5 lines, and a right-aligned "Read Update" link button.
  *
  * Matches the Figma "Card / Blog Entry Preview" component (node 270:2330).
  *
@@ -20,11 +20,12 @@
  *
  * PROPS:
  *   title     — Post / note heading (Tanker heading font, 18 px).
- *   body      — Preview body text, truncated to 3 lines automatically.
+ *   body      — Preview body content, truncated to 5 lines automatically.
  *   onRead    — Called when "Read Update" is clicked. Omit to hide the button.
  *   className — Extra Tailwind classes on the outer element.
  */
 
+import type { ReactNode } from 'react';
 import { ArrowRight } from '@battleplans/ui';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
@@ -32,8 +33,11 @@ import { ArrowRight } from '@battleplans/ui';
 export interface BlogEntryPreviewProps {
   /** Post / note title */
   title: string;
-  /** Body text — automatically clamped to 3 lines */
-  body: string;
+  /**
+   * Body content — automatically clamped to 5 lines. Accepts a plain string, or
+   * rendered markdown (e.g. <MarkdownBody>), which emits block elements.
+   */
+  body: ReactNode;
   /** Called when the "Read Update" button is clicked */
   onRead?: () => void;
   /** Extra Tailwind classes on the outer element */
@@ -64,10 +68,12 @@ const BlogEntryPreview = ({
       {/* ── Divider ───────────────────────────────────────────────────────── */}
       <div className="h-px w-full bg-gray-700 shrink-0" />
 
-      {/* ── Body — clamped to 3 lines ──────────────────────────────────────── */}
-      <p className="font-body text-base leading-6 text-white line-clamp-3">
+      {/* ── Body — SM Regular, clamped to 5 lines ────────────────────────────
+           A <div>, not a <p>: `body` may be rendered markdown containing block
+           elements (<p>, <ul>), which are invalid inside a paragraph. */}
+      <div className="font-body text-sm leading-5 text-white line-clamp-5">
         {body}
-      </p>
+      </div>
 
       {/* ── "Read Update" button — right-aligned, ghost blue ──────────────── */}
       {onRead && (

@@ -114,7 +114,9 @@ const DeckListItem = ({
 
         {/* Text content — self-stretch so it matches the thumbnail height */}
         <div className="flex-1 min-w-0 self-stretch flex flex-col justify-center leading-none">
-          <p className="font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors">
+          {/* truncate: keeps the row a fixed height, which the home screen's
+              auto page-size calculation depends on. */}
+          <p className="font-heading text-[18px] leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
             {name}
           </p>
           <p className="font-body text-base leading-6 text-gray-300 group-hover:text-white transition-colors">

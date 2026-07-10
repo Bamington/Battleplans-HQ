@@ -9,14 +9,29 @@ const MenuDotsIcon = () => (
   </svg>
 );
 
-export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, onDeleted }: {
+/**
+ * Which booking card layout to render (Figma "Card / Booking", 1005:17885).
+ *
+ * Both variants are four lines: a heading, one muted bold line, then date and
+ * time. Only the first two lines differ — the muted line carries whichever of
+ * game/venue the heading didn't.
+ *
+ *   'user'  — My Bookings. Heading is the game; muted line is the venue.
+ *   'store' — Store Admin. Heading is the customer; muted line is the game.
+ *             The venue is omitted: the admin is already looking at it.
+ */
+export type BookingItemVariant = 'user' | 'store';
+
+export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted }: {
   bookingId: string;
   gameIcon?: string;
   gameName: string;
+  /** Venue name. Shown only in the 'user' variant. */
   location: string;
   date: string;
   time: string;
   customerName?: string;
+  variant?: BookingItemVariant;
   onDeleted?: () => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -31,7 +46,7 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
 
   return (
     <>
-      <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-center shadow-md">
+      <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden">
 
         {/* Game thumbnail */}
         <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
@@ -41,13 +56,17 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
           }
         </div>
 
-        {/* Text block */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <span className="font-heading text-lg text-white leading-6">{gameName}</span>
-          {customerName && <span className="font-body text-xs text-primary-300 leading-4">{customerName}</span>}
-          <span className="font-body text-xs text-neutral-300 leading-4">{location}</span>
-          <span className="font-body text-xs text-neutral-300 leading-4">{date}</span>
-          <span className="font-body text-xs text-neutral-300 leading-4">{time}</span>
+        {/* Text block — truncated so the row stays a fixed height, which the
+            home screen's auto page-size calculation depends on. */}
+        <div className="flex flex-col flex-1 min-w-0 self-stretch justify-center">
+          <span className="font-heading text-lg text-white leading-6 truncate">
+            {variant === 'store' ? (customerName ?? 'Guest') : gameName}
+          </span>
+          <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
+            {variant === 'store' ? gameName : location}
+          </span>
+          <span className="font-body text-sm text-neutral-50 leading-5 truncate">{date}</span>
+          <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
         </div>
 
         {/* 3-dot menu */}

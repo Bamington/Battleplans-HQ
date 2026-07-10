@@ -17,23 +17,33 @@ export function StoreIcon({ location }: { location: Location }) {
 /**
  * StoreSelector — venue picker for the navbar (left of the user avatar).
  *
- * - With `allowAll`, adds an "All Venues" entry; `selectedId === ''` means all.
+ * - With `emptyOption`, adds a leading entry whose value is `''` — the home
+ *   screen uses it for "Your Profile", meaning "not viewing any store".
  * - Without it, a single-venue admin sees a static label (nothing to choose).
  */
-export function StoreSelector({ locations, selectedId, onSelect, allowAll = false, allLabel = 'All Venues' }: {
+export function StoreSelector({
+  locations, selectedId, onSelect,
+  emptyOption = false,
+  emptyLabel  = 'All Venues',
+  headerLabel = 'Your stores',
+}: {
   locations: Location[];
   selectedId: string;
   onSelect: (id: string) => void;
-  allowAll?: boolean;
-  allLabel?: string;
+  /** Render a leading entry that selects `''`. */
+  emptyOption?: boolean;
+  /** Label for that leading entry. */
+  emptyLabel?: string;
+  /** Small caps heading above the list. */
+  headerLabel?: string;
 }) {
   const selected = locations.find(l => l.id === selectedId);
 
-  // No "all" option and nothing selected → nothing to show.
-  if (!allowAll && !selected) return null;
+  // No empty entry and nothing selected → nothing to show.
+  if (!emptyOption && !selected) return null;
 
-  // Single venue with no "all" option → static label, no dropdown.
-  if (!allowAll && locations.length <= 1 && selected) {
+  // Single venue with no empty entry → static label, no dropdown.
+  if (!emptyOption && locations.length <= 1 && selected) {
     return (
       <div className="flex items-center gap-1.5 px-1.5 py-0.5">
         <StoreIcon location={selected} />
@@ -54,18 +64,18 @@ export function StoreSelector({ locations, selectedId, onSelect, allowAll = fals
         >
           {selected && <StoreIcon location={selected} />}
           <span className="font-body text-sm text-gray-200 max-w-[140px] truncate">
-            {selected ? selected.name : allLabel}
+            {selected ? selected.name : emptyLabel}
           </span>
           <AltArrowDown className="w-4 h-4 text-gray-500" />
         </button>
       }
     >
       <DropdownHeader>
-        <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wider">Your stores</p>
+        <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wider">{headerLabel}</p>
       </DropdownHeader>
-      {allowAll && (
+      {emptyOption && (
         <DropdownItem onClick={() => onSelect('')}>
-          <span className={!selected ? 'text-blue-400' : 'text-gray-200'}>{allLabel}</span>
+          <span className={!selected ? 'text-blue-400' : 'text-gray-200'}>{emptyLabel}</span>
         </DropdownItem>
       )}
       {locations.map(l => (

@@ -11,6 +11,7 @@ import {
   Letter,
   MenuDots,
   Modal,
+  MultiSelectDropdown,
   Pen2,
   TrashBinMinimalistic,
   UploadMinimalistic,
@@ -27,13 +28,20 @@ type LocationRow = {
   admins: string[] | null;
 };
 
+/** Shape returned by the admin_list_users RPC. */
+type UserRow = {
+  id:    string;
+  email: string;
+};
+
 type LocationFormState = {
   name: string;
   icon: string;       // URL or empty string
   store_email: string;
+  admins: string[];   // user ids
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', icon: '', store_email: '' };
+const EMPTY_FORM: LocationFormState = { name: '', icon: '', store_email: '', admins: [] };
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -134,6 +142,7 @@ function IconUpload({ name, value, onChange, disabled }: IconUploadProps) {
 function ManageLocationsInner() {
   const navigate = useNavigate();
   const [locations, setLocations] = useState<LocationRow[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,7 +163,17 @@ function ManageLocationsInner() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => { fetchLocations(); }, []);
+  useEffect(() => { fetchLocations(); fetchUsers(); }, []);
+
+  /**
+   * Venue admins are picked from the full user list. RLS on user_profiles is
+   * select-own, so this has to go through the admin_list_users security-definer
+   * RPC — the same one Manage Users uses.
+   */
+  async function fetchUsers() {
+    const { data, error } = await supabase.rpc('admin_list_users');
+    if (!error) setUsers(((data ?? []) as UserRow[]).slice().sort((a, b) => a.email.localeCompare(b.email)));
+  }
 
   async function fetchLocations() {
     setLoading(true);
@@ -202,6 +221,7 @@ function ManageLocationsInner() {
       name: loc.name,
       icon: loc.icon ?? '',
       store_email: loc.store_email ?? '',
+      admins: loc.admins ?? [],
     });
     setEditError(null);
   }
@@ -210,25 +230,20 @@ function ManageLocationsInner() {
     if (!editTarget || !editForm.name.trim()) return;
     setSaving(true);
     setEditError(null);
+    const next = {
+      name: editForm.name.trim(),
+      icon: editForm.icon || null,
+      store_email: editForm.store_email.trim() || null,
+      admins: editForm.admins,
+    };
     const { error } = await supabase
       .from('locations')
-      .update({
-        name: editForm.name.trim(),
-        icon: editForm.icon || null,
-        store_email: editForm.store_email.trim() || null,
-      })
+      .update(next)
       .eq('id', editTarget.id);
     if (error) { setEditError(error.message); setSaving(false); return; }
     setLocations(prev =>
-      prev.map(l => l.id === editTarget.id
-        ? {
-            ...l,
-            name: editForm.name.trim(),
-            icon: editForm.icon || null,
-            store_email: editForm.store_email.trim() || null,
-          }
-        : l
-      ).sort((a, b) => a.name.localeCompare(b.name))
+      prev.map(l => l.id === editTarget.id ? { ...l, ...next } : l)
+          .sort((a, b) => a.name.localeCompare(b.name))
     );
     setSaving(false);
     setEditTarget(null);
@@ -447,6 +462,23 @@ function ManageLocationsInner() {
               onChange={url => setEditForm(f => ({ ...f, icon: url }))}
               disabled={saving}
             />
+
+            {/* Venue admins — MultiSelectDropdown works on labels, so map
+                emails back to user ids on change. */}
+            <div className="flex flex-col gap-1">
+              <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Venue Admins</p>
+              <MultiSelectDropdown
+                label=""
+                placeholder="No venue admins"
+                helperText="These users can manage bookings and tables for this venue."
+                options={users.map(u => u.email)}
+                selected={users.filter(u => editForm.admins.includes(u.id)).map(u => u.email)}
+                onChange={emails => {
+                  const ids = users.filter(u => emails.includes(u.email)).map(u => u.id);
+                  setEditForm(f => ({ ...f, admins: ids }));
+                }}
+              />
+            </div>
 
             {editError && <p className="font-body text-sm text-red-400">{editError}</p>}
 

@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, AltArrowLeft, AltArrowRight, UserRounded, Widget2 } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, Pagination, useAutoPageSize, Shield, RichTextEditor } from '@battleplans/ui';
+import type { AppUpdate } from '@battleplans/ui';
+import { BattleItem } from '../components/BattleItem';
+import { useBattles } from '../hooks/useBattles';
 import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
 import { BookingItem } from '../components/BookingItem';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
-  useGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
-  useAdminLocations, useUpcomingBookings,
+  useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
+  useAdminLocations, useUpcomingBookings, useUserProfile,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
 import type { Location } from '../hooks/useBookingData';
@@ -74,10 +77,26 @@ function NewBookingModal({
 
   const { games,     loading: gamesLoading }     = useGames();
   const { locations, loading: locationsLoading } = useLocations();
+  const { username, preferredLocationId }        = useUserProfile(userId);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
   const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Pre-fill the name with the user's username when the modal opens, unless
+  // they've already typed something.
+  useEffect(() => {
+    if (!open || name || !username) return;
+    setName(username);
+  }, [open, name, username]);
+
+  // Pre-select the user's preferred location when the modal opens, unless they've
+  // already picked one. Guarded on the location still existing in the list.
+  useEffect(() => {
+    if (!open || locationId || !preferredLocationId) return;
+    if (!locations.some(l => l.id === preferredLocationId)) return;
+    setLocationId(preferredLocationId);
+  }, [open, locationId, preferredLocationId, locations]);
 
   // Reset downstream fields when upstream selection changes
   const handleLocationChange = (id: string) => { setLocationId(id); setDate(''); setTimeslotId(''); };
@@ -96,6 +115,10 @@ function NewBookingModal({
     if (!canSubmit || !userId) return;
     setSaving(true);
     setError(null);
+    // Snapshot the location + timeslot details as they are now, so later edits to
+    // either don't rewrite what this booking shows.
+    const loc = locations.find(l => l.id === locationId);
+    const ts  = timeslots.find(t => t.id === timeslotId);
     const { error: err } = await supabase.from('bookings').insert({
       user_id:    userId,
       user_name:  name.trim(),
@@ -103,6 +126,10 @@ function NewBookingModal({
       location_id: locationId,
       timeslot_id: timeslotId,
       date,
+      location_name:       loc?.name       ?? null,
+      timeslot_name:       ts?.name         ?? null,
+      timeslot_start_time: ts?.start_time   ?? null,
+      timeslot_end_time:   ts?.end_time     ?? null,
     });
     setSaving(false);
     if (err) { setError(err.message); return; }
@@ -239,29 +266,59 @@ function NewBookingModal({
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+// Row heights, in px. The columns fill the viewport and derive their page size
+// from the space left over (see useAutoPageSize), so these must match the rows'
+// rendered height. If you change a row's design, change the constant with it.
+//
+// BookingItem = 2 border + 26 padding (p-[13px]) + max(64 thumbnail, text).
+// Both variants are four lines — heading 24 + muted 20 + date 20 + time 20 = 84
+// — so My Bookings and Upcoming Bookings share a row height.
+const BOOKING_ITEM_H  = 112;
+const UPCOMING_ITEM_H = 112;
+// BattleItem: heading 24 + opponent 20 + date/venue 20 = 64 = thumbnail -> 92
+const BATTLE_ITEM_H   = 92;
+// NewsItem = 2 border + 26 padding + title 24 + rule 1 + clamped body 116
+//            (5 lines of SM Regular, measured) + button ~38 + three 6px gaps.
+//            Rounded up: a slightly high value costs a little whitespace, a low
+//            one clips the last row.
+const NEWS_ITEM_H     = 230;
+/** Vertical gap between rows in every column list (gap-1.5). */
+const ROW_GAP = 6;
+
 function BookingCard({ userId }: { userId: string | null }) {
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const { bookings, loading, refetch } = useUserBookings(userId);
 
+  const listRef  = useRef<HTMLDivElement>(null);
+  const pageSize = useAutoPageSize(listRef, BOOKING_ITEM_H, ROW_GAP);
+  const [page, setPage] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(bookings.length / pageSize));
+  const safePage   = Math.min(page, totalPages - 1);
+  const paginated  = bookings.slice(safePage * pageSize, (safePage + 1) * pageSize);
+
+  // Snap back into range when the list shrinks or the viewport resizes.
+  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
+
   return (
     <>
-      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
-        <div className="flex flex-col gap-4 items-center p-5 flex-1">
+      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+        <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
           <BoxIcon />
 
-          <h2 className="font-heading text-xl text-white">Your Bookings</h2>
+          <h2 className="font-heading text-xl text-white">My Bookings</h2>
 
           <p className="font-body text-base text-neutral-300 text-center">
             Tables you've booked at your favorite local game stores.
           </p>
 
-          <div className="flex flex-col gap-1.5 w-full flex-1">
+          <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
             {loading ? (
               <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
             ) : bookings.length === 0 ? (
               <p className="font-body text-sm text-neutral-500 text-center py-4">No upcoming bookings.</p>
-            ) : bookings.map(b => {
+            ) : paginated.map(b => {
               const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
               const [y,m,d] = b.date.split('-').map(Number);
               const dt = new Date(y, m-1, d);
@@ -271,17 +328,20 @@ function BookingCard({ userId }: { userId: string | null }) {
                   key={b.id}
                   bookingId={b.id}
                   gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-                  gameName={b.game?.name ?? 'Unknown Game'}
+                  gameName={b.game?.name ?? 'No game'}
                   location={b.location.name}
                   date={dateLabel}
                   time={formatBookingTime(b.timeslot)}
+                  variant="user"
                   onDeleted={refetch}
                 />
               );
             })}
           </div>
 
-          <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center" onClick={() => setNewBookingOpen(true)}>
+          <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
+
+          <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center shrink-0" onClick={() => setNewBookingOpen(true)}>
             New Booking
           </Button>
 
@@ -298,10 +358,270 @@ function BookingCard({ userId }: { userId: string | null }) {
   );
 }
 
-function NewsCard() {
+/** Sentinel for "a venue that isn't one of ours" in the venue picker. */
+const OTHER_VENUE = '__other__';
+
+const RESULT_OPTIONS = [
+  { value: '',     label: 'Select a result…' },
+  { value: 'won',  label: 'Victory' },
+  { value: 'lost', label: 'Defeat'  },
+  { value: 'drew', label: 'Draw'    },
+];
+
+function NewBattleModal({
+  open, onClose, userId, onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  userId: string | null;
+  onCreated: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [gameId,      setGameId]      = useState('');
+  const [oppName,     setOppName]     = useState('');
+  const [date,        setDate]        = useState(today);
+  const [result,      setResult]      = useState('');
+  const [venue,       setVenue]       = useState('');   // '' | location id | OTHER_VENUE
+  const [customVenue, setCustomVenue] = useState('');
+  const [notes,       setNotes]       = useState('');
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
+
+  // Battles can be against any game, not just the booking-enabled ones.
+  const { games,     loading: gamesLoading }     = useAllGames();
+  const { locations, loading: locationsLoading } = useLocations();
+
+  const canSubmit = gameId && oppName.trim() && date && result && !saving;
+
+  const handleClose = () => {
+    if (saving) return;
+    setGameId(''); setOppName(''); setDate(today); setResult('');
+    setVenue(''); setCustomVenue(''); setNotes(''); setError(null);
+    onClose();
+  };
+
+  const handleConfirm = async () => {
+    if (!canSubmit || !userId) return;
+    setSaving(true);
+    setError(null);
+
+    // Known venue -> snapshot its name AND link it. Free text -> name only.
+    const known = locations.find(l => l.id === venue);
+    const location_id   = known ? known.id : null;
+    const location_name = known
+      ? known.name
+      : (venue === OTHER_VENUE ? (customVenue.trim() || null) : null);
+
+    const { error: err } = await supabase.from('battles').insert({
+      user_id:       userId,
+      game_id:       gameId,
+      date_played:   date,
+      opp_name:      oppName.trim(),
+      result,
+      // The CHECK constraint allows a winner only on a loss. With one opponent
+      // field, the winner is necessarily the opponent.
+      winner:        result === 'lost' ? oppName.trim() : null,
+      location_name,
+      location_id,
+      battle_notes:  notes.trim() || null,
+    });
+
+    setSaving(false);
+    if (err) { setError(err.message); return; }
+    onCreated();
+    handleClose();
+  };
+
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
-      <div className="flex flex-col gap-4 items-center p-5 flex-1">
+    <Modal open={open} onClose={handleClose}>
+      <div className="flex flex-col gap-4 p-5">
+
+        <div className="flex flex-col gap-1">
+          <h2 className="font-heading text-xl text-white">New Battle</h2>
+          <p className="font-body text-base text-neutral-300">Record a game you've played.</p>
+        </div>
+
+        <SearchSelect
+          label="Game"
+          placeholder="Choose Game"
+          searchPlaceholder="Search games…"
+          value={gameId}
+          onChange={setGameId}
+          disabled={gamesLoading}
+          emptyLabel="No games match your search."
+          options={games.map(g => {
+            const icon = GAME_ICONS[g.slug];
+            return {
+              value: g.id,
+              label: g.name,
+              icon: (
+                <span className="size-6 rounded overflow-hidden bg-neutral-700 flex items-center justify-center">
+                  {icon
+                    ? <img src={icon} alt="" className="w-full h-full object-cover" />
+                    : <Widget2 className="w-3.5 h-3.5 text-neutral-400" />}
+                </span>
+              ),
+            };
+          })}
+        />
+
+        <Input
+          label="Opponent"
+          type="text"
+          placeholder="Who did you play?"
+          leftIcon={<UserRounded className="w-4 h-4" />}
+          value={oppName}
+          onChange={e => setOppName(e.target.value)}
+        />
+
+        <DatePickerInput label="Date Played" value={date} onChange={setDate} />
+
+        <Select
+          label="Result"
+          value={result}
+          onChange={e => setResult(e.target.value)}
+          options={RESULT_OPTIONS}
+        />
+
+        <Select
+          label="Venue (Optional)"
+          value={venue}
+          onChange={e => setVenue(e.target.value)}
+          disabled={locationsLoading}
+          options={[
+            { value: '', label: 'No venue' },
+            ...locations.map(l => ({ value: l.id, label: l.name })),
+            { value: OTHER_VENUE, label: 'Somewhere else…' },
+          ]}
+        />
+
+        {venue === OTHER_VENUE && (
+          <Input
+            label="Venue Name"
+            type="text"
+            placeholder="e.g. Paris' House"
+            helperText="Saved as text — it won't link to one of your venues."
+            value={customVenue}
+            onChange={e => setCustomVenue(e.target.value)}
+          />
+        )}
+
+        <div className="flex flex-col gap-2">
+          <label className="block text-sm font-medium font-body text-white">Notes (Optional)</label>
+          <RichTextEditor value={notes} onChange={setNotes} placeholder="How did it go?" />
+        </div>
+
+        {error && <p className="font-body text-sm text-red-400">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3 pt-1">
+          <Button variant="ghost" color="danger" size="sm" disabled={saving} onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            color="primary"
+            size="sm"
+            loading={saving}
+            disabled={!canSubmit}
+            rightIcon={<ArrowRight className="w-4 h-4" />}
+            onClick={handleConfirm}
+          >
+            Save Battle
+          </Button>
+        </div>
+
+      </div>
+    </Modal>
+  );
+}
+
+function MyBattlesCard({ userId }: { userId: string | null }) {
+  const { battles, loading, refetch } = useBattles(userId);
+  const [newBattleOpen, setNewBattleOpen] = useState(false);
+  const [page, setPage] = useState(0);
+
+  const listRef  = useRef<HTMLDivElement>(null);
+  const pageSize = useAutoPageSize(listRef, BATTLE_ITEM_H, ROW_GAP);
+
+  const totalPages = Math.max(1, Math.ceil(battles.length / pageSize));
+  const safePage   = Math.min(page, totalPages - 1);
+  const paginated  = battles.slice(safePage * pageSize, (safePage + 1) * pageSize);
+
+  // Snap back into range when the list shrinks or the viewport resizes.
+  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+
+        <Shield className="w-12 h-12 text-primary-500" />
+
+        <h2 className="font-heading text-xl text-white">My Battles</h2>
+
+        <p className="font-body text-base text-neutral-300 text-center">
+          The games you've played, and how they went.
+        </p>
+
+        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
+          {loading ? (
+            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
+          ) : battles.length === 0 ? (
+            <p className="font-body text-sm text-neutral-500 text-center py-4">No battles recorded yet.</p>
+          ) : paginated.map(b => (
+            <BattleItem
+              key={b.id}
+              gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
+              gameName={b.game?.name ?? 'No game'}
+              oppName={b.opp_name}
+              datePlayed={b.date_played}
+              locationName={b.location_name}
+              result={b.result}
+            />
+          ))}
+        </div>
+
+        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
+
+        <Button
+          variant="outline"
+          color="primary"
+          leftIcon={<AddCircleIcon />}
+          className="w-full justify-center shrink-0"
+          onClick={() => setNewBattleOpen(true)}
+        >
+          Add Battle
+        </Button>
+
+      </div>
+
+      <NewBattleModal
+        open={newBattleOpen}
+        onClose={() => setNewBattleOpen(false)}
+        userId={userId}
+        onCreated={refetch}
+      />
+    </div>
+  );
+}
+
+function NewsCard() {
+  const { updates, loading } = useUpdates('battleplan');
+  const [selected, setSelected] = useState<AppUpdate | null>(null);
+  const [page,     setPage]     = useState(0);
+
+  const listRef  = useRef<HTMLDivElement>(null);
+  const pageSize = useAutoPageSize(listRef, NEWS_ITEM_H, ROW_GAP);
+
+  const totalPages = Math.max(1, Math.ceil(updates.length / pageSize));
+  const safePage   = Math.min(page, totalPages - 1);
+  const paginated  = updates.slice(safePage * pageSize, (safePage + 1) * pageSize);
+
+  // Snap back into range if the list shrinks under us.
+  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
         <InfoCircleIcon />
 
@@ -311,27 +631,40 @@ function NewsCard() {
           Find out what's happening with BattlePlan.
         </p>
 
-        <NewsItem />
+        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
+          {loading ? (
+            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
+          ) : updates.length === 0 ? (
+            <p className="font-body text-sm text-neutral-500 text-center py-4">
+              No updates yet. Check back soon.
+            </p>
+          ) : paginated.map(u => (
+            <NewsItem key={u.id} update={u} onRead={() => setSelected(u)} />
+          ))}
+        </div>
+
+        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
 
       </div>
+
+      <UpdateModal open={!!selected} onClose={() => setSelected(null)} update={selected} />
     </div>
   );
 }
 
-function NewsItem() {
+function NewsItem({ update, onRead }: { update: AppUpdate; onRead: () => void }) {
   return (
     <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex flex-col gap-1.5 shadow-md w-full">
-      <h3 className="font-heading text-lg text-white leading-6">Example Release Note</h3>
+      <h3 className="font-heading text-lg text-white leading-6">{update.title}</h3>
 
       <hr className="border-neutral-700" />
 
-      <p className="font-body text-base text-white leading-6 line-clamp-3 overflow-hidden">
-        This is a placeholder release note. It has a maximum of 3 lines, after which the text will
-        be truncated. But don't worry, there's a button to view the full update!
-      </p>
+      <MarkdownBody className="text-sm leading-5 text-white line-clamp-5 overflow-hidden">
+        {update.body ?? ''}
+      </MarkdownBody>
 
       <div className="flex justify-end">
-        <Button variant="ghost" color="primary" size="sm" rightIcon={<ArrowRightIcon />}>
+        <Button variant="ghost" color="primary" size="sm" rightIcon={<ArrowRightIcon />} onClick={onRead}>
           Read Update
         </Button>
       </div>
@@ -353,7 +686,6 @@ const CalendarIcon = () => (
 );
 
 
-const UPCOMING_PAGE_SIZE = 6;
 
 function formatBookingDate(iso: string): string {
   const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -370,9 +702,12 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
   const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
   const [page, setPage] = useState(0);
 
-  const totalPages = Math.max(1, Math.ceil(bookings.length / UPCOMING_PAGE_SIZE));
+  const listRef  = useRef<HTMLDivElement>(null);
+  const pageSize = useAutoPageSize(listRef, UPCOMING_ITEM_H, ROW_GAP);
+
+  const totalPages = Math.max(1, Math.ceil(bookings.length / pageSize));
   const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = bookings.slice(safePage * UPCOMING_PAGE_SIZE, (safePage + 1) * UPCOMING_PAGE_SIZE);
+  const paginated  = bookings.slice(safePage * pageSize, (safePage + 1) * pageSize);
 
   // Snap back into range whenever the list shrinks (e.g. after a deletion)
   useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
@@ -383,8 +718,8 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
   const navigate = useNavigate();
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
-      <div className="flex flex-col gap-4 items-center p-5 flex-1">
+    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
         <CalendarIcon />
 
@@ -394,7 +729,7 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
           All upcoming table bookings at your venues.
         </p>
 
-        <div className="flex flex-col gap-1.5 w-full flex-1">
+        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
           {loading ? (
             <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
           ) : bookings.length === 0 ? (
@@ -404,60 +739,18 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
               key={b.id}
               bookingId={b.id}
               gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-              gameName={b.game?.name ?? 'Unknown Game'}
+              gameName={b.game?.name ?? 'No game'}
               location={b.location.name}
               date={formatBookingDate(b.date)}
               time={formatBookingTime(b.timeslot)}
               customerName={b.user_name ?? undefined}
+              variant="store"
               onDeleted={refetch}
             />
           ))}
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center">
-            <button
-              type="button"
-              disabled={safePage === 0}
-              onClick={() => setPage(p => p - 1)}
-              className="size-9 flex items-center justify-center
-                         bg-neutral-900 border border-neutral-700 rounded-l-lg
-                         text-neutral-400 hover:text-white hover:bg-neutral-800
-                         disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Previous page"
-            >
-              <AltArrowLeft className="size-4" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setPage(i)}
-                className={[
-                  'size-9 flex items-center justify-center font-body text-sm',
-                  'border-y border-r border-neutral-700 transition-colors',
-                  i === safePage
-                    ? 'bg-neutral-800 text-neutral-50'
-                    : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-white',
-                ].join(' ')}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              type="button"
-              disabled={safePage >= totalPages - 1}
-              onClick={() => setPage(p => p + 1)}
-              className="size-9 flex items-center justify-center
-                         bg-neutral-900 border-y border-r border-neutral-700 rounded-r-lg
-                         text-neutral-400 hover:text-white hover:bg-neutral-800
-                         disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Next page"
-            >
-              <AltArrowRight className="size-4" />
-            </button>
-          </div>
-        )}
+        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
 
         <Button
           variant="outline"
@@ -488,33 +781,58 @@ export default function HomePage() {
   const adminLocationIds   = adminLocations.map(l => l.id);
   const isLocationAdmin    = adminLocationIds.length > 0;
 
-  // Which venue's bookings the Upcoming Bookings panel shows; '' = all venues.
-  // Driven by the navbar venue picker (multi-venue admins only).
+  // What the navbar picker is pointed at. '' = "Your Profile" (the personal
+  // view); anything else is one of the venues this user administers.
   const [selectedVenueId, setSelectedVenueId] = useState('');
 
+  // Store admins open on their first venue rather than their profile. This runs
+  // once, when the venues first arrive — a ref rather than a `selectedVenueId`
+  // check, so that later choosing "Your Profile" (which sets '') isn't
+  // immediately undone by this effect.
+  const venueDefaulted = useRef(false);
+  useEffect(() => {
+    if (venueDefaulted.current || adminLocations.length === 0) return;
+    venueDefaulted.current = true;
+    setSelectedVenueId(adminLocations[0].id);
+  }, [adminLocations]);
+
+  // Store admins can switch between their personal view and a single venue.
+  // Everyone else only ever has the personal view.
+  const viewingStore = isLocationAdmin && selectedVenueId !== '';
+
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950">
+    <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
-        {adminLocations.length > 1 && (
+        {/* Shown to every store admin, even single-venue ones, because the
+            picker is also how they get back to their personal view. */}
+        {isLocationAdmin && (
           <StoreSelector
             locations={adminLocations}
             selectedId={selectedVenueId}
             onSelect={setSelectedVenueId}
-            allowAll
+            emptyOption
+            emptyLabel="Your Profile"
+            headerLabel="Viewing"
           />
         )}
       </AppNavbar>
 
-      <main className="flex flex-1 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
-          <BookingCard userId={userId} />
-          {isLocationAdmin && <UpcomingBookingsCard locations={adminLocations} selectedId={selectedVenueId} />}
+      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
+        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+          {viewingStore ? (
+            <UpcomingBookingsCard locations={adminLocations} selectedId={selectedVenueId} />
+          ) : (
+            <>
+              <BookingCard userId={userId} />
+              <MyBattlesCard userId={userId} />
+            </>
+          )}
           <NewsCard />
         </div>
       </main>
 
-      <AppFooter appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+      <AppFooter className="shrink-0" appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
   );

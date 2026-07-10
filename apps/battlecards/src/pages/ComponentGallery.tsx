@@ -69,7 +69,17 @@ import ImportListModal from '../components/ImportListModal';
 import SaveTemplateModal from '../components/SaveTemplateModal';
 import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
 import BlogEntryPreview from '../components/BlogEntryPreview';
-import { Modal } from '@battleplans/ui';
+import { Modal, WelcomeModalView, ProfileFields, UpdateModal, MarkdownBody, Pagination } from '@battleplans/ui';
+
+/** A real release note, used to demo markdown rendering + clamping. */
+const MARKDOWN_SAMPLE = [
+  '**Features**',
+  '- You can now display the model images in a collection as their cover.',
+  '- Sort models alphabetically, by painted status, or by date added.',
+  '',
+  '**Bug Fixes**',
+  '- Fixed an issue where only 10 collections would show.',
+].join('\n');
 import UploadPhotoModal from '../components/UploadPhotoModal';
 import GamePickerItem from '../components/GamePickerItem';
 import { ModeToggle, type Mode } from '@battleplans/ui';
@@ -261,6 +271,195 @@ const AddToPackModalGalleryDemo = () => {
         onCreateNew={() => alert('New keyword flow')}
         onAdded={() => setOpen(false)}
       />
+    </div>
+  );
+};
+
+// ── WelcomeModalGalleryDemo ──────────────────────────────────────────────────
+
+/** Presentational preview of the onboarding WelcomeModalView. The real
+ *  WelcomeModal self-fetches the signed-in user's profile and blocks until the
+ *  required fields are saved; here we drive it with local state and mock
+ *  locations, and "Continue" just closes it. Toggles between the BattleCards
+ *  (username only) and BattlePlan (username + preferred location) field sets. */
+const WelcomeModalGalleryDemo = () => {
+  const [variant,    setVariant]    = useState<null | 'cards' | 'plan'>(null);
+  const [username,   setUsername]   = useState('Chris');
+  const [locationId, setLocationId] = useState('');
+  const [error,      setError]      = useState<string | null>(null);
+
+  const MOCK_LOCATIONS = [
+    { id: 'loc-1', name: 'Battleground North' },
+    { id: 'loc-2', name: 'Battleground South' },
+  ];
+
+  function handleSave() {
+    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (variant === 'plan' && !locationId) { setError('Please select a preferred location.'); return; }
+    setError(null);
+    setVariant(null);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => { setError(null); setVariant('cards'); }}>
+        BattleCards variant
+      </Button>
+      <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('plan'); }}>
+        BattlePlan variant
+      </Button>
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Blocking in-app; here "Continue" closes it.
+      </p>
+      {variant && (
+        <WelcomeModalView
+          appName={variant === 'plan' ? 'BattlePlan' : 'BattleCards'}
+          showUsername
+          showPreferredLocation={variant === 'plan'}
+          username={username}
+          onUsernameChange={setUsername}
+          preferredLocationId={locationId}
+          onPreferredLocationChange={setLocationId}
+          locations={MOCK_LOCATIONS}
+          saving={false}
+          error={error}
+          onSave={handleSave}
+        />
+      )}
+    </div>
+  );
+};
+
+// ── ProfileModalGalleryDemo ──────────────────────────────────────────────────
+
+/** Presentational preview of the "Your Profile" modal (opened from the navbar
+ *  avatar menu). The real ProfileModal self-fetches the signed-in user's
+ *  profile; here we drive it with local state and mock locations. Toggles
+ *  between the username-only view and the username + preferred-location view
+ *  (the location field only appears for users who have ever picked one). */
+const ProfileModalGalleryDemo = () => {
+  const [variant,    setVariant]    = useState<null | 'username' | 'full'>(null);
+  const [username,   setUsername]   = useState('Chris');
+  const [locationId, setLocationId] = useState('loc-1');
+  const [error,      setError]      = useState<string | null>(null);
+
+  const MOCK_LOCATIONS = [
+    { id: 'loc-1', name: 'Battleground North' },
+    { id: 'loc-2', name: 'Battleground South' },
+  ];
+
+  function handleSave() {
+    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (variant === 'full' && !locationId) { setError('Please select a preferred location.'); return; }
+    setError(null);
+    setVariant(null);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => { setError(null); setVariant('username'); }}>Username only</Button>
+      <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('full'); }}>
+        With preferred location
+      </Button>
+      {variant && (
+        <Modal open onClose={() => setVariant(null)} className="max-w-md">
+          <div className="p-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">Your profile</h1>
+              <p className="font-body text-base text-gray-300 leading-6">Update your account details.</p>
+            </div>
+            <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleSave(); }}>
+              <ProfileFields
+                showUsername
+                showPreferredLocation={variant === 'full'}
+                username={username}
+                onUsernameChange={setUsername}
+                preferredLocationId={locationId}
+                onPreferredLocationChange={setLocationId}
+                locations={MOCK_LOCATIONS}
+                error={error}
+              />
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" color="secondary" className="flex-1" onClick={() => setVariant(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1">Save</Button>
+              </div>
+            </form>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+// ── UpdateModalGalleryDemo ───────────────────────────────────────────────────
+
+/** Live UpdateModal preview — the full release note opened from the
+ *  "News & Updates" panel. The body is markdown, rendered with react-markdown;
+ *  the metadata line combines version, publish date and the snapshotted author. */
+const UpdateModalGalleryDemo = () => {
+  const [open, setOpen] = useState(false);
+
+  const MOCK_UPDATE = {
+    id: 'demo',
+    title: 'Collection Covers',
+    version: '1.09.0',
+    published_by_name: 'Chris Harrison',
+    published_at: '2025-09-22T12:56:41.455Z',
+    body: [
+      '**Features**',
+      '- You can now display the model images in a collection as their cover.',
+      '- Sort models alphabetically, by painted status, or by date added.',
+      '',
+      '**Bug Fixes**',
+      '- Fixed an issue where only 10 collections would show.',
+    ].join('\n'),
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setOpen(true)}>Open Update Modal</Button>
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Markdown body (bold headings + bullets) rendered with react-markdown.
+      </p>
+      <UpdateModal open={open} onClose={() => setOpen(false)} update={MOCK_UPDATE} />
+    </div>
+  );
+};
+
+// ── PaginationGalleryDemo ────────────────────────────────────────────────────
+
+/** Pager used at the bottom of the home-screen columns. Pages are 0-based and
+ *  the component renders nothing at one page. Page counts come from the space
+ *  available (useAutoPageSize), so beyond 5 pages the numbered buttons become a
+ *  window that slides around the current page rather than overflowing. */
+const PaginationGalleryDemo = () => {
+  const [few,  setFew]  = useState(0);
+  const [many, setMany] = useState(0);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+          Few pages (≤ 5) — every page shown. Page {few + 1} of 3
+        </p>
+        <Pagination page={few} totalPages={3} onPage={setFew} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+          Many pages (&gt; 5) — sliding window of 5. Page {many + 1} of 12
+        </p>
+        <Pagination page={many} totalPages={12} onPage={setMany} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+          Single page — renders nothing
+        </p>
+        <Pagination page={0} totalPages={1} onPage={() => {}} />
+      </div>
     </div>
   );
 };
@@ -469,6 +668,11 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-add-to-pack-modal" icon={<Gallery className="w-5 h-5" />}            label="Add to Pack Modal" />
         <SidebarItem href="#nav-blog-entry-preview" icon={<Gallery className="w-5 h-5" />}           label="Blog Entry Preview" />
         <SidebarItem href="#nav-modal"              icon={<Gallery className="w-5 h-5" />}            label="Modal"            />
+        <SidebarItem href="#nav-welcome-modal"      icon={<Gallery className="w-5 h-5" />}            label="Welcome Modal"    />
+        <SidebarItem href="#nav-profile-modal"      icon={<Gallery className="w-5 h-5" />}            label="Profile Modal"    />
+        <SidebarItem href="#nav-update-modal"       icon={<Gallery className="w-5 h-5" />}            label="Update Modal"     />
+        <SidebarItem href="#nav-markdown-body"      icon={<Gallery className="w-5 h-5" />}            label="Markdown Body"    />
+        <SidebarItem href="#nav-pagination"         icon={<Gallery className="w-5 h-5" />}            label="Pagination"       />
         <SidebarItem href="#nav-upload-photo-modal" icon={<Gallery className="w-5 h-5" />}            label="Upload Photo Modal" />
         <SidebarItem href="#nav-save-template-modal" icon={<Gallery className="w-5 h-5" />}           label="Save Template Modal" />
         <SidebarItem href="#nav-new-card-modal"     icon={<Gallery className="w-5 h-5" />}            label="New Card Modal" />
@@ -3567,7 +3771,7 @@ const ComponentGallery = () => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Body clamped to 3 lines (long text)</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Body clamped to 5 lines (long text)</p>
             <BlogEntryPreview
               title="v1.2 — New Card Builder"
               body="This release ships the updated Blood Bowl card builder with full support for all 26 team rosters. We've also improved the export pipeline so cards render at 300 DPI by default, and fixed a crash that occurred when switching between game types mid-session. Additionally, the Halo Flashpoint builder now supports multi-select for unit abilities."
@@ -3581,6 +3785,53 @@ const ComponentGallery = () => {
               title="Maintenance Notice"
               body="Scheduled maintenance on Sunday at 2 am UTC. The app will be unavailable for approximately 30 minutes."
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Markdown body (how News &amp; Updates renders it) — SM Regular, clamped to 5 lines
+            </p>
+            <BlogEntryPreview
+              title="Collection Covers"
+              body={<MarkdownBody>{MARKDOWN_SAMPLE}</MarkdownBody>}
+              onRead={() => {}}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          PAGINATION
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-pagination" title="Pagination">
+        <div className="w-full">
+          <PaginationGalleryDemo />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          MARKDOWN BODY
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-markdown-body" title="Markdown Body">
+        <div className="w-full max-w-xl space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Full size — colour themed by the caller (as used in Update Modal)
+            </p>
+            <MarkdownBody className="text-base leading-6 text-gray-300 [&_strong]:text-white [&_a]:text-blue-400">
+              {MARKDOWN_SAMPLE}
+            </MarkdownBody>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Clamped to 5 lines, SM Regular (as used in the News &amp; Updates cards)
+            </p>
+            <MarkdownBody className="text-sm leading-5 text-white line-clamp-5">
+              {MARKDOWN_SAMPLE}
+            </MarkdownBody>
           </div>
 
         </div>
@@ -3610,6 +3861,33 @@ const ComponentGallery = () => {
             </Modal>
           </div>
 
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          WELCOME MODAL (onboarding)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-welcome-modal" title="Welcome Modal">
+        <div className="w-full space-y-6">
+          <WelcomeModalGalleryDemo />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          PROFILE MODAL (Your Profile)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-profile-modal" title="Profile Modal">
+        <div className="w-full space-y-6">
+          <ProfileModalGalleryDemo />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          UPDATE MODAL (News & Updates)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-update-modal" title="Update Modal">
+        <div className="w-full space-y-6">
+          <UpdateModalGalleryDemo />
         </div>
       </GallerySection>
 

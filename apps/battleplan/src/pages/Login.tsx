@@ -241,26 +241,6 @@ export default function Login() {
 
             )}
 
-            {/* ── OR divider ── */}
-            <div className="flex flex-row items-center md:flex-col md:justify-center md:gap-1.5 md:py-2.5 md:self-stretch">
-              <div className="flex-1 h-px bg-neutral-700 md:h-auto md:w-px" />
-              <span className="font-body font-bold text-base text-neutral-500 uppercase px-3 md:px-px shrink-0">OR</span>
-              <div className="flex-1 h-px bg-neutral-700 md:h-auto md:w-px" />
-            </div>
-
-            {/* ── Right column: Guest ── */}
-            <div className="w-full md:w-[450px] p-5 flex flex-col gap-4 justify-center">
-              <h2 className="font-heading text-white text-[19.8px] leading-7">
-                Continue as guest
-              </h2>
-              <p className="font-body text-base text-neutral-300 leading-6">
-                Please note: As a guest, your bookings will be saved to your browser only and won't appear on other devices.
-              </p>
-              <Button className="w-full" type="button" onClick={() => navigate('/app')}>
-                Continue as guest
-              </Button>
-            </div>
-
           </div>
         </div>
 

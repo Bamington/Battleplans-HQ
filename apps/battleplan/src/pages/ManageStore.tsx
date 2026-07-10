@@ -222,11 +222,12 @@ export default function ManageStore() {
                     key={b.id}
                     bookingId={b.id}
                     gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-                    gameName={b.game?.name ?? 'Unknown Game'}
+                    gameName={b.game?.name ?? 'No game'}
                     location={b.location.name}
                     date={formatDateLabel(b.date)}
                     time={formatBookingTime(b.timeslot)}
                     customerName={b.user_name ?? undefined}
+                    variant="store"
                     onDeleted={refetchDateBookings}
                   />
                 ))}

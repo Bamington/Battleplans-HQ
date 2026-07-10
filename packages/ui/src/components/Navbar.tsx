@@ -30,6 +30,8 @@ import logotype from '../assets/battlecards-logotype-svg.svg';
 import Button from './Button';
 import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropdown';
 import Settings from '../icons/Settings';
+import UserCircle from '../icons/UserCircle';
+import ProfileModal from './ProfileModal';
 
 export interface AppEntry {
   /** Display name shown in the switcher */
@@ -175,6 +177,8 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     // Get the current session on mount, then fetch role
@@ -184,10 +188,11 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
       if (u) {
         const { data } = await supabase
           .from('user_profiles')
-          .select('role')
+          .select('role, username')
           .eq('id', u.id)
           .single();
         setIsAdmin(data?.role === 'admin');
+        setUsername(data?.username ?? null);
       }
       setLoading(false);
     });
@@ -196,14 +201,17 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      if (!u) setUsername(null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Prefer the user's chosen username; fall back to the Google name, then email.
   const displayName =
-    user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? null;
+    username ?? user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? null;
   const email = user?.email ?? null;
   const initials = getInitials(displayName, email);
 
@@ -213,6 +221,7 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
   };
 
   return (
+    <>
     <nav
       className={[
         'w-full z-30 bg-gray-900 border-b border-gray-700 shrink-0',
@@ -307,6 +316,13 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
                   </button>
                 }
               >
+                <DropdownItem
+                  icon={<UserCircle className="w-4 h-4 text-gray-400" />}
+                  onClick={() => setProfileOpen(true)}
+                >
+                  <span className="text-gray-200">Your Profile</span>
+                </DropdownItem>
+                <DropdownDivider />
                 {isAdmin && (
                   <>
                     <DropdownItem
@@ -340,6 +356,12 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
 
       </div>
     </nav>
+    <ProfileModal
+      open={profileOpen}
+      onClose={() => setProfileOpen(false)}
+      onSaved={setUsername}
+    />
+    </>
   );
 };
 

@@ -9,6 +9,7 @@ const LINKS = [
   { title: 'Manage Users', description: 'View all users and manage their roles.', href: '/app/admin/users' },
   { title: 'Manage Locations', description: 'Add and configure venues for table bookings.', href: '/app/admin/locations' },
   { title: 'Manage Games', description: 'Control which games are available for booking.', href: '/app/admin/games' },
+  { title: 'Manage Updates', description: 'Write and publish News & Updates release notes.', href: '/app/admin/updates' },
 ];
 
 export default function AdminPage() {
