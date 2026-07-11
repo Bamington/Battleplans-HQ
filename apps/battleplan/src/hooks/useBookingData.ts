@@ -532,31 +532,35 @@ export function useTableAvailability(
 // All timeslots for a location, regardless of day-of-week availability.
 
 export interface LocationTimeslot {
-  id:         string;
-  name:       string;
-  start_time: string;
-  end_time:   string;
+  id:           string;
+  name:         string;
+  start_time:   string;
+  end_time:     string;
+  /** Full day names this slot runs on, e.g. ['Tuesday', 'Wednesday']. */
+  availability: string[];
 }
 
 export function useLocationTimeslots(locationId: string | null) {
   const [timeslots, setTimeslots] = useState<LocationTimeslot[]>([]);
   const [loading,   setLoading]   = useState(true);
 
-  useEffect(() => {
+  const refetch = () => {
     if (!locationId) { setTimeslots([]); setLoading(false); return; }
     setLoading(true);
     supabase
       .from('timeslots')
-      .select('id, name, start_time, end_time')
+      .select('id, name, start_time, end_time, availability')
       .eq('location_id', locationId)
       .order('start_time')
       .then(({ data }) => {
-        setTimeslots(data ?? []);
+        setTimeslots((data ?? []) as LocationTimeslot[]);
         setLoading(false);
       });
-  }, [locationId]);
+  };
 
-  return { timeslots, loading };
+  useEffect(refetch, [locationId]);
+
+  return { timeslots, loading, refetch };
 }
 
 // ── useStoreTables ────────────────────────────────────────────────────────────

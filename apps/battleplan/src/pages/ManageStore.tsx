@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Layers } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
   useAdminLocations, useBlockedDates, useStoreTables, useLocationTimeslots, useBookingsByDate,
   formatDateLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { StoreTable } from '../hooks/useBookingData';
+import type { StoreTable, LocationTimeslot } from '../hooks/useBookingData';
 import { BlockedDateItem, BlockNewDateModal } from '../components/BlockedDates';
 import { StoreTableItem, TableFormModal } from '../components/StoreTables';
+import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
 import { StoreSelector } from '../components/StoreSelector';
 import { BookingItem } from '../components/BookingItem';
 import { GAME_ICONS } from '../components/gameIcons';
@@ -85,13 +86,19 @@ export default function ManageStore() {
   const selectedStore = adminLocations.find(l => l.id === selectedId);
   const { blockedDates, loading: bdLoading, refetch } = useBlockedDates(selectedId ? [selectedId] : []);
 
-  const { timeslots }                                          = useLocationTimeslots(selectedId || null);
+  const { timeslots, loading: timeslotsLoading, refetch: refetchTimeslots } = useLocationTimeslots(selectedId || null);
   const { tables, loading: tablesLoading, refetch: refetchTables } = useStoreTables(selectedId || null);
   const [tableModalOpen, setTableModalOpen] = useState(false);
   const [editingTable,   setEditingTable]   = useState<StoreTable | null>(null);
 
   const openAddTable  = () => { setEditingTable(null); setTableModalOpen(true); };
   const openEditTable = (t: StoreTable) => { setEditingTable(t); setTableModalOpen(true); };
+
+  const [timeslotModalOpen, setTimeslotModalOpen] = useState(false);
+  const [editingTimeslot,   setEditingTimeslot]   = useState<LocationTimeslot | null>(null);
+
+  const openAddTimeslot  = () => { setEditingTimeslot(null); setTimeslotModalOpen(true); };
+  const openEditTimeslot = (t: LocationTimeslot) => { setEditingTimeslot(t); setTimeslotModalOpen(true); };
 
   // Bookings by date — defaults to today (local), any date pickable.
   const [bookingsDate, setBookingsDate] = useState(() => {
@@ -102,7 +109,7 @@ export default function ManageStore() {
     useBookingsByDate(selectedId || null, bookingsDate);
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950">
+    <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
         {selectedStore && (
@@ -110,12 +117,12 @@ export default function ManageStore() {
         )}
       </AppNavbar>
 
-      <main className="flex flex-1 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
+        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
 
           {/* Blocked Dates column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
-            <div className="flex flex-col gap-4 items-center p-5 flex-1">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+            <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <CalendarIcon />
 
@@ -125,7 +132,7 @@ export default function ManageStore() {
                 Dates when tables can't be booked at {selectedStore?.name ?? 'your venue'}.
               </p>
 
-              <div className="flex flex-col gap-1.5 w-full flex-1">
+              <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
                 {bdLoading ? (
                   <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
                 ) : blockedDates.length === 0 ? (
@@ -143,7 +150,7 @@ export default function ManageStore() {
               <Button
                 variant="outline"
                 color="primary"
-                className="w-full justify-center"
+                className="w-full justify-center shrink-0"
                 onClick={() => setAddOpen(true)}
               >
                 Add New Block
@@ -153,8 +160,8 @@ export default function ManageStore() {
           </div>
 
           {/* Tables column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
-            <div className="flex flex-col gap-4 items-center p-5 flex-1">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+            <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <TablesIcon />
 
@@ -164,7 +171,7 @@ export default function ManageStore() {
                 The tables players can book at {selectedStore?.name ?? 'your venue'}.
               </p>
 
-              <div className="flex flex-col gap-1.5 w-full flex-1">
+              <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
                 {tablesLoading ? (
                   <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
                 ) : tables.length === 0 ? (
@@ -185,7 +192,7 @@ export default function ManageStore() {
               <Button
                 variant="outline"
                 color="primary"
-                className="w-full justify-center"
+                className="w-full justify-center shrink-0"
                 onClick={openAddTable}
               >
                 Add Table
@@ -195,8 +202,8 @@ export default function ManageStore() {
           </div>
 
           {/* Bookings by Date column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col shadow-md overflow-hidden">
-            <div className="flex flex-col gap-4 items-center p-5 flex-1">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+            <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <BookingsIcon />
 
@@ -212,7 +219,7 @@ export default function ManageStore() {
                 onChange={setBookingsDate}
               />
 
-              <div className="flex flex-col gap-1.5 w-full flex-1">
+              <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
                 {dateBookingsLoading ? (
                   <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
                 ) : dateBookings.length === 0 ? (
@@ -236,10 +243,49 @@ export default function ManageStore() {
             </div>
           </div>
 
+          {/* Timeslots column */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+            <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+
+              <Layers className="w-12 h-12 text-primary-500" />
+
+              <h2 className="font-heading text-xl text-white">Timeslots</h2>
+
+              <p className="font-body text-base text-neutral-300 text-center">
+                When tables are available to be booked at {selectedStore?.name ?? 'your venue'}.
+              </p>
+
+              <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
+                {timeslotsLoading ? (
+                  <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
+                ) : timeslots.length === 0 ? (
+                  <p className="font-body text-sm text-neutral-500 text-center py-4">No timeslots yet.</p>
+                ) : timeslots.map(t => (
+                  <TimeslotItem
+                    key={t.id}
+                    timeslot={t}
+                    onEdit={() => openEditTimeslot(t)}
+                    onChanged={refetchTimeslots}
+                  />
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                color="primary"
+                className="w-full justify-center shrink-0"
+                onClick={openAddTimeslot}
+              >
+                Add Timeslot
+              </Button>
+
+            </div>
+          </div>
+
         </div>
       </main>
 
-      <AppFooter appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+      <AppFooter className="shrink-0" appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
       <BlockNewDateModal
         open={addOpen}
@@ -258,6 +304,14 @@ export default function ManageStore() {
         editing={editingTable}
         defaultName={`Table ${tables.length + 1}`}
         onSaved={() => { setTableModalOpen(false); refetchTables(); }}
+      />
+
+      <TimeslotFormModal
+        open={timeslotModalOpen}
+        onClose={() => setTimeslotModalOpen(false)}
+        locationId={selectedId}
+        editing={editingTimeslot}
+        onSaved={() => { setTimeslotModalOpen(false); refetchTimeslots(); }}
       />
 
     </div>
