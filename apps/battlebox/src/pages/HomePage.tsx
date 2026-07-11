@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  supabase, AppFooter, Button, Pagination, useAutoPageSize, useUpdates,
+  supabase, AppFooter, Button, ButtonPair, Pagination, useAutoPageSize, useUpdates,
   UpdateModal, MarkdownBody, Box, UserRounded, AddCircle, Magnifer,
 } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
@@ -79,7 +79,9 @@ function SegmentedToggle({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => vo
         onClick={() => onChange('boxes')}
         className={`${base} rounded-r-lg -ml-px ${tab === 'boxes' ? active : inactive}`}
       >
-        <Box className="w-4 h-4" /> Boxes &amp; Collections
+        <Box className="w-4 h-4" />
+        <span className="md:hidden">Collections</span>
+        <span className="hidden md:inline">Boxes &amp; Collections</span>
       </button>
     </div>
   );
@@ -110,7 +112,7 @@ function CollectionCard({ userId }: { userId: string | null }) {
 
   return (
     <div className={COLUMN_CLASS}>
-      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+      <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
 
         <BoxHeaderIcon />
 
@@ -136,14 +138,16 @@ function CollectionCard({ userId }: { userId: string | null }) {
 
         <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
 
-        <div className="flex flex-col gap-2 w-full shrink-0">
-          <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center">
-            Add to Collection
+        <ButtonPair className="shrink-0">
+          <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="justify-center">
+            <span className="md:hidden">Add</span>
+            <span className="hidden md:inline">Add to Collection</span>
           </Button>
-          <Button variant="outline" color="primary" leftIcon={<Magnifer className="w-4 h-4" />} className="w-full justify-center">
-            Search Collection
+          <Button variant="outline" color="primary" leftIcon={<Magnifer className="w-4 h-4" />} className="justify-center">
+            <span className="md:hidden">Search</span>
+            <span className="hidden md:inline">Search Collection</span>
           </Button>
-        </div>
+        </ButtonPair>
 
       </div>
     </div>
@@ -185,7 +189,7 @@ function NewsCard() {
 
   return (
     <div className={COLUMN_CLASS}>
-      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+      <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
 
         <InfoCircleIcon />
 
@@ -228,16 +232,22 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
+    <div className="min-h-dvh flex flex-col bg-neutral-950">
 
-      <AppNavbar fixed={false} logo={<BattleBoxLogo />} />
+      {/* Navbar + columns fill exactly one viewport, so the footer is pushed
+          just below the fold and the columns reclaim its height. */}
+      <div className="h-dvh flex flex-col min-h-0">
 
-      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
-          <CollectionCard userId={userId} />
-          <NewsCard />
-        </div>
-      </main>
+        <AppNavbar fixed={false} logo={<BattleBoxLogo />} />
+
+        <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
+          <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 pb-2 scroll-px-3 md:scroll-px-9 lg:px-0 lg:pb-0">
+            <CollectionCard userId={userId} />
+            <NewsCard />
+          </div>
+        </main>
+
+      </div>
 
       <AppFooter className="shrink-0" appName="BattleBox" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
