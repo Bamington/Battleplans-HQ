@@ -5,7 +5,9 @@ import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
 import { BattleDetailsModal } from '../components/BattleDetailsModal';
+import { OpponentPicker } from '../components/OpponentPicker';
 import { useBattles } from '../hooks/useBattles';
+import { useOpponents, resolveOpponentIds, setBattleOpponents, type SelectedOpponent } from '../hooks/useOpponents';
 import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
@@ -363,7 +365,7 @@ function NewBattleModal({
   const today = new Date().toISOString().slice(0, 10);
 
   const [gameId,      setGameId]      = useState('');
-  const [oppName,     setOppName]     = useState('');
+  const [opponents,   setOpponents]   = useState<SelectedOpponent[]>([]);
   const [date,        setDate]        = useState(today);
   const [result,      setResult]      = useState('');
   const [venue,       setVenue]       = useState('');   // '' | location id | OTHER_VENUE
@@ -377,8 +379,10 @@ function NewBattleModal({
   // Battles can be against any game, not just the booking-enabled ones.
   const { games,     loading: gamesLoading }     = useAllGames();
   const { locations, loading: locationsLoading } = useLocations();
+  const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
 
-  const canSubmit = gameId && oppName.trim() && date && result && !saving;
+  const oppNames = opponents.map(o => o.name.trim()).filter(Boolean).join(', ');
+  const canSubmit = gameId && opponents.length > 0 && date && result && !saving;
 
   const clearPhoto = () => {
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -395,7 +399,7 @@ function NewBattleModal({
 
   const handleClose = () => {
     if (saving) return;
-    setGameId(''); setOppName(''); setDate(today); setResult('');
+    setGameId(''); setOpponents([]); setDate(today); setResult('');
     setVenue(''); setCustomVenue(''); setNotes(''); setError(null);
     clearPhoto();
     onClose();
@@ -417,17 +421,24 @@ function NewBattleModal({
       user_id:       userId,
       game_id:       gameId,
       date_played:   date,
-      opp_name:      oppName.trim(),
+      opp_name:      oppNames,          // denormalised cache of the opponent names
       result,
-      // The CHECK constraint allows a winner only on a loss. With one opponent
-      // field, the winner is necessarily the opponent.
-      winner:        result === 'lost' ? oppName.trim() : null,
+      // The CHECK constraint allows a winner only on a loss; the opponents are
+      // the winners in that case.
+      winner:        result === 'lost' ? oppNames : null,
       location_name,
       location_id,
       battle_notes:  notes.trim() || null,
     }).select('id').single();
 
     if (err || !inserted) { setSaving(false); setError(err?.message ?? 'Could not save the battle.'); return; }
+
+    // Create/link the opponent objects. A failure here shouldn't lose the battle.
+    try {
+      const oppIds = await resolveOpponentIds(userId, opponents);
+      await setBattleOpponents(inserted.id, oppIds);
+      refetchOpponents();
+    } catch { /* opp_name cache still holds the names */ }
 
     // Attach the photo, if one was chosen. Uploaded to the owner's folder in the
     // battle-images bucket, then linked as the battle's primary photo. A photo
@@ -490,14 +501,7 @@ function NewBattleModal({
           })}
         />
 
-        <Input
-          label="Opponent"
-          type="text"
-          placeholder="Who did you play?"
-          leftIcon={<UserRounded className="w-4 h-4" />}
-          value={oppName}
-          onChange={e => setOppName(e.target.value)}
-        />
+        <OpponentPicker value={opponents} onChange={setOpponents} options={roster} />
 
         <DatePickerInput label="Date Played" value={date} onChange={setDate} />
 
@@ -582,6 +586,7 @@ function NewBattleModal({
 }
 
 function MyBattlesCard({ userId }: { userId: string | null }) {
+  const navigate = useNavigate();
   const { battles, loading, loadingMore, hasMore, loadMore, refetch } = useBattles(userId);
   const [newBattleOpen, setNewBattleOpen] = useState(false);
   // View switch in the header: compact list rows vs. photo-hero gallery cards.
@@ -637,7 +642,7 @@ function MyBattlesCard({ userId }: { userId: string | null }) {
             <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="flex-1 justify-center" onClick={() => setNewBattleOpen(true)}>
               Add Battle
             </Button>
-            <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center">
+            <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/stats')}>
               Stats
             </Button>
           </div>

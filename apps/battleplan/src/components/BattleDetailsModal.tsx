@@ -13,12 +13,14 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   supabase, Modal, Button, SearchSelect, Input, Select, RichTextEditor, MarkdownBody,
   MenuDots, Pen2, TrashBinMinimalistic, UploadMinimalistic, CloseCircle, StarBold, Star,
-  AltArrowLeft, AltArrowRight, CheckCircle, UserRounded, Widget2,
+  AltArrowLeft, AltArrowRight, CheckCircle, Widget2, UserRounded,
 } from '@battleplans/ui';
 import DatePickerInput from './DatePickerInput';
+import { OpponentPicker } from './OpponentPicker';
 import { GAME_ICONS } from './gameIcons';
 import type { Battle, BattleResult } from '../hooks/useBattles';
 import { useAllGames, useLocations } from '../hooks/useBookingData';
+import { useOpponents, resolveOpponentIds, setBattleOpponents, type SelectedOpponent } from '../hooks/useOpponents';
 
 // ── Constants shared with the New Battle flow ─────────────────────────────────
 
@@ -131,7 +133,7 @@ export function BattleDetailsModal({
 
   // Edit form
   const [gameId,      setGameId]      = useState('');
-  const [oppName,     setOppName]     = useState('');
+  const [opponents,   setOpponents]   = useState<SelectedOpponent[]>([]);
   const [date,        setDate]        = useState('');
   const [result,      setResult]      = useState('');
   const [venue,       setVenue]       = useState('');
@@ -147,6 +149,7 @@ export function BattleDetailsModal({
 
   const { games,     loading: gamesLoading }     = useAllGames();
   const { locations, loading: locationsLoading } = useLocations();
+  const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
 
   // Reset to the view state whenever a different battle opens.
   useEffect(() => {
@@ -164,7 +167,7 @@ export function BattleDetailsModal({
   // ── Enter edit: seed the form from the battle ───────────────────────────────
   const startEditing = () => {
     setGameId(battle.game?.id ?? '');
-    setOppName(battle.opp_name);
+    setOpponents(battle.opponents.map(o => ({ id: o.id, name: o.name })));
     setDate(battle.date_played);
     setResult(battle.result);
     if (battle.location_id)        { setVenue(battle.location_id); setCustomVenue(''); }
@@ -176,7 +179,8 @@ export function BattleDetailsModal({
     setEditing(true);
   };
 
-  const canSave = gameId && oppName.trim() && date && result && !saving;
+  const oppNames = opponents.map(o => o.name.trim()).filter(Boolean).join(', ');
+  const canSave = gameId && opponents.length > 0 && date && result && !saving;
 
   const handleSave = async () => {
     if (!canSave || !userId) return;
@@ -192,16 +196,24 @@ export function BattleDetailsModal({
     const { error: err } = await supabase.from('battles').update({
       game_id:      gameId,
       date_played:  date,
-      opp_name:     oppName.trim(),
+      opp_name:     oppNames,          // denormalised cache of the opponent names
       result,
-      winner:       result === 'lost' ? oppName.trim() : null,
+      winner:       result === 'lost' ? oppNames : null,
       location_name,
       location_id,
       battle_notes: notes.trim() || null,
     }).eq('id', battle.id);
 
+    if (err) { setSaving(false); setError(err.message); return; }
+
+    // Sync the opponent objects/links. Cache (opp_name) is already saved above.
+    try {
+      const oppIds = await resolveOpponentIds(userId, opponents);
+      await setBattleOpponents(battle.id, oppIds);
+      refetchOpponents();
+    } catch { /* opp_name still reflects the names */ }
+
     setSaving(false);
-    if (err) { setError(err.message); return; }
     onChanged();
     setEditing(false);
   };
@@ -270,7 +282,7 @@ export function BattleDetailsModal({
   // No explicit max-width — matches the New Battle / New Booking modals, which take
   // the Modal default (90vw on mobile/tablet, lg:max-w-[50vw] on desktop).
   return (
-    <Modal open={open} onClose={onClose} className="overflow-hidden">
+    <Modal open={open} onClose={onClose} className="max-w-xl overflow-hidden">
       <div className="max-h-[90vh] overflow-y-auto">
 
         {/* Hero — photo carousel (view) */}
@@ -326,6 +338,22 @@ export function BattleDetailsModal({
           {!editing && !confirmDel && (
             <>
               <p className="font-body text-sm text-neutral-50">{whenWhere}</p>
+
+              {battle.opponents.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <span className="font-body text-xs uppercase tracking-wide text-neutral-500">
+                    {battle.opponents.length === 1 ? 'Opponent' : 'Opponents'}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {battle.opponents.map(o => (
+                      <span key={o.id} className="inline-flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 rounded-full text-sm font-body bg-neutral-700 text-neutral-100">
+                        <UserRounded className="w-3.5 h-3.5 text-neutral-400" /> {o.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {battle.battle_notes
                 ? <MarkdownBody className="text-sm text-neutral-50">{battle.battle_notes}</MarkdownBody>
                 : <p className="font-body text-sm text-neutral-500 italic">No notes for this battle.</p>}
@@ -377,14 +405,7 @@ export function BattleDetailsModal({
                 })}
               />
 
-              <Input
-                label="Opponent"
-                type="text"
-                placeholder="Who did you play?"
-                leftIcon={<UserRounded className="w-4 h-4" />}
-                value={oppName}
-                onChange={e => setOppName(e.target.value)}
-              />
+              <OpponentPicker value={opponents} onChange={setOpponents} options={roster} />
 
               <DatePickerInput label="Battle Date" value={date} onChange={setDate} />
 

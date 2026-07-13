@@ -27,6 +27,8 @@ export interface Battle {
   /** Rich-text notes (markdown), or null. */
   battle_notes:  string | null;
   game:          { id: string; name: string; slug: string } | null;
+  /** The battle's opponents as objects. `opp_name` is the cached display string. */
+  opponents:     { id: string; name: string }[];
   /** Every photo on the battle, primary first then by display order. */
   photos:        BattlePhoto[];
   /**
@@ -55,6 +57,7 @@ interface BattleRow {
   battle_notes:  string | null;
   game:          { id: string; name: string; slug: string } | null;
   battle_images: BattleImageRow[] | null;
+  battle_opponents: { opponent: { id: string; name: string } | null }[] | null;
 }
 
 /** How many battles are fetched per page as the list is scrolled. */
@@ -62,7 +65,8 @@ const PAGE_SIZE = 20;
 
 const BATTLE_SELECT =
   'id, date_played, opp_name, result, location_name, location_id, battle_notes, ' +
-  'game:games(id, name, slug), battle_images(id, image_path, is_primary, display_order)';
+  'game:games(id, name, slug), battle_images(id, image_path, is_primary, display_order), ' +
+  'battle_opponents(opponent:opponents(id, name))';
 
 /**
  * Resolve a stored `battle-images` object path to a public URL. Paths are kept
@@ -100,6 +104,9 @@ function mapRow(r: BattleRow): Battle {
     location_id:   r.location_id,
     battle_notes:  r.battle_notes,
     game:          r.game,
+    opponents:     (r.battle_opponents ?? [])
+                     .map(bo => bo.opponent)
+                     .filter((o): o is { id: string; name: string } => !!o),
     photos,
     photoUrl:      photos[0]?.url ?? null,
   };
