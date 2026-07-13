@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
 /**
@@ -12,6 +12,12 @@ import type { RefObject } from 'react';
  * The item height is a caller-supplied constant rather than measured — the rows
  * in each list are a fixed design height. If a row's design changes, update the
  * constant next to it.
+ *
+ * The observed box may mount AFTER this hook first runs — e.g. a list that only
+ * renders once its data has loaded, sitting behind a spinner until then. So the
+ * effect runs on every render and (re)attaches the observer the moment the
+ * element appears or is swapped, rather than giving up if `ref.current` was null
+ * on mount.
  *
  * Safe against feedback loops: the observed box is `flex-1 min-h-0` with hidden
  * overflow, so its height is set by its parent, never by how many items we put
@@ -29,8 +35,20 @@ export function useAutoPageSize(
 ): number {
   const [pageSize, setPageSize] = useState(1);
 
+  // The element currently under observation, and its observer. Tracked so the
+  // no-deps effect below only re-attaches when the element actually changes.
+  const observed = useRef<HTMLElement | null>(null);
+  const observer = useRef<ResizeObserver | null>(null);
+
+  // Intentionally no dependency array: this runs after every render so it can
+  // catch the observed element mounting later (null -> element). It early-exits
+  // when nothing changed, so it never triggers a re-render loop.
   useEffect(() => {
     const el = ref.current;
+    if (el === observed.current) return;
+
+    observer.current?.disconnect();
+    observed.current = el;
     if (!el) return;
 
     const measure = () => {
@@ -39,11 +57,13 @@ export function useAutoPageSize(
       setPageSize(Math.max(1, n));
     };
 
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    observer.current = obs;
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref, itemHeight, gap]);
+  });
+
+  useEffect(() => () => observer.current?.disconnect(), []);
 
   return pageSize;
 }

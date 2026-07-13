@@ -32,6 +32,7 @@ import UnitListEntry from '../components/UnitListEntry';
 import { Checkbox } from '@battleplans/ui';
 import { StarRating } from '@battleplans/ui';
 import { Tabs } from '@battleplans/ui';
+import { ColumnHeader } from '@battleplans/ui';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
 import heroImage from '../assets/hero.png';
 import BloodBowlCard from '../components/BloodBowlCard';
@@ -591,6 +592,8 @@ const MULTI_OPTIONS = ['Agility', 'General', 'Mutations', 'Passing', 'Strength',
 
 const ComponentGallery = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Drives the ColumnHeader demo's view toggle.
+  const [columnHeaderView, setColumnHeaderView] = useState('list');
   const [counterDefault, setCounterDefault] = useState(1);
   const [counterSuccess, setCounterSuccess] = useState(3);
   const [counterError,   setCounterError]   = useState(0);
@@ -650,6 +653,7 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-checkboxes" icon={<CheckCircle className="w-5 h-5" />}       label="Checkboxes"  />
         <SidebarItem href="#nav-stars"      icon={<Star className="w-5 h-5" />}              label="Star Rating" />
         <SidebarItem href="#nav-tabs"       icon={<Filter className="w-5 h-5" />}            label="Tabs"        />
+        <SidebarItem href="#nav-column-header" icon={<Gallery className="w-5 h-5" />}         label="Column Header" />
         <SidebarItem href="#nav-bb-card"      icon={<Shield className="w-5 h-5" />}            label="BB Card"     />
         <SidebarItem href="#nav-bb-star-card" icon={<Star className="w-5 h-5" />}              label="BB Star Card" />
         <SidebarItem href="#nav-sc-card"      icon={<Shield className="w-5 h-5" />}            label="SC Card"     />
@@ -2416,6 +2420,53 @@ const ComponentGallery = () => {
 
           <p className="font-body text-xs text-gray-400 dark:text-gray-500">Shape</p>
           <HR variant="shape" />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          COLUMN HEADER
+          The header at the top of a dashboard column: left-aligned icon +
+          title, an optional description line, and an optional two-option
+          view toggle (hidden unless a `toggle` prop is passed). Rendered on
+          a dark card since the title is white.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-column-header" title="Column Header / Default">
+        <div className="flex flex-col gap-6 w-full max-w-sm">
+
+          {/* Icon + title + description */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-5">
+            <ColumnHeader
+              icon={<Shield className="w-12 h-12 text-primary-500" />}
+              title="My Battles"
+              description="The games you've played, and how they went."
+            />
+          </div>
+
+          {/* Title only (no description) */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-5">
+            <ColumnHeader
+              icon={<InfoCircle className="w-12 h-12 text-primary-500" />}
+              title="News & Updates"
+            />
+          </div>
+
+          {/* With the optional view toggle */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-5">
+            <ColumnHeader
+              icon={<Shield className="w-12 h-12 text-primary-500" />}
+              title="My Battles"
+              description="Switch between two views with the toggle."
+              toggle={{
+                value: columnHeaderView,
+                onChange: setColumnHeaderView,
+                options: [
+                  { id: 'list',    icon: <ListCheck className="w-4 h-4" />, label: 'List view' },
+                  { id: 'gallery', icon: <Gallery className="w-4 h-4" />,   label: 'Gallery view' },
+                ],
+              }}
+            />
+          </div>
 
         </div>
       </GallerySection>

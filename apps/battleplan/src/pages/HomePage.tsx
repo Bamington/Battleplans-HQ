@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, Pagination, useAutoPageSize, Shield, RichTextEditor } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, Shield, RichTextEditor, ListCheck, Gallery } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
+import { BattleGridItem } from '../components/BattleGridItem';
+import { BattleDetailsModal } from '../components/BattleDetailsModal';
 import { useBattles } from '../hooks/useBattles';
 import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
@@ -48,6 +50,14 @@ const AddCircleIcon = () => (
 const ArrowRightIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// Bar-chart icon for the My Battles "Stats" button (Figma statistic-chart).
+const ChartIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 14h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M4.5 14V8M8 14V3M11.5 14v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 
@@ -275,78 +285,52 @@ function NewBookingModal({
 // — so My Bookings and Upcoming Bookings share a row height.
 const BOOKING_ITEM_H  = 112;
 const UPCOMING_ITEM_H = 112;
-// BattleItem: heading 24 + opponent 20 + date/venue 20 = 64 = thumbnail -> 92
-const BATTLE_ITEM_H   = 92;
+// My Battles scrolls instead of paginating, so it needs no fixed row height.
 // NewsItem = 2 border + 26 padding + title 24 + rule 1 + clamped body 116
 //            (5 lines of SM Regular, measured) + button ~38 + three 6px gaps.
 //            Rounded up: a slightly high value costs a little whitespace, a low
 //            one clips the last row.
 const NEWS_ITEM_H     = 230;
-/** Vertical gap between rows in every column list (gap-1.5). */
-const ROW_GAP = 6;
 
 function BookingCard({ userId }: { userId: string | null }) {
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const { bookings, loading, refetch } = useUserBookings(userId);
 
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, BOOKING_ITEM_H, ROW_GAP);
-  const [page, setPage] = useState(0);
-
-  const totalPages = Math.max(1, Math.ceil(bookings.length / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = bookings.slice(safePage * pageSize, (safePage + 1) * pageSize);
-
-  // Snap back into range when the list shrinks or the viewport resizes.
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
-
   return (
     <>
-      <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
-        <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
-
-          <BoxIcon />
-
-          <h2 className="font-heading text-xl text-white">My Bookings</h2>
-
-          <p className="font-body text-base text-neutral-300 text-center">
-            Tables you've booked at your favorite local game stores.
-          </p>
-
-          <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
-            {loading ? (
-              <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-            ) : bookings.length === 0 ? (
-              <p className="font-body text-sm text-neutral-500 text-center py-4">No upcoming bookings.</p>
-            ) : paginated.map(b => {
-              const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-              const [y,m,d] = b.date.split('-').map(Number);
-              const dt = new Date(y, m-1, d);
-              const dateLabel = `${DAY_NAMES[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
-              return (
-                <BookingItem
-                  key={b.id}
-                  bookingId={b.id}
-                  gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-                  gameName={b.game?.name ?? 'No game'}
-                  location={b.location.name}
-                  date={dateLabel}
-                  time={formatBookingTime(b.timeslot)}
-                  variant="user"
-                  onDeleted={refetch}
-                />
-              );
-            })}
-          </div>
-
-          <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
+      <PaginatedColumn
+        icon={<BoxIcon />}
+        title="My Bookings"
+        description="Tables you've booked at your favorite local game stores."
+        items={bookings}
+        itemHeight={BOOKING_ITEM_H}
+        loading={loading}
+        empty="No upcoming bookings."
+        getKey={b => b.id}
+        renderItem={b => {
+          const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+          const [y,m,d] = b.date.split('-').map(Number);
+          const dt = new Date(y, m-1, d);
+          const dateLabel = `${DAY_NAMES[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
+          return (
+            <BookingItem
+              bookingId={b.id}
+              gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
+              gameName={b.game?.name ?? 'No game'}
+              location={b.location.name}
+              date={dateLabel}
+              time={formatBookingTime(b.timeslot)}
+              variant="user"
+              onDeleted={refetch}
+            />
+          );
+        }}
+        footer={
           <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center shrink-0" onClick={() => setNewBookingOpen(true)}>
             New Booking
           </Button>
-
-        </div>
-      </div>
+        }
+      />
 
       <NewBookingModal
         open={newBookingOpen}
@@ -385,6 +369,8 @@ function NewBattleModal({
   const [venue,       setVenue]       = useState('');   // '' | location id | OTHER_VENUE
   const [customVenue, setCustomVenue] = useState('');
   const [notes,       setNotes]       = useState('');
+  const [photoFile,   setPhotoFile]   = useState<File | null>(null);
+  const [photoPreview,setPhotoPreview]= useState<string | null>(null);
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState<string | null>(null);
 
@@ -394,10 +380,24 @@ function NewBattleModal({
 
   const canSubmit = gameId && oppName.trim() && date && result && !saving;
 
+  const clearPhoto = () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
+  const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
   const handleClose = () => {
     if (saving) return;
     setGameId(''); setOppName(''); setDate(today); setResult('');
     setVenue(''); setCustomVenue(''); setNotes(''); setError(null);
+    clearPhoto();
     onClose();
   };
 
@@ -413,7 +413,7 @@ function NewBattleModal({
       ? known.name
       : (venue === OTHER_VENUE ? (customVenue.trim() || null) : null);
 
-    const { error: err } = await supabase.from('battles').insert({
+    const { data: inserted, error: err } = await supabase.from('battles').insert({
       user_id:       userId,
       game_id:       gameId,
       date_played:   date,
@@ -425,10 +425,34 @@ function NewBattleModal({
       location_name,
       location_id,
       battle_notes:  notes.trim() || null,
-    });
+    }).select('id').single();
+
+    if (err || !inserted) { setSaving(false); setError(err?.message ?? 'Could not save the battle.'); return; }
+
+    // Attach the photo, if one was chosen. Uploaded to the owner's folder in the
+    // battle-images bucket, then linked as the battle's primary photo. A photo
+    // failure doesn't undo the saved battle — surface it but keep the battle.
+    if (photoFile) {
+      const ext  = photoFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${userId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('battle-images')
+        .upload(path, photoFile, { contentType: photoFile.type || undefined, upsert: false });
+      if (upErr) {
+        setSaving(false);
+        setError(`Battle saved, but the photo failed to upload: ${upErr.message}`);
+        onCreated();
+        return;
+      }
+      await supabase.from('battle_images').insert({
+        battle_id:  inserted.id,
+        user_id:    userId,
+        image_path: path,
+        is_primary: true,
+      });
+    }
 
     setSaving(false);
-    if (err) { setError(err.message); return; }
     onCreated();
     handleClose();
   };
@@ -512,6 +536,28 @@ function NewBattleModal({
           <RichTextEditor value={notes} onChange={setNotes} placeholder="How did it go?" />
         </div>
 
+        <div className="flex flex-col gap-2">
+          <label className="block text-sm font-medium font-body text-white">Photo (Optional)</label>
+          {photoPreview ? (
+            <div className="relative w-full h-32 rounded-lg overflow-hidden border border-neutral-700">
+              <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={clearPhoto}
+                className="absolute top-2 right-2 px-2 py-1 rounded-md bg-neutral-900/80 text-white font-body text-xs hover:bg-neutral-900"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center gap-1.5 w-full h-24 rounded-lg border border-dashed border-neutral-600 cursor-pointer text-neutral-400 hover:bg-neutral-800 transition-colors">
+              <Gallery className="w-6 h-6" />
+              <span className="font-body text-sm">Add a photo of the battle</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            </label>
+          )}
+        </div>
+
         {error && <p className="font-body text-sm text-red-400">{error}</p>}
 
         <div className="flex items-center justify-end gap-3 pt-1">
@@ -536,63 +582,67 @@ function NewBattleModal({
 }
 
 function MyBattlesCard({ userId }: { userId: string | null }) {
-  const { battles, loading, refetch } = useBattles(userId);
+  const { battles, loading, loadingMore, hasMore, loadMore, refetch } = useBattles(userId);
   const [newBattleOpen, setNewBattleOpen] = useState(false);
-  const [page, setPage] = useState(0);
+  // View switch in the header: compact list rows vs. photo-hero gallery cards.
+  const [view, setView] = useState<'list' | 'gallery'>('list');
+  // Which battle's details modal is open. Derived from the list by id so it
+  // stays fresh after edits refetch.
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, BATTLE_ITEM_H, ROW_GAP);
-
-  const totalPages = Math.max(1, Math.ceil(battles.length / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = battles.slice(safePage * pageSize, (safePage + 1) * pageSize);
-
-  // Snap back into range when the list shrinks or the viewport resizes.
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
+  // My Battles scrolls rather than paginating (unlike the booking/news columns);
+  // ScrollColumn's infinite scroll loads a page at a time via loadMore/hasMore.
+  const gallery = view === 'gallery';
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
-      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
-
-        <Shield className="w-12 h-12 text-primary-500" />
-
-        <h2 className="font-heading text-xl text-white">My Battles</h2>
-
-        <p className="font-body text-base text-neutral-300 text-center">
-          The games you've played, and how they went.
-        </p>
-
-        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : battles.length === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">No battles recorded yet.</p>
-          ) : paginated.map(b => (
-            <BattleItem
-              key={b.id}
-              gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-              gameName={b.game?.name ?? 'No game'}
-              oppName={b.opp_name}
-              datePlayed={b.date_played}
-              locationName={b.location_name}
-              result={b.result}
-            />
-          ))}
-        </div>
-
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
-        <Button
-          variant="outline"
-          color="primary"
-          leftIcon={<AddCircleIcon />}
-          className="w-full justify-center shrink-0"
-          onClick={() => setNewBattleOpen(true)}
-        >
-          Add Battle
-        </Button>
-
-      </div>
+    <>
+      <ScrollColumn
+        icon={<Shield className="w-12 h-12 text-primary-500" />}
+        title="My Battles"
+        description="The games you've played, and how they went."
+        toggle={{
+          value: view,
+          onChange: (v) => setView(v as 'list' | 'gallery'),
+          options: [
+            { id: 'list',    icon: <ListCheck className="w-4 h-4" />, label: 'List view' },
+            { id: 'gallery', icon: <Gallery className="w-4 h-4" />,   label: 'Gallery view' },
+          ],
+        }}
+        wide={gallery}
+        items={battles}
+        loading={loading}
+        empty="No battles recorded yet."
+        hasMore={hasMore}
+        loadingMore={loadingMore}
+        onLoadMore={loadMore}
+        listClassName={gallery ? 'grid grid-cols-1 lg:grid-cols-2 gap-2.5' : 'flex flex-col gap-1.5'}
+        getKey={b => b.id}
+        renderItem={b => {
+          const cardProps = {
+            gameIcon:     b.game?.slug ? GAME_ICONS[b.game.slug] : undefined,
+            gameName:     b.game?.name ?? 'No game',
+            oppName:      b.opp_name,
+            datePlayed:   b.date_played,
+            locationName: b.location_name,
+            result:       b.result,
+            photoUrl:     b.photoUrl,
+            onClick:      () => setSelectedId(b.id),
+          };
+          return gallery ? <BattleGridItem {...cardProps} /> : <BattleItem {...cardProps} />;
+        }}
+        footer={
+          // Add Battle + Stats sit side by side (Figma 1014:22867). Stats is a
+          // placeholder — its behaviour is still to be specified (V1.1).
+          <div className="flex gap-3 w-full shrink-0">
+            <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="flex-1 justify-center" onClick={() => setNewBattleOpen(true)}>
+              Add Battle
+            </Button>
+            <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center">
+              Stats
+            </Button>
+          </div>
+        }
+      />
 
       <NewBattleModal
         open={newBattleOpen}
@@ -600,55 +650,38 @@ function MyBattlesCard({ userId }: { userId: string | null }) {
         userId={userId}
         onCreated={refetch}
       />
-    </div>
+
+      <BattleDetailsModal
+        battle={battles.find(b => b.id === selectedId) ?? null}
+        open={selectedId !== null}
+        onClose={() => setSelectedId(null)}
+        onChanged={refetch}
+        userId={userId}
+      />
+    </>
   );
 }
 
 function NewsCard() {
   const { updates, loading } = useUpdates('battleplan');
   const [selected, setSelected] = useState<AppUpdate | null>(null);
-  const [page,     setPage]     = useState(0);
-
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, NEWS_ITEM_H, ROW_GAP);
-
-  const totalPages = Math.max(1, Math.ceil(updates.length / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = updates.slice(safePage * pageSize, (safePage + 1) * pageSize);
-
-  // Snap back into range if the list shrinks under us.
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
-      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
-
-        <InfoCircleIcon />
-
-        <h2 className="font-heading text-xl text-white">News &amp; Updates</h2>
-
-        <p className="font-body text-base text-neutral-300 text-center">
-          Find out what's happening with BattlePlan.
-        </p>
-
-        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : updates.length === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">
-              No updates yet. Check back soon.
-            </p>
-          ) : paginated.map(u => (
-            <NewsItem key={u.id} update={u} onRead={() => setSelected(u)} />
-          ))}
-        </div>
-
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
-      </div>
+    <>
+      <PaginatedColumn
+        icon={<InfoCircleIcon />}
+        title="News & Updates"
+        description="Find out what's happening with BattlePlan."
+        items={updates}
+        itemHeight={NEWS_ITEM_H}
+        loading={loading}
+        empty="No updates yet. Check back soon."
+        getKey={u => u.id}
+        renderItem={u => <NewsItem update={u} onRead={() => setSelected(u)} />}
+      />
 
       <UpdateModal open={!!selected} onClose={() => setSelected(null)} update={selected} />
-    </div>
+    </>
   );
 }
 
@@ -700,69 +733,38 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
   const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
 
   const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
-  const [page, setPage] = useState(0);
-
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, UPCOMING_ITEM_H, ROW_GAP);
-
-  const totalPages = Math.max(1, Math.ceil(bookings.length / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = bookings.slice(safePage * pageSize, (safePage + 1) * pageSize);
-
-  // Snap back into range whenever the list shrinks (e.g. after a deletion)
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
-
-  // Jump back to the first page when switching which venue is shown
-  useEffect(() => { setPage(0); }, [selectedId]);
-
   const navigate = useNavigate();
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
-      <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
-
-        <CalendarIcon />
-
-        <h2 className="font-heading text-xl text-white">Upcoming Bookings</h2>
-
-        <p className="font-body text-base text-neutral-300 text-center">
-          All upcoming table bookings at your venues.
-        </p>
-
-        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : bookings.length === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">No upcoming bookings.</p>
-          ) : paginated.map(b => (
-            <BookingItem
-              key={b.id}
-              bookingId={b.id}
-              gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-              gameName={b.game?.name ?? 'No game'}
-              location={b.location.name}
-              date={formatBookingDate(b.date)}
-              time={formatBookingTime(b.timeslot)}
-              customerName={b.user_name ?? undefined}
-              variant="store"
-              onDeleted={refetch}
-            />
-          ))}
-        </div>
-
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
-        <Button
-          variant="outline"
-          color="primary"
-          className="w-full justify-center"
-          onClick={() => navigate('/app/manage-store')}
-        >
+    <PaginatedColumn
+      icon={<CalendarIcon />}
+      title="Upcoming Bookings"
+      description="All upcoming table bookings at your venues."
+      items={bookings}
+      itemHeight={UPCOMING_ITEM_H}
+      loading={loading}
+      empty="No upcoming bookings."
+      resetPageKey={selectedId}
+      getKey={b => b.id}
+      renderItem={b => (
+        <BookingItem
+          bookingId={b.id}
+          gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
+          gameName={b.game?.name ?? 'No game'}
+          location={b.location.name}
+          date={formatBookingDate(b.date)}
+          time={formatBookingTime(b.timeslot)}
+          customerName={b.user_name ?? undefined}
+          variant="store"
+          onDeleted={refetch}
+        />
+      )}
+      footer={
+        <Button variant="outline" color="primary" className="w-full justify-center" onClick={() => navigate('/app/manage-store')}>
           Manage Store
         </Button>
-
-      </div>
-    </div>
+      }
+    />
   );
 }
 

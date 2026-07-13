@@ -43,7 +43,7 @@ import { useState, useEffect, useRef } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { AppFooter } from '@battleplans/ui';
 import { useIsAdmin } from '@battleplans/ui';
-import { useUpdates, MarkdownBody, UpdateModal, Pagination, useAutoPageSize } from '@battleplans/ui';
+import { useUpdates, MarkdownBody, UpdateModal, Pagination, useAutoPageSize, ColumnHeader } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@battleplans/ui';
@@ -712,11 +712,7 @@ export default function AppHome() {
             >
               <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
-                <Box className="size-12 text-blue-400" />
-
-                <h2 className="font-heading text-[20px] leading-7 text-white text-center whitespace-nowrap">
-                  Packs
-                </h2>
+                <ColumnHeader icon={<Box className="size-12 text-blue-400" />} title="Packs" />
 
                 {packsLoading ? (
 
@@ -894,10 +890,7 @@ export default function AppHome() {
 
                   // ── Loading ──────────────────────────────────────────
                   <>
-                    <Widget2 className="size-12 text-blue-400" />
-                    <h2 className="font-heading text-[20px] leading-7 text-white text-center whitespace-nowrap">
-                      Your Decks
-                    </h2>
+                    <ColumnHeader icon={<Widget2 className="size-12 text-blue-400" />} title="Your Decks" />
                     <div className="flex items-center justify-center py-4 w-full">
                       <svg
                         className="animate-spin size-6 text-blue-400"
@@ -915,10 +908,7 @@ export default function AppHome() {
 
                   // ── Error ─────────────────────────────────────────────
                   <>
-                    <Widget2 className="size-12 text-blue-400" />
-                    <h2 className="font-heading text-[20px] leading-7 text-white text-center whitespace-nowrap">
-                      Your Decks
-                    </h2>
+                    <ColumnHeader icon={<Widget2 className="size-12 text-blue-400" />} title="Your Decks" />
                     <p className="font-body text-sm text-red-400 text-center">{fetchError}</p>
                     <Button variant="outline" color="secondary" onClick={loadData}>
                       Retry
@@ -929,10 +919,7 @@ export default function AppHome() {
 
                   // ── Empty state (Figma node 293:3712) ─────────────────
                   <>
-                    <Layers className="size-12 text-blue-400" />
-                    <h2 className="font-heading text-[20px] leading-7 text-white text-center whitespace-nowrap">
-                      Your Decks
-                    </h2>
+                    <ColumnHeader icon={<Layers className="size-12 text-blue-400" />} title="Your Decks" />
                     <p className="font-body text-base text-gray-300 text-center">
                       Your cards live inside decks — usually, you'd create a deck for a
                       certain list or roster you're planning to play with (for example, a
@@ -954,13 +941,11 @@ export default function AppHome() {
 
                   // ── Populated ─────────────────────────────────────────
                   <>
-                    <Widget2 className="size-12 text-blue-400" />
-                    <h2 className="font-heading text-[20px] leading-7 text-white text-center whitespace-nowrap">
-                      Your Decks
-                    </h2>
-                    <p className="font-body text-base text-gray-300 text-center">
-                      Manage your decks and cards.
-                    </p>
+                    <ColumnHeader
+                      icon={<Widget2 className="size-12 text-blue-400" />}
+                      title="Your Decks"
+                      description="Manage your decks and cards."
+                    />
 
                     {/* Surface the most recent duplicate failure inline. */}
                     {duplicateError && (
@@ -1018,15 +1003,11 @@ export default function AppHome() {
             >
               <div className="flex flex-col gap-4 items-center p-5 w-full flex-1 min-h-0">
 
-                <InfoCircle className="size-12 text-blue-400" />
-
-                <h2 className="font-heading text-[20px] leading-7 text-white text-center whitespace-nowrap">
-                  News &amp; Updates
-                </h2>
-
-                <p className="font-body text-base text-gray-300 text-center">
-                  Find out what's happening with Battlecards.
-                </p>
+                <ColumnHeader
+                  icon={<InfoCircle className="size-12 text-blue-400" />}
+                  title="News & Updates"
+                  description="Find out what's happening with Battlecards."
+                />
 
                 <div ref={newsListRef} className="flex flex-col gap-3 w-full flex-1 min-h-0 overflow-hidden">
                   {updatesLoading ? (
