@@ -376,8 +376,8 @@ function NewBattleModal({
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState<string | null>(null);
 
-  // Battles can be against any game, not just the booking-enabled ones.
-  const { games,     loading: gamesLoading }     = useAllGames();
+  // Battles can be against any supported game, plus the user's own games.
+  const { games,     loading: gamesLoading }     = useAllGames(userId);
   const { locations, loading: locationsLoading } = useLocations();
   const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
 

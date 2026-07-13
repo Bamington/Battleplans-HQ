@@ -147,7 +147,7 @@ export function BattleDetailsModal({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { games,     loading: gamesLoading }     = useAllGames();
+  const { games,     loading: gamesLoading }     = useAllGames(userId);
   const { locations, loading: locationsLoading } = useLocations();
   const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
 

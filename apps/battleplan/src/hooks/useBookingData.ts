@@ -136,24 +136,27 @@ export function useGames() {
 }
 
 // ── useAllGames ───────────────────────────────────────────────────────────────
-// Every game, not just the ones enabled for table bookings. Battles can be
-// recorded against any game, so `useGames`' enabled_battleplan filter is wrong
-// for them.
+// Games available in the battle-logging picker: every supported game, plus any
+// unsupported ones the current user created themselves (e.g. board games they
+// imported from a personal tracker). This is broader than `useGames`'
+// enabled_battleplan filter (bookings) but narrower than the whole catalogue, so
+// unsupported games other users created don't clutter everyone's picker.
 
-export function useAllGames() {
+export function useAllGames(userId?: string | null) {
   const [games,   setGames]   = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('games')
-      .select('id, name, slug')
-      .order('name')
-      .then(({ data }) => {
-        setGames(data ?? []);
-        setLoading(false);
-      });
-  }, []);
+    setLoading(true);
+    const base = supabase.from('games').select('id, name, slug');
+    const query = userId
+      ? base.or(`supported.eq.true,created_by.eq.${userId}`)
+      : base.eq('supported', true);
+    query.order('name').then(({ data }) => {
+      setGames(data ?? []);
+      setLoading(false);
+    });
+  }, [userId]);
 
   return { games, loading };
 }
