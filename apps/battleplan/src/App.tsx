@@ -4,6 +4,7 @@ import { supabase, ProtectedRoute, WelcomeModal } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import HomePage from './pages/HomePage.tsx';
+import BattleStatsPage from './pages/BattleStatsPage.tsx';
 import ManageStore from './pages/ManageStore.tsx';
 import AdminPage from './pages/AdminPage.tsx';
 import ManageUsers from './pages/admin/ManageUsers.tsx';
@@ -41,6 +42,7 @@ export default function App() {
           </ProtectedRoute>
         }>
           <Route path="/app" element={<HomePage />} />
+          <Route path="/app/stats" element={<BattleStatsPage />} />
           <Route path="/app/manage-store" element={<ManageStore />} />
           <Route path="/app/admin" element={<AdminPage />} />
           <Route path="/app/admin/users" element={<ManageUsers />} />

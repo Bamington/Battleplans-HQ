@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   supabase, AppFooter, Button, ButtonPair, Pagination, useAutoPageSize, useUpdates,
-  UpdateModal, MarkdownBody, Box, UserRounded, AddCircle, Magnifer,
+  UpdateModal, MarkdownBody, Box, UserRounded, AddCircle, Magnifer, ColumnHeader,
 } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -114,13 +114,11 @@ function CollectionCard({ userId }: { userId: string | null }) {
     <div className={COLUMN_CLASS}>
       <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
 
-        <BoxHeaderIcon />
-
-        <h2 className="font-heading text-xl text-white">Your Collection</h2>
-
-        <p className="font-body text-base text-neutral-300 text-center">
-          Models and collections that you've uploaded.
-        </p>
+        <ColumnHeader
+          icon={<BoxHeaderIcon />}
+          title="Your Collection"
+          description="Models and collections that you've uploaded."
+        />
 
         <SegmentedToggle tab={tab} onChange={setTab} />
 
@@ -191,13 +189,11 @@ function NewsCard() {
     <div className={COLUMN_CLASS}>
       <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
 
-        <InfoCircleIcon />
-
-        <h2 className="font-heading text-xl text-white">News &amp; Updates</h2>
-
-        <p className="font-body text-base text-neutral-300 text-center">
-          Find out what's happening with BattleBox.
-        </p>
+        <ColumnHeader
+          icon={<InfoCircleIcon />}
+          title="News & Updates"
+          description="Find out what's happening with BattleBox."
+        />
 
         <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
           {loading ? (
