@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  supabase, AppFooter, Button, ButtonPair, useUpdates, UpdateModal, MarkdownBody,
+  supabase, AppFooter, Button, Input, useUpdates, UpdateModal, MarkdownBody,
   PaginatedColumn, ScrollColumn, Select, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
 } from '@battleplans/ui';
 import type { AppUpdate, ColumnHeaderToggle } from '@battleplans/ui';
@@ -62,41 +62,48 @@ function viewToggle(view: View, setView: (v: View) => void): ColumnHeaderToggle 
   };
 }
 
-/** The All / Painted filter dropdown shown above each list. */
-function FilterSelect({ value, onChange, allLabel, paintedLabel }: {
-  value: CollectionFilter;
-  onChange: (v: CollectionFilter) => void;
+/** The filter dropdown + search field shown above each list. */
+function ListControls({ filter, onFilter, allLabel, paintedLabel, search, onSearch, searchPlaceholder }: {
+  filter: CollectionFilter;
+  onFilter: (v: CollectionFilter) => void;
   allLabel: string;
   paintedLabel: string;
+  search: string;
+  onSearch: (v: string) => void;
+  searchPlaceholder: string;
 }) {
   return (
-    <Select
-      size="sm"
-      className="w-full"
-      value={value}
-      onChange={e => onChange(e.target.value as CollectionFilter)}
-      leftIcon={<Filter className="w-4 h-4" />}
-      options={[
-        { value: 'all',     label: allLabel },
-        { value: 'painted', label: paintedLabel },
-      ]}
-    />
+    <div className="flex flex-col gap-2 w-full shrink-0">
+      <Select
+        size="sm"
+        className="w-full"
+        value={filter}
+        onChange={e => onFilter(e.target.value as CollectionFilter)}
+        leftIcon={<Filter className="w-4 h-4" />}
+        options={[
+          { value: 'all',     label: allLabel },
+          { value: 'painted', label: paintedLabel },
+        ]}
+      />
+      <Input
+        size="sm"
+        type="search"
+        className="w-full"
+        placeholder={searchPlaceholder}
+        leftIcon={<Magnifer className="w-4 h-4" />}
+        value={search}
+        onChange={e => onSearch(e.target.value)}
+      />
+    </div>
   );
 }
 
-/** The Add / Search actions pinned below a collection list. */
-function CtaButtons({ addLabel, searchLabel }: { addLabel: string; searchLabel: string }) {
+/** The single Add action pinned below a collection list. */
+function AddButton({ label }: { label: string }) {
   return (
-    <ButtonPair className="shrink-0">
-      <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="justify-center">
-        <span className="md:hidden">Add</span>
-        <span className="hidden md:inline">{addLabel}</span>
-      </Button>
-      <Button variant="outline" color="primary" leftIcon={<Magnifer className="w-4 h-4" />} className="justify-center">
-        <span className="md:hidden">Search</span>
-        <span className="hidden md:inline">{searchLabel}</span>
-      </Button>
-    </ButtonPair>
+    <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center shrink-0">
+      {label}
+    </Button>
   );
 }
 
@@ -108,8 +115,10 @@ const ROW_LIST  = 'flex flex-col gap-1.5';
 function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop: boolean }) {
   const [view,   setView]   = useState<View>('gallery');
   const [filter, setFilter] = useState<CollectionFilter>('all');
+  const [search, setSearch] = useState('');
+  const query = useDebouncedValue(search.trim(), 300);
 
-  const { models, loading, loadingMore, hasMore, loadMore } = useModels(userId, filter);
+  const { models, loading, loadingMore, hasMore, loadMore } = useModels(userId, filter, query);
   // Gallery is a desktop-only view; mobile & tablet always show the list.
   const gallery = isDesktop && view === 'gallery';
 
@@ -120,17 +129,22 @@ function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop:
       description="Miniatures you've added to your collection."
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
-      beforeList={<FilterSelect value={filter} onChange={setFilter} allLabel="All Models" paintedLabel="Painted Models" />}
+      beforeList={
+        <ListControls
+          filter={filter} onFilter={setFilter} allLabel="All Models" paintedLabel="Painted Models"
+          search={search} onSearch={setSearch} searchPlaceholder="Search models…"
+        />
+      }
       items={models}
       loading={loading}
-      empty={filter === 'painted' ? 'No painted models.' : 'No models yet.'}
+      empty={query ? 'No models match your search.' : (filter === 'painted' ? 'No painted models.' : 'No models yet.')}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={m => m.id}
       renderItem={m => (gallery ? <ModelGridItem model={m} /> : <ModelItem model={m} />)}
-      footer={<CtaButtons addLabel="Add Model" searchLabel="Search Models" />}
+      footer={<AddButton label="Add Model" />}
     />
   );
 }
@@ -140,8 +154,10 @@ function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop:
 function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDesktop: boolean }) {
   const [view,   setView]   = useState<View>('list');
   const [filter, setFilter] = useState<CollectionFilter>('all');
+  const [search, setSearch] = useState('');
+  const query = useDebouncedValue(search.trim(), 300);
 
-  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId);
+  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, query);
   const gallery = isDesktop && view === 'gallery';
 
   // "Painted" collections are filtered client-side over the loaded pages
@@ -155,17 +171,22 @@ function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDes
       description="Boxes and collections you've uploaded."
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
-      beforeList={<FilterSelect value={filter} onChange={setFilter} allLabel="All Collections" paintedLabel="Painted Collections" />}
+      beforeList={
+        <ListControls
+          filter={filter} onFilter={setFilter} allLabel="All Collections" paintedLabel="Painted Collections"
+          search={search} onSearch={setSearch} searchPlaceholder="Search collections…"
+        />
+      }
       items={items}
       loading={loading}
-      empty={filter === 'painted' ? 'No fully-painted collections.' : 'No collections yet.'}
+      empty={query ? 'No collections match your search.' : (filter === 'painted' ? 'No fully-painted collections.' : 'No collections yet.')}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={b => b.id}
       renderItem={b => (gallery ? <BoxGridItem box={b} /> : <BoxItem box={b} />)}
-      footer={<CtaButtons addLabel="Add Collection" searchLabel="Search Collections" />}
+      footer={<AddButton label="Add Collection" />}
     />
   );
 }
@@ -214,6 +235,17 @@ function NewsCard() {
 }
 
 // ── Responsive helper ─────────────────────────────────────────────────────────
+
+/** Debounce a fast-changing value (e.g. a search field) so downstream queries
+ *  don't fire on every keystroke. */
+function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
 
 /** True from the `lg` breakpoint up (desktop). Gallery view is desktop-only. */
 function useIsDesktop() {

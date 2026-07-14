@@ -250,17 +250,23 @@ function usePagedCollection<Row, T>(
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-export function useModels(userId: string | null, filter: CollectionFilter = 'all') {
-  const applyFilter = useCallback<QueryStep>(
-    q => (filter === 'painted' ? q.eq('status', 'Painted') : q),
-    [filter]);
+export function useModels(userId: string | null, filter: CollectionFilter = 'all', search = '') {
+  const applyFilter = useCallback<QueryStep>(q => {
+    let x = q;
+    if (search)               x = x.ilike('name', `%${search}%`);
+    if (filter === 'painted') x = x.eq('status', 'Painted');
+    return x;
+  }, [filter, search]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
     userId, 'models', MODEL_SELECT, mapModel, applyFilter);
   return { models: items, ...rest };
 }
 
-export function useBoxes(userId: string | null) {
+export function useBoxes(userId: string | null, search = '') {
+  const applyFilter = useCallback<QueryStep>(
+    q => (search ? q.ilike('name', `%${search}%`) : q),
+    [search]);
   const { items, ...rest } = usePagedCollection<BoxRow, CollectionBox>(
-    userId, 'boxes', BOX_SELECT, mapBox);
+    userId, 'boxes', BOX_SELECT, mapBox, applyFilter);
   return { boxes: items, ...rest };
 }
