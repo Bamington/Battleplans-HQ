@@ -7,6 +7,7 @@ import type { AppUpdate, ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
+import { ModelDetailModal } from '../components/ModelDetailModal';
 import { useModels, useBoxes, useMatchingGameIds } from '../hooks/useCollection';
 import type { CollectionModel, CollectionBox, CollectionFilter } from '../hooks/useCollection';
 
@@ -116,13 +117,15 @@ function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop:
   const [view,   setView]   = useState<View>('gallery');
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const query = useDebouncedValue(search.trim(), 300);
 
-  const { models, loading, loadingMore, hasMore, loadMore } = useModels(userId, filter, query);
+  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filter, query);
   // Gallery is a desktop-only view; mobile & tablet always show the list.
   const gallery = isDesktop && view === 'gallery';
 
   return (
+    <>
     <ScrollColumn<CollectionModel>
       icon={<ModelsHeaderIcon />}
       title="Your Models"
@@ -143,9 +146,13 @@ function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop:
       onLoadMore={loadMore}
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={m => m.id}
-      renderItem={m => (gallery ? <ModelGridItem model={m} /> : <ModelItem model={m} />)}
+      renderItem={m => (gallery
+        ? <ModelGridItem model={m} onClick={() => setSelectedId(m.id)} />
+        : <ModelItem     model={m} onClick={() => setSelectedId(m.id)} />)}
       footer={<AddButton label="Add Model" />}
     />
+    <ModelDetailModal modelId={selectedId} onClose={() => setSelectedId(null)} onChanged={refetch} />
+    </>
   );
 }
 

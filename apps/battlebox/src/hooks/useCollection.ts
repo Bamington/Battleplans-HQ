@@ -312,3 +312,149 @@ export function useMatchingGameIds(search: string): string[] {
   // Returns a stable empty array while unresolved so the query doesn't churn.
   return match.term === search ? match.ids : NO_GAME_IDS;
 }
+
+// ── Model detail (the click-a-model modal) ────────────────────────────────────
+
+/** A paint used on a model, resolved for display. */
+export interface PaintRef {
+  name: string;
+  brand: string;
+  type: string;            // 'Paint' | 'Spray'
+  swatch: string | null;
+  /** Where/how it was used (a model_hobby_items.section note). */
+  note: string | null;
+}
+
+/** A recipe applied to a model: a named, ordered group of paints. */
+export interface ModelRecipeGroup {
+  name: string;
+  description: string | null;
+  paints: PaintRef[];
+}
+
+export interface ModelDetail {
+  id: string;
+  name: string;
+  game: CollectionGame | null;
+  status: ModelStatus;
+  count: number;
+  purchaseDate: string | null;
+  paintedDate: string | null;
+  paintingNotes: string | null;
+  loreName: string | null;
+  loreDescription: string | null;
+  /** The model's photos, primary first — the modal's hero carousel. */
+  images: string[];
+  /** The boxes/collections this model belongs to. */
+  includedIn: CollectionBox[];
+  /** Recipes applied to the model. */
+  recipes: ModelRecipeGroup[];
+  /** Individual paints applied outside a recipe. */
+  directPaints: PaintRef[];
+}
+
+interface HobbyItemRef { name: string; brand: string; type: string; swatch: string | null }
+
+interface ModelDetailRow {
+  id: string;
+  name: string;
+  status: ModelStatus;
+  count: number;
+  image_path: string | null;
+  purchase_date: string | null;
+  painted_date: string | null;
+  painting_notes: string | null;
+  lore_name: string | null;
+  lore_description: string | null;
+  game: CollectionGame | null;
+  model_images: ModelImageRow[] | null;
+  model_boxes: { box: BoxRow | null }[] | null;
+  model_recipes: {
+    description: string | null;
+    sort_order: number;
+    recipe: { name: string; description: string | null; recipe_items: { display_order: number; hobby_item: HobbyItemRef | null }[] | null } | null;
+  }[] | null;
+  model_hobby_items: { section: string | null; sort_order: number; hobby_item: HobbyItemRef | null }[] | null;
+}
+
+const MODEL_DETAIL_SELECT =
+  'id, name, status, count, image_path, purchase_date, painted_date, painting_notes, lore_name, lore_description, ' +
+  'game:games ( name, slug ), ' +
+  'model_images ( image_path, is_primary, display_order ), ' +
+  'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
+    'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
+  'model_recipes ( description, sort_order, recipe:recipes ( name, description, recipe_items ( display_order, hobby_item:hobby_items ( name, brand, type, swatch ) ) ) ), ' +
+  'model_hobby_items ( section, sort_order, hobby_item:hobby_items ( name, brand, type, swatch ) )';
+
+function paintRef(h: HobbyItemRef | null, note: string | null): PaintRef | null {
+  if (!h) return null;
+  return { name: h.name, brand: h.brand, type: h.type, swatch: h.swatch, note: note || null };
+}
+
+function mapModelDetail(r: ModelDetailRow): ModelDetail {
+  const isPaint = (p: PaintRef | null): p is PaintRef => !!p;
+  return {
+    id: r.id,
+    name: r.name,
+    game: r.game,
+    status: r.status,
+    count: r.count,
+    purchaseDate: r.purchase_date,
+    paintedDate: r.painted_date,
+    paintingNotes: r.painting_notes,
+    loreName: r.lore_name,
+    loreDescription: r.lore_description,
+    images: modelCarouselImages(r.model_images, r.image_path),
+    includedIn: (r.model_boxes ?? []).map(mb => mb.box).filter((b): b is BoxRow => !!b).map(mapBox),
+    recipes: (r.model_recipes ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(mr => ({
+        name: mr.recipe?.name ?? 'Recipe',
+        description: mr.description || mr.recipe?.description || null,
+        paints: (mr.recipe?.recipe_items ?? [])
+          .slice()
+          .sort((a, b) => a.display_order - b.display_order)
+          .map(ri => paintRef(ri.hobby_item, null))
+          .filter(isPaint),
+      })),
+    directPaints: (r.model_hobby_items ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(mhi => paintRef(mhi.hobby_item, mhi.section))
+      .filter(isPaint),
+  };
+}
+
+/** Full detail for one model, for the click-a-model modal. */
+export function useModelDetail(modelId: string | null) {
+  const [model,   setModel]   = useState<ModelDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const refetch = useCallback(() => {
+    if (!modelId) { setModel(null); setLoading(false); return; }
+    setLoading(true);
+    supabase.from('models').select(MODEL_DETAIL_SELECT).eq('id', modelId).single()
+      .then(({ data }) => {
+        setModel(data ? mapModelDetail(data as unknown as ModelDetailRow) : null);
+        setLoading(false);
+      });
+  }, [modelId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { model, loading, refetch };
+}
+
+/** Fields editable inline from the model modal. */
+export type ModelPatch = Partial<{
+  status: ModelStatus;
+  painting_notes: string | null;
+  lore_name: string | null;
+  lore_description: string | null;
+}>;
+
+/** Persist an inline edit to a model. RLS restricts this to the owner. */
+export function updateModel(modelId: string, patch: ModelPatch) {
+  return supabase.from('models').update(patch).eq('id', modelId);
+}
