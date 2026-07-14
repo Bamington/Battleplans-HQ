@@ -1,25 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  supabase, AppFooter, Button, ButtonPair, Pagination, useAutoPageSize, useUpdates,
-  UpdateModal, MarkdownBody, Box, UserRounded, AddCircle, Magnifer, ColumnHeader,
+  supabase, AppFooter, Button, ButtonPair, useUpdates, UpdateModal, MarkdownBody,
+  PaginatedColumn, ScrollColumn, AddCircle, Magnifer, UserRounded, Box, ListCheck, Gallery,
 } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
-import { ModelItem } from '../components/ModelItem';
-import { BoxItem } from '../components/BoxItem';
+import { ModelItem, ModelGridItem } from '../components/ModelItem';
+import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { useModels, useBoxes } from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
 
-// Row heights, in px, used by useAutoPageSize to decide how many rows fit before
-// paginating. Each must match the rendered row height — change the design, change
-// the constant. Collection rows are a 108px image + 2px card border. News rows
-// carry over BattlePlan's calibrated value.
-const COLLECTION_ITEM_H = 110;
-const COLLECTION_GAP    = 12;
-const NEWS_ITEM_H       = 230;
-const NEWS_GAP          = 6;
+// News rows are a fixed height so PaginatedColumn can decide how many fit.
+// Carried over from BattlePlan's calibrated value.
+const NEWS_ITEM_H = 230;
+const NEWS_GAP    = 6;
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -50,17 +47,12 @@ const BattleBoxLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
 );
 
-// ── Shared column card shell ──────────────────────────────────────────────────
-
-const COLUMN_CLASS =
-  'bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always ' +
-  'w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm ' +
-  'flex flex-col min-h-0 shadow-md overflow-hidden';
-
 // ── Collection card ───────────────────────────────────────────────────────────
 
-type Tab = 'models' | 'boxes';
+type Tab  = 'models' | 'boxes';
+type View = 'list'   | 'gallery';
 
+/** The Models / Boxes tab switch shown above the collection list. */
 function SegmentedToggle({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const base = 'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 font-body font-medium text-sm transition-colors';
   const active   = 'bg-primary-600 text-white';
@@ -88,54 +80,51 @@ function SegmentedToggle({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => vo
 }
 
 function CollectionCard({ userId }: { userId: string | null }) {
-  const [tab, setTab]   = useState<Tab>('models');
-  const [page, setPage] = useState(0);
+  const [tab,  setTab]  = useState<Tab>('models');
+  const [view, setView] = useState<View>('list');
 
-  const { models, loading: modelsLoading } = useModels(userId);
-  const { boxes,  loading: boxesLoading }  = useBoxes(userId);
+  const m = useModels(userId);
+  const b = useBoxes(userId);
 
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, COLLECTION_ITEM_H, COLLECTION_GAP);
+  const gallery = view === 'gallery';
+  const isModels = tab === 'models';
 
-  const loading = tab === 'models' ? modelsLoading : boxesLoading;
-  const count   = tab === 'models' ? models.length : boxes.length;
-
-  const totalPages = Math.max(1, Math.ceil(count / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const start      = safePage * pageSize;
-
-  // Reset to the first page when switching tabs or when the list shrinks under us.
-  useEffect(() => { setPage(0); }, [tab]);
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
-
-  const emptyLabel = tab === 'models' ? 'No models yet.' : 'No boxes or collections yet.';
+  // Whichever tab is active drives the column's items + infinite scroll.
+  const items:       (CollectionModel | CollectionBox)[] = isModels ? m.models : b.boxes;
+  const loading      = isModels ? m.loading     : b.loading;
+  const loadingMore  = isModels ? m.loadingMore : b.loadingMore;
+  const hasMore      = isModels ? m.hasMore     : b.hasMore;
+  const loadMore     = isModels ? m.loadMore    : b.loadMore;
 
   return (
-    <div className={COLUMN_CLASS}>
-      <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
-
-        <ColumnHeader
-          icon={<BoxHeaderIcon />}
-          title="Your Collection"
-          description="Models and collections that you've uploaded."
-        />
-
-        <SegmentedToggle tab={tab} onChange={setTab} />
-
-        <div ref={listRef} className="flex flex-col gap-3 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : count === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">{emptyLabel}</p>
-          ) : tab === 'models' ? (
-            models.slice(start, start + pageSize).map(m => <ModelItem key={m.id} model={m} />)
-          ) : (
-            boxes.slice(start, start + pageSize).map(b => <BoxItem key={b.id} box={b} />)
-          )}
-        </div>
-
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
+    <ScrollColumn<CollectionModel | CollectionBox>
+      icon={<BoxHeaderIcon />}
+      title="Your Collection"
+      description="Models and collections that you've uploaded."
+      toggle={{
+        value: view,
+        onChange: (v) => setView(v as View),
+        options: [
+          { id: 'list',    icon: <ListCheck className="w-4 h-4" />, label: 'List view' },
+          { id: 'gallery', icon: <Gallery   className="w-4 h-4" />, label: 'Gallery view' },
+        ],
+      }}
+      wide={gallery}
+      beforeList={<SegmentedToggle tab={tab} onChange={setTab} />}
+      items={items}
+      loading={loading}
+      empty={isModels ? 'No models yet.' : 'No boxes or collections yet.'}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
+      listClassName={gallery ? 'grid grid-cols-1 lg:grid-cols-2 gap-2.5' : 'flex flex-col gap-1.5'}
+      getKey={item => item.id}
+      renderItem={item =>
+        isModels
+          ? (gallery ? <ModelGridItem model={item as CollectionModel} /> : <ModelItem model={item as CollectionModel} />)
+          : (gallery ? <BoxGridItem   box={item as CollectionBox} />     : <BoxItem   box={item as CollectionBox} />)
+      }
+      footer={
         <ButtonPair className="shrink-0">
           <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="justify-center">
             <span className="md:hidden">Add</span>
@@ -146,9 +135,8 @@ function CollectionCard({ userId }: { userId: string | null }) {
             <span className="hidden md:inline">Search Collection</span>
           </Button>
         </ButtonPair>
-
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -174,45 +162,24 @@ function NewsItem({ update, onRead }: { update: AppUpdate; onRead: () => void })
 function NewsCard() {
   const { updates, loading } = useUpdates('battlebox');
   const [selected, setSelected] = useState<AppUpdate | null>(null);
-  const [page,     setPage]     = useState(0);
-
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, NEWS_ITEM_H, NEWS_GAP);
-
-  const totalPages = Math.max(1, Math.ceil(updates.length / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = updates.slice(safePage * pageSize, (safePage + 1) * pageSize);
-
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
 
   return (
-    <div className={COLUMN_CLASS}>
-      <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
-
-        <ColumnHeader
-          icon={<InfoCircleIcon />}
-          title="News & Updates"
-          description="Find out what's happening with BattleBox."
-        />
-
-        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : updates.length === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">
-              No updates yet. Check back soon.
-            </p>
-          ) : paginated.map(u => (
-            <NewsItem key={u.id} update={u} onRead={() => setSelected(u)} />
-          ))}
-        </div>
-
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
-      </div>
+    <>
+      <PaginatedColumn
+        icon={<InfoCircleIcon />}
+        title="News & Updates"
+        description="Find out what's happening with BattleBox."
+        items={updates}
+        itemHeight={NEWS_ITEM_H}
+        gap={NEWS_GAP}
+        loading={loading}
+        empty="No updates yet. Check back soon."
+        getKey={u => u.id}
+        renderItem={u => <NewsItem update={u} onRead={() => setSelected(u)} />}
+      />
 
       <UpdateModal open={!!selected} onClose={() => setSelected(null)} update={selected} />
-    </div>
+    </>
   );
 }
 
