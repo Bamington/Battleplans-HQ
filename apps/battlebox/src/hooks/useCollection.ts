@@ -179,13 +179,18 @@ interface PagedList<T> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type QueryStep = (q: any) => any;
 
+/** Default filter: leave the query untouched. Module-level so the reference is
+ *  stable across renders — an inline `q => q` default would be a new function
+ *  each render, re-triggering the load effect and looping forever. */
+const NO_FILTER: QueryStep = q => q;
+
 function usePagedCollection<Row, T>(
   userId: string | null,
   table: string,
   select: string,
   map: (row: Row) => T,
   /** Adds filters to the query (e.g. status). Must be stable across renders. */
-  applyFilter: QueryStep = q => q,
+  applyFilter: QueryStep = NO_FILTER,
 ): PagedList<T> {
   const [items,       setItems]       = useState<T[]>([]);
   const [loading,     setLoading]     = useState(true);
