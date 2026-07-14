@@ -198,6 +198,10 @@ function usePagedCollection<Row, T>(
   const [hasMore,     setHasMore]     = useState(false);
   // Rows currently loaded — a ref so loadMore/refetch stay stable across renders.
   const loadedRef = useRef(0);
+  // Bumped on every full (re)load; a fetch whose generation is stale when it
+  // resolves is dropped, so out-of-order responses (e.g. from a rapid filter
+  // change) can't overwrite the latest result.
+  const genRef = useRef(0);
 
   const fetchRange = useCallback((from: number, to: number) =>
     applyFilter(
@@ -211,9 +215,11 @@ function usePagedCollection<Row, T>(
     [userId, table, select, map, applyFilter]);
 
   const load = useCallback(async () => {
+    const gen = ++genRef.current;
     if (!userId) { loadedRef.current = 0; setItems([]); setHasMore(false); setLoading(false); return; }
     setLoading(true);
     const rows = await fetchRange(0, PAGE_SIZE - 1);
+    if (gen !== genRef.current) return;   // a newer load has superseded this one
     loadedRef.current = rows.length;
     setItems(rows);
     setHasMore(rows.length === PAGE_SIZE);
@@ -222,9 +228,11 @@ function usePagedCollection<Row, T>(
 
   const loadMore = useCallback(async () => {
     if (!userId || loadingMore || !hasMore) return;
+    const gen = genRef.current;
     setLoadingMore(true);
     const from = loadedRef.current;
     const rows = await fetchRange(from, from + PAGE_SIZE - 1);
+    if (gen !== genRef.current) { setLoadingMore(false); return; }  // a reload happened; drop this page
     setItems(prev => {
       const next = [...prev, ...rows];
       loadedRef.current = next.length;
@@ -235,9 +243,11 @@ function usePagedCollection<Row, T>(
   }, [userId, loadingMore, hasMore, fetchRange]);
 
   const refetch = useCallback(async () => {
+    const gen = ++genRef.current;
     if (!userId) { loadedRef.current = 0; setItems([]); setHasMore(false); return; }
     const count = Math.max(PAGE_SIZE, loadedRef.current);
     const rows = await fetchRange(0, count - 1);
+    if (gen !== genRef.current) return;
     loadedRef.current = rows.length;
     setItems(rows);
     setHasMore(rows.length === count);
@@ -262,11 +272,43 @@ export function useModels(userId: string | null, filter: CollectionFilter = 'all
   return { models: items, ...rest };
 }
 
-export function useBoxes(userId: string | null, search = '') {
-  const applyFilter = useCallback<QueryStep>(
-    q => (search ? q.ilike('name', `%${search}%`) : q),
-    [search]);
+export function useBoxes(userId: string | null, search = '', gameIds: string[] = []) {
+  const applyFilter = useCallback<QueryStep>(q => {
+    // Strip characters that would break PostgREST's or() logic-tree parsing.
+    const safe = search.replace(/[(),*]/g, ' ').trim();
+    if (!safe) return q;
+    // A collection search also matches its game's name. games.name can't be
+    // referenced in a top-level `or` (only boxes columns can), so the caller
+    // resolves matching game ids and we `or` on the boxes.game_id column.
+    const clauses = [`name.ilike.*${safe}*`];
+    if (gameIds.length) clauses.push(`game_id.in.(${gameIds.join(',')})`);
+    return q.or(clauses.join(','));
+  }, [search, gameIds]);
+
   const { items, ...rest } = usePagedCollection<BoxRow, CollectionBox>(
     userId, 'boxes', BOX_SELECT, mapBox, applyFilter);
   return { boxes: items, ...rest };
+}
+
+/**
+ * The ids of games whose name matches `search`, so a collection search can also
+ * surface collections by their game's name. Returns [] until resolved / when the
+ * search is empty.
+ */
+const NO_GAME_IDS: string[] = [];
+
+export function useMatchingGameIds(search: string): string[] {
+  const [match, setMatch] = useState<{ term: string; ids: string[] }>({ term: '', ids: NO_GAME_IDS });
+  useEffect(() => {
+    if (!search) { setMatch({ term: '', ids: NO_GAME_IDS }); return; }
+    let cancelled = false;
+    supabase.from('games').select('id').ilike('name', `%${search}%`)
+      .then(({ data }) => {
+        if (!cancelled) setMatch({ term: search, ids: ((data as { id: string }[] | null) ?? []).map(g => g.id) });
+      });
+    return () => { cancelled = true; };
+  }, [search]);
+  // Only use ids resolved for the current term (avoids a stale previous match).
+  // Returns a stable empty array while unresolved so the query doesn't churn.
+  return match.term === search ? match.ids : NO_GAME_IDS;
 }

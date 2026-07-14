@@ -7,7 +7,7 @@ import type { AppUpdate, ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
-import { useModels, useBoxes } from '../hooks/useCollection';
+import { useModels, useBoxes, useMatchingGameIds } from '../hooks/useCollection';
 import type { CollectionModel, CollectionBox, CollectionFilter } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
@@ -156,8 +156,9 @@ function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDes
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [search, setSearch] = useState('');
   const query = useDebouncedValue(search.trim(), 300);
+  const gameIds = useMatchingGameIds(query);
 
-  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, query);
+  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, query, gameIds);
   const gallery = isDesktop && view === 'gallery';
 
   // "Painted" collections are filtered client-side over the loaded pages
