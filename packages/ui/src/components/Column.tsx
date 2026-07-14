@@ -53,10 +53,12 @@ export function ColumnShell({ wide = false, className = '', children }: ColumnSh
   );
 }
 
-/** The centred muted line used for loading / empty states inside a column. */
+/** The centred muted line used for loading / empty states inside a column.
+ *  `col-span-full` keeps it centred across the whole width when the list is a
+ *  multi-column grid (gallery view); it's a no-op in the default flex list. */
 function ColumnMessage({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <p className={`font-body text-sm text-neutral-500 text-center py-4 ${className}`.trim()}>
+    <p className={`col-span-full font-body text-sm text-neutral-500 text-center py-4 ${className}`.trim()}>
       {children}
     </p>
   );
