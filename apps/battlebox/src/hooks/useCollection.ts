@@ -29,6 +29,8 @@ export interface CollectionBox {
   game: CollectionGame | null;
   /** How many models are linked to this box. */
   modelCount: number;
+  /** Resolved URL of the box's primary cover image, or null. */
+  imageUrl: string | null;
 }
 
 // ── Image helper ──────────────────────────────────────────────────────────────
@@ -55,6 +57,13 @@ interface ModelRow {
   model_boxes: { box: { name: string } | null }[] | null;
 }
 
+interface BoxImageRow {
+  image_path: string | null;
+  image_url: string | null;
+  is_primary: boolean;
+  display_order: number;
+}
+
 interface BoxRow {
   id: string;
   name: string;
@@ -62,12 +71,14 @@ interface BoxRow {
   includes_string: string | null;
   game: CollectionGame | null;
   model_boxes: { count: number }[] | null;
+  box_images: BoxImageRow[] | null;
 }
 
 const MODEL_SELECT =
   'id, name, status, count, image_path, game:games ( name, slug ), model_boxes ( box:boxes ( name ) )';
 const BOX_SELECT =
-  'id, name, type, includes_string, game:games ( name, slug ), model_boxes ( count )';
+  'id, name, type, includes_string, game:games ( name, slug ), model_boxes ( count ), ' +
+  'box_images ( image_path, image_url, is_primary, display_order )';
 
 /** How many rows are fetched per page as the collection is scrolled. */
 const PAGE_SIZE = 24;
@@ -84,6 +95,19 @@ function mapModel(r: ModelRow): CollectionModel {
   };
 }
 
+/**
+ * A box's cover image: the primary box_image (else the lowest display_order),
+ * resolved to a URL. Bucket-hosted images keep an object path (built into a URL
+ * via the model-images bucket); externally-linked cover art keeps a full URL.
+ */
+function boxImageUrl(images: BoxImageRow[] | null): string | null {
+  if (!images || images.length === 0) return null;
+  const primary = images.find(i => i.is_primary)
+    ?? [...images].sort((a, b) => a.display_order - b.display_order)[0];
+  if (!primary) return null;
+  return primary.image_path ? modelImageUrl(primary.image_path) : (primary.image_url ?? null);
+}
+
 function mapBox(r: BoxRow): CollectionBox {
   return {
     id: r.id,
@@ -92,6 +116,7 @@ function mapBox(r: BoxRow): CollectionBox {
     includesString: r.includes_string,
     game: r.game,
     modelCount: r.model_boxes?.[0]?.count ?? 0,
+    imageUrl: boxImageUrl(r.box_images),
   };
 }
 
