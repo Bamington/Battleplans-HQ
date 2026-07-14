@@ -20,9 +20,11 @@ export function BoxCardBody({ box }: { box: CollectionBox }) {
         )}
       </div>
       <div className="flex gap-1 items-center flex-wrap">
-        <Badge color="purple" icon={<UserRounded className="w-full h-full" />}>
-          {box.modelCount} {box.modelCount === 1 ? 'Model' : 'Models'}
-        </Badge>
+        {box.modelCount > 0 && (
+          <Badge color="purple" icon={<UserRounded className="w-full h-full" />}>
+            {box.modelCount} {box.modelCount === 1 ? 'Model' : 'Models'}
+          </Badge>
+        )}
         <Badge color="gray" icon={<Box className="w-full h-full" />}>
           {box.type}
         </Badge>

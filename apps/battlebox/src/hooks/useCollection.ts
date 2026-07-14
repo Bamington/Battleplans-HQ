@@ -5,6 +5,9 @@ import { supabase } from '@battleplans/ui';
 
 export type ModelStatus = 'None' | 'Assembled' | 'Primed' | 'Partially Painted' | 'Painted';
 
+/** Collection-list filter (more options to come). */
+export type CollectionFilter = 'all' | 'painted';
+
 export interface CollectionGame {
   name: string;
   slug: string;
@@ -30,6 +33,8 @@ export interface CollectionBox {
   game: CollectionGame | null;
   /** How many models are linked to this box. */
   modelCount: number;
+  /** True when the collection has models and every one of them is painted. */
+  allPainted: boolean;
   /**
    * Carousel images: the box's own cover photos, then one photo per member
    * model, de-duplicated. Mirrors the old app's collection carousel.
@@ -81,7 +86,7 @@ interface BoxRow {
   type: 'Box' | 'Collection';
   includes_string: string | null;
   game: CollectionGame | null;
-  model_boxes: { model: { image_path: string | null } | null }[] | null;
+  model_boxes: { model: { image_path: string | null; status: ModelStatus } | null }[] | null;
   box_images: BoxImageRow[] | null;
 }
 
@@ -90,7 +95,7 @@ const MODEL_SELECT =
   'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order )';
 const BOX_SELECT =
   'id, name, type, includes_string, game:games ( name, slug ), ' +
-  'model_boxes ( model:models ( image_path ) ), ' +
+  'model_boxes ( model:models ( image_path, status ) ), ' +
   'box_images ( image_path, image_url, is_primary, display_order )';
 
 /** How many rows are fetched per page as the collection is scrolled. */
@@ -141,6 +146,9 @@ function boxCarouselImages(r: BoxRow): string[] {
 }
 
 function mapBox(r: BoxRow): CollectionBox {
+  const statuses = (r.model_boxes ?? [])
+    .map(mb => mb.model?.status)
+    .filter((s): s is ModelStatus => !!s);
   return {
     id: r.id,
     name: r.name,
@@ -148,6 +156,7 @@ function mapBox(r: BoxRow): CollectionBox {
     includesString: r.includes_string,
     game: r.game,
     modelCount: r.model_boxes?.length ?? 0,
+    allPainted: statuses.length > 0 && statuses.every(s => s === 'Painted'),
     images: boxCarouselImages(r),
   };
 }
@@ -167,11 +176,16 @@ interface PagedList<T> {
   refetch: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type QueryStep = (q: any) => any;
+
 function usePagedCollection<Row, T>(
   userId: string | null,
   table: string,
   select: string,
   map: (row: Row) => T,
+  /** Adds filters to the query (e.g. status). Must be stable across renders. */
+  applyFilter: QueryStep = q => q,
 ): PagedList<T> {
   const [items,       setItems]       = useState<T[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -181,14 +195,15 @@ function usePagedCollection<Row, T>(
   const loadedRef = useRef(0);
 
   const fetchRange = useCallback((from: number, to: number) =>
-    supabase
-      .from(table)
-      .select(select)
-      .eq('user_id', userId!)
-      .order('created_at', { ascending: false })
+    applyFilter(
+      supabase
+        .from(table)
+        .select(select)
+        .eq('user_id', userId!)
+        .order('created_at', { ascending: false }))
       .range(from, to)
-      .then(({ data }) => ((data as unknown as Row[]) ?? []).map(map)),
-    [userId, table, select, map]);
+      .then(({ data }: { data: unknown }) => ((data as Row[]) ?? []).map(map)),
+    [userId, table, select, map, applyFilter]);
 
   const load = useCallback(async () => {
     if (!userId) { loadedRef.current = 0; setItems([]); setHasMore(false); setLoading(false); return; }
@@ -230,9 +245,12 @@ function usePagedCollection<Row, T>(
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-export function useModels(userId: string | null) {
+export function useModels(userId: string | null, filter: CollectionFilter = 'all') {
+  const applyFilter = useCallback<QueryStep>(
+    q => (filter === 'painted' ? q.eq('status', 'Painted') : q),
+    [filter]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
-    userId, 'models', MODEL_SELECT, mapModel);
+    userId, 'models', MODEL_SELECT, mapModel, applyFilter);
   return { models: items, ...rest };
 }
 
