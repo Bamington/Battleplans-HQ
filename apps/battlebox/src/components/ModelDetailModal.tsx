@@ -287,7 +287,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged }: {
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
 
   return (
-    <Modal open={modelId !== null} onClose={onClose} className="max-w-md overflow-hidden">
+    <Modal open={modelId !== null} onClose={onClose} className="max-w-xl overflow-hidden">
       <div className="flex flex-col max-h-[85vh] bg-neutral-900">
         {model ? (
           <>
