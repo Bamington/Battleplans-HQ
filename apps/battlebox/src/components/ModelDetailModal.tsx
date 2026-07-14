@@ -291,19 +291,28 @@ export function ModelDetailModal({ modelId, onClose, onChanged }: {
       <div className="flex flex-col max-h-[85vh] bg-neutral-900">
         {model ? (
           <>
-            {/* Hero */}
-            <div className="h-56 shrink-0 relative overflow-hidden bg-neutral-950 flex items-center justify-center">
-              {model.images.length > 0 ? (
-                <ImageCarousel images={model.images} alt={model.name} dots className="absolute inset-0 w-full h-full" />
-              ) : iconUrl ? (
-                <>
-                  <img src={iconUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40" />
-                  <img src={iconUrl} alt="" className="relative w-24 h-24 rounded-lg object-cover shadow-lg" />
-                </>
-              ) : (
-                <span className="relative font-heading text-white text-lg text-center px-6">{model.name}</span>
-              )}
-            </div>
+            {/* Hero — sized to the tallest image (capped so a tall portrait
+                can't push the tabs off-screen); fixed frame for the fallback. */}
+            {model.images.length > 0 ? (
+              <ImageCarousel
+                images={model.images}
+                alt={model.name}
+                dots
+                autoHeight
+                className="w-full shrink-0 bg-neutral-950 max-h-[55vh]"
+              />
+            ) : (
+              <div className="h-56 shrink-0 relative overflow-hidden bg-neutral-950 flex items-center justify-center">
+                {iconUrl ? (
+                  <>
+                    <img src={iconUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40" />
+                    <img src={iconUrl} alt="" className="relative w-24 h-24 rounded-lg object-cover shadow-lg" />
+                  </>
+                ) : (
+                  <span className="relative font-heading text-white text-lg text-center px-6">{model.name}</span>
+                )}
+              </div>
+            )}
 
             {/* Name + game */}
             <div className="px-5 pt-4 flex flex-col gap-0.5 shrink-0">
