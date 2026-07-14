@@ -15,7 +15,8 @@ export interface CollectionModel {
   name: string;
   status: ModelStatus;
   count: number;
-  imagePath: string | null;
+  /** The model's photos as URLs (primary first) — auto-rotated in a carousel. */
+  images: string[];
   game: CollectionGame | null;
   /** Name of the first box/collection this model belongs to, if any. */
   boxName: string | null;
@@ -29,8 +30,11 @@ export interface CollectionBox {
   game: CollectionGame | null;
   /** How many models are linked to this box. */
   modelCount: number;
-  /** Resolved URL of the box's primary cover image, or null. */
-  imageUrl: string | null;
+  /**
+   * Carousel images: the box's own cover photos, then one photo per member
+   * model, de-duplicated. Mirrors the old app's collection carousel.
+   */
+  images: string[];
 }
 
 // ── Image helper ──────────────────────────────────────────────────────────────
@@ -47,6 +51,12 @@ export function modelImageUrl(path: string | null | undefined): string | null {
 
 // ── Row shapes returned by the embedded selects ───────────────────────────────
 
+interface ModelImageRow {
+  image_path: string | null;
+  is_primary: boolean;
+  display_order: number;
+}
+
 interface ModelRow {
   id: string;
   name: string;
@@ -55,6 +65,7 @@ interface ModelRow {
   image_path: string | null;
   game: CollectionGame | null;
   model_boxes: { box: { name: string } | null }[] | null;
+  model_images: ModelImageRow[] | null;
 }
 
 interface BoxImageRow {
@@ -70,18 +81,33 @@ interface BoxRow {
   type: 'Box' | 'Collection';
   includes_string: string | null;
   game: CollectionGame | null;
-  model_boxes: { count: number }[] | null;
+  model_boxes: { model: { image_path: string | null } | null }[] | null;
   box_images: BoxImageRow[] | null;
 }
 
 const MODEL_SELECT =
-  'id, name, status, count, image_path, game:games ( name, slug ), model_boxes ( box:boxes ( name ) )';
+  'id, name, status, count, image_path, game:games ( name, slug ), ' +
+  'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order )';
 const BOX_SELECT =
-  'id, name, type, includes_string, game:games ( name, slug ), model_boxes ( count ), ' +
+  'id, name, type, includes_string, game:games ( name, slug ), ' +
+  'model_boxes ( model:models ( image_path ) ), ' +
   'box_images ( image_path, image_url, is_primary, display_order )';
 
 /** How many rows are fetched per page as the collection is scrolled. */
 const PAGE_SIZE = 24;
+
+/** A model's photos as URLs, primary first then by display order; falls back to
+ *  the model's own image_path when it has no model_images rows. */
+function modelCarouselImages(rows: ModelImageRow[] | null, fallbackPath: string | null): string[] {
+  const urls = (rows ?? [])
+    .slice()
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
+    .map(r => modelImageUrl(r.image_path))
+    .filter((u): u is string => !!u);
+  if (urls.length) return urls;
+  const fb = modelImageUrl(fallbackPath);
+  return fb ? [fb] : [];
+}
 
 function mapModel(r: ModelRow): CollectionModel {
   return {
@@ -89,23 +115,29 @@ function mapModel(r: ModelRow): CollectionModel {
     name: r.name,
     status: r.status,
     count: r.count,
-    imagePath: r.image_path,
+    images: modelCarouselImages(r.model_images, r.image_path),
     game: r.game,
     boxName: r.model_boxes?.find(mb => mb.box)?.box?.name ?? null,
   };
 }
 
-/**
- * A box's cover image: the primary box_image (else the lowest display_order),
- * resolved to a URL. Bucket-hosted images keep an object path (built into a URL
- * via the model-images bucket); externally-linked cover art keeps a full URL.
- */
-function boxImageUrl(images: BoxImageRow[] | null): string | null {
-  if (!images || images.length === 0) return null;
-  const primary = images.find(i => i.is_primary)
-    ?? [...images].sort((a, b) => a.display_order - b.display_order)[0];
-  if (!primary) return null;
-  return primary.image_path ? modelImageUrl(primary.image_path) : (primary.image_url ?? null);
+/** Resolve one box_image row: a bucket object path, else an external link. */
+function boxImageRowUrl(img: BoxImageRow): string | null {
+  return img.image_path ? modelImageUrl(img.image_path) : (img.image_url ?? null);
+}
+
+/** A box's carousel images: its own cover photos (by display order), then one
+ *  photo per member model, de-duplicated. */
+function boxCarouselImages(r: BoxRow): string[] {
+  const own = (r.box_images ?? [])
+    .slice()
+    .sort((a, b) => a.display_order - b.display_order)
+    .map(boxImageRowUrl)
+    .filter((u): u is string => !!u);
+  const members = (r.model_boxes ?? [])
+    .map(mb => modelImageUrl(mb.model?.image_path))
+    .filter((u): u is string => !!u);
+  return [...new Set([...own, ...members])];
 }
 
 function mapBox(r: BoxRow): CollectionBox {
@@ -115,8 +147,8 @@ function mapBox(r: BoxRow): CollectionBox {
     type: r.type,
     includesString: r.includes_string,
     game: r.game,
-    modelCount: r.model_boxes?.[0]?.count ?? 0,
-    imageUrl: boxImageUrl(r.box_images),
+    modelCount: r.model_boxes?.length ?? 0,
+    images: boxCarouselImages(r),
   };
 }
 

@@ -40,7 +40,7 @@ export function BoxItem({ box, onClick }: { box: CollectionBox; onClick?: () => 
       {...clickableProps(onClick)}
       className={`bg-neutral-800 border border-neutral-700 rounded-lg p-px shadow-md overflow-hidden flex items-stretch gap-1.5${onClick ? cardHover : ''}`}
     >
-      <CollectionThumb imageUrl={box.imageUrl} iconUrl={iconUrl} name={box.name} />
+      <CollectionThumb images={box.images} iconUrl={iconUrl} name={box.name} />
       <div className="flex-1 min-w-0 flex pr-3 py-3">
         <BoxCardBody box={box} />
       </div>
@@ -57,7 +57,7 @@ export function BoxGridItem({ box, onClick }: { box: CollectionBox; onClick?: ()
       {...clickableProps(onClick)}
       className={`bg-neutral-800 border border-neutral-700 rounded-lg flex flex-col gap-1.5 shadow-md overflow-hidden w-full max-w-[384px]${onClick ? cardHover : ''}`}
     >
-      <CardHero imageUrl={box.imageUrl} iconUrl={iconUrl} name={box.name} />
+      <CardHero images={box.images} iconUrl={iconUrl} name={box.name} />
       <div className="flex gap-1.5 items-start p-3">
         <BoxCardBody box={box} />
       </div>
