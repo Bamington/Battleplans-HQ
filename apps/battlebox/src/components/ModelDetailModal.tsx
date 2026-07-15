@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { TouchEvent } from 'react';
-import { Select, Badge, InfoCircle, FileText } from '@battleplans/ui';
+import { useEffect, useState } from 'react';
+import { Sheet, Select, Badge, InfoCircle, FileText } from '@battleplans/ui';
 import type { BadgeColor } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { BoxItem } from './BoxItem';
@@ -286,144 +285,60 @@ export function ModelDetailModal({ modelId, onClose, onChanged }: {
   };
 
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
-  const open = modelId !== null;
-
-  // Below lg the modal is a bottom sheet (slide up, drag-handle to dismiss,
-  // one continuous scroll); at lg+ it stays the centred dialog.
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
-    const on = () => setIsMobile(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
-
-  // Sheet slide/drag state (mobile only). `shown` drives the slide-up; `dragY`
-  // is the live drag offset from the handle.
-  const [shown, setShown] = useState(false);
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const dragStart = useRef<number | null>(null);
-
-  // Lock body scroll and play the slide-up on open; reset on close.
-  useEffect(() => {
-    if (!open) { setShown(false); setDragY(0); return; }
-    document.body.style.overflow = 'hidden';
-    const r = requestAnimationFrame(() => setShown(true));
-    return () => { document.body.style.overflow = ''; cancelAnimationFrame(r); };
-  }, [open]);
-
-  // Slide the sheet back down before unmounting (mobile); desktop closes at once.
-  const dismiss = () => {
-    if (isMobile) {
-      setDragging(false);
-      setDragY(0);
-      setShown(false);
-      window.setTimeout(onClose, 300);
-    } else {
-      onClose();
-    }
-  };
-
-  const onHandleStart = (e: TouchEvent) => { dragStart.current = e.touches[0].clientY; setDragging(true); };
-  const onHandleMove = (e: TouchEvent) => {
-    if (dragStart.current == null) return;
-    setDragY(Math.max(0, e.touches[0].clientY - dragStart.current));
-  };
-  const onHandleEnd = () => {
-    setDragging(false);
-    dragStart.current = null;
-    if (dragY > 100) dismiss();
-    else setDragY(0);
-  };
-
-  if (!open) return null;
-
-  const sheetStyle = isMobile
-    ? {
-        transform: `translateY(${shown ? `${dragY}px` : '100%'})`,
-        transition: dragging ? 'none' : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
-      }
-    : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center items-end lg:items-center lg:p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/60" onClick={dismiss} aria-hidden="true" />
-
-      <div
-        className="relative z-10 w-full flex flex-col overflow-hidden bg-neutral-900 shadow-xl will-change-transform
-                   h-[calc(100dvh-2.75rem)] rounded-t-2xl border-t border-neutral-800
-                   lg:h-auto lg:max-h-[85vh] lg:max-w-2xl lg:rounded-lg lg:border lg:border-gray-700"
-        style={sheetStyle}
-      >
-        {/* Drag handle — mobile only; drag it down to dismiss. */}
-        <div
-          className="lg:hidden shrink-0 flex items-center justify-center pt-3 pb-2 touch-none cursor-grab active:cursor-grabbing"
-          onTouchStart={onHandleStart}
-          onTouchMove={onHandleMove}
-          onTouchEnd={onHandleEnd}
-        >
-          <span className="h-1.5 w-10 rounded-full bg-neutral-600" aria-hidden="true" />
-        </div>
-
-        {/* Scroll area — one continuous scroll on mobile (hero, tabs and content
-            move together); at lg+ only the body scrolls under a fixed hero + tabs. */}
-        <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col">
-          {model ? (
-            <>
-              {/* Hero — sized to the tallest image (capped so a tall portrait
-                  can't push the tabs off-screen); fixed frame for the fallback. */}
-              {model.images.length > 0 ? (
-                <ImageCarousel
-                  images={model.images}
-                  alt={model.name}
-                  dots
-                  autoHeight
-                  className="w-full shrink-0 bg-neutral-950 max-h-[55vh]"
-                />
-              ) : (
-                <div className="h-56 shrink-0 relative overflow-hidden bg-neutral-950 flex items-center justify-center">
-                  {iconUrl ? (
-                    <>
-                      <img src={iconUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40" />
-                      <img src={iconUrl} alt="" className="relative w-24 h-24 rounded-lg object-cover shadow-lg" />
-                    </>
-                  ) : (
-                    <span className="relative font-heading text-white text-lg text-center px-6">{model.name}</span>
-                  )}
-                </div>
-              )}
-
-              {/* Name + game */}
-              <div className="px-5 pt-4 flex flex-col gap-0.5 shrink-0">
-                <h2 className="font-heading text-xl text-white leading-7">{model.name}</h2>
-                {model.game && (
-                  <div className="flex items-center gap-1.5">
-                    {iconUrl && <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />}
-                    <span className="font-body text-sm text-neutral-400">{model.game.name}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Tabs */}
-              <div className="px-5 pt-3 shrink-0">
-                <TabControl tab={tab} onChange={setTab} />
-              </div>
-
-              {/* Body */}
-              <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
-                {tab === 'details'  && <DetailsTab  model={model} />}
-                {tab === 'painting' && <PaintingTab model={model} save={save} />}
-                {tab === 'lore'     && <LoreTab     model={model} save={save} />}
-              </div>
-            </>
+    <Sheet open={modelId !== null} onClose={onClose} className="max-w-2xl">
+      {model ? (
+        <>
+          {/* Hero — sized to the tallest image (capped so a tall portrait can't
+              push the tabs off-screen); fixed frame for the fallback. */}
+          {model.images.length > 0 ? (
+            <ImageCarousel
+              images={model.images}
+              alt={model.name}
+              dots
+              autoHeight
+              className="w-full shrink-0 bg-neutral-950 max-h-[55vh]"
+            />
           ) : (
-            <div className="p-10 text-center font-body text-sm text-neutral-400">Loading…</div>
+            <div className="h-56 shrink-0 relative overflow-hidden bg-neutral-950 flex items-center justify-center">
+              {iconUrl ? (
+                <>
+                  <img src={iconUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40" />
+                  <img src={iconUrl} alt="" className="relative w-24 h-24 rounded-lg object-cover shadow-lg" />
+                </>
+              ) : (
+                <span className="relative font-heading text-white text-lg text-center px-6">{model.name}</span>
+              )}
+            </div>
           )}
-        </div>
-      </div>
-    </div>
+
+          {/* Name + game */}
+          <div className="px-5 pt-4 flex flex-col gap-0.5 shrink-0">
+            <h2 className="font-heading text-xl text-white leading-7">{model.name}</h2>
+            {model.game && (
+              <div className="flex items-center gap-1.5">
+                {iconUrl && <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />}
+                <span className="font-body text-sm text-neutral-400">{model.game.name}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <div className="px-5 pt-3 shrink-0">
+            <TabControl tab={tab} onChange={setTab} />
+          </div>
+
+          {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
+          <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
+            {tab === 'details'  && <DetailsTab  model={model} />}
+            {tab === 'painting' && <PaintingTab model={model} save={save} />}
+            {tab === 'lore'     && <LoreTab     model={model} save={save} />}
+          </div>
+        </>
+      ) : (
+        <div className="p-10 text-center font-body text-sm text-neutral-400">Loading…</div>
+      )}
+    </Sheet>
   );
 }
