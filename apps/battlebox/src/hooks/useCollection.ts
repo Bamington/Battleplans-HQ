@@ -446,6 +446,105 @@ export function useModelDetail(modelId: string | null) {
   return { model, loading, refetch };
 }
 
+// ── Collection detail (the click-a-collection modal) ──────────────────────────
+
+export interface BoxDetail {
+  id: string;
+  name: string;
+  type: 'Box' | 'Collection';
+  game: CollectionGame | null;
+  purchaseDate: string | null;
+  includesString: string | null;
+  /** How many models are in this collection. */
+  modelCount: number;
+  /** True when the collection has models and every one is painted. */
+  allPainted: boolean;
+  /** The collection's photos — the modal's hero carousel. */
+  images: string[];
+  /** The models in this collection — the "Includes" list. */
+  includes: CollectionModel[];
+}
+
+interface BoxMemberRow {
+  id: string;
+  name: string;
+  status: ModelStatus;
+  count: number;
+  image_path: string | null;
+  game: CollectionGame | null;
+  model_images: ModelImageRow[] | null;
+}
+
+interface BoxDetailRow {
+  id: string;
+  name: string;
+  type: 'Box' | 'Collection';
+  purchase_date: string | null;
+  includes_string: string | null;
+  image_path: string | null;
+  game: CollectionGame | null;
+  box_images: BoxImageRow[] | null;
+  model_boxes: { model: BoxMemberRow | null }[] | null;
+}
+
+const BOX_DETAIL_SELECT =
+  'id, name, type, purchase_date, includes_string, image_path, game:games ( name, slug ), ' +
+  'box_images ( image_path, image_url, is_primary, display_order ), ' +
+  'model_boxes ( model:models ( id, name, status, count, image_path, ' +
+    'game:games ( name, slug ), model_images ( image_path, is_primary, display_order ) ) )';
+
+/** A collection member, mapped for a ModelItem row. `boxName` is dropped (null)
+ *  — it's redundant inside the collection it belongs to, so the row's subtitle
+ *  falls back to the game name. */
+function mapMember(m: BoxMemberRow): CollectionModel {
+  return {
+    id: m.id,
+    name: m.name,
+    status: m.status,
+    count: m.count,
+    images: modelCarouselImages(m.model_images, m.image_path),
+    game: m.game,
+    boxName: null,
+  };
+}
+
+function mapBoxDetail(r: BoxDetailRow): BoxDetail {
+  const members = (r.model_boxes ?? []).map(mb => mb.model).filter((m): m is BoxMemberRow => !!m);
+  const statuses = members.map(m => m.status);
+  return {
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    game: r.game,
+    purchaseDate: r.purchase_date,
+    includesString: r.includes_string,
+    modelCount: members.length,
+    allPainted: statuses.length > 0 && statuses.every(s => s === 'Painted'),
+    images: boxCarouselImages(r as unknown as BoxRow),
+    includes: members.map(mapMember),
+  };
+}
+
+/** Full detail for one collection, for the click-a-collection modal. */
+export function useBoxDetail(boxId: string | null) {
+  const [box,     setBox]     = useState<BoxDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const refetch = useCallback(() => {
+    if (!boxId) { setBox(null); setLoading(false); return; }
+    setLoading(true);
+    supabase.from('boxes').select(BOX_DETAIL_SELECT).eq('id', boxId).single()
+      .then(({ data }) => {
+        setBox(data ? mapBoxDetail(data as unknown as BoxDetailRow) : null);
+        setLoading(false);
+      });
+  }, [boxId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { box, loading, refetch };
+}
+
 /** Fields editable inline from the model modal. */
 export type ModelPatch = Partial<{
   status: ModelStatus;

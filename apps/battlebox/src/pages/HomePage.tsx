@@ -8,6 +8,7 @@ import AppNavbar from '../components/AppNavbar';
 import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { ModelDetailModal } from '../components/ModelDetailModal';
+import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { useModels, useBoxes, useMatchingGameIds } from '../hooks/useCollection';
 import type { CollectionModel, CollectionBox, CollectionFilter } from '../hooks/useCollection';
 
@@ -162,6 +163,7 @@ function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDes
   const [view,   setView]   = useState<View>('list');
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const query = useDebouncedValue(search.trim(), 300);
   const gameIds = useMatchingGameIds(query);
 
@@ -173,6 +175,7 @@ function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDes
   const items = filter === 'painted' ? boxes.filter(b => b.allPainted) : boxes;
 
   return (
+    <>
     <ScrollColumn<CollectionBox>
       icon={<BoxHeaderIcon />}
       title="Your Collections"
@@ -193,9 +196,13 @@ function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDes
       onLoadMore={loadMore}
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={b => b.id}
-      renderItem={b => (gallery ? <BoxGridItem box={b} /> : <BoxItem box={b} />)}
+      renderItem={b => (gallery
+        ? <BoxGridItem box={b} onClick={() => setSelectedId(b.id)} />
+        : <BoxItem     box={b} onClick={() => setSelectedId(b.id)} />)}
       footer={<AddButton label="Add Collection" />}
     />
+    <CollectionDetailModal boxId={selectedId} onClose={() => setSelectedId(null)} />
+    </>
   );
 }
 

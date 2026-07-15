@@ -65,13 +65,23 @@ export function ImageCarousel({ images, alt, dots = false, className = '', autoH
     return () => ro.disconnect();
   }, [autoHeight]);
 
-  const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const measureRatio = (img: HTMLImageElement) => {
+    if (!img.naturalWidth) return;
+    const r = img.naturalHeight / img.naturalWidth;
+    setMaxRatio(m => (r > m ? r : m));
+  };
+
+  // Cached images are already `complete` on mount and fire no load event, so
+  // measure those directly when the set mounts/changes; onLoad covers the rest.
+  useEffect(() => {
     if (!autoHeight) return;
-    const img = e.currentTarget;
-    if (img.naturalWidth) {
-      const r = img.naturalHeight / img.naturalWidth;
-      setMaxRatio(m => (r > m ? r : m));
-    }
+    const el = containerRef.current;
+    if (!el) return;
+    el.querySelectorAll('img').forEach(img => { if (img.complete) measureRatio(img); });
+  }, [autoHeight, key]);
+
+  const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (autoHeight) measureRatio(e.currentTarget);
   };
 
   // Auto-advance; only runs with more than one image.
