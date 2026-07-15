@@ -158,7 +158,7 @@ function TabControl({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void })
   );
 }
 
-function DetailsTab({ model }: { model: ModelDetail }) {
+function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (boxId: string) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-neutral-900 border border-neutral-700 rounded-lg flex flex-col divide-y divide-neutral-800">
@@ -183,7 +183,9 @@ function DetailsTab({ model }: { model: ModelDetail }) {
       {model.includedIn.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="font-body text-sm text-neutral-400">Included in:</span>
-          {model.includedIn.map(b => <BoxItem key={b.id} box={b} />)}
+          {model.includedIn.map(b => (
+            <BoxItem key={b.id} box={b} onClick={onOpenBox ? () => onOpenBox(b.id) : undefined} />
+          ))}
         </div>
       )}
     </div>
@@ -266,10 +268,12 @@ function LoreTab({ model, save }: { model: ModelDetail; save: (p: { lore_name?: 
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
-export function ModelDetailModal({ modelId, onClose, onChanged }: {
+export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   modelId: string | null;
   onClose: () => void;
   onChanged?: () => void;
+  /** Open the collection modal for one of this model's "Included in" boxes. */
+  onOpenBox?: (boxId: string) => void;
 }) {
   const { model, refetch } = useModelDetail(modelId);
   const [tab, setTab] = useState<Tab>('details');
@@ -331,7 +335,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged }: {
 
           {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
           <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
-            {tab === 'details'  && <DetailsTab  model={model} />}
+            {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
             {tab === 'painting' && <PaintingTab model={model} save={save} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>

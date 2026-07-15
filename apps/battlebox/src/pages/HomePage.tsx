@@ -114,11 +114,17 @@ const ROW_LIST  = 'flex flex-col gap-1.5';
 
 // ── Your Models ───────────────────────────────────────────────────────────────
 
-function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop: boolean }) {
+function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, onOpenBox }: {
+  userId: string | null;
+  isDesktop: boolean;
+  modelId: string | null;
+  onOpenModel: (id: string) => void;
+  onCloseModel: () => void;
+  onOpenBox: (id: string) => void;
+}) {
   const [view,   setView]   = useState<View>('gallery');
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const query = useDebouncedValue(search.trim(), 300);
 
   const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filter, query);
@@ -148,22 +154,28 @@ function ModelsColumn({ userId, isDesktop }: { userId: string | null; isDesktop:
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={m => m.id}
       renderItem={m => (gallery
-        ? <ModelGridItem model={m} onClick={() => setSelectedId(m.id)} />
-        : <ModelItem     model={m} onClick={() => setSelectedId(m.id)} />)}
+        ? <ModelGridItem model={m} onClick={() => onOpenModel(m.id)} />
+        : <ModelItem     model={m} onClick={() => onOpenModel(m.id)} />)}
       footer={<AddButton label="Add Model" />}
     />
-    <ModelDetailModal modelId={selectedId} onClose={() => setSelectedId(null)} onChanged={refetch} />
+    <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={refetch} onOpenBox={onOpenBox} />
     </>
   );
 }
 
 // ── Your Collections ──────────────────────────────────────────────────────────
 
-function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDesktop: boolean }) {
+function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, onOpenModel }: {
+  userId: string | null;
+  isDesktop: boolean;
+  boxId: string | null;
+  onOpenBox: (id: string) => void;
+  onCloseBox: () => void;
+  onOpenModel: (id: string) => void;
+}) {
   const [view,   setView]   = useState<View>('list');
   const [filter, setFilter] = useState<CollectionFilter>('all');
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const query = useDebouncedValue(search.trim(), 300);
   const gameIds = useMatchingGameIds(query);
 
@@ -197,11 +209,11 @@ function CollectionsColumn({ userId, isDesktop }: { userId: string | null; isDes
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={b => b.id}
       renderItem={b => (gallery
-        ? <BoxGridItem box={b} onClick={() => setSelectedId(b.id)} />
-        : <BoxItem     box={b} onClick={() => setSelectedId(b.id)} />)}
+        ? <BoxGridItem box={b} onClick={() => onOpenBox(b.id)} />
+        : <BoxItem     box={b} onClick={() => onOpenBox(b.id)} />)}
       footer={<AddButton label="Add Collection" />}
     />
-    <CollectionDetailModal boxId={selectedId} onClose={() => setSelectedId(null)} />
+    <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} />
     </>
   );
 }
@@ -282,6 +294,13 @@ export default function HomePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const isDesktop = useIsDesktop();
 
+  // A model modal and a collection modal, opened one at a time — opening either
+  // clears the other, so tapping a sub-item swaps between them.
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [boxId,   setBoxId]   = useState<string | null>(null);
+  const openModel = (id: string) => { setBoxId(null);   setModelId(id); };
+  const openBox   = (id: string) => { setModelId(null); setBoxId(id); };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
@@ -299,8 +318,14 @@ export default function HomePage() {
 
         <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
           <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 pb-2 scroll-px-3 md:scroll-px-9 lg:px-0 lg:pb-0">
-            <ModelsColumn userId={userId} isDesktop={isDesktop} />
-            <CollectionsColumn userId={userId} isDesktop={isDesktop} />
+            <ModelsColumn
+              userId={userId} isDesktop={isDesktop}
+              modelId={modelId} onOpenModel={openModel} onCloseModel={() => setModelId(null)} onOpenBox={openBox}
+            />
+            <CollectionsColumn
+              userId={userId} isDesktop={isDesktop}
+              boxId={boxId} onOpenBox={openBox} onCloseBox={() => setBoxId(null)} onOpenModel={openModel}
+            />
             <NewsCard />
           </div>
         </main>

@@ -38,9 +38,11 @@ function DetailRow({ icon, children }: { icon: React.ReactNode; children: React.
 // painting or lore, so there are no tabs — just the details and, in place of the
 // model modal's "Included in", the models this collection "Includes".
 
-export function CollectionDetailModal({ boxId, onClose }: {
+export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
   boxId: string | null;
   onClose: () => void;
+  /** Open the model modal for one of this collection's member models. */
+  onOpenModel?: (modelId: string) => void;
 }) {
   const { box } = useBoxDetail(boxId);
   const iconUrl = box?.game?.slug ? GAME_ICONS[box.game.slug] ?? null : null;
@@ -97,7 +99,9 @@ export function CollectionDetailModal({ boxId, onClose }: {
             {box.includes.length > 0 ? (
               <div className="flex flex-col gap-2">
                 <span className="font-body text-sm text-neutral-400">Includes:</span>
-                {box.includes.map(m => <ModelItem key={m.id} model={m} />)}
+                {box.includes.map(m => (
+                  <ModelItem key={m.id} model={m} onClick={onOpenModel ? () => onOpenModel(m.id) : undefined} />
+                ))}
               </div>
             ) : (
               box.includesString && (
