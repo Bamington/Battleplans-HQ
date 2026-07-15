@@ -1,27 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  supabase, AppFooter, Button, ButtonPair, Pagination, useAutoPageSize, useUpdates,
-  UpdateModal, MarkdownBody, Box, UserRounded, AddCircle, Magnifer, ColumnHeader,
+  supabase, AppFooter, Button, Input, useUpdates, UpdateModal, MarkdownBody,
+  PaginatedColumn, ScrollColumn, Select, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
 } from '@battleplans/ui';
-import type { AppUpdate } from '@battleplans/ui';
+import type { AppUpdate, ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
-import { ModelItem } from '../components/ModelItem';
-import { BoxItem } from '../components/BoxItem';
-import { useModels, useBoxes } from '../hooks/useCollection';
+import { ModelItem, ModelGridItem } from '../components/ModelItem';
+import { BoxItem, BoxGridItem } from '../components/BoxItem';
+import { ModelDetailModal } from '../components/ModelDetailModal';
+import { CollectionDetailModal } from '../components/CollectionDetailModal';
+import { useModels, useBoxes, useMatchingGameIds } from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox, CollectionFilter } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
 
-// Row heights, in px, used by useAutoPageSize to decide how many rows fit before
-// paginating. Each must match the rendered row height — change the design, change
-// the constant. Collection rows are a 108px image + 2px card border. News rows
-// carry over BattlePlan's calibrated value.
-const COLLECTION_ITEM_H = 110;
-const COLLECTION_GAP    = 12;
-const NEWS_ITEM_H       = 230;
-const NEWS_GAP          = 6;
+// News rows are a fixed height so PaginatedColumn can decide how many fit.
+const NEWS_ITEM_H = 230;
+const NEWS_GAP    = 6;
+
+type View = 'list' | 'gallery';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
+
+const ModelsHeaderIcon = () => <UserRounded className="w-12 h-12 text-primary-500" />;
 
 const BoxHeaderIcon = () => (
   <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -44,111 +46,175 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
-// ── Logo ──────────────────────────────────────────────────────────────────────
-
 const BattleBoxLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
 );
 
-// ── Shared column card shell ──────────────────────────────────────────────────
+// ── Shared column bits ────────────────────────────────────────────────────────
 
-const COLUMN_CLASS =
-  'bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always ' +
-  'w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm ' +
-  'flex flex-col min-h-0 shadow-md overflow-hidden';
+/** The list ↔ gallery view switch shown in the column header (desktop only). */
+function viewToggle(view: View, setView: (v: View) => void): ColumnHeaderToggle {
+  return {
+    value: view,
+    onChange: (v: string) => setView(v as View),
+    options: [
+      { id: 'list',    icon: <ListCheck className="w-4 h-4" />, label: 'List view' },
+      { id: 'gallery', icon: <Gallery   className="w-4 h-4" />, label: 'Gallery view' },
+    ],
+  };
+}
 
-// ── Collection card ───────────────────────────────────────────────────────────
-
-type Tab = 'models' | 'boxes';
-
-function SegmentedToggle({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
-  const base = 'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 font-body font-medium text-sm transition-colors';
-  const active   = 'bg-primary-600 text-white';
-  const inactive = 'border border-primary-500 text-primary-500 hover:bg-primary-950';
+/** The filter dropdown + search field shown above each list. */
+function ListControls({ filter, onFilter, allLabel, paintedLabel, search, onSearch, searchPlaceholder }: {
+  filter: CollectionFilter;
+  onFilter: (v: CollectionFilter) => void;
+  allLabel: string;
+  paintedLabel: string;
+  search: string;
+  onSearch: (v: string) => void;
+  searchPlaceholder: string;
+}) {
   return (
-    <div className="flex w-full">
-      <button
-        type="button"
-        onClick={() => onChange('models')}
-        className={`${base} rounded-l-lg ${tab === 'models' ? active : inactive}`}
-      >
-        <UserRounded className="w-4 h-4" /> Models
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('boxes')}
-        className={`${base} rounded-r-lg -ml-px ${tab === 'boxes' ? active : inactive}`}
-      >
-        <Box className="w-4 h-4" />
-        <span className="md:hidden">Collections</span>
-        <span className="hidden md:inline">Boxes &amp; Collections</span>
-      </button>
+    <div className="flex flex-col gap-2 w-full shrink-0">
+      <Select
+        size="sm"
+        className="w-full"
+        value={filter}
+        onChange={e => onFilter(e.target.value as CollectionFilter)}
+        leftIcon={<Filter className="w-4 h-4" />}
+        options={[
+          { value: 'all',     label: allLabel },
+          { value: 'painted', label: paintedLabel },
+        ]}
+      />
+      <Input
+        size="sm"
+        type="search"
+        className="w-full"
+        placeholder={searchPlaceholder}
+        leftIcon={<Magnifer className="w-4 h-4" />}
+        value={search}
+        onChange={e => onSearch(e.target.value)}
+      />
     </div>
   );
 }
 
-function CollectionCard({ userId }: { userId: string | null }) {
-  const [tab, setTab]   = useState<Tab>('models');
-  const [page, setPage] = useState(0);
+/** The single Add action pinned below a collection list. */
+function AddButton({ label }: { label: string }) {
+  return (
+    <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center shrink-0">
+      {label}
+    </Button>
+  );
+}
 
-  const { models, loading: modelsLoading } = useModels(userId);
-  const { boxes,  loading: boxesLoading }  = useBoxes(userId);
+const GRID_LIST = 'grid grid-cols-1 lg:grid-cols-2 gap-2.5';
+const ROW_LIST  = 'flex flex-col gap-1.5';
 
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, COLLECTION_ITEM_H, COLLECTION_GAP);
+// ── Your Models ───────────────────────────────────────────────────────────────
 
-  const loading = tab === 'models' ? modelsLoading : boxesLoading;
-  const count   = tab === 'models' ? models.length : boxes.length;
+function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, onOpenBox }: {
+  userId: string | null;
+  isDesktop: boolean;
+  modelId: string | null;
+  onOpenModel: (id: string) => void;
+  onCloseModel: () => void;
+  onOpenBox: (id: string) => void;
+}) {
+  const [view,   setView]   = useState<View>('gallery');
+  const [filter, setFilter] = useState<CollectionFilter>('all');
+  const [search, setSearch] = useState('');
+  const query = useDebouncedValue(search.trim(), 300);
 
-  const totalPages = Math.max(1, Math.ceil(count / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const start      = safePage * pageSize;
-
-  // Reset to the first page when switching tabs or when the list shrinks under us.
-  useEffect(() => { setPage(0); }, [tab]);
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
-
-  const emptyLabel = tab === 'models' ? 'No models yet.' : 'No boxes or collections yet.';
+  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filter, query);
+  // Gallery is a desktop-only view; mobile & tablet always show the list.
+  const gallery = isDesktop && view === 'gallery';
 
   return (
-    <div className={COLUMN_CLASS}>
-      <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
-
-        <ColumnHeader
-          icon={<BoxHeaderIcon />}
-          title="Your Collection"
-          description="Models and collections that you've uploaded."
+    <>
+    <ScrollColumn<CollectionModel>
+      icon={<ModelsHeaderIcon />}
+      title="Your Models"
+      description="Miniatures you've added to your collection."
+      toggle={isDesktop ? viewToggle(view, setView) : undefined}
+      wide={gallery}
+      beforeList={
+        <ListControls
+          filter={filter} onFilter={setFilter} allLabel="All Models" paintedLabel="Painted Models"
+          search={search} onSearch={setSearch} searchPlaceholder="Search models…"
         />
+      }
+      items={models}
+      loading={loading}
+      empty={query ? 'No models match your search.' : (filter === 'painted' ? 'No painted models.' : 'No models yet.')}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
+      listClassName={gallery ? GRID_LIST : ROW_LIST}
+      getKey={m => m.id}
+      renderItem={m => (gallery
+        ? <ModelGridItem model={m} onClick={() => onOpenModel(m.id)} />
+        : <ModelItem     model={m} onClick={() => onOpenModel(m.id)} />)}
+      footer={<AddButton label="Add Model" />}
+    />
+    <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={refetch} onOpenBox={onOpenBox} />
+    </>
+  );
+}
 
-        <SegmentedToggle tab={tab} onChange={setTab} />
+// ── Your Collections ──────────────────────────────────────────────────────────
 
-        <div ref={listRef} className="flex flex-col gap-3 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : count === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">{emptyLabel}</p>
-          ) : tab === 'models' ? (
-            models.slice(start, start + pageSize).map(m => <ModelItem key={m.id} model={m} />)
-          ) : (
-            boxes.slice(start, start + pageSize).map(b => <BoxItem key={b.id} box={b} />)
-          )}
-        </div>
+function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, onOpenModel }: {
+  userId: string | null;
+  isDesktop: boolean;
+  boxId: string | null;
+  onOpenBox: (id: string) => void;
+  onCloseBox: () => void;
+  onOpenModel: (id: string) => void;
+}) {
+  const [view,   setView]   = useState<View>('list');
+  const [filter, setFilter] = useState<CollectionFilter>('all');
+  const [search, setSearch] = useState('');
+  const query = useDebouncedValue(search.trim(), 300);
+  const gameIds = useMatchingGameIds(query);
 
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
+  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, query, gameIds);
+  const gallery = isDesktop && view === 'gallery';
 
-        <ButtonPair className="shrink-0">
-          <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="justify-center">
-            <span className="md:hidden">Add</span>
-            <span className="hidden md:inline">Add to Collection</span>
-          </Button>
-          <Button variant="outline" color="primary" leftIcon={<Magnifer className="w-4 h-4" />} className="justify-center">
-            <span className="md:hidden">Search</span>
-            <span className="hidden md:inline">Search Collection</span>
-          </Button>
-        </ButtonPair>
+  // "Painted" collections are filtered client-side over the loaded pages
+  // (a fully-painted collection = every model painted).
+  const items = filter === 'painted' ? boxes.filter(b => b.allPainted) : boxes;
 
-      </div>
-    </div>
+  return (
+    <>
+    <ScrollColumn<CollectionBox>
+      icon={<BoxHeaderIcon />}
+      title="Your Collections"
+      description="Boxes and collections you've uploaded."
+      toggle={isDesktop ? viewToggle(view, setView) : undefined}
+      wide={gallery}
+      beforeList={
+        <ListControls
+          filter={filter} onFilter={setFilter} allLabel="All Collections" paintedLabel="Painted Collections"
+          search={search} onSearch={setSearch} searchPlaceholder="Search collections…"
+        />
+      }
+      items={items}
+      loading={loading}
+      empty={query ? 'No collections match your search.' : (filter === 'painted' ? 'No fully-painted collections.' : 'No collections yet.')}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
+      listClassName={gallery ? GRID_LIST : ROW_LIST}
+      getKey={b => b.id}
+      renderItem={b => (gallery
+        ? <BoxGridItem box={b} onClick={() => onOpenBox(b.id)} />
+        : <BoxItem     box={b} onClick={() => onOpenBox(b.id)} />)}
+      footer={<AddButton label="Add Collection" />}
+    />
+    <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} />
+    </>
   );
 }
 
@@ -174,52 +240,66 @@ function NewsItem({ update, onRead }: { update: AppUpdate; onRead: () => void })
 function NewsCard() {
   const { updates, loading } = useUpdates('battlebox');
   const [selected, setSelected] = useState<AppUpdate | null>(null);
-  const [page,     setPage]     = useState(0);
-
-  const listRef  = useRef<HTMLDivElement>(null);
-  const pageSize = useAutoPageSize(listRef, NEWS_ITEM_H, NEWS_GAP);
-
-  const totalPages = Math.max(1, Math.ceil(updates.length / pageSize));
-  const safePage   = Math.min(page, totalPages - 1);
-  const paginated  = updates.slice(safePage * pageSize, (safePage + 1) * pageSize);
-
-  useEffect(() => { if (page > totalPages - 1) setPage(totalPages - 1); }, [totalPages, page]);
 
   return (
-    <div className={COLUMN_CLASS}>
-      <div className="flex flex-col gap-4 items-center px-5 py-2.5 flex-1 min-h-0">
-
-        <ColumnHeader
-          icon={<InfoCircleIcon />}
-          title="News & Updates"
-          description="Find out what's happening with BattleBox."
-        />
-
-        <div ref={listRef} className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-hidden">
-          {loading ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-          ) : updates.length === 0 ? (
-            <p className="font-body text-sm text-neutral-500 text-center py-4">
-              No updates yet. Check back soon.
-            </p>
-          ) : paginated.map(u => (
-            <NewsItem key={u.id} update={u} onRead={() => setSelected(u)} />
-          ))}
-        </div>
-
-        <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
-
-      </div>
+    <>
+      <PaginatedColumn
+        icon={<InfoCircleIcon />}
+        title="News & Updates"
+        description="Find out what's happening with BattleBox."
+        items={updates}
+        itemHeight={NEWS_ITEM_H}
+        gap={NEWS_GAP}
+        loading={loading}
+        empty="No updates yet. Check back soon."
+        getKey={u => u.id}
+        renderItem={u => <NewsItem update={u} onRead={() => setSelected(u)} />}
+      />
 
       <UpdateModal open={!!selected} onClose={() => setSelected(null)} update={selected} />
-    </div>
+    </>
   );
+}
+
+// ── Responsive helper ─────────────────────────────────────────────────────────
+
+/** Debounce a fast-changing value (e.g. a search field) so downstream queries
+ *  don't fire on every keystroke. */
+function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
+/** True from the `lg` breakpoint up (desktop). Gallery view is desktop-only. */
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isDesktop;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
+
+  // A model modal and a collection modal, opened one at a time — opening either
+  // clears the other, so tapping a sub-item swaps between them.
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [boxId,   setBoxId]   = useState<string | null>(null);
+  const openModel = (id: string) => { setBoxId(null);   setModelId(id); };
+  const openBox   = (id: string) => { setModelId(null); setBoxId(id); };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -238,7 +318,14 @@ export default function HomePage() {
 
         <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
           <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 pb-2 scroll-px-3 md:scroll-px-9 lg:px-0 lg:pb-0">
-            <CollectionCard userId={userId} />
+            <ModelsColumn
+              userId={userId} isDesktop={isDesktop}
+              modelId={modelId} onOpenModel={openModel} onCloseModel={() => setModelId(null)} onOpenBox={openBox}
+            />
+            <CollectionsColumn
+              userId={userId} isDesktop={isDesktop}
+              boxId={boxId} onOpenBox={openBox} onCloseBox={() => setBoxId(null)} onOpenModel={openModel}
+            />
             <NewsCard />
           </div>
         </main>
