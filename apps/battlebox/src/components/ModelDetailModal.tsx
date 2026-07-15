@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Sheet, Select, Badge, InfoCircle, FileText } from '@battleplans/ui';
+import { Sheet, Lightbox, Select, Badge, InfoCircle, FileText } from '@battleplans/ui';
 import type { BadgeColor } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { BoxItem } from './BoxItem';
@@ -277,9 +277,10 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
 }) {
   const { model, refetch } = useModelDetail(modelId);
   const [tab, setTab] = useState<Tab>('details');
+  const [lightbox, setLightbox] = useState<number | null>(null);
 
-  // Open on Details each time a model is opened.
-  useEffect(() => { if (modelId) setTab('details'); }, [modelId]);
+  // Open on Details (and with the lightbox closed) each time a model is opened.
+  useEffect(() => { if (modelId) { setTab('details'); setLightbox(null); } }, [modelId]);
 
   const save = async (patch: { status?: ModelStatus; painting_notes?: string | null; lore_name?: string | null; lore_description?: string | null }) => {
     if (!modelId) return;
@@ -302,6 +303,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
               alt={model.name}
               dots
               autoHeight
+              onImageClick={setLightbox}
               className="w-full shrink-0 bg-neutral-950 max-h-[55vh]"
             />
           ) : (
@@ -339,6 +341,14 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             {tab === 'painting' && <PaintingTab model={model} save={save} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>
+
+          <Lightbox
+            open={lightbox !== null}
+            images={model.images}
+            startIndex={lightbox ?? 0}
+            onClose={() => setLightbox(null)}
+            alt={model.name}
+          />
         </>
       ) : (
         <div className="p-10 text-center font-body text-sm text-neutral-400">Loading…</div>

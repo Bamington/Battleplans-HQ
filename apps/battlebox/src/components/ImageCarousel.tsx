@@ -28,7 +28,7 @@ const ROTATE_MS = 4000;
  *  avoid a collapse-then-grow flash on open. Replaced once images load. */
 const AUTO_HEIGHT_FALLBACK_RATIO = 0.75;
 
-export function ImageCarousel({ images, alt, dots = false, className = '', autoHeight = false }: {
+export function ImageCarousel({ images, alt, dots = false, className = '', autoHeight = false, onImageClick }: {
   images: string[];
   alt: string;
   /** Show non-interactive indicator dots (for larger surfaces like the hero). */
@@ -37,6 +37,8 @@ export function ImageCarousel({ images, alt, dots = false, className = '', autoH
   /** Size the frame to the tallest image (contain, no cropping) instead of
    *  taking a fixed height from the caller (cover). */
   autoHeight?: boolean;
+  /** Make the shown image tappable; called with the visible image's index. */
+  onImageClick?: (index: number) => void;
 }) {
   const n = images.length;
   // index runs 0..n; n lands on the appended clone of frame 0.
@@ -129,7 +131,8 @@ export function ImageCarousel({ images, alt, dots = false, className = '', autoH
             alt={i === active ? alt : ''}
             loading="lazy"
             onLoad={handleImgLoad}
-            className={`w-full h-full shrink-0 ${autoHeight ? 'object-contain' : 'object-cover'}`}
+            onClick={onImageClick ? () => onImageClick(active) : undefined}
+            className={`w-full h-full shrink-0 ${autoHeight ? 'object-contain' : 'object-cover'}${onImageClick ? ' cursor-zoom-in' : ''}`}
           />
         ))}
       </div>

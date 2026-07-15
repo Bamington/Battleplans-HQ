@@ -1,4 +1,5 @@
-import { Sheet, UserRounded, Box } from '@battleplans/ui';
+import { useEffect, useState } from 'react';
+import { Sheet, Lightbox, UserRounded, Box } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { ImageCarousel } from './ImageCarousel';
 import { ModelItem } from './ModelItem';
@@ -45,6 +46,8 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
   onOpenModel?: (modelId: string) => void;
 }) {
   const { box } = useBoxDetail(boxId);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+  useEffect(() => { setLightbox(null); }, [boxId]);
   const iconUrl = box?.game?.slug ? GAME_ICONS[box.game.slug] ?? null : null;
 
   return (
@@ -58,6 +61,7 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
               alt={box.name}
               dots
               autoHeight
+              onImageClick={setLightbox}
               className="w-full shrink-0 bg-neutral-950 max-h-[55vh]"
             />
           ) : (
@@ -112,6 +116,14 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
               )
             )}
           </div>
+
+          <Lightbox
+            open={lightbox !== null}
+            images={box.images}
+            startIndex={lightbox ?? 0}
+            onClose={() => setLightbox(null)}
+            alt={box.name}
+          />
         </>
       ) : (
         <div className="p-10 text-center font-body text-sm text-neutral-400">Loading…</div>
