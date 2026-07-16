@@ -457,6 +457,8 @@ export function useMatchingGameIds(search: string): string[] {
 
 /** A paint used on a model, resolved for display. */
 export interface PaintRef {
+  /** The hobby_items id — for unlinking a direct paint from the model. */
+  hobbyItemId: number;
   name: string;
   brand: string;
   type: string;            // 'Paint' | 'Spray'
@@ -467,6 +469,8 @@ export interface PaintRef {
 
 /** A recipe applied to a model: a named, ordered group of paints. */
 export interface ModelRecipeGroup {
+  /** The recipes id — for unlinking the recipe from the model. */
+  id: string;
   name: string;
   description: string | null;
   paints: PaintRef[];
@@ -493,7 +497,7 @@ export interface ModelDetail {
   directPaints: PaintRef[];
 }
 
-interface HobbyItemRef { name: string; brand: string; type: string; swatch: string | null }
+interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null }
 
 interface ModelDetailRow {
   id: string;
@@ -512,7 +516,7 @@ interface ModelDetailRow {
   model_recipes: {
     description: string | null;
     sort_order: number;
-    recipe: { name: string; description: string | null; recipe_items: { display_order: number; hobby_item: HobbyItemRef | null }[] | null } | null;
+    recipe: { id: string; name: string; description: string | null; recipe_items: { display_order: number; hobby_item: HobbyItemRef | null }[] | null } | null;
   }[] | null;
   model_hobby_items: { section: string | null; sort_order: number; hobby_item: HobbyItemRef | null }[] | null;
 }
@@ -523,12 +527,12 @@ const MODEL_DETAIL_SELECT =
   'model_images ( image_path, is_primary, display_order ), ' +
   'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
     'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
-  'model_recipes ( description, sort_order, recipe:recipes ( name, description, recipe_items ( display_order, hobby_item:hobby_items ( name, brand, type, swatch ) ) ) ), ' +
-  'model_hobby_items ( section, sort_order, hobby_item:hobby_items ( name, brand, type, swatch ) )';
+  'model_recipes ( description, sort_order, recipe:recipes ( id, name, description, recipe_items ( display_order, hobby_item:hobby_items ( id, name, brand, type, swatch ) ) ) ), ' +
+  'model_hobby_items ( section, sort_order, hobby_item:hobby_items ( id, name, brand, type, swatch ) )';
 
 function paintRef(h: HobbyItemRef | null, note: string | null): PaintRef | null {
   if (!h) return null;
-  return { name: h.name, brand: h.brand, type: h.type, swatch: h.swatch, note: note || null };
+  return { hobbyItemId: h.id, name: h.name, brand: h.brand, type: h.type, swatch: h.swatch, note: note || null };
 }
 
 function mapModelDetail(r: ModelDetailRow): ModelDetail {
@@ -550,6 +554,7 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(mr => ({
+        id: mr.recipe?.id ?? '',
         name: mr.recipe?.name ?? 'Recipe',
         description: mr.description || mr.recipe?.description || null,
         paints: (mr.recipe?.recipe_items ?? [])
@@ -696,4 +701,78 @@ export type ModelPatch = Partial<{
 /** Persist an inline edit to a model. RLS restricts this to the owner. */
 export function updateModel(modelId: string, patch: ModelPatch) {
   return supabase.from('models').update(patch).eq('id', modelId);
+}
+
+// ── Add paints / recipes to a model ───────────────────────────────────────────
+
+/** A paint (hobby_item) or recipe as shown in the "add existing" picker. */
+export interface PaintOption   { id: number; name: string; brand: string; type: string; swatch: string | null }
+export interface RecipeOption  { id: string; name: string; description: string | null }
+
+async function currentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
+}
+
+/** A page of the paint library (public paints + the user's own), name-searched. */
+export async function searchPaints(query: string, page: number, pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
+  const uid = await currentUserId();
+  let q = supabase.from('hobby_items').select('id, name, brand, type, swatch', { count: 'exact' });
+  q = uid ? q.or(`public.eq.true,owner.eq.${uid}`) : q.eq('public', true);
+  const term = query.trim();
+  if (term) q = q.ilike('name', `%${term}%`);
+  const { data, count } = await q.order('name').range(page * pageSize, page * pageSize + pageSize - 1);
+  return { items: (data as PaintOption[]) ?? [], total: count ?? 0 };
+}
+
+/** Create a new (private) paint owned by the user; returns its id. */
+export async function createPaint(fields: { name: string; brand: string; type: 'Paint' | 'Spray'; swatch: string }): Promise<number | null> {
+  const uid = await currentUserId();
+  const { data, error } = await supabase.from('hobby_items')
+    .insert({ name: fields.name, brand: fields.brand, type: fields.type, swatch: fields.swatch, owner: uid, public: false })
+    .select('id').single();
+  if (error) { console.error('[createPaint]', error); return null; }
+  return (data as { id: number }).id;
+}
+
+/** Link a paint to a model (with an optional "where used" note). */
+export function addModelPaint(modelId: string, hobbyItemId: number, note: string | null) {
+  return supabase.from('model_hobby_items').insert({ model_id: modelId, hobby_item_id: hobbyItemId, section: note });
+}
+
+/** Unlink a paint from a model. */
+export function removeModelPaint(modelId: string, hobbyItemId: number) {
+  return supabase.from('model_hobby_items').delete().eq('model_id', modelId).eq('hobby_item_id', hobbyItemId);
+}
+
+/** A page of the user's recipes, name-searched. */
+export async function searchRecipes(query: string, page: number, pageSize = 8): Promise<{ items: RecipeOption[]; total: number }> {
+  const uid = await currentUserId();
+  if (!uid) return { items: [], total: 0 };
+  let q = supabase.from('recipes').select('id, name, description', { count: 'exact' }).eq('owner', uid);
+  const term = query.trim();
+  if (term) q = q.ilike('name', `%${term}%`);
+  const { data, count } = await q.order('name').range(page * pageSize, page * pageSize + pageSize - 1);
+  return { items: (data as RecipeOption[]) ?? [], total: count ?? 0 };
+}
+
+/** Create a new recipe owned by the user; returns its id. */
+export async function createRecipe(fields: { name: string; description: string | null }): Promise<string | null> {
+  const uid = await currentUserId();
+  if (!uid) return null;
+  const { data, error } = await supabase.from('recipes')
+    .insert({ name: fields.name, description: fields.description, owner: uid })
+    .select('id').single();
+  if (error) { console.error('[createRecipe]', error); return null; }
+  return (data as { id: string }).id;
+}
+
+/** Link a recipe to a model. */
+export function addModelRecipe(modelId: string, recipeId: string) {
+  return supabase.from('model_recipes').insert({ model_id: modelId, recipe_id: recipeId });
+}
+
+/** Unlink a recipe from a model. */
+export function removeModelRecipe(modelId: string, recipeId: string) {
+  return supabase.from('model_recipes').delete().eq('model_id', modelId).eq('recipe_id', recipeId);
 }

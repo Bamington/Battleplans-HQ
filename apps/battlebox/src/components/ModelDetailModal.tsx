@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Sheet, Lightbox, Select, Badge, InfoCircle, FileText } from '@battleplans/ui';
+import { Sheet, Lightbox, Select, Badge, InfoCircle, FileText, AddCircle } from '@battleplans/ui';
 import type { BadgeColor } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { BoxItem } from './BoxItem';
 import { ImageCarousel } from './ImageCarousel';
-import { useModelDetail, updateModel } from '../hooks/useCollection';
+import { AddPaintRecipeModal } from './AddPaintRecipeModal';
+import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe } from '../hooks/useCollection';
 import type { ModelDetail, ModelStatus, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -104,7 +105,13 @@ const TabIntro = ({ children }: { children: React.ReactNode }) => (
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-function PaintRow({ paint }: { paint: PaintRef }) {
+const RemoveIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+);
+
+function PaintRow({ paint, onRemove }: { paint: PaintRef; onRemove?: () => void }) {
   const typeColor: BadgeColor = paint.type.toLowerCase() === 'spray' ? 'warning' : 'purple';
   return (
     <div className="flex items-start gap-2.5 px-3 py-2.5">
@@ -121,6 +128,11 @@ function PaintRow({ paint }: { paint: PaintRef }) {
         </div>
         {paint.note && <span className="font-body text-xs text-neutral-400">{paint.note}</span>}
       </div>
+      {onRemove && (
+        <button type="button" onClick={onRemove} aria-label={`Remove ${paint.name}`} className="mt-0.5 shrink-0 text-neutral-500 hover:text-red-400 transition-colors">
+          <RemoveIcon />
+        </button>
+      )}
     </div>
   );
 }
@@ -192,7 +204,14 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
   );
 }
 
-function PaintingTab({ model, save }: { model: ModelDetail; save: (p: { status?: ModelStatus; painting_notes?: string | null }) => void }) {
+function PaintingTab({ model, save, onAdd, onRemovePaint, onRemoveRecipe }: {
+  model: ModelDetail;
+  save: (p: { status?: ModelStatus; painting_notes?: string | null }) => void;
+  onAdd: (kind: 'paint' | 'recipe') => void;
+  onRemovePaint: (hobbyItemId: number) => void;
+  onRemoveRecipe: (recipeId: string) => void;
+}) {
+  const hasPaints = model.recipes.length > 0 || model.directPaints.length > 0;
   return (
     <div className="flex flex-col gap-4">
       <TabIntro>Record your hobby progress, and keep notes for the future.</TabIntro>
@@ -220,29 +239,44 @@ function PaintingTab({ model, save }: { model: ModelDetail; save: (p: { status?:
 
       <div className="flex flex-col gap-1.5">
         <Label>Paints Used</Label>
-        {model.recipes.length === 0 && model.directPaints.length === 0 ? (
+        {!hasPaints ? (
           <p className="font-body text-sm text-neutral-500 py-2">No paints recorded yet.</p>
         ) : (
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg divide-y divide-neutral-800">
             {model.recipes.map((r: ModelRecipeGroup, i) => (
-              <RecipeGroup key={`r${i}`} recipe={r} />
+              <RecipeGroup key={r.id || `r${i}`} recipe={r} onRemove={r.id ? () => onRemoveRecipe(r.id) : undefined} />
             ))}
-            {model.directPaints.map((p, i) => <PaintRow key={`p${i}`} paint={p} />)}
+            {model.directPaints.map(p => (
+              <PaintRow key={`p${p.hobbyItemId}`} paint={p} onRemove={() => onRemovePaint(p.hobbyItemId)} />
+            ))}
           </div>
         )}
+
+        <div className="flex items-center justify-center gap-6 pt-1">
+          <button type="button" onClick={() => onAdd('recipe')} className="flex items-center gap-1.5 font-body text-sm font-medium text-primary-500 hover:text-primary-400 transition-colors">
+            <AddCircle className="w-4 h-4" /> Add Recipe
+          </button>
+          <button type="button" onClick={() => onAdd('paint')} className="flex items-center gap-1.5 font-body text-sm font-medium text-primary-500 hover:text-primary-400 transition-colors">
+            <AddCircle className="w-4 h-4" /> Add Item
+          </button>
+        </div>
       </div>
-      {/* Add Recipe / Add Item are a later pass. */}
     </div>
   );
 }
 
-function RecipeGroup({ recipe }: { recipe: ModelRecipeGroup }) {
+function RecipeGroup({ recipe, onRemove }: { recipe: ModelRecipeGroup; onRemove?: () => void }) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
-        <PaintRollerIcon className="w-4 h-4 text-primary-400" />
-        <span className="font-heading text-sm text-white">{recipe.name}</span>
+        <PaintRollerIcon className="w-4 h-4 text-primary-400 shrink-0" />
+        <span className="font-heading text-sm text-white flex-1 min-w-0 truncate">{recipe.name}</span>
         <Badge color="primary">Recipe</Badge>
+        {onRemove && (
+          <button type="button" onClick={onRemove} aria-label={`Remove ${recipe.name}`} className="shrink-0 text-neutral-500 hover:text-red-400 transition-colors">
+            <RemoveIcon />
+          </button>
+        )}
       </div>
       {recipe.description && <p className="px-3 pb-1 font-body text-xs text-neutral-400">{recipe.description}</p>}
       {recipe.paints.map((p, i) => <PaintRow key={i} paint={p} />)}
@@ -278,9 +312,10 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const { model, refetch } = useModelDetail(modelId);
   const [tab, setTab] = useState<Tab>('details');
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [addKind, setAddKind] = useState<'paint' | 'recipe' | null>(null);
 
-  // Open on Details (and with the lightbox closed) each time a model is opened.
-  useEffect(() => { if (modelId) { setTab('details'); setLightbox(null); } }, [modelId]);
+  // Open on Details (lightbox + add modal closed) each time a model is opened.
+  useEffect(() => { if (modelId) { setTab('details'); setLightbox(null); setAddKind(null); } }, [modelId]);
 
   const save = async (patch: { status?: ModelStatus; painting_notes?: string | null; lore_name?: string | null; lore_description?: string | null }) => {
     if (!modelId) return;
@@ -288,6 +323,10 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
     refetch();
     onChanged?.();
   };
+
+  const refresh = () => { refetch(); onChanged?.(); };
+  const removePaint = async (hobbyItemId: number) => { if (modelId) { await removeModelPaint(modelId, hobbyItemId); refresh(); } };
+  const removeRecipe = async (recipeId: string) => { if (modelId) { await removeModelRecipe(modelId, recipeId); refresh(); } };
 
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
 
@@ -338,7 +377,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
           <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
             {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
-            {tab === 'painting' && <PaintingTab model={model} save={save} />}
+            {tab === 'painting' && <PaintingTab model={model} save={save} onAdd={setAddKind} onRemovePaint={removePaint} onRemoveRecipe={removeRecipe} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>
 
@@ -348,6 +387,14 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             startIndex={lightbox ?? 0}
             onClose={() => setLightbox(null)}
             alt={model.name}
+          />
+
+          <AddPaintRecipeModal
+            open={addKind !== null}
+            kind={addKind ?? 'paint'}
+            modelId={modelId}
+            onClose={() => setAddKind(null)}
+            onAdded={refresh}
           />
         </>
       ) : (
