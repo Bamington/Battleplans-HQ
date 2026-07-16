@@ -57,6 +57,33 @@ function Section({ title, active, onReset, children }: {
   );
 }
 
+/** A collapsible section — collapsed by default, opens when its filter is set. */
+function Accordion({ title, active, expanded, onToggle, onReset, children }: {
+  title: string; active: boolean; expanded: boolean; onToggle: () => void; onReset: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onToggle} className="flex items-center gap-2 min-w-0">
+          <h3 className="font-heading text-base text-white">{title}</h3>
+          {active && <span className="w-1.5 h-1.5 rounded-full bg-primary-500 shrink-0" aria-hidden="true" />}
+        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          {active && (
+            <button type="button" onClick={onReset} className="font-body text-sm text-primary-500 hover:text-primary-400">
+              Reset
+            </button>
+          )}
+          <button type="button" onClick={onToggle} aria-label={expanded ? 'Collapse' : 'Expand'} className="text-neutral-400 hover:text-neutral-200">
+            <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </div>
+      {expanded && children}
+    </div>
+  );
+}
+
 function DateField({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string | null) => void }) {
   return (
     <label className="flex-1 flex flex-col gap-1 min-w-0">
@@ -109,10 +136,18 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
   const [draft, setDraft] = useState<ModelFilters>(value);
   const [gameOpen, setGameOpen] = useState(false);
   const [gameSearch, setGameSearch] = useState('');
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [paintedOpen,  setPaintedOpen]  = useState(false);
 
   // Reset the working copy to the applied filters each time the sheet opens.
+  // Date accordions start collapsed, but open when that date already has a value.
   useEffect(() => {
-    if (open) { setDraft(value); setGameOpen(false); setGameSearch(''); }
+    if (!open) return;
+    setDraft(value);
+    setGameOpen(false);
+    setGameSearch('');
+    setPurchaseOpen(!!(value.purchaseFrom || value.purchaseTo));
+    setPaintedOpen(!!(value.paintedFrom || value.paintedTo));
   }, [open, value]);
 
   const toggleStatus = (s: ModelStatus) => setDraft(d => ({
@@ -132,7 +167,12 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
       className="max-w-md"
       footer={
         <div className="px-5 py-4 border-t border-neutral-800 flex gap-3">
-          <Button variant="outline" color="secondary" className="flex-1 justify-center" onClick={() => setDraft(EMPTY_MODEL_FILTERS)}>
+          <Button
+            variant="outline"
+            color="secondary"
+            className="flex-1 justify-center"
+            onClick={() => { setDraft(EMPTY_MODEL_FILTERS); setPurchaseOpen(false); setPaintedOpen(false); }}
+          >
             Reset All
           </Button>
           <Button color="primary" className="flex-1 justify-center" onClick={() => onApply(draft)}>
@@ -146,32 +186,6 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
       </div>
 
       <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0 flex flex-col gap-6">
-        <Section
-          title="Purchase Date"
-          active={!!(draft.purchaseFrom || draft.purchaseTo)}
-          onReset={() => setDraft(d => ({ ...d, purchaseFrom: null, purchaseTo: null }))}
-        >
-          <DateRange
-            from={draft.purchaseFrom} to={draft.purchaseTo}
-            onChange={(f, t) => setDraft(d => ({ ...d, purchaseFrom: f, purchaseTo: t }))}
-          />
-        </Section>
-
-        <hr className="border-neutral-800" />
-
-        <Section
-          title="Painted Date"
-          active={!!(draft.paintedFrom || draft.paintedTo)}
-          onReset={() => setDraft(d => ({ ...d, paintedFrom: null, paintedTo: null }))}
-        >
-          <DateRange
-            from={draft.paintedFrom} to={draft.paintedTo}
-            onChange={(f, t) => setDraft(d => ({ ...d, paintedFrom: f, paintedTo: t }))}
-          />
-        </Section>
-
-        <hr className="border-neutral-800" />
-
         <Section title="Painted Status" active={draft.statuses.length > 0} onReset={() => setDraft(d => ({ ...d, statuses: [] }))}>
           <div className="flex flex-wrap gap-2">
             {STATUSES.map(s => {
@@ -239,6 +253,36 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
             </div>
           )}
         </Section>
+
+        <hr className="border-neutral-800" />
+
+        <Accordion
+          title="Purchase Date"
+          active={!!(draft.purchaseFrom || draft.purchaseTo)}
+          expanded={purchaseOpen}
+          onToggle={() => setPurchaseOpen(o => !o)}
+          onReset={() => setDraft(d => ({ ...d, purchaseFrom: null, purchaseTo: null }))}
+        >
+          <DateRange
+            from={draft.purchaseFrom} to={draft.purchaseTo}
+            onChange={(f, t) => setDraft(d => ({ ...d, purchaseFrom: f, purchaseTo: t }))}
+          />
+        </Accordion>
+
+        <hr className="border-neutral-800" />
+
+        <Accordion
+          title="Painted Date"
+          active={!!(draft.paintedFrom || draft.paintedTo)}
+          expanded={paintedOpen}
+          onToggle={() => setPaintedOpen(o => !o)}
+          onReset={() => setDraft(d => ({ ...d, paintedFrom: null, paintedTo: null }))}
+        >
+          <DateRange
+            from={draft.paintedFrom} to={draft.paintedTo}
+            onChange={(f, t) => setDraft(d => ({ ...d, paintedFrom: f, paintedTo: t }))}
+          />
+        </Accordion>
       </div>
     </Sheet>
   );
