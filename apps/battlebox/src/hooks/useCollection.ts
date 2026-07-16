@@ -739,7 +739,7 @@ export async function fetchBoxEdit(boxId: string): Promise<BoxEditFields | null>
 export function updateModelInfo(modelId: string, fields: ModelEditFields) {
   return supabase.from('models').update(fields).eq('id', modelId);
 }
-export function updateBoxInfo(boxId: string, fields: BoxEditFields) {
+export function updateBoxInfo(boxId: string, fields: Partial<BoxEditFields>) {
   return supabase.from('boxes').update(fields).eq('id', boxId);
 }
 

@@ -21,7 +21,6 @@ export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
   const [type, setType] = useState<'Box' | 'Collection'>('Box');
   const [gameId, setGameId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
-  const [includes, setIncludes] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -31,7 +30,7 @@ export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
     fetchBoxEdit(boxId).then(f => {
       if (cancelled || !f) return;
       setName(f.name); setType(f.type === 'Collection' ? 'Collection' : 'Box'); setGameId(f.game_id);
-      setPurchaseDate(f.purchase_date); setIncludes(f.includes_string ?? '');
+      setPurchaseDate(f.purchase_date);
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -42,7 +41,7 @@ export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
   const save = async () => {
     if (!boxId) return;
     setSaving(true);
-    await updateBoxInfo(boxId, { name: name.trim(), type, game_id: gameId, purchase_date: purchaseDate, includes_string: includes.trim() || null });
+    await updateBoxInfo(boxId, { name: name.trim(), type, game_id: gameId, purchase_date: purchaseDate });
     setSaving(false);
     onChanged();
     onClose();
@@ -84,12 +83,6 @@ export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
               <input type="date" value={purchaseDate ?? ''} onChange={e => setPurchaseDate(e.target.value || null)}
                 className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </label>
-
-            <div className="flex flex-col gap-1.5">
-              <span className="font-body text-sm font-medium text-white">Includes</span>
-              <textarea rows={3} placeholder="What's in this collection…" value={includes} onChange={e => setIncludes(e.target.value)}
-                className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white placeholder-neutral-500 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            </div>
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>
