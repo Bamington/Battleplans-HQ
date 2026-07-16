@@ -7,8 +7,10 @@ import { ImageCarousel } from './ImageCarousel';
 import { AddPaintRecipeModal } from './AddPaintRecipeModal';
 import { EditPaintModal } from './EditPaintModal';
 import { EditRecipeModal } from './EditRecipeModal';
+import { EditModelModal } from './EditModelModal';
 import { ConfirmDialog } from './ConfirmDialog';
-import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, useUserId } from '../hooks/useCollection';
+import { KebabMenu } from './KebabMenu';
+import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId } from '../hooks/useCollection';
 import type { ModelDetail, ModelStatus, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -350,10 +352,15 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const [editingPaint, setEditingPaint] = useState<PaintRef | null>(null);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
   const [confirmRecipe, setConfirmRecipe] = useState<{ id: string; name: string } | null>(null);
+  const [editingModel, setEditingModel] = useState(false);
+  const [confirmDeleteModel, setConfirmDeleteModel] = useState(false);
 
   // Reset transient overlays each time a model is opened.
   useEffect(() => {
-    if (modelId) { setTab('details'); setLightbox(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null); setConfirmRecipe(null); }
+    if (modelId) {
+      setTab('details'); setLightbox(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
+      setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false);
+    }
   }, [modelId]);
 
   const save = async (patch: { status?: ModelStatus; painting_notes?: string | null; lore_name?: string | null; lore_description?: string | null }) => {
@@ -370,6 +377,10 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const doRemoveRecipe = async () => {
     if (modelId && confirmRecipe) { await removeModelRecipe(modelId, confirmRecipe.id); refresh(); }
     setConfirmRecipe(null);
+  };
+  const doDeleteModel = async () => {
+    if (modelId) { await deleteModel(modelId); onChanged?.(); onClose(); }
+    setConfirmDeleteModel(false);
   };
 
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
@@ -402,15 +413,24 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             </div>
           )}
 
-          {/* Name + game */}
-          <div className="px-5 pt-4 flex flex-col gap-0.5 shrink-0">
-            <h2 className="font-heading text-xl text-white leading-7">{model.name}</h2>
-            {model.game && (
-              <div className="flex items-center gap-1.5">
-                {iconUrl && <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />}
-                <span className="font-body text-sm text-neutral-400">{model.game.name}</span>
-              </div>
-            )}
+          {/* Name + game, with the ⋯ menu opposite */}
+          <div className="px-5 pt-4 flex items-start justify-between gap-2 shrink-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <h2 className="font-heading text-xl text-white leading-7">{model.name}</h2>
+              {model.game && (
+                <div className="flex items-center gap-1.5">
+                  {iconUrl && <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />}
+                  <span className="font-body text-sm text-neutral-400">{model.game.name}</span>
+                </div>
+              )}
+            </div>
+            <KebabMenu
+              label="Model actions"
+              items={[
+                { label: 'Edit', onClick: () => setEditingModel(true) },
+                { label: 'Delete', onClick: () => setConfirmDeleteModel(true), danger: true },
+              ]}
+            />
           </div>
 
           {/* Tabs */}
@@ -463,6 +483,22 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             confirmLabel="Remove"
             onConfirm={doRemoveRecipe}
             onCancel={() => setConfirmRecipe(null)}
+          />
+
+          <EditModelModal
+            open={editingModel}
+            modelId={modelId}
+            onClose={() => setEditingModel(false)}
+            onChanged={refresh}
+          />
+
+          <ConfirmDialog
+            open={confirmDeleteModel}
+            title="Delete model?"
+            message={`Permanently delete “${model.name}”? This can't be undone.`}
+            confirmLabel="Delete"
+            onConfirm={doDeleteModel}
+            onCancel={() => setConfirmDeleteModel(false)}
           />
         </>
       ) : (

@@ -705,6 +705,53 @@ export function updateModel(modelId: string, patch: ModelPatch) {
   return supabase.from('models').update(patch).eq('id', modelId);
 }
 
+// ── Edit / delete a model or collection ───────────────────────────────────────
+
+export interface GameOption { id: string; name: string; slug: string }
+
+/** All games (for the Game picker). Only fetched when `enabled`. */
+export function useAllGames(enabled: boolean): GameOption[] {
+  const [games, setGames] = useState<GameOption[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    supabase.from('games').select('id, name, slug').order('name')
+      .then(({ data }) => { if (!cancelled) setGames((data as GameOption[]) ?? []); });
+    return () => { cancelled = true; };
+  }, [enabled]);
+  return games;
+}
+
+export interface ModelEditFields { name: string; game_id: string | null; count: number; purchase_date: string | null; painted_date: string | null }
+export interface BoxEditFields   { name: string; type: 'Box' | 'Collection'; game_id: string | null; purchase_date: string | null; includes_string: string | null }
+
+/** The raw editable fields for a model (includes game_id, which the detail
+ *  view doesn't carry). */
+export async function fetchModelEdit(modelId: string): Promise<ModelEditFields | null> {
+  const { data } = await supabase.from('models').select('name, game_id, count, purchase_date, painted_date').eq('id', modelId).single();
+  return (data as ModelEditFields) ?? null;
+}
+export async function fetchBoxEdit(boxId: string): Promise<BoxEditFields | null> {
+  const { data } = await supabase.from('boxes').select('name, type, game_id, purchase_date, includes_string').eq('id', boxId).single();
+  return (data as BoxEditFields) ?? null;
+}
+
+export function updateModelInfo(modelId: string, fields: ModelEditFields) {
+  return supabase.from('models').update(fields).eq('id', modelId);
+}
+export function updateBoxInfo(boxId: string, fields: BoxEditFields) {
+  return supabase.from('boxes').update(fields).eq('id', boxId);
+}
+
+/** Delete a model outright (RLS owner-only). */
+export function deleteModel(modelId: string) {
+  return supabase.from('models').delete().eq('id', modelId);
+}
+/** Delete a collection — its model_boxes links cascade away; the models stay. */
+export function deleteBox(boxId: string) {
+  return supabase.from('boxes').delete().eq('id', boxId);
+}
+
 // ── Add paints / recipes to a model ───────────────────────────────────────────
 
 /** A paint (hobby_item) or recipe as shown in the "add existing" picker. */

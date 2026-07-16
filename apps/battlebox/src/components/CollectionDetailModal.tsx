@@ -3,7 +3,10 @@ import { Sheet, Lightbox, UserRounded, Box } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { ImageCarousel } from './ImageCarousel';
 import { ModelItem } from './ModelItem';
-import { useBoxDetail } from '../hooks/useCollection';
+import { KebabMenu } from './KebabMenu';
+import { EditCollectionModal } from './EditCollectionModal';
+import { ConfirmDialog } from './ConfirmDialog';
+import { useBoxDetail, deleteBox } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -39,16 +42,25 @@ function DetailRow({ icon, children }: { icon: React.ReactNode; children: React.
 // painting or lore, so there are no tabs — just the details and, in place of the
 // model modal's "Included in", the models this collection "Includes".
 
-export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
+export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }: {
   boxId: string | null;
   onClose: () => void;
   /** Open the model modal for one of this collection's member models. */
   onOpenModel?: (modelId: string) => void;
+  /** Refresh the collections list after an edit/delete. */
+  onChanged?: () => void;
 }) {
-  const { box } = useBoxDetail(boxId);
+  const { box, refetch } = useBoxDetail(boxId);
   const [lightbox, setLightbox] = useState<number | null>(null);
-  useEffect(() => { setLightbox(null); }, [boxId]);
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  useEffect(() => { setLightbox(null); setEditing(false); setConfirmDelete(false); }, [boxId]);
   const iconUrl = box?.game?.slug ? GAME_ICONS[box.game.slug] ?? null : null;
+
+  const doDelete = async () => {
+    if (boxId) { await deleteBox(boxId); onChanged?.(); onClose(); }
+    setConfirmDelete(false);
+  };
 
   return (
     <Sheet open={boxId !== null} onClose={onClose} className="max-w-2xl">
@@ -77,15 +89,24 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
             </div>
           )}
 
-          {/* Name + game */}
-          <div className="px-5 pt-4 flex flex-col gap-0.5 shrink-0">
-            <h2 className="font-heading text-xl text-white leading-7">{box.name}</h2>
-            {box.game && (
-              <div className="flex items-center gap-1.5">
-                {iconUrl && <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />}
-                <span className="font-body text-sm text-neutral-400">{box.game.name}</span>
-              </div>
-            )}
+          {/* Name + game, with the ⋯ menu opposite */}
+          <div className="px-5 pt-4 flex items-start justify-between gap-2 shrink-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <h2 className="font-heading text-xl text-white leading-7">{box.name}</h2>
+              {box.game && (
+                <div className="flex items-center gap-1.5">
+                  {iconUrl && <img src={iconUrl} alt="" className="w-4 h-4 rounded object-cover" />}
+                  <span className="font-body text-sm text-neutral-400">{box.game.name}</span>
+                </div>
+              )}
+            </div>
+            <KebabMenu
+              label="Collection actions"
+              items={[
+                { label: 'Edit', onClick: () => setEditing(true) },
+                { label: 'Delete', onClick: () => setConfirmDelete(true), danger: true },
+              ]}
+            />
           </div>
 
           {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
@@ -123,6 +144,22 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel }: {
             startIndex={lightbox ?? 0}
             onClose={() => setLightbox(null)}
             alt={box.name}
+          />
+
+          <EditCollectionModal
+            open={editing}
+            boxId={boxId}
+            onClose={() => setEditing(false)}
+            onChanged={() => { refetch(); onChanged?.(); }}
+          />
+
+          <ConfirmDialog
+            open={confirmDelete}
+            title="Delete collection?"
+            message={`Permanently delete “${box.name}”? Its models won't be deleted. This can't be undone.`}
+            confirmLabel="Delete"
+            onConfirm={doDelete}
+            onCancel={() => setConfirmDelete(false)}
           />
         </>
       ) : (
