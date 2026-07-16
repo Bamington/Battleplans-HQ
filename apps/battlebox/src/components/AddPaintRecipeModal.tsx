@@ -10,7 +10,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Input, AddCircle, Magnifer } from '@battleplans/ui';
 import {
-  searchPaints, createPaint, addModelPaint,
+  searchPaints, createPaint, addModelPaint, useHobbyBrands,
   searchRecipes, createRecipe, addModelRecipe,
 } from '../hooks/useCollection';
 import type { PaintOption, RecipeOption } from '../hooks/useCollection';
@@ -27,6 +27,9 @@ const CloseIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
 );
 const CheckIcon = ({ className = 'w-3 h-3' }: { className?: string }) => (
   <svg viewBox="0 0 10 8" fill="none" className={className}><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
+const ChevronIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" fill="none" className={className}><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
 // ── Selectable list row ───────────────────────────────────────────────────────
@@ -80,6 +83,11 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
   const [selected, setSelected] = useState<string | number | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Brand filter (paints only).
+  const [brandFilter, setBrandFilter] = useState<string[]>([]);
+  const [brandOpen, setBrandOpen] = useState(false);
+  const allBrands = useHobbyBrands(open && kind === 'paint');
+
   // Create-form state.
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -92,18 +100,24 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
   useEffect(() => {
     if (!open) return;
     setStep('pick'); setSearch(''); setPage(0); setSelected(null); setSaving(false);
+    setBrandFilter([]); setBrandOpen(false);
     setName(''); setBrand(''); setType('Paint'); setSwatch('#8a8f98'); setNote(''); setDescription('');
   }, [open, kind]);
 
   const fetchPage = useCallback(async () => {
     if (kind === 'paint') {
-      const { items, total } = await searchPaints(search, page);
+      const { items, total } = await searchPaints(search, page, brandFilter);
       setPaints(items); setTotal(total);
     } else {
       const { items, total } = await searchRecipes(search, page);
       setRecipes(items); setTotal(total);
     }
-  }, [kind, search, page]);
+  }, [kind, search, page, brandFilter]);
+
+  const toggleBrand = (b: string) => {
+    setBrandFilter(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
+    setPage(0); setSelected(null);
+  };
 
   useEffect(() => {
     if (open && step === 'pick') fetchPage();
@@ -191,6 +205,42 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(0); setSelected(null); }}
               />
+
+              {kind === 'paint' && allBrands.length > 0 && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setBrandOpen(o => !o)}
+                    className="w-full flex items-center justify-between bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm"
+                  >
+                    <span className={brandFilter.length ? 'text-white' : 'text-neutral-400'}>
+                      {brandFilter.length ? `${brandFilter.length} brand${brandFilter.length > 1 ? 's' : ''} selected` : 'All brands'}
+                    </span>
+                    <ChevronIcon className={`w-4 h-4 text-neutral-400 transition-transform ${brandOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {brandOpen && (
+                    <div className="mt-2 bg-neutral-800 border border-neutral-700 rounded-lg p-2 max-h-56 overflow-y-auto flex flex-col gap-px">
+                      {allBrands.map(b => {
+                        const checked = brandFilter.includes(b);
+                        return (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => toggleBrand(b)}
+                            className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${checked ? 'bg-primary-950' : 'hover:bg-white/5'}`}
+                          >
+                            <span className="flex-1 font-body text-sm text-white truncate">{b}</span>
+                            <span className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${checked ? 'bg-primary-600 border-primary-600' : 'border-neutral-500'}`}>
+                              {checked && <CheckIcon className="w-2.5 h-2.5 text-white" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col gap-1.5 min-h-[3rem]">
                 {(kind === 'paint' ? paints.length : recipes.length) === 0 ? (
                   <p className="font-body text-sm text-neutral-500 py-3 text-center">

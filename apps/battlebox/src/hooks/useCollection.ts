@@ -714,15 +714,34 @@ async function currentUserId(): Promise<string | null> {
   return data.session?.user?.id ?? null;
 }
 
-/** A page of the paint library (public paints + the user's own), name-searched. */
-export async function searchPaints(query: string, page: number, pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
+/** A page of the paint library (public paints + the user's own), name-searched
+ *  and optionally filtered to a set of brands. */
+export async function searchPaints(query: string, page: number, brands: string[] = [], pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
   const uid = await currentUserId();
   let q = supabase.from('hobby_items').select('id, name, brand, type, swatch', { count: 'exact' });
   q = uid ? q.or(`public.eq.true,owner.eq.${uid}`) : q.eq('public', true);
   const term = query.trim();
   if (term) q = q.ilike('name', `%${term}%`);
+  if (brands.length) q = q.in('brand', brands);
   const { data, count } = await q.order('name').range(page * pageSize, page * pageSize + pageSize - 1);
   return { items: (data as PaintOption[]) ?? [], total: count ?? 0 };
+}
+
+/** All distinct brands in the paint library (public + owned), for the brand
+ *  filter. Only fetched when `enabled` (the Add Paint picker is showing). */
+export function useHobbyBrands(enabled: boolean): string[] {
+  const [brands, setBrands] = useState<string[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    supabase.from('hobby_item_brands').select('brand')
+      .then(({ data }) => {
+        if (cancelled) return;
+        setBrands(((data as { brand: string }[] | null) ?? []).map(r => r.brand));
+      });
+    return () => { cancelled = true; };
+  }, [enabled]);
+  return brands;
 }
 
 /** Create a new (private) paint owned by the user; returns its id. */
