@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sheet, Button } from '@battleplans/ui';
 import { Section, Accordion, DateRange, Chip, GameMultiSelect } from './filterControls';
-import { useOwnedGames, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount } from '../hooks/useCollection';
+import { useOwnedGames, useAvailableYears, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount } from '../hooks/useCollection';
 import type { CollectionFilters, CollectionPaint } from '../hooks/useCollection';
 
 const PAINT: { value: CollectionPaint; label: string }[] = [
@@ -19,7 +19,10 @@ export function CollectionFilterSheet({ open, onClose, userId, value, onApply }:
   value: CollectionFilters;
   onApply: (filters: CollectionFilters) => void;
 }) {
-  const games = useOwnedGames(userId, 'boxes');
+  // Only load the filter metadata once the sheet is opened.
+  const uid = open ? userId : null;
+  const games = useOwnedGames(uid, 'boxes');
+  const purchaseYears = useAvailableYears(uid, 'boxes', 'purchase_date');
   const [draft, setDraft] = useState<CollectionFilters>(value);
   const [purchaseOpen, setPurchaseOpen] = useState(false);
 
@@ -101,7 +104,7 @@ export function CollectionFilterSheet({ open, onClose, userId, value, onApply }:
           onReset={() => setDraft(d => ({ ...d, purchaseFrom: null, purchaseTo: null }))}
         >
           <DateRange
-            from={draft.purchaseFrom} to={draft.purchaseTo}
+            from={draft.purchaseFrom} to={draft.purchaseTo} years={purchaseYears}
             onChange={(f, t) => setDraft(d => ({ ...d, purchaseFrom: f, purchaseTo: t }))}
           />
         </Accordion>
