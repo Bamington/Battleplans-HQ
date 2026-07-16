@@ -465,6 +465,8 @@ export interface PaintRef {
   swatch: string | null;
   /** Where/how it was used (a model_hobby_items.section note). */
   note: string | null;
+  /** The hobby_item's owner — the paint is editable only if this is you. */
+  ownerId: string | null;
 }
 
 /** A recipe applied to a model: a named, ordered group of paints. */
@@ -497,7 +499,7 @@ export interface ModelDetail {
   directPaints: PaintRef[];
 }
 
-interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null }
+interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
 
 interface ModelDetailRow {
   id: string;
@@ -527,12 +529,12 @@ const MODEL_DETAIL_SELECT =
   'model_images ( image_path, is_primary, display_order ), ' +
   'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
     'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
-  'model_recipes ( description, sort_order, recipe:recipes ( id, name, description, recipe_items ( display_order, hobby_item:hobby_items ( id, name, brand, type, swatch ) ) ) ), ' +
-  'model_hobby_items ( section, sort_order, hobby_item:hobby_items ( id, name, brand, type, swatch ) )';
+  'model_recipes ( description, sort_order, recipe:recipes ( id, name, description, recipe_items ( display_order, hobby_item:hobby_items ( id, name, brand, type, swatch, owner ) ) ) ), ' +
+  'model_hobby_items ( section, sort_order, hobby_item:hobby_items ( id, name, brand, type, swatch, owner ) )';
 
 function paintRef(h: HobbyItemRef | null, note: string | null): PaintRef | null {
   if (!h) return null;
-  return { hobbyItemId: h.id, name: h.name, brand: h.brand, type: h.type, swatch: h.swatch, note: note || null };
+  return { hobbyItemId: h.id, name: h.name, brand: h.brand, type: h.type, swatch: h.swatch, note: note || null, ownerId: h.owner };
 }
 
 function mapModelDetail(r: ModelDetailRow): ModelDetail {
@@ -716,13 +718,14 @@ async function currentUserId(): Promise<string | null> {
 
 /** A page of the paint library (public paints + the user's own), name-searched
  *  and optionally filtered to a set of brands. */
-export async function searchPaints(query: string, page: number, brands: string[] = [], pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
+export async function searchPaints(query: string, page: number, brands: string[] = [], excludeIds: number[] = [], pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
   const uid = await currentUserId();
   let q = supabase.from('hobby_items').select('id, name, brand, type, swatch', { count: 'exact' });
   q = uid ? q.or(`public.eq.true,owner.eq.${uid}`) : q.eq('public', true);
   const term = query.trim();
   if (term) q = q.ilike('name', `%${term}%`);
   if (brands.length) q = q.in('brand', brands);
+  if (excludeIds.length) q = q.not('id', 'in', `(${excludeIds.join(',')})`);
   const { data, count } = await q.order('name').range(page * pageSize, page * pageSize + pageSize - 1);
   return { items: (data as PaintOption[]) ?? [], total: count ?? 0 };
 }
@@ -794,4 +797,42 @@ export function addModelRecipe(modelId: string, recipeId: string) {
 /** Unlink a recipe from a model. */
 export function removeModelRecipe(modelId: string, recipeId: string) {
   return supabase.from('model_recipes').delete().eq('model_id', modelId).eq('recipe_id', recipeId);
+}
+
+// ── Edit paints / recipes ─────────────────────────────────────────────────────
+
+/** The signed-in user's id (for gating edits to items they created). */
+export function useUserId(): string | null {
+  const [uid, setUid] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => { if (!cancelled) setUid(data.session?.user?.id ?? null); });
+    return () => { cancelled = true; };
+  }, []);
+  return uid;
+}
+
+/** Edit a paint you own (RLS blocks non-owned rows). */
+export function updatePaint(hobbyItemId: number, fields: { name: string; brand: string; type: 'Paint' | 'Spray'; swatch: string }) {
+  return supabase.from('hobby_items').update(fields).eq('id', hobbyItemId);
+}
+
+/** Edit a direct paint's "where used" note on a model. */
+export function updateModelPaintNote(modelId: string, hobbyItemId: number, note: string | null) {
+  return supabase.from('model_hobby_items').update({ section: note }).eq('model_id', modelId).eq('hobby_item_id', hobbyItemId);
+}
+
+/** Edit a recipe you own (name / description). */
+export function updateRecipe(recipeId: string, fields: { name: string; description: string | null }) {
+  return supabase.from('recipes').update(fields).eq('id', recipeId);
+}
+
+/** Add a paint to a recipe. */
+export function addRecipeItem(recipeId: string, hobbyItemId: number, displayOrder = 0) {
+  return supabase.from('recipe_items').insert({ recipe_id: recipeId, hobby_item_id: hobbyItemId, display_order: displayOrder });
+}
+
+/** Remove a paint from a recipe. */
+export function removeRecipeItem(recipeId: string, hobbyItemId: number) {
+  return supabase.from('recipe_items').delete().eq('recipe_id', recipeId).eq('hobby_item_id', hobbyItemId);
 }
