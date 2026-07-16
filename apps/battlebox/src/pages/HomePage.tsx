@@ -195,7 +195,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   const query = useDebouncedValue(search.trim(), 300);
   const searchGameIds = useMatchingGameIds(query);
 
-  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, filters, query, searchGameIds);
+  const { boxes, loading, loadingMore, hasMore, loadMore, refetch } = useBoxes(userId, filters, query, searchGameIds);
   const gallery = isDesktop && view === 'gallery';
   const filterCount = activeCollectionFilterCount(filters);
 
@@ -227,7 +227,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
         : <BoxItem     box={b} onClick={() => onOpenBox(b.id)} />)}
       footer={<AddButton label="Add Collection" />}
     />
-    <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} />
+    <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} onChanged={refetch} />
     <CollectionFilterSheet
       open={filterOpen}
       onClose={() => setFilterOpen(false)}
