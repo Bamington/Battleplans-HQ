@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sheet, Button } from '@battleplans/ui';
 import { Section, Accordion, DateRange, Chip, GameMultiSelect } from './filterControls';
-import { useOwnedGames, EMPTY_MODEL_FILTERS, activeModelFilterCount } from '../hooks/useCollection';
+import { useOwnedGames, useAvailableYears, EMPTY_MODEL_FILTERS, activeModelFilterCount } from '../hooks/useCollection';
 import type { ModelFilters, ModelStatus } from '../hooks/useCollection';
 
 const STATUSES: { value: ModelStatus; label: string }[] = [
@@ -19,7 +19,12 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
   value: ModelFilters;
   onApply: (filters: ModelFilters) => void;
 }) {
-  const games = useOwnedGames(userId);
+  // Only load the filter metadata once the sheet is opened — no point querying
+  // it on every page load, and it keeps these off the initial list-load path.
+  const uid = open ? userId : null;
+  const games = useOwnedGames(uid);
+  const purchaseYears = useAvailableYears(uid, 'models', 'purchase_date');
+  const paintedYears  = useAvailableYears(uid, 'models', 'painted_date');
   const [draft, setDraft] = useState<ModelFilters>(value);
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [paintedOpen,  setPaintedOpen]  = useState(false);
@@ -92,7 +97,7 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
           onReset={() => setDraft(d => ({ ...d, purchaseFrom: null, purchaseTo: null }))}
         >
           <DateRange
-            from={draft.purchaseFrom} to={draft.purchaseTo}
+            from={draft.purchaseFrom} to={draft.purchaseTo} years={purchaseYears}
             onChange={(f, t) => setDraft(d => ({ ...d, purchaseFrom: f, purchaseTo: t }))}
           />
         </Accordion>
@@ -107,7 +112,7 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
           onReset={() => setDraft(d => ({ ...d, paintedFrom: null, paintedTo: null }))}
         >
           <DateRange
-            from={draft.paintedFrom} to={draft.paintedTo}
+            from={draft.paintedFrom} to={draft.paintedTo} years={paintedYears}
             onChange={(f, t) => setDraft(d => ({ ...d, paintedFrom: f, paintedTo: t }))}
           />
         </Accordion>

@@ -91,11 +91,7 @@ export function Chip({ label, selected, onClick }: { label: string; selected: bo
 /** Local YYYY-MM-DD (avoids the UTC shift of toISOString). */
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const PRESETS: { label: string; range: () => { from: string; to: string } }[] = [
-  { label: 'Today',      range: () => { const t = new Date(); return { from: iso(t), to: iso(t) }; } },
-  { label: 'This Week',  range: () => { const t = new Date(); const s = new Date(t); s.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return { from: iso(s), to: iso(t) }; } },
-  { label: 'This Month', range: () => { const t = new Date(); return { from: iso(new Date(t.getFullYear(), t.getMonth(), 1)), to: iso(t) }; } },
-];
+const yearRange = (y: number) => ({ from: `${y}-01-01`, to: `${y}-12-31` });
 
 function DateField({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string | null) => void }) {
   return (
@@ -111,9 +107,20 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
   );
 }
 
-export function DateRange({ from, to, onChange }: {
-  from: string | null; to: string | null; onChange: (from: string | null, to: string | null) => void;
+export function DateRange({ from, to, onChange, years = [] }: {
+  from: string | null; to: string | null;
+  onChange: (from: string | null, to: string | null) => void;
+  /** Years present in the data (descending) — rendered as presets. */
+  years?: number[];
 }) {
+  const now = new Date();
+  const cy = now.getFullYear();
+  const presets: { label: string; range: () => { from: string; to: string } }[] = [
+    { label: 'This Month', range: () => ({ from: iso(new Date(cy, now.getMonth(), 1)), to: iso(new Date(cy, now.getMonth() + 1, 0)) }) },
+    { label: 'This Year',  range: () => yearRange(cy) },
+    // Past years with entries — the current year is covered by "This Year".
+    ...years.filter(y => y < cy).map(y => ({ label: String(y), range: () => yearRange(y) })),
+  ];
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-3">
@@ -121,7 +128,7 @@ export function DateRange({ from, to, onChange }: {
         <DateField label="To"   value={to}   onChange={v => onChange(from, v)} />
       </div>
       <div className="flex flex-wrap gap-2">
-        {PRESETS.map(p => (
+        {presets.map(p => (
           <button
             key={p.label}
             type="button"

@@ -208,6 +208,10 @@ function usePagedCollection<Row, T>(
   // resolves is dropped, so out-of-order responses (e.g. from a rapid filter
   // change) can't overwrite the latest result.
   const genRef = useRef(0);
+  // In-flight guard for loadMore as a ref, so two rapid calls can't both pass
+  // the check before the `loadingMore` state updates — which would append the
+  // same page twice and produce duplicate keys.
+  const loadingMoreRef = useRef(false);
 
   const fetchRange = useCallback((from: number, to: number) =>
     applyFilter(
@@ -215,7 +219,8 @@ function usePagedCollection<Row, T>(
         .from(table)
         .select(select)
         .eq('user_id', userId!)
-        .order('created_at', { ascending: false }))
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false }))
       .range(from, to)
       .then(({ data }: { data: unknown }) => ((data as Row[]) ?? []).map(map)),
     [userId, table, select, map, applyFilter]);
@@ -233,20 +238,24 @@ function usePagedCollection<Row, T>(
   }, [userId, fetchRange]);
 
   const loadMore = useCallback(async () => {
-    if (!userId || loadingMore || !hasMore) return;
+    if (!userId || loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
     const gen = genRef.current;
     setLoadingMore(true);
     const from = loadedRef.current;
     const rows = await fetchRange(from, from + PAGE_SIZE - 1);
+    loadingMoreRef.current = false;
     if (gen !== genRef.current) { setLoadingMore(false); return; }  // a reload happened; drop this page
     setItems(prev => {
-      const next = [...prev, ...rows];
+      // Skip any rows already loaded — a defensive guard against overlap.
+      const seen = new Set(prev.map(i => (i as { id: string }).id));
+      const next = [...prev, ...rows.filter((r: { id: string }) => !seen.has(r.id))];
       loadedRef.current = next.length;
       return next;
     });
     setHasMore(rows.length === PAGE_SIZE);
     setLoadingMore(false);
-  }, [userId, loadingMore, hasMore, fetchRange]);
+  }, [userId, hasMore, fetchRange]);
 
   const refetch = useCallback(async () => {
     const gen = ++genRef.current;
@@ -334,6 +343,28 @@ export function useOwnedGames(userId: string | null, table: 'models' | 'boxes' =
     return () => { cancelled = true; };
   }, [userId, table]);
   return games;
+}
+
+/** The distinct years present in a date column (descending) — for the date
+ *  filter presets. e.g. useAvailableYears(userId, 'models', 'purchase_date'). */
+export function useAvailableYears(userId: string | null, table: 'models' | 'boxes', column: 'purchase_date' | 'painted_date') {
+  const [years, setYears] = useState<number[]>([]);
+  useEffect(() => {
+    if (!userId) { setYears([]); return; }
+    let cancelled = false;
+    supabase.from(table).select(column).eq('user_id', userId).not(column, 'is', null)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const set = new Set<number>();
+        for (const row of (data as Record<string, string | null>[] | null) ?? []) {
+          const v = row[column];
+          if (v) set.add(Number(v.slice(0, 4)));
+        }
+        setYears([...set].sort((a, b) => b - a));
+      });
+    return () => { cancelled = true; };
+  }, [userId, table, column]);
+  return years;
 }
 
 /** Which paint state a collection falls into, by its members' statuses. */
