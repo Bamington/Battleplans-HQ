@@ -260,16 +260,67 @@ function usePagedCollection<Row, T>(
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-export function useModels(userId: string | null, filter: CollectionFilter = 'all', search = '') {
+/** The full set of model filters, applied together by the filter sheet. */
+export interface ModelFilters {
+  purchaseFrom: string | null;   // 'YYYY-MM-DD'
+  purchaseTo:   string | null;
+  paintedFrom:  string | null;
+  paintedTo:    string | null;
+  /** Selected statuses (empty = any). */
+  statuses:     ModelStatus[];
+  /** Selected game ids (empty = any). */
+  gameIds:      string[];
+}
+
+export const EMPTY_MODEL_FILTERS: ModelFilters = {
+  purchaseFrom: null, purchaseTo: null, paintedFrom: null, paintedTo: null, statuses: [], gameIds: [],
+};
+
+/** How many filter groups are active — for the "Filters (N)" badge. */
+export function activeModelFilterCount(f: ModelFilters): number {
+  return (
+    (f.purchaseFrom || f.purchaseTo ? 1 : 0) +
+    (f.paintedFrom  || f.paintedTo  ? 1 : 0) +
+    (f.statuses.length ? 1 : 0) +
+    (f.gameIds.length  ? 1 : 0)
+  );
+}
+
+export function useModels(userId: string | null, filters: ModelFilters, search = '') {
   const applyFilter = useCallback<QueryStep>(q => {
     let x = q;
-    if (search)               x = x.ilike('name', `%${search}%`);
-    if (filter === 'painted') x = x.eq('status', 'Painted');
+    if (search)                  x = x.ilike('name', `%${search}%`);
+    if (filters.statuses.length) x = x.in('status', filters.statuses);
+    if (filters.gameIds.length)  x = x.in('game_id', filters.gameIds);
+    if (filters.purchaseFrom)    x = x.gte('purchase_date', filters.purchaseFrom);
+    if (filters.purchaseTo)      x = x.lte('purchase_date', filters.purchaseTo);
+    if (filters.paintedFrom)     x = x.gte('painted_date', filters.paintedFrom);
+    if (filters.paintedTo)       x = x.lte('painted_date', filters.paintedTo);
     return x;
-  }, [filter, search]);
+  }, [filters, search]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
     userId, 'models', MODEL_SELECT, mapModel, applyFilter);
   return { models: items, ...rest };
+}
+
+/** The distinct games the user owns models in — for the Game filter list. */
+export function useOwnedGames(userId: string | null) {
+  const [games, setGames] = useState<{ id: string; name: string; slug: string }[]>([]);
+  useEffect(() => {
+    if (!userId) { setGames([]); return; }
+    let cancelled = false;
+    supabase.from('models').select('game:games ( id, name, slug )').eq('user_id', userId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const byId = new Map<string, { id: string; name: string; slug: string }>();
+        for (const row of (data as { game: { id: string; name: string; slug: string } | null }[] | null) ?? []) {
+          if (row.game) byId.set(row.game.id, row.game);
+        }
+        setGames([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
+  return games;
 }
 
 export function useBoxes(userId: string | null, search = '', gameIds: string[] = []) {

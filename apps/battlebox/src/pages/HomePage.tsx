@@ -9,8 +9,9 @@ import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { ModelDetailModal } from '../components/ModelDetailModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
-import { useModels, useBoxes, useMatchingGameIds } from '../hooks/useCollection';
-import type { CollectionModel, CollectionBox, CollectionFilter } from '../hooks/useCollection';
+import { ModelFilterSheet } from '../components/ModelFilterSheet';
+import { useModels, useBoxes, useMatchingGameIds, EMPTY_MODEL_FILTERS, activeModelFilterCount } from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox, CollectionFilter, ModelFilters } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -100,6 +101,44 @@ function ListControls({ filter, onFilter, allLabel, paintedLabel, search, onSear
   );
 }
 
+/** Models controls: a Filters button (opens the filter sheet, shows the active
+ *  count) above the search field. Replaces the simple all/painted dropdown. */
+function ModelFilterControls({ count, onOpen, search, onSearch }: {
+  count: number;
+  onOpen: () => void;
+  search: string;
+  onSearch: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 w-full shrink-0">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full flex items-center justify-between gap-2 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white hover:border-neutral-500 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-neutral-400" />
+          Filters
+        </span>
+        {count > 0 && (
+          <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary-600 text-white text-xs font-medium flex items-center justify-center">
+            {count}
+          </span>
+        )}
+      </button>
+      <Input
+        size="sm"
+        type="search"
+        className="w-full"
+        placeholder="Search models…"
+        leftIcon={<Magnifer className="w-4 h-4" />}
+        value={search}
+        onChange={e => onSearch(e.target.value)}
+      />
+    </div>
+  );
+}
+
 /** The single Add action pinned below a collection list. */
 function AddButton({ label }: { label: string }) {
   return (
@@ -122,14 +161,16 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
   onCloseModel: () => void;
   onOpenBox: (id: string) => void;
 }) {
-  const [view,   setView]   = useState<View>('gallery');
-  const [filter, setFilter] = useState<CollectionFilter>('all');
-  const [search, setSearch] = useState('');
+  const [view,    setView]    = useState<View>('gallery');
+  const [filters, setFilters] = useState<ModelFilters>(EMPTY_MODEL_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
 
-  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filter, query);
+  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filters, query);
   // Gallery is a desktop-only view; mobile & tablet always show the list.
   const gallery = isDesktop && view === 'gallery';
+  const filterCount = activeModelFilterCount(filters);
 
   return (
     <>
@@ -140,14 +181,11 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
       beforeList={
-        <ListControls
-          filter={filter} onFilter={setFilter} allLabel="All Models" paintedLabel="Painted Models"
-          search={search} onSearch={setSearch} searchPlaceholder="Search models…"
-        />
+        <ModelFilterControls count={filterCount} onOpen={() => setFilterOpen(true)} search={search} onSearch={setSearch} />
       }
       items={models}
       loading={loading}
-      empty={query ? 'No models match your search.' : (filter === 'painted' ? 'No painted models.' : 'No models yet.')}
+      empty={query || filterCount ? 'No models match your filters.' : 'No models yet.'}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}
@@ -159,6 +197,13 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       footer={<AddButton label="Add Model" />}
     />
     <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={refetch} onOpenBox={onOpenBox} />
+    <ModelFilterSheet
+      open={filterOpen}
+      onClose={() => setFilterOpen(false)}
+      userId={userId}
+      value={filters}
+      onApply={f => { setFilters(f); setFilterOpen(false); }}
+    />
     </>
   );
 }

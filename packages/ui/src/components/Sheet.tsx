@@ -37,6 +37,8 @@ export interface SheetProps {
   onClose: () => void;
   /** Sheet content (see SCROLL CONVENTION). */
   children: React.ReactNode;
+  /** Optional action bar pinned below the scroll area (e.g. Apply / Reset). */
+  footer?: React.ReactNode;
   /** Desktop max-width (e.g. "max-w-2xl") plus any extra panel classes. Below
    *  lg the sheet is always full-width. */
   className?: string;
@@ -65,7 +67,7 @@ const FLICK_VELOCITY = 0.55;
 /** Slide duration; the exit unmount waits this long. Keep in sync with the CSS. */
 const SLIDE_MS = 300;
 
-const Sheet = ({ open, onClose, children, className = '' }: SheetProps) => {
+const Sheet = ({ open, onClose, children, footer, className = '' }: SheetProps) => {
   // Below lg every sheet is full-width; the caller's max-w only applies at lg+.
   const callerMaxW = className.match(/max-w-\S+/)?.[0];
   const lgMaxW     = (callerMaxW && LG_MAX_W[callerMaxW]) || DEFAULT_LG_MAX_W;
@@ -210,6 +212,8 @@ const Sheet = ({ open, onClose, children, className = '' }: SheetProps) => {
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col">
           {children}
         </div>
+
+        {footer && <div className="shrink-0">{footer}</div>}
       </div>
     </div>
   );
