@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { Button, Input } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { GamePicker } from './GamePicker';
+import { ImageEditor } from './ImageEditor';
 import { fetchModelEdit, updateModelInfo } from '../hooks/useCollection';
 
 function DateField({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string | null) => void }) {
@@ -24,6 +25,8 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
   open: boolean;
   onClose: () => void;
   modelId: string | null;
+  /** Called after any change (metadata save or a photo edit) so the detail
+   *  modal and list refresh. */
   onChanged: () => void;
 }) {
   const [loading, setLoading] = useState(true);
@@ -86,6 +89,8 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
               <span className="font-body text-sm font-medium text-white">Painted Date</span>
               <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
             </div>
+
+            {modelId && <ImageEditor kind="model" id={modelId} onChanged={onChanged} />}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>

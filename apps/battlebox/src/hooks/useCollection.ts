@@ -752,6 +752,88 @@ export function deleteBox(boxId: string) {
   return supabase.from('boxes').delete().eq('id', boxId);
 }
 
+// ── Photo management (model_images / box_images) ───────────────────────────────
+
+/** One editable photo row, resolved to a display URL. */
+export interface EditableImage {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  /** The bucket object key, or null for a box's external cover-art link. */
+  imagePath: string | null;
+}
+
+/** A model's photos, primary first then by display order, for the editor. */
+export async function fetchModelImages(modelId: string): Promise<EditableImage[]> {
+  const { data } = await supabase.from('model_images')
+    .select('id, image_path, is_primary, display_order')
+    .eq('model_id', modelId);
+  return ((data as { id: string; image_path: string; is_primary: boolean; display_order: number }[]) ?? [])
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
+    .map(r => ({ id: r.id, url: modelImageUrl(r.image_path) ?? '', isPrimary: r.is_primary, imagePath: r.image_path }))
+    .filter(i => i.url);
+}
+
+/** A collection's cover photos (uploaded objects and external links). */
+export async function fetchBoxImages(boxId: string): Promise<EditableImage[]> {
+  const { data } = await supabase.from('box_images')
+    .select('id, image_path, image_url, is_primary, display_order')
+    .eq('box_id', boxId);
+  return ((data as BoxImageRow2[]) ?? [])
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
+    .map(r => ({ id: r.id, url: boxImageRowUrl(r) ?? '', isPrimary: r.is_primary, imagePath: r.image_path }))
+    .filter(i => i.url);
+}
+interface BoxImageRow2 { id: string; image_path: string | null; image_url: string | null; is_primary: boolean; display_order: number }
+
+/** Build a fresh, unique object key under the user's own folder. */
+function newImagePath(userId: string, fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+}
+
+/** Upload a photo object then link it to a model. `isPrimary` sets the cover. */
+export async function uploadModelImage(modelId: string, userId: string, file: File, isPrimary: boolean): Promise<{ error: string | null }> {
+  const path = newImagePath(userId, file.name);
+  const { error: upErr } = await supabase.storage.from('model-images')
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (upErr) return { error: upErr.message };
+  const { error: insErr } = await supabase.from('model_images')
+    .insert({ model_id: modelId, image_path: path, user_id: userId, is_primary: isPrimary });
+  return { error: insErr?.message ?? null };
+}
+
+/** Upload a photo object then link it to a collection. */
+export async function uploadBoxImage(boxId: string, userId: string, file: File, isPrimary: boolean): Promise<{ error: string | null }> {
+  const path = newImagePath(userId, file.name);
+  const { error: upErr } = await supabase.storage.from('model-images')
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (upErr) return { error: upErr.message };
+  const { error: insErr } = await supabase.from('box_images')
+    .insert({ box_id: boxId, image_path: path, user_id: userId, is_primary: isPrimary });
+  return { error: insErr?.message ?? null };
+}
+
+// Removing a photo deletes only its DB row; the storage object is left in place
+// (mirrors the battle-photo flow and keeps us clear of any coarse storage
+// delete — see the "surgical storage deletes" rule).
+export function deleteModelImage(id: string) {
+  return supabase.from('model_images').delete().eq('id', id);
+}
+export function deleteBoxImage(id: string) {
+  return supabase.from('box_images').delete().eq('id', id);
+}
+
+/** Make one photo the cover: clear the model's other primaries, then set this. */
+export async function setModelPrimaryImage(modelId: string, id: string) {
+  await supabase.from('model_images').update({ is_primary: false }).eq('model_id', modelId);
+  return supabase.from('model_images').update({ is_primary: true }).eq('id', id);
+}
+export async function setBoxPrimaryImage(boxId: string, id: string) {
+  await supabase.from('box_images').update({ is_primary: false }).eq('box_id', boxId);
+  return supabase.from('box_images').update({ is_primary: true }).eq('id', id);
+}
+
 // ── Add paints / recipes to a model ───────────────────────────────────────────
 
 /** A paint (hobby_item) or recipe as shown in the "add existing" picker. */
