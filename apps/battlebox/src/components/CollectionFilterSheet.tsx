@@ -1,46 +1,45 @@
 import { useEffect, useState } from 'react';
 import { Sheet, Button } from '@battleplans/ui';
 import { Section, Accordion, DateRange, Chip, GameMultiSelect } from './filterControls';
-import { useOwnedGames, EMPTY_MODEL_FILTERS, activeModelFilterCount } from '../hooks/useCollection';
-import type { ModelFilters, ModelStatus } from '../hooks/useCollection';
+import { useOwnedGames, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount } from '../hooks/useCollection';
+import type { CollectionFilters, CollectionPaint } from '../hooks/useCollection';
 
-const STATUSES: { value: ModelStatus; label: string }[] = [
-  { value: 'None',              label: 'Unpainted' },
-  { value: 'Assembled',         label: 'Assembled' },
-  { value: 'Primed',            label: 'Primed' },
-  { value: 'Partially Painted', label: 'Partially Painted' },
-  { value: 'Painted',           label: 'Painted' },
+const PAINT: { value: CollectionPaint; label: string }[] = [
+  { value: 'fully',     label: 'Fully Painted' },
+  { value: 'partial',   label: 'Partially Painted' },
+  { value: 'unpainted', label: 'Unpainted' },
 ];
 
-export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
+const TYPES: ('Box' | 'Collection')[] = ['Box', 'Collection'];
+
+export function CollectionFilterSheet({ open, onClose, userId, value, onApply }: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
-  value: ModelFilters;
-  onApply: (filters: ModelFilters) => void;
+  value: CollectionFilters;
+  onApply: (filters: CollectionFilters) => void;
 }) {
-  const games = useOwnedGames(userId);
-  const [draft, setDraft] = useState<ModelFilters>(value);
+  const games = useOwnedGames(userId, 'boxes');
+  const [draft, setDraft] = useState<CollectionFilters>(value);
   const [purchaseOpen, setPurchaseOpen] = useState(false);
-  const [paintedOpen,  setPaintedOpen]  = useState(false);
 
-  // Reset the working copy to the applied filters each time the sheet opens.
-  // Date accordions start collapsed, but open when that date already has a value.
   useEffect(() => {
     if (!open) return;
     setDraft(value);
     setPurchaseOpen(!!(value.purchaseFrom || value.purchaseTo));
-    setPaintedOpen(!!(value.paintedFrom || value.paintedTo));
   }, [open, value]);
 
-  const toggleStatus = (s: ModelStatus) => setDraft(d => ({
-    ...d, statuses: d.statuses.includes(s) ? d.statuses.filter(x => x !== s) : [...d.statuses, s],
+  const togglePaint = (p: CollectionPaint) => setDraft(d => ({
+    ...d, paint: d.paint.includes(p) ? d.paint.filter(x => x !== p) : [...d.paint, p],
+  }));
+  const toggleType = (t: 'Box' | 'Collection') => setDraft(d => ({
+    ...d, types: d.types.includes(t) ? d.types.filter(x => x !== t) : [...d.types, t],
   }));
   const toggleGame = (id: string) => setDraft(d => ({
     ...d, gameIds: d.gameIds.includes(id) ? d.gameIds.filter(x => x !== id) : [...d.gameIds, id],
   }));
 
-  const count = activeModelFilterCount(draft);
+  const count = activeCollectionFilterCount(draft);
 
   return (
     <Sheet
@@ -53,7 +52,7 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
             variant="outline"
             color="secondary"
             className="flex-1 justify-center"
-            onClick={() => { setDraft(EMPTY_MODEL_FILTERS); setPurchaseOpen(false); setPaintedOpen(false); }}
+            onClick={() => { setDraft(EMPTY_COLLECTION_FILTERS); setPurchaseOpen(false); }}
           >
             Reset All
           </Button>
@@ -64,14 +63,24 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
       }
     >
       <div className="px-5 pt-5 pb-1 shrink-0">
-        <h2 className="font-heading text-xl text-white">Filter Models</h2>
+        <h2 className="font-heading text-xl text-white">Filter Collections</h2>
       </div>
 
       <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0 flex flex-col gap-6">
-        <Section title="Painted Status" active={draft.statuses.length > 0} onReset={() => setDraft(d => ({ ...d, statuses: [] }))}>
+        <Section title="Painted Status" active={draft.paint.length > 0} onReset={() => setDraft(d => ({ ...d, paint: [] }))}>
           <div className="flex flex-wrap gap-2">
-            {STATUSES.map(s => (
-              <Chip key={s.value} label={s.label} selected={draft.statuses.includes(s.value)} onClick={() => toggleStatus(s.value)} />
+            {PAINT.map(p => (
+              <Chip key={p.value} label={p.label} selected={draft.paint.includes(p.value)} onClick={() => togglePaint(p.value)} />
+            ))}
+          </div>
+        </Section>
+
+        <hr className="border-neutral-800" />
+
+        <Section title="Type" active={draft.types.length > 0} onReset={() => setDraft(d => ({ ...d, types: [] }))}>
+          <div className="flex flex-wrap gap-2">
+            {TYPES.map(t => (
+              <Chip key={t} label={t} selected={draft.types.includes(t)} onClick={() => toggleType(t)} />
             ))}
           </div>
         </Section>
@@ -94,21 +103,6 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
           <DateRange
             from={draft.purchaseFrom} to={draft.purchaseTo}
             onChange={(f, t) => setDraft(d => ({ ...d, purchaseFrom: f, purchaseTo: t }))}
-          />
-        </Accordion>
-
-        <hr className="border-neutral-800" />
-
-        <Accordion
-          title="Painted Date"
-          active={!!(draft.paintedFrom || draft.paintedTo)}
-          expanded={paintedOpen}
-          onToggle={() => setPaintedOpen(o => !o)}
-          onReset={() => setDraft(d => ({ ...d, paintedFrom: null, paintedTo: null }))}
-        >
-          <DateRange
-            from={draft.paintedFrom} to={draft.paintedTo}
-            onChange={(f, t) => setDraft(d => ({ ...d, paintedFrom: f, paintedTo: t }))}
           />
         </Accordion>
       </div>
