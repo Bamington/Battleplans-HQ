@@ -7,6 +7,7 @@ import { ImageCarousel } from './ImageCarousel';
 import { AddPaintRecipeModal } from './AddPaintRecipeModal';
 import { EditPaintModal } from './EditPaintModal';
 import { EditRecipeModal } from './EditRecipeModal';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, useUserId } from '../hooks/useCollection';
 import type { ModelDetail, ModelStatus, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
@@ -237,7 +238,7 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   onEditPaint: (paint: PaintRef) => void;
   onEditRecipe: (recipeId: string) => void;
   onRemovePaint: (hobbyItemId: number) => void;
-  onRemoveRecipe: (recipeId: string) => void;
+  onRemoveRecipe: (recipeId: string, recipeName: string) => void;
 }) {
   const hasPaints = model.recipes.length > 0 || model.directPaints.length > 0;
   return (
@@ -275,7 +276,7 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
               <RecipeGroup
                 key={r.id || `r${i}`}
                 recipe={r}
-                menu={r.id ? <RowMenu canEdit onEdit={() => onEditRecipe(r.id)} onDelete={() => onRemoveRecipe(r.id)} label={r.name} /> : undefined}
+                menu={r.id ? <RowMenu canEdit onEdit={() => onEditRecipe(r.id)} onDelete={() => onRemoveRecipe(r.id, r.name)} label={r.name} /> : undefined}
               />
             ))}
             {model.directPaints.map(p => (
@@ -348,10 +349,11 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const [addKind, setAddKind] = useState<'paint' | 'recipe' | null>(null);
   const [editingPaint, setEditingPaint] = useState<PaintRef | null>(null);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
+  const [confirmRecipe, setConfirmRecipe] = useState<{ id: string; name: string } | null>(null);
 
   // Reset transient overlays each time a model is opened.
   useEffect(() => {
-    if (modelId) { setTab('details'); setLightbox(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null); }
+    if (modelId) { setTab('details'); setLightbox(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null); setConfirmRecipe(null); }
   }, [modelId]);
 
   const save = async (patch: { status?: ModelStatus; painting_notes?: string | null; lore_name?: string | null; lore_description?: string | null }) => {
@@ -363,7 +365,12 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
 
   const refresh = () => { refetch(); onChanged?.(); };
   const removePaint = async (hobbyItemId: number) => { if (modelId) { await removeModelPaint(modelId, hobbyItemId); refresh(); } };
-  const removeRecipe = async (recipeId: string) => { if (modelId) { await removeModelRecipe(modelId, recipeId); refresh(); } };
+  // Removing a recipe is confirmed first.
+  const requestRemoveRecipe = (recipeId: string, recipeName: string) => setConfirmRecipe({ id: recipeId, name: recipeName });
+  const doRemoveRecipe = async () => {
+    if (modelId && confirmRecipe) { await removeModelRecipe(modelId, confirmRecipe.id); refresh(); }
+    setConfirmRecipe(null);
+  };
 
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
 
@@ -414,7 +421,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
           <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
             {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
-            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={removeRecipe} />}
+            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>
 
@@ -447,6 +454,15 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             recipe={model.recipes.find(r => r.id === editingRecipeId) ?? null}
             onClose={() => setEditingRecipeId(null)}
             onChanged={refresh}
+          />
+
+          <ConfirmDialog
+            open={confirmRecipe !== null}
+            title="Remove recipe?"
+            message={confirmRecipe ? `Remove “${confirmRecipe.name}” from this model? The recipe itself stays in your library.` : undefined}
+            confirmLabel="Remove"
+            onConfirm={doRemoveRecipe}
+            onCancel={() => setConfirmRecipe(null)}
           />
         </>
       ) : (
