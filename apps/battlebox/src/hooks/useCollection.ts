@@ -35,6 +35,10 @@ export interface CollectionBox {
   modelCount: number;
   /** True when the collection has models and every one of them is painted. */
   allPainted: boolean;
+  /** True when the collection has models and every one is unpainted ('None'). */
+  allUnpainted: boolean;
+  /** True when any member has a status other than unpainted. */
+  anyProgress: boolean;
   /**
    * Carousel images: the box's own cover photos, then one photo per member
    * model, de-duplicated. Mirrors the old app's collection carousel.
@@ -156,7 +160,9 @@ function mapBox(r: BoxRow): CollectionBox {
     includesString: r.includes_string,
     game: r.game,
     modelCount: r.model_boxes?.length ?? 0,
-    allPainted: statuses.length > 0 && statuses.every(s => s === 'Painted'),
+    allPainted:   statuses.length > 0 && statuses.every(s => s === 'Painted'),
+    allUnpainted: statuses.length > 0 && statuses.every(s => s === 'None'),
+    anyProgress:  statuses.some(s => s !== 'None'),
     images: boxCarouselImages(r),
   };
 }
@@ -260,30 +266,133 @@ function usePagedCollection<Row, T>(
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-export function useModels(userId: string | null, filter: CollectionFilter = 'all', search = '') {
+/** The full set of model filters, applied together by the filter sheet. */
+export interface ModelFilters {
+  purchaseFrom: string | null;   // 'YYYY-MM-DD'
+  purchaseTo:   string | null;
+  paintedFrom:  string | null;
+  paintedTo:    string | null;
+  /** Selected statuses (empty = any). */
+  statuses:     ModelStatus[];
+  /** Selected game ids (empty = any). */
+  gameIds:      string[];
+}
+
+export const EMPTY_MODEL_FILTERS: ModelFilters = {
+  purchaseFrom: null, purchaseTo: null, paintedFrom: null, paintedTo: null, statuses: [], gameIds: [],
+};
+
+/** How many filter groups are active — for the "Filters (N)" badge. */
+export function activeModelFilterCount(f: ModelFilters): number {
+  return (
+    (f.purchaseFrom || f.purchaseTo ? 1 : 0) +
+    (f.paintedFrom  || f.paintedTo  ? 1 : 0) +
+    (f.statuses.length ? 1 : 0) +
+    (f.gameIds.length  ? 1 : 0)
+  );
+}
+
+export function useModels(userId: string | null, filters: ModelFilters, search = '') {
   const applyFilter = useCallback<QueryStep>(q => {
     let x = q;
-    if (search)               x = x.ilike('name', `%${search}%`);
-    if (filter === 'painted') x = x.eq('status', 'Painted');
+    if (search)                  x = x.ilike('name', `%${search}%`);
+    if (filters.statuses.length) x = x.in('status', filters.statuses);
+    if (filters.gameIds.length)  x = x.in('game_id', filters.gameIds);
+    if (filters.purchaseFrom)    x = x.gte('purchase_date', filters.purchaseFrom);
+    if (filters.purchaseTo)      x = x.lte('purchase_date', filters.purchaseTo);
+    if (filters.paintedFrom)     x = x.gte('painted_date', filters.paintedFrom);
+    if (filters.paintedTo)       x = x.lte('painted_date', filters.paintedTo);
     return x;
-  }, [filter, search]);
+  }, [filters, search]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
     userId, 'models', MODEL_SELECT, mapModel, applyFilter);
   return { models: items, ...rest };
 }
 
-export function useBoxes(userId: string | null, search = '', gameIds: string[] = []) {
+export interface OwnedGame { id: string; name: string; slug: string; count: number }
+
+/** The distinct games the user owns items in, with how many of each — for the
+ *  Game filter list (`count` is the number of entries in that game). Pass
+ *  'boxes' to list the games the user has collections in. */
+export function useOwnedGames(userId: string | null, table: 'models' | 'boxes' = 'models') {
+  const [games, setGames] = useState<OwnedGame[]>([]);
+  useEffect(() => {
+    if (!userId) { setGames([]); return; }
+    let cancelled = false;
+    supabase.from(table).select('game:games ( id, name, slug )').eq('user_id', userId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const byId = new Map<string, OwnedGame>();
+        for (const row of (data as { game: { id: string; name: string; slug: string } | null }[] | null) ?? []) {
+          if (!row.game) continue;
+          const g = byId.get(row.game.id);
+          if (g) g.count += 1;
+          else byId.set(row.game.id, { ...row.game, count: 1 });
+        }
+        setGames([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
+      });
+    return () => { cancelled = true; };
+  }, [userId, table]);
+  return games;
+}
+
+/** Which paint state a collection falls into, by its members' statuses. */
+export type CollectionPaint = 'fully' | 'partial' | 'unpainted';
+
+/** The full set of collection filters, applied together by the filter sheet.
+ *  Everything but `paint` is applied server-side; `paint` is client-side (it
+ *  reads members' statuses) over the loaded pages. */
+export interface CollectionFilters {
+  purchaseFrom: string | null;
+  purchaseTo:   string | null;
+  types:        ('Box' | 'Collection')[];
+  paint:        CollectionPaint[];
+  gameIds:      string[];
+}
+
+export const EMPTY_COLLECTION_FILTERS: CollectionFilters = {
+  purchaseFrom: null, purchaseTo: null, types: [], paint: [], gameIds: [],
+};
+
+export function activeCollectionFilterCount(f: CollectionFilters): number {
+  return (
+    (f.paint.length ? 1 : 0) +
+    (f.types.length ? 1 : 0) +
+    (f.gameIds.length ? 1 : 0) +
+    (f.purchaseFrom || f.purchaseTo ? 1 : 0)
+  );
+}
+
+/** Client-side paint filter — a collection matches if it falls into any of the
+ *  selected categories (empty = any). */
+export function matchesCollectionPaint(box: CollectionBox, cats: CollectionPaint[]): boolean {
+  if (!cats.length) return true;
+  return (
+    (cats.includes('fully')     && box.allPainted) ||
+    (cats.includes('partial')   && box.anyProgress) ||
+    (cats.includes('unpainted') && box.allUnpainted)
+  );
+}
+
+export function useBoxes(userId: string | null, filters: CollectionFilters, search = '', searchGameIds: string[] = []) {
   const applyFilter = useCallback<QueryStep>(q => {
+    let x = q;
     // Strip characters that would break PostgREST's or() logic-tree parsing.
     const safe = search.replace(/[(),*]/g, ' ').trim();
-    if (!safe) return q;
-    // A collection search also matches its game's name. games.name can't be
-    // referenced in a top-level `or` (only boxes columns can), so the caller
-    // resolves matching game ids and we `or` on the boxes.game_id column.
-    const clauses = [`name.ilike.*${safe}*`];
-    if (gameIds.length) clauses.push(`game_id.in.(${gameIds.join(',')})`);
-    return q.or(clauses.join(','));
-  }, [search, gameIds]);
+    if (safe) {
+      // A collection search also matches its game's name. games.name can't be
+      // referenced in a top-level `or` (only boxes columns can), so the caller
+      // resolves matching game ids and we `or` on the boxes.game_id column.
+      const clauses = [`name.ilike.*${safe}*`];
+      if (searchGameIds.length) clauses.push(`game_id.in.(${searchGameIds.join(',')})`);
+      x = x.or(clauses.join(','));
+    }
+    if (filters.gameIds.length) x = x.in('game_id', filters.gameIds);
+    if (filters.types.length)   x = x.in('type', filters.types);
+    if (filters.purchaseFrom)   x = x.gte('purchase_date', filters.purchaseFrom);
+    if (filters.purchaseTo)     x = x.lte('purchase_date', filters.purchaseTo);
+    return x;
+  }, [search, searchGameIds, filters]);
 
   const { items, ...rest } = usePagedCollection<BoxRow, CollectionBox>(
     userId, 'boxes', BOX_SELECT, mapBox, applyFilter);

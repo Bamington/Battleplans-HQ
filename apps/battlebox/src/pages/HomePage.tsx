@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   supabase, AppFooter, Button, Input, useUpdates, UpdateModal, MarkdownBody,
-  PaginatedColumn, ScrollColumn, Select, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
+  PaginatedColumn, ScrollColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
 } from '@battleplans/ui';
 import type { AppUpdate, ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -9,8 +9,14 @@ import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { ModelDetailModal } from '../components/ModelDetailModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
-import { useModels, useBoxes, useMatchingGameIds } from '../hooks/useCollection';
-import type { CollectionModel, CollectionBox, CollectionFilter } from '../hooks/useCollection';
+import { ModelFilterSheet } from '../components/ModelFilterSheet';
+import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
+import {
+  useModels, useBoxes, useMatchingGameIds,
+  EMPTY_MODEL_FILTERS, activeModelFilterCount,
+  EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, matchesCollectionPaint,
+} from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -64,29 +70,32 @@ function viewToggle(view: View, setView: (v: View) => void): ColumnHeaderToggle 
   };
 }
 
-/** The filter dropdown + search field shown above each list. */
-function ListControls({ filter, onFilter, allLabel, paintedLabel, search, onSearch, searchPlaceholder }: {
-  filter: CollectionFilter;
-  onFilter: (v: CollectionFilter) => void;
-  allLabel: string;
-  paintedLabel: string;
+/** A Filters button (opens the filter sheet, shows the active count) above the
+ *  search field. Shared by both columns; replaces the old all/painted dropdown. */
+function FilterControls({ count, onOpen, search, onSearch, searchPlaceholder }: {
+  count: number;
+  onOpen: () => void;
   search: string;
   onSearch: (v: string) => void;
   searchPlaceholder: string;
 }) {
   return (
     <div className="flex flex-col gap-2 w-full shrink-0">
-      <Select
-        size="sm"
-        className="w-full"
-        value={filter}
-        onChange={e => onFilter(e.target.value as CollectionFilter)}
-        leftIcon={<Filter className="w-4 h-4" />}
-        options={[
-          { value: 'all',     label: allLabel },
-          { value: 'painted', label: paintedLabel },
-        ]}
-      />
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full flex items-center justify-between gap-2 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white hover:border-neutral-500 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-neutral-400" />
+          Filters
+        </span>
+        {count > 0 && (
+          <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary-600 text-white text-xs font-medium flex items-center justify-center">
+            {count}
+          </span>
+        )}
+      </button>
       <Input
         size="sm"
         type="search"
@@ -122,14 +131,16 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
   onCloseModel: () => void;
   onOpenBox: (id: string) => void;
 }) {
-  const [view,   setView]   = useState<View>('gallery');
-  const [filter, setFilter] = useState<CollectionFilter>('all');
-  const [search, setSearch] = useState('');
+  const [view,    setView]    = useState<View>('gallery');
+  const [filters, setFilters] = useState<ModelFilters>(EMPTY_MODEL_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
 
-  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filter, query);
+  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filters, query);
   // Gallery is a desktop-only view; mobile & tablet always show the list.
   const gallery = isDesktop && view === 'gallery';
+  const filterCount = activeModelFilterCount(filters);
 
   return (
     <>
@@ -140,14 +151,11 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
       beforeList={
-        <ListControls
-          filter={filter} onFilter={setFilter} allLabel="All Models" paintedLabel="Painted Models"
-          search={search} onSearch={setSearch} searchPlaceholder="Search models…"
-        />
+        <FilterControls count={filterCount} onOpen={() => setFilterOpen(true)} search={search} onSearch={setSearch} searchPlaceholder="Search models…" />
       }
       items={models}
       loading={loading}
-      empty={query ? 'No models match your search.' : (filter === 'painted' ? 'No painted models.' : 'No models yet.')}
+      empty={query || filterCount ? 'No models match your filters.' : 'No models yet.'}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}
@@ -159,6 +167,13 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       footer={<AddButton label="Add Model" />}
     />
     <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={refetch} onOpenBox={onOpenBox} />
+    <ModelFilterSheet
+      open={filterOpen}
+      onClose={() => setFilterOpen(false)}
+      userId={userId}
+      value={filters}
+      onApply={f => { setFilters(f); setFilterOpen(false); }}
+    />
     </>
   );
 }
@@ -173,18 +188,20 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   onCloseBox: () => void;
   onOpenModel: (id: string) => void;
 }) {
-  const [view,   setView]   = useState<View>('list');
-  const [filter, setFilter] = useState<CollectionFilter>('all');
-  const [search, setSearch] = useState('');
+  const [view,    setView]    = useState<View>('list');
+  const [filters, setFilters] = useState<CollectionFilters>(EMPTY_COLLECTION_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
-  const gameIds = useMatchingGameIds(query);
+  const searchGameIds = useMatchingGameIds(query);
 
-  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, query, gameIds);
+  const { boxes, loading, loadingMore, hasMore, loadMore } = useBoxes(userId, filters, query, searchGameIds);
   const gallery = isDesktop && view === 'gallery';
+  const filterCount = activeCollectionFilterCount(filters);
 
-  // "Painted" collections are filtered client-side over the loaded pages
-  // (a fully-painted collection = every model painted).
-  const items = filter === 'painted' ? boxes.filter(b => b.allPainted) : boxes;
+  // Paint state is filtered client-side over the loaded pages (it reads each
+  // collection's member statuses); everything else is server-side.
+  const items = boxes.filter(b => matchesCollectionPaint(b, filters.paint));
 
   return (
     <>
@@ -195,14 +212,11 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
       beforeList={
-        <ListControls
-          filter={filter} onFilter={setFilter} allLabel="All Collections" paintedLabel="Painted Collections"
-          search={search} onSearch={setSearch} searchPlaceholder="Search collections…"
-        />
+        <FilterControls count={filterCount} onOpen={() => setFilterOpen(true)} search={search} onSearch={setSearch} searchPlaceholder="Search collections…" />
       }
       items={items}
       loading={loading}
-      empty={query ? 'No collections match your search.' : (filter === 'painted' ? 'No fully-painted collections.' : 'No collections yet.')}
+      empty={query || filterCount ? 'No collections match your filters.' : 'No collections yet.'}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}
@@ -214,6 +228,13 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       footer={<AddButton label="Add Collection" />}
     />
     <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} />
+    <CollectionFilterSheet
+      open={filterOpen}
+      onClose={() => setFilterOpen(false)}
+      userId={userId}
+      value={filters}
+      onApply={f => { setFilters(f); setFilterOpen(false); }}
+    />
     </>
   );
 }
