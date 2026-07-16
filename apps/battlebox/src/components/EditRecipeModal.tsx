@@ -7,8 +7,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Input, AddCircle } from '@battleplans/ui';
-import { CloseIcon, ExistingPaintPicker } from './paintPickerBits';
-import { updateRecipe, addRecipeItem, removeRecipeItem } from '../hooks/useCollection';
+import { CloseIcon } from './paintPickerBits';
+import { AddPaintsToRecipeModal } from './AddPaintsToRecipeModal';
+import { updateRecipe, removeRecipeItem } from '../hooks/useCollection';
 import type { ModelRecipeGroup } from '../hooks/useCollection';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -27,13 +28,12 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged }: {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [pick, setPick] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open || !recipe) return;
     setName(recipe.name);
     setDescription(recipe.description ?? '');
-    setSaving(false); setAddOpen(false); setPick(null);
+    setSaving(false); setAddOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, recipe?.id]);
 
@@ -41,12 +41,6 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged }: {
 
   const excludeIds = recipe.paints.map(p => p.hobbyItemId);
 
-  const addPaint = async () => {
-    if (pick == null) return;
-    await addRecipeItem(recipe.id, pick, recipe.paints.length);
-    setPick(null);
-    onChanged();
-  };
   const removePaint = async (hobbyItemId: number) => {
     await removeRecipeItem(recipe.id, hobbyItemId);
     onChanged();
@@ -94,19 +88,9 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged }: {
               </div>
             )}
 
-            {addOpen ? (
-              <div className="mt-1 flex flex-col gap-2 bg-neutral-900 border border-neutral-700 rounded-lg p-3">
-                <ExistingPaintPicker selectedId={pick} onSelect={setPick} excludeIds={excludeIds} />
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" color="secondary" onClick={() => { setAddOpen(false); setPick(null); }}>Done</Button>
-                  <Button color="primary" disabled={pick == null} onClick={addPaint}>Add to Recipe</Button>
-                </div>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setAddOpen(true)} className="self-start flex items-center gap-1.5 font-body text-sm font-medium text-primary-500 hover:text-primary-400">
-                <AddCircle className="w-4 h-4" /> Add Paint
-              </button>
-            )}
+            <button type="button" onClick={() => setAddOpen(true)} className="self-start flex items-center gap-1.5 font-body text-sm font-medium text-primary-500 hover:text-primary-400">
+              <AddCircle className="w-4 h-4" /> Add Paint
+            </button>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
@@ -118,5 +102,18 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged }: {
     </div>
   );
 
-  return createPortal(overlay, document.body);
+  return createPortal(
+    <>
+      {overlay}
+      <AddPaintsToRecipeModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        recipeId={recipe.id}
+        startOrder={recipe.paints.length}
+        excludeIds={excludeIds}
+        onAdded={onChanged}
+      />
+    </>,
+    document.body,
+  );
 }

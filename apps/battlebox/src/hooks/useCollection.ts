@@ -832,6 +832,13 @@ export function addRecipeItem(recipeId: string, hobbyItemId: number, displayOrde
   return supabase.from('recipe_items').insert({ recipe_id: recipeId, hobby_item_id: hobbyItemId, display_order: displayOrder });
 }
 
+/** Add several paints to a recipe at once (appended in order from startOrder). */
+export function addRecipeItems(recipeId: string, hobbyItemIds: number[], startOrder = 0) {
+  return supabase.from('recipe_items').insert(
+    hobbyItemIds.map((id, i) => ({ recipe_id: recipeId, hobby_item_id: id, display_order: startOrder + i })),
+  );
+}
+
 /** Remove a paint from a recipe. */
 export function removeRecipeItem(recipeId: string, hobbyItemId: number) {
   return supabase.from('recipe_items').delete().eq('recipe_id', recipeId).eq('hobby_item_id', hobbyItemId);

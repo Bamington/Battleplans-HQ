@@ -57,9 +57,9 @@ export function PickRow({ title, subtitle, swatch, selected, onSelect }: {
 
 // ── Existing-paint picker (search + brand filter + paginated list) ────────────
 
-export function ExistingPaintPicker({ selectedId, onSelect, excludeIds = [] }: {
-  selectedId: number | null;
-  onSelect: (id: number) => void;
+export function ExistingPaintPicker({ selectedIds, onToggle, excludeIds = [] }: {
+  selectedIds: number[];
+  onToggle: (id: number) => void;
   excludeIds?: number[];
 }) {
   const [search, setSearch] = useState('');
@@ -136,7 +136,7 @@ export function ExistingPaintPicker({ selectedId, onSelect, excludeIds = [] }: {
           <p className="font-body text-sm text-neutral-500 py-3 text-center">No paints match.</p>
         ) : paints.map(p => (
           <PickRow key={p.id} title={p.name} subtitle={`${p.brand} · ${p.type}`} swatch={p.swatch}
-            selected={selectedId === p.id} onSelect={() => onSelect(p.id)} />
+            selected={selectedIds.includes(p.id)} onSelect={() => onToggle(p.id)} />
         ))}
       </div>
 
