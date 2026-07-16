@@ -242,7 +242,9 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
                       className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${checked ? 'bg-primary-950' : 'hover:bg-white/5'}`}
                     >
                       {icon ? <img src={icon} alt="" className="w-5 h-5 rounded object-cover shrink-0" /> : <span className="w-5 h-5 shrink-0" />}
-                      <span className="flex-1 font-body text-sm text-white truncate">{g.name}</span>
+                      <span className="flex-1 font-body text-sm text-white truncate">
+                        {g.name} <span className="text-neutral-500">({g.count})</span>
+                      </span>
                       <span className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${checked ? 'bg-primary-600 border-primary-600' : 'border-neutral-500'}`}>
                         {checked && <Check className="w-2.5 h-2.5 text-white" />}
                       </span>

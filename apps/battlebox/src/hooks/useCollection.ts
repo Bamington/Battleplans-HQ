@@ -303,18 +303,24 @@ export function useModels(userId: string | null, filters: ModelFilters, search =
   return { models: items, ...rest };
 }
 
-/** The distinct games the user owns models in — for the Game filter list. */
+export interface OwnedGame { id: string; name: string; slug: string; count: number }
+
+/** The distinct games the user owns models in, with how many models each — for
+ *  the Game filter list (`count` is the number of model entries in that game). */
 export function useOwnedGames(userId: string | null) {
-  const [games, setGames] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [games, setGames] = useState<OwnedGame[]>([]);
   useEffect(() => {
     if (!userId) { setGames([]); return; }
     let cancelled = false;
     supabase.from('models').select('game:games ( id, name, slug )').eq('user_id', userId)
       .then(({ data }) => {
         if (cancelled) return;
-        const byId = new Map<string, { id: string; name: string; slug: string }>();
+        const byId = new Map<string, OwnedGame>();
         for (const row of (data as { game: { id: string; name: string; slug: string } | null }[] | null) ?? []) {
-          if (row.game) byId.set(row.game.id, row.game);
+          if (!row.game) continue;
+          const g = byId.get(row.game.id);
+          if (g) g.count += 1;
+          else byId.set(row.game.id, { ...row.game, count: 1 });
         }
         setGames([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
       });
