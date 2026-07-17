@@ -8,6 +8,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@battleplans/ui';
+import { modelImageUrl } from './useCollection';
+
+/** Resolve a pack's logo object key (in the model-images bucket) to a URL. */
+export function paintPackImageUrl(path: string | null | undefined): string | null {
+  return modelImageUrl(path);
+}
 
 // ── Packs ─────────────────────────────────────────────────────────────────────
 
@@ -19,13 +25,15 @@ export interface PaintPack {
   brand: string | null;
   is_public: boolean;
   is_official: boolean;
+  /** Logo object key in the model-images bucket (resolve with paintPackImageUrl). */
+  image_path: string | null;
   /** Paint count, from the paint_pack_summary view. */
   item_count: number;
   /** True when the user already has this pack in their collection. */
   added: boolean;
 }
 
-const PACK_SELECT = 'id, owner, name, description, brand, is_public, is_official, item_count';
+const PACK_SELECT = 'id, owner, name, description, brand, is_public, is_official, image_path, item_count';
 
 /** Every public paint pack, ordered by name, each flagged with whether the
  *  current user has added it. */
@@ -130,10 +138,12 @@ export function deletePaintPack(id: string) {
   return supabase.from('paint_packs').delete().eq('id', id);
 }
 
-export async function fetchPaintPackEdit(id: string): Promise<PaintPackFields | null> {
+export interface PaintPackEdit extends PaintPackFields { image_path: string | null }
+
+export async function fetchPaintPackEdit(id: string): Promise<PaintPackEdit | null> {
   const { data } = await supabase.from('paint_packs')
-    .select('name, brand, description, is_public, is_official').eq('id', id).single();
-  return (data as PaintPackFields) ?? null;
+    .select('name, brand, description, is_public, is_official, image_path').eq('id', id).single();
+  return (data as PaintPackEdit) ?? null;
 }
 
 /** Add paints to a pack, appending after the existing ones. */
@@ -146,4 +156,22 @@ export async function addPackItems(packId: string, hobbyItemIds: number[], start
 
 export function removePackItem(packId: string, hobbyItemId: number) {
   return supabase.from('paint_pack_items').delete().eq('pack_id', packId).eq('hobby_item_id', hobbyItemId);
+}
+
+/** Upload a logo for a pack (into the uploader's own model-images folder) and
+ *  point the pack at it. Returns the stored object key. */
+export async function uploadPackImage(userId: string, packId: string, file: File): Promise<{ path: string | null; error: string | null }> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: upErr } = await supabase.storage.from('model-images')
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (upErr) return { path: null, error: upErr.message };
+  const { error: updErr } = await supabase.from('paint_packs').update({ image_path: path }).eq('id', packId);
+  if (updErr) return { path: null, error: updErr.message };
+  return { path, error: null };
+}
+
+/** Clear a pack's logo (leaves the storage object in place). */
+export function clearPackImage(packId: string) {
+  return supabase.from('paint_packs').update({ image_path: null }).eq('id', packId);
 }

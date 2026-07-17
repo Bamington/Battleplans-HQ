@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminRoute, AltArrowLeft, Button, Input, Sheet, AddCircle } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ExistingPaintPicker, CloseIcon } from '../../components/paintPickerBits';
+import { useUserId } from '../../hooks/useCollection';
 import {
   fetchPaintPackEdit, updatePaintPack, deletePaintPack,
   fetchPackPaints, addPackItems, removePackItem,
+  uploadPackImage, clearPackImage, paintPackImageUrl,
 } from '../../hooks/usePaintPacks';
 import type { LibraryPaint } from '../../hooks/usePaintPacks';
 
@@ -39,6 +41,7 @@ function TrashIcon({ className = 'w-4 h-4' }: { className?: string }) {
 function PaintPackEditorInner() {
   const navigate = useNavigate();
   const { packId } = useParams<{ packId: string }>();
+  const userId = useUserId();
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -47,6 +50,10 @@ function PaintPackEditorInner() {
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isOfficial, setIsOfficial] = useState(false);
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(false);
 
@@ -70,7 +77,7 @@ function PaintPackEditorInner() {
       if (cancelled) return;
       if (!meta) { setNotFound(true); setLoading(false); return; }
       setName(meta.name); setBrand(meta.brand ?? ''); setDescription(meta.description ?? '');
-      setIsPublic(meta.is_public); setIsOfficial(meta.is_official);
+      setIsPublic(meta.is_public); setIsOfficial(meta.is_official); setImagePath(meta.image_path);
       await refreshPaints();
       if (!cancelled) setLoading(false);
     })();
@@ -87,6 +94,25 @@ function PaintPackEditorInner() {
     });
     setSaving(false);
     if (!error) { setSavedAt(true); setTimeout(() => setSavedAt(false), 2000); }
+  };
+
+  const handleLogoFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !packId || !userId) return;
+    setUploadingLogo(true); setLogoError(null);
+    const { path, error } = await uploadPackImage(userId, packId, file);
+    setUploadingLogo(false);
+    if (error || !path) { setLogoError('Could not upload the logo.'); return; }
+    setImagePath(path);
+  };
+
+  const handleLogoRemove = async () => {
+    if (!packId) return;
+    setLogoError(null);
+    const { error } = await clearPackImage(packId);
+    if (error) { setLogoError('Could not remove the logo.'); return; }
+    setImagePath(null);
   };
 
   const handleAdd = async () => {
@@ -132,6 +158,28 @@ function PaintPackEditorInner() {
             <>
               {/* Metadata */}
               <div className="flex flex-col gap-4">
+                {/* Logo */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-body text-sm font-medium text-white">Logo</span>
+                  <div className="flex items-center gap-4">
+                    <div className="shrink-0 size-16 rounded-xl overflow-hidden bg-neutral-800 border border-neutral-700 flex items-center justify-center">
+                      {imagePath
+                        ? <img src={paintPackImageUrl(imagePath) ?? ''} alt="" className="w-full h-full object-cover" />
+                        : <span className="font-heading text-xl text-primary-400">{(brand || name).trim().charAt(0).toUpperCase() || '?'}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" color="secondary" size="sm" loading={uploadingLogo} disabled={uploadingLogo || !userId} onClick={() => logoInputRef.current?.click()}>
+                        {imagePath ? 'Replace' : 'Upload'}
+                      </Button>
+                      {imagePath && (
+                        <Button variant="ghost" color="danger" size="sm" disabled={uploadingLogo} onClick={handleLogoRemove}>Remove</Button>
+                      )}
+                    </div>
+                  </div>
+                  {logoError && <span className="font-body text-xs text-red-400">{logoError}</span>}
+                  <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+                </div>
+
                 <Input label="Name" required value={name} onChange={e => setName(e.target.value)} />
                 <Input label="Brand" placeholder="e.g. Citadel" value={brand} onChange={e => setBrand(e.target.value)} />
                 <div className="flex flex-col gap-1.5">

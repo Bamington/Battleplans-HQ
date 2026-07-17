@@ -5,6 +5,7 @@
  * Pack modal, where the pack can be added or removed.
  */
 
+import { paintPackImageUrl } from '../hooks/usePaintPacks';
 import type { PaintPack } from '../hooks/usePaintPacks';
 
 export function PaintPackItem({ pack, onClick }: {
@@ -12,6 +13,7 @@ export function PaintPackItem({ pack, onClick }: {
   onClick: () => void;
 }) {
   const initial = (pack.brand || pack.name).trim().charAt(0).toUpperCase();
+  const logo = paintPackImageUrl(pack.image_path);
   return (
     <button
       type="button"
@@ -20,8 +22,8 @@ export function PaintPackItem({ pack, onClick }: {
     >
       {/* Header: thumbnail + title + brand */}
       <div className="flex gap-2.5 items-start w-full">
-        <div className="shrink-0 size-12 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center font-heading text-lg text-primary-400">
-          {initial}
+        <div className="shrink-0 size-12 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center overflow-hidden font-heading text-lg text-primary-400">
+          {logo ? <img src={logo} alt="" className="w-full h-full object-cover" /> : initial}
         </div>
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           {pack.is_official && (

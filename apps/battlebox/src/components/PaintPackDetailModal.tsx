@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { Sheet, Button, AddCircle } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { PaintItem } from './PaintItem';
-import { fetchPackPaints } from '../hooks/usePaintPacks';
+import { fetchPackPaints, paintPackImageUrl } from '../hooks/usePaintPacks';
 import type { PaintPack, LibraryPaint } from '../hooks/usePaintPacks';
 
 const TrashIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
@@ -58,8 +58,13 @@ export function PaintPackDetailModal({ pack, busy, onClose, onAdd, onRemove }: {
       {pack && (
         <>
           {/* Header */}
-          <div className="px-5 pt-4 pb-3 flex items-start justify-between gap-2 shrink-0">
-            <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="px-5 pt-4 pb-3 flex items-start gap-3 shrink-0">
+            {paintPackImageUrl(pack.image_path) && (
+              <div className="shrink-0 size-14 rounded-lg overflow-hidden bg-neutral-800 border border-neutral-700">
+                <img src={paintPackImageUrl(pack.image_path)!} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               {pack.is_official && (
                 <span className="self-start mb-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-body leading-none">
                   Official

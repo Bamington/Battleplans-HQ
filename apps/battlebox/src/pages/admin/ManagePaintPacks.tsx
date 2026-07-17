@@ -4,7 +4,7 @@ import { AdminRoute, AltArrowLeft, Button, AddCircle } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { KebabMenu } from '../../components/KebabMenu';
-import { fetchAllPacks, createPaintPack, deletePaintPack } from '../../hooks/usePaintPacks';
+import { fetchAllPacks, createPaintPack, deletePaintPack, paintPackImageUrl } from '../../hooks/usePaintPacks';
 import type { PaintPack } from '../../hooks/usePaintPacks';
 
 const BattleBoxLogo = () => (
@@ -83,6 +83,11 @@ function ManagePaintPacksInner() {
             )}
             {!loading && !error && packs.map(pack => (
               <div key={pack.id} className="flex items-center gap-3 px-5 py-3.5 bg-neutral-900">
+                <div className="shrink-0 size-9 rounded-md overflow-hidden bg-neutral-800 border border-neutral-700 flex items-center justify-center font-heading text-sm text-primary-400">
+                  {paintPackImageUrl(pack.image_path)
+                    ? <img src={paintPackImageUrl(pack.image_path)!} alt="" className="w-full h-full object-cover" />
+                    : (pack.brand || pack.name).trim().charAt(0).toUpperCase()}
+                </div>
                 <button type="button" onClick={() => navigate(`/app/admin/paint-packs/${pack.id}`)} className="flex-1 min-w-0 text-left">
                   <p className="font-body text-sm text-white truncate">{pack.name}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
