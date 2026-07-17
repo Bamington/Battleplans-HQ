@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, Shield, RichTextEditor, ListCheck, Gallery } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, Shield, RichTextEditor, ListCheck, Gallery, CloseCircle } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
@@ -15,10 +15,10 @@ import { BookingItem } from '../components/BookingItem';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
-  useAdminLocations, useUpcomingBookings, useUserProfile,
+  useAdminLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { Location } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -293,6 +293,8 @@ const UPCOMING_ITEM_H = 112;
 //            Rounded up: a slightly high value costs a little whitespace, a low
 //            one clips the last row.
 const NEWS_ITEM_H     = 230;
+// Suggestion card: 2 border + 26 padding + 40 icon row + 8 gap + ~34 button.
+const SUGGESTION_ITEM_H = 122;
 
 function BookingCard({ userId }: { userId: string | null }) {
   const [newBookingOpen, setNewBookingOpen] = useState(false);
@@ -355,12 +357,14 @@ const RESULT_OPTIONS = [
 ];
 
 function NewBattleModal({
-  open, onClose, userId, onCreated,
+  open, onClose, userId, onCreated, initial,
 }: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
   onCreated: () => void;
+  /** Prefill values when opened from a suggestion (game/venue/date). */
+  initial?: { gameId?: string; venue?: string; date?: string } | null;
 }) {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -380,6 +384,16 @@ function NewBattleModal({
   const { games,     loading: gamesLoading }     = useAllGames(userId);
   const { locations, loading: locationsLoading } = useLocations();
   const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
+
+  // When opened from a suggestion, prefill game/venue/date. Runs when the modal
+  // opens so each open reflects the current suggestion (or a blank manual add).
+  useEffect(() => {
+    if (!open) return;
+    setGameId(initial?.gameId ?? '');
+    setVenue(initial?.venue ?? '');
+    setDate(initial?.date ?? today);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const oppNames = opponents.map(o => o.name.trim()).filter(Boolean).join(', ');
   const canSubmit = gameId && opponents.length > 0 && date && result && !saving;
@@ -585,10 +599,17 @@ function NewBattleModal({
   );
 }
 
-function MyBattlesCard({ userId }: { userId: string | null }) {
+function MyBattlesCard({ userId, refreshSignal = 0 }: { userId: string | null; refreshSignal?: number }) {
   const navigate = useNavigate();
   const { battles, loading, loadingMore, hasMore, loadMore, refetch } = useBattles(userId);
   const [newBattleOpen, setNewBattleOpen] = useState(false);
+
+  // Refetch when a battle is logged elsewhere (e.g. from a Suggested Battle).
+  useEffect(() => {
+    if (refreshSignal === 0) return;
+    refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSignal]);
   // View switch in the header: compact list rows vs. photo-hero gallery cards.
   const [view, setView] = useState<'list' | 'gallery'>('list');
   // Which battle's details modal is open. Derived from the list by id so it
@@ -662,6 +683,88 @@ function MyBattlesCard({ userId }: { userId: string | null }) {
         onClose={() => setSelectedId(null)}
         onChanged={refetch}
         userId={userId}
+      />
+    </>
+  );
+}
+
+// ── Suggested Battles ─────────────────────────────────────────────────────────
+
+const LightbulbIcon = () => (
+  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M24 6a14 14 0 0 0-9 24.7c1.6 1.3 2.5 3.2 2.5 5.3H30.5c0-2.1.9-4 2.5-5.3A14 14 0 0 0 24 6Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/>
+    <path d="M19 40h10M21 44h6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+  </svg>
+);
+
+function SuggestionItem({ suggestion, onLog, onDismiss }: {
+  suggestion: BattleSuggestion;
+  onLog:      () => void;
+  onDismiss:  () => void;
+}) {
+  const icon = suggestion.game?.slug ? GAME_ICONS[suggestion.game.slug] : undefined;
+  return (
+    <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex flex-col gap-2 shadow-md w-full">
+      <div className="flex items-start gap-2.5">
+        <div className="w-10 h-10 shrink-0 rounded-md bg-neutral-700 flex items-center justify-center overflow-hidden">
+          {icon
+            ? <img src={icon} alt="" className="w-full h-full object-cover" />
+            : <Shield className="w-5 h-5 text-neutral-400" />}
+        </div>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="font-heading text-white leading-5 truncate">{suggestion.game?.name ?? 'A game'}</span>
+          <span className="text-sm text-neutral-400 truncate">{suggestion.location.name || 'Unknown venue'}</span>
+          <span className="text-xs text-neutral-500">{formatBookingDate(suggestion.date)}</span>
+        </div>
+        <button
+          type="button"
+          aria-label="Dismiss suggestion"
+          onClick={onDismiss}
+          className="text-neutral-500 hover:text-white shrink-0"
+        >
+          <CloseCircle className="w-5 h-5" />
+        </button>
+      </div>
+      <Button variant="outline" color="primary" size="sm" className="w-full justify-center" leftIcon={<AddCircleIcon />} onClick={onLog}>
+        Log this battle
+      </Button>
+    </div>
+  );
+}
+
+function SuggestedBattlesCard({ userId, onLogged }: { userId: string | null; onLogged: () => void }) {
+  const { suggestions, loading, refetch, dismiss } = useSuggestedBattles(userId);
+  const [logging, setLogging] = useState<BattleSuggestion | null>(null);
+
+  // The column only exists when there's something to suggest.
+  if (loading || suggestions.length === 0) return null;
+
+  return (
+    <>
+      <PaginatedColumn
+        icon={<LightbulbIcon />}
+        title="Suggested Battles"
+        description="Games we think you played, from your bookings. Log them in a tap."
+        items={suggestions}
+        itemHeight={SUGGESTION_ITEM_H}
+        loading={false}
+        empty=""
+        getKey={s => s.bookingId}
+        renderItem={s => (
+          <SuggestionItem
+            suggestion={s}
+            onLog={() => setLogging(s)}
+            onDismiss={() => dismiss(s.bookingId)}
+          />
+        )}
+      />
+
+      <NewBattleModal
+        open={logging !== null}
+        onClose={() => setLogging(null)}
+        userId={userId}
+        initial={logging ? { gameId: logging.game?.id, venue: logging.location.id || undefined, date: logging.date } : null}
+        onCreated={() => { refetch(); onLogged(); }}
       />
     </>
   );
@@ -777,6 +880,9 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
 
 export default function HomePage() {
   const [userId, setUserId] = useState<string | null>(null);
+  // Bumped when a battle is logged from the Suggested Battles column, so the
+  // sibling My Battles column refetches to show it.
+  const [battlesVersion, setBattlesVersion] = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -832,7 +938,8 @@ export default function HomePage() {
           ) : (
             <>
               <BookingCard userId={userId} />
-              <MyBattlesCard userId={userId} />
+              <SuggestedBattlesCard userId={userId} onLogged={() => setBattlesVersion(v => v + 1)} />
+              <MyBattlesCard userId={userId} refreshSignal={battlesVersion} />
             </>
           )}
           <NewsCard />
