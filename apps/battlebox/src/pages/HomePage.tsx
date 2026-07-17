@@ -13,6 +13,7 @@ import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
+import { PaintPackFilterSheet } from '../components/PaintPackFilterSheet';
 import { usePaintPacks, addPaintPack, removePaintPack } from '../hooks/usePaintPacks';
 import type { PaintPack } from '../hooks/usePaintPacks';
 import {
@@ -240,16 +241,20 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
 function PaintsColumn({ userId }: { userId: string | null }) {
   const { packs, loading, error, refetch } = usePaintPacks(userId);
   const [search, setSearch] = useState('');
+  const [brands, setBrands] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const query = search.trim().toLowerCase();
 
-  // Filter by search, then float added packs to the bottom (stable sort keeps
-  // each group in name order).
-  const filtered = (query
-    ? packs.filter(p => `${p.name} ${p.brand ?? ''}`.toLowerCase().includes(query))
-    : packs
-  ).slice().sort((a, b) => Number(a.added) - Number(b.added));
+  const allBrands = [...new Set(packs.map(p => p.brand).filter((b): b is string => !!b))].sort();
+
+  // Filter by search + brand, then float added packs to the bottom (stable sort
+  // keeps each group in name order).
+  const filtered = packs
+    .filter(p => !query || `${p.name} ${p.brand ?? ''}`.toLowerCase().includes(query))
+    .filter(p => brands.length === 0 || (p.brand !== null && brands.includes(p.brand)))
+    .sort((a, b) => Number(a.added) - Number(b.added));
   const viewing = packs.find(p => p.id === viewingId) ?? null;
 
   const handleAdd = async (pack: PaintPack) => {
@@ -274,18 +279,11 @@ function PaintsColumn({ userId }: { userId: string | null }) {
       title="Paint Packs"
       description="Add sets of paints to your collection."
       beforeList={
-        <div className="w-full shrink-0">
-          <Input
-            size="sm" type="search" className="w-full"
-            placeholder="Search packs…"
-            leftIcon={<Magnifer className="w-4 h-4" />}
-            value={search} onChange={e => setSearch(e.target.value)}
-          />
-        </div>
+        <FilterControls count={brands.length} onOpen={() => setFilterOpen(true)} search={search} onSearch={setSearch} searchPlaceholder="Search packs…" />
       }
       items={filtered}
       loading={loading}
-      empty={error ?? (query ? 'No packs match your search.' : 'No packs available yet.')}
+      empty={error ?? (query || brands.length ? 'No packs match your filters.' : 'No packs available yet.')}
       listClassName={ROW_LIST}
       getKey={p => p.id}
       renderItem={p => <PaintPackItem pack={p} onClick={() => setViewingId(p.id)} />}
@@ -296,6 +294,13 @@ function PaintsColumn({ userId }: { userId: string | null }) {
       onClose={() => setViewingId(null)}
       onAdd={() => viewing && handleAdd(viewing)}
       onRemove={() => viewing && handleRemove(viewing)}
+    />
+    <PaintPackFilterSheet
+      open={filterOpen}
+      onClose={() => setFilterOpen(false)}
+      brands={allBrands}
+      value={brands}
+      onApply={b => { setBrands(b); setFilterOpen(false); }}
     />
     </>
   );
