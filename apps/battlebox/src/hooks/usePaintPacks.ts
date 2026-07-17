@@ -8,6 +8,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@battleplans/ui';
+import { modelImageUrl } from './useCollection';
+
+/** Resolve a pack's logo object key (in the model-images bucket) to a URL. */
+export function paintPackImageUrl(path: string | null | undefined): string | null {
+  return modelImageUrl(path);
+}
 
 // ── Packs ─────────────────────────────────────────────────────────────────────
 
@@ -19,13 +25,15 @@ export interface PaintPack {
   brand: string | null;
   is_public: boolean;
   is_official: boolean;
+  /** Logo object key in the model-images bucket (resolve with paintPackImageUrl). */
+  image_path: string | null;
   /** Paint count, from the paint_pack_summary view. */
   item_count: number;
   /** True when the user already has this pack in their collection. */
   added: boolean;
 }
 
-const PACK_SELECT = 'id, owner, name, description, brand, is_public, is_official, item_count';
+const PACK_SELECT = 'id, owner, name, description, brand, is_public, is_official, image_path, item_count';
 
 /** Every public paint pack, ordered by name, each flagged with whether the
  *  current user has added it. */
@@ -95,4 +103,75 @@ export async function fetchPackPaints(packId: string): Promise<LibraryPaint[]> {
   return ((data as PackItemRow[]) ?? [])
     .map(r => (Array.isArray(r.hobby_items) ? r.hobby_items[0] : r.hobby_items))
     .filter((p): p is LibraryPaint => !!p);
+}
+
+// ── Admin: pack authoring ─────────────────────────────────────────────────────
+// Admins can see and manage every pack (the "Admins manage all paint packs" RLS
+// policy). Packs authored here are system/official packs with owner IS NULL.
+
+export interface PaintPackFields {
+  name: string;
+  brand: string | null;
+  description: string | null;
+  is_public: boolean;
+  is_official: boolean;
+}
+
+/** Every pack, for the admin list (not just public ones). */
+export async function fetchAllPacks(): Promise<PaintPack[]> {
+  const { data } = await supabase.from('paint_pack_summary').select(PACK_SELECT).order('name');
+  return ((data as Omit<PaintPack, 'added'>[]) ?? []).map(p => ({ ...p, added: false }));
+}
+
+export async function createPaintPack(fields: PaintPackFields): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase.from('paint_packs')
+    .insert({ ...fields, owner: null })
+    .select('id').single();
+  return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
+}
+
+export function updatePaintPack(id: string, fields: Partial<PaintPackFields>) {
+  return supabase.from('paint_packs').update(fields).eq('id', id);
+}
+
+export function deletePaintPack(id: string) {
+  return supabase.from('paint_packs').delete().eq('id', id);
+}
+
+export interface PaintPackEdit extends PaintPackFields { image_path: string | null }
+
+export async function fetchPaintPackEdit(id: string): Promise<PaintPackEdit | null> {
+  const { data } = await supabase.from('paint_packs')
+    .select('name, brand, description, is_public, is_official, image_path').eq('id', id).single();
+  return (data as PaintPackEdit) ?? null;
+}
+
+/** Add paints to a pack, appending after the existing ones. */
+export async function addPackItems(packId: string, hobbyItemIds: number[], startOrder = 0): Promise<{ error: string | null }> {
+  if (!hobbyItemIds.length) return { error: null };
+  const rows = hobbyItemIds.map((id, i) => ({ pack_id: packId, hobby_item_id: id, display_order: startOrder + i }));
+  const { error } = await supabase.from('paint_pack_items').insert(rows);
+  return { error: error?.message ?? null };
+}
+
+export function removePackItem(packId: string, hobbyItemId: number) {
+  return supabase.from('paint_pack_items').delete().eq('pack_id', packId).eq('hobby_item_id', hobbyItemId);
+}
+
+/** Upload a logo for a pack (into the uploader's own model-images folder) and
+ *  point the pack at it. Returns the stored object key. */
+export async function uploadPackImage(userId: string, packId: string, file: File): Promise<{ path: string | null; error: string | null }> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: upErr } = await supabase.storage.from('model-images')
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (upErr) return { path: null, error: upErr.message };
+  const { error: updErr } = await supabase.from('paint_packs').update({ image_path: path }).eq('id', packId);
+  if (updErr) return { path: null, error: updErr.message };
+  return { path, error: null };
+}
+
+/** Clear a pack's logo (leaves the storage object in place). */
+export function clearPackImage(packId: string) {
+  return supabase.from('paint_packs').update({ image_path: null }).eq('id', packId);
 }
