@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@battleplans/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -713,4 +713,95 @@ export function useUserBookings(userId: string | null) {
   useEffect(refetch, [userId]);
 
   return { bookings, loading, refetch };
+}
+
+// ── useSuggestedBattles ───────────────────────────────────────────────────────
+// Nudge players to log games we think they played: their past bookings (last 30
+// days) that have no matching battle yet. A booking is "covered" when a battle
+// exists on its date for the same game — or, for a booking with no game, any
+// battle that day. Suggestions the user dismisses are remembered and stay hidden.
+
+export interface BattleSuggestion {
+  bookingId: string;
+  date:      string;
+  game:      { id: string; name: string; slug: string } | null;
+  location:  { id: string; name: string };
+}
+
+const SUGGESTION_WINDOW_DAYS = 30;
+
+// Local YYYY-MM-DD, offset by `days` (avoids the UTC shift toISOString would add).
+function isoDaysFromToday(days: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function useSuggestedBattles(userId: string | null) {
+  const [suggestions, setSuggestions] = useState<BattleSuggestion[]>([]);
+  const [loading,     setLoading]     = useState(true);
+
+  const refetch = useCallback(() => {
+    if (!userId) { setSuggestions([]); setLoading(false); return; }
+    setLoading(true);
+
+    const todayIso = isoDaysFromToday(0);
+    const sinceIso = isoDaysFromToday(-SUGGESTION_WINDOW_DAYS);
+
+    Promise.all([
+      // Past bookings in the window (strictly before today — the session is done).
+      supabase.from('bookings').select(BOOKING_SELECT)
+        .eq('user_id', userId).gte('date', sinceIso).lt('date', todayIso)
+        .order('date', { ascending: false }),
+      // Battles that could cover them — same window, just the date + game.
+      supabase.from('battles').select('date_played, game_id')
+        .eq('user_id', userId).gte('date_played', sinceIso),
+      supabase.from('battle_suggestion_dismissals').select('booking_id')
+        .eq('user_id', userId),
+    ]).then(([bkRes, btRes, dmRes]) => {
+      const bookings  = ((bkRes.data as unknown as RawBookingRow[]) ?? []).map(mapBookingRow);
+      const battles   = (btRes.data as { date_played: string; game_id: string | null }[] | null) ?? [];
+      const dismissedIds = new Set((dmRes.data as { booking_id: string }[] | null ?? []).map(d => d.booking_id));
+      // Duplicate bookings for the same day + game collapse into one suggestion, so
+      // a single dismissal must hide the whole group — key dismissals by day+game,
+      // not by the one booking id that happened to represent the group.
+      const dismissedKeys = new Set(
+        bookings.filter(b => dismissedIds.has(b.id)).map(b => `${b.date}|${b.game?.id ?? ''}`)
+      );
+
+      // For date+game matching, and a date-only fallback for game-less bookings.
+      const coveredGameDate = new Set(battles.map(b => `${b.date_played}|${b.game_id ?? ''}`));
+      const datesWithBattle = new Set(battles.map(b => b.date_played));
+
+      const seen: Set<string> = new Set();
+      const result: BattleSuggestion[] = [];
+      for (const b of bookings) {
+        const key = `${b.date}|${b.game?.id ?? ''}`;   // day + game groups duplicates
+        if (dismissedKeys.has(key)) continue;
+        const covered = b.game
+          ? coveredGameDate.has(`${b.date}|${b.game.id}`)
+          : datesWithBattle.has(b.date);
+        if (covered) continue;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push({ bookingId: b.id, date: b.date, game: b.game, location: b.location });
+      }
+
+      setSuggestions(result);
+      setLoading(false);
+    });
+  }, [userId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  // Remember a dismissal so the suggestion doesn't come back; hide it immediately.
+  const dismiss = useCallback(async (bookingId: string) => {
+    if (!userId) return;
+    setSuggestions(prev => prev.filter(s => s.bookingId !== bookingId));
+    await supabase.from('battle_suggestion_dismissals')
+      .insert({ user_id: userId, booking_id: bookingId });
+  }, [userId]);
+
+  return { suggestions, loading, refetch, dismiss };
 }
