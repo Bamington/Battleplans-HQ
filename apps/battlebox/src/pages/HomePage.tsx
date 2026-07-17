@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
-  supabase, AppFooter, Button, Input, useUpdates, UpdateModal, MarkdownBody,
-  PaginatedColumn, ScrollColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
+  supabase, AppFooter, Button, Input,
+  ScrollColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
 } from '@battleplans/ui';
-import type { AppUpdate, ColumnHeaderToggle } from '@battleplans/ui';
+import type { ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
@@ -25,10 +25,6 @@ import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters } 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
 
-// News rows are a fixed height so PaginatedColumn can decide how many fit.
-const NEWS_ITEM_H = 230;
-const NEWS_GAP    = 6;
-
 type View = 'list' | 'gallery';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -49,20 +45,6 @@ const PaintsHeaderIcon = () => (
     <circle cx="15" cy="20" r="2.2" fill="currentColor"/>
     <circle cx="24" cy="15" r="2.2" fill="currentColor"/>
     <circle cx="33" cy="20" r="2.2" fill="currentColor"/>
-  </svg>
-);
-
-const InfoCircleIcon = () => (
-  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="2.5"/>
-    <path d="M24 22v10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-    <circle cx="24" cy="16" r="1.5" fill="currentColor"/>
-  </svg>
-);
-
-const ArrowRightIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
@@ -262,9 +244,12 @@ function PaintsColumn({ userId }: { userId: string | null }) {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const query = search.trim().toLowerCase();
 
-  const filtered = query
+  // Filter by search, then float added packs to the bottom (stable sort keeps
+  // each group in name order).
+  const filtered = (query
     ? packs.filter(p => `${p.name} ${p.brand ?? ''}`.toLowerCase().includes(query))
-    : packs;
+    : packs
+  ).slice().sort((a, b) => Number(a.added) - Number(b.added));
   const viewing = packs.find(p => p.id === viewingId) ?? null;
 
   const handleAdd = async (pack: PaintPack) => {
@@ -303,15 +288,7 @@ function PaintsColumn({ userId }: { userId: string | null }) {
       empty={error ?? (query ? 'No packs match your search.' : 'No packs available yet.')}
       listClassName={ROW_LIST}
       getKey={p => p.id}
-      renderItem={p => (
-        <PaintPackItem
-          pack={p}
-          busy={busyId === p.id}
-          onAdd={() => handleAdd(p)}
-          onRemove={() => handleRemove(p)}
-          onView={() => setViewingId(p.id)}
-        />
-      )}
+      renderItem={p => <PaintPackItem pack={p} onClick={() => setViewingId(p.id)} />}
     />
     <PaintPackDetailModal
       pack={viewing}
@@ -320,49 +297,6 @@ function PaintsColumn({ userId }: { userId: string | null }) {
       onAdd={() => viewing && handleAdd(viewing)}
       onRemove={() => viewing && handleRemove(viewing)}
     />
-    </>
-  );
-}
-
-// ── News card ─────────────────────────────────────────────────────────────────
-
-function NewsItem({ update, onRead }: { update: AppUpdate; onRead: () => void }) {
-  return (
-    <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex flex-col gap-1.5 shadow-md w-full">
-      <h3 className="font-heading text-lg text-white leading-6">{update.title}</h3>
-      <hr className="border-neutral-700" />
-      <MarkdownBody className="text-sm leading-5 text-white line-clamp-5 overflow-hidden">
-        {update.body ?? ''}
-      </MarkdownBody>
-      <div className="flex justify-end">
-        <Button variant="ghost" color="primary" size="sm" rightIcon={<ArrowRightIcon />} onClick={onRead}>
-          Read Update
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function NewsCard() {
-  const { updates, loading } = useUpdates('battlebox');
-  const [selected, setSelected] = useState<AppUpdate | null>(null);
-
-  return (
-    <>
-      <PaginatedColumn
-        icon={<InfoCircleIcon />}
-        title="News & Updates"
-        description="Find out what's happening with BattleBox."
-        items={updates}
-        itemHeight={NEWS_ITEM_H}
-        gap={NEWS_GAP}
-        loading={loading}
-        empty="No updates yet. Check back soon."
-        getKey={u => u.id}
-        renderItem={u => <NewsItem update={u} onRead={() => setSelected(u)} />}
-      />
-
-      <UpdateModal open={!!selected} onClose={() => setSelected(null)} update={selected} />
     </>
   );
 }
@@ -433,7 +367,6 @@ export default function HomePage() {
               boxId={boxId} onOpenBox={openBox} onCloseBox={() => setBoxId(null)} onOpenModel={openModel}
             />
             <PaintsColumn userId={userId} />
-            <NewsCard />
           </div>
         </main>
 
