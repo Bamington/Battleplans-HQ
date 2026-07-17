@@ -5,7 +5,7 @@
  * immediately and bubble up so the library column refreshes.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Sheet, Input, Magnifer } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { PaintPackItem } from './PaintPackItem';
@@ -30,6 +30,9 @@ export function PaintPacksSheet({ open, onClose, userId, onChanged }: {
   const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const q = search.trim().toLowerCase();
+
+  // Reload when the sheet is opened, so packs created since mount appear.
+  useEffect(() => { if (open) refetch(); }, [open, refetch]);
 
   const yourPacks = useMemo(() => added.filter(p => matches(p, q)), [added, q]);
   const available = useMemo(() => browse.filter(p => matches(p, q)), [browse, q]);
