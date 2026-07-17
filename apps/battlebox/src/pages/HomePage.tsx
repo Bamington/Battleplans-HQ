@@ -11,6 +11,10 @@ import { ModelDetailModal } from '../components/ModelDetailModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
+import { PaintItem } from '../components/PaintItem';
+import { PaintPacksSheet } from '../components/PaintPacksSheet';
+import { useUserPaints } from '../hooks/usePaintPacks';
+import type { LibraryPaint } from '../hooks/usePaintPacks';
 import {
   useModels, useBoxes, useMatchingGameIds,
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
@@ -35,6 +39,16 @@ const BoxHeaderIcon = () => (
   <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M24 6 40 14v20L24 42 8 34V14L24 6Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M8 14l16 8 16-8M24 22v20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const PaintsHeaderIcon = () => (
+  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M24 6C14 6 6 13 6 22c0 6 5 9 9 9h3a4 4 0 0 1 4 4c0 1-.5 2-.5 3 0 2 2 4 4 4 10 0 18-8 18-18C42.5 13 34 6 24 6Z"
+      stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/>
+    <circle cx="15" cy="20" r="2.2" fill="currentColor"/>
+    <circle cx="24" cy="15" r="2.2" fill="currentColor"/>
+    <circle cx="33" cy="20" r="2.2" fill="currentColor"/>
   </svg>
 );
 
@@ -239,6 +253,38 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   );
 }
 
+// ── Your Paints ─────────────────────────────────────────────────────────────
+
+function PaintsColumn({ userId }: { userId: string | null }) {
+  const { paints, loading, loadingMore, hasMore, loadMore, refetch } = useUserPaints(userId);
+  const [packsOpen, setPacksOpen] = useState(false);
+
+  return (
+    <>
+    <ScrollColumn<LibraryPaint>
+      icon={<PaintsHeaderIcon />}
+      title="Your Paints"
+      description="Paints you've added to your collection."
+      items={paints}
+      loading={loading}
+      empty="No paints yet. Browse packs to add some."
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
+      listClassName={ROW_LIST}
+      getKey={p => p.id}
+      renderItem={p => <PaintItem paint={p} />}
+      footer={
+        <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center shrink-0" onClick={() => setPacksOpen(true)}>
+          Browse Packs
+        </Button>
+      }
+    />
+    <PaintPacksSheet open={packsOpen} onClose={() => setPacksOpen(false)} userId={userId} onChanged={refetch} />
+    </>
+  );
+}
+
 // ── News card ─────────────────────────────────────────────────────────────────
 
 function NewsItem({ update, onRead }: { update: AppUpdate; onRead: () => void }) {
@@ -347,6 +393,7 @@ export default function HomePage() {
               userId={userId} isDesktop={isDesktop}
               boxId={boxId} onOpenBox={openBox} onCloseBox={() => setBoxId(null)} onOpenModel={openModel}
             />
+            <PaintsColumn userId={userId} />
             <NewsCard />
           </div>
         </main>
