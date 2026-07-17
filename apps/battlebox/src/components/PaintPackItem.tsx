@@ -26,11 +26,6 @@ export function PaintPackItem({ pack, onClick }: {
           {logo ? <img src={logo} alt="" className="w-full h-full object-cover" /> : initial}
         </div>
         <div className="flex-1 min-w-0 flex flex-col justify-center">
-          {pack.is_official && (
-            <span className="self-start mb-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-body leading-none">
-              Official
-            </span>
-          )}
           <p className="font-heading text-base text-white leading-5 truncate">{pack.name}</p>
           {pack.brand && <p className="font-body text-xs text-neutral-400 truncate">{pack.brand}</p>}
         </div>

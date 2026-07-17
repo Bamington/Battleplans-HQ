@@ -65,11 +65,6 @@ export function PaintPackDetailModal({ pack, busy, onClose, onAdd, onRemove }: {
               </div>
             )}
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              {pack.is_official && (
-                <span className="self-start mb-1 px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-body leading-none">
-                  Official
-                </span>
-              )}
               <h2 className="font-heading text-xl text-white leading-7">{pack.name}</h2>
               <p className="font-body text-sm text-neutral-400">
                 {pack.brand ? `${pack.brand} · ` : ''}{pack.item_count} {pack.item_count === 1 ? 'paint' : 'paints'}
