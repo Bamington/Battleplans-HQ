@@ -4,6 +4,9 @@ import { supabase, ProtectedRoute, WelcomeModal } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import HomePage from './pages/HomePage.tsx';
+import AdminPage from './pages/admin/AdminPage.tsx';
+import ManagePaintPacks from './pages/admin/ManagePaintPacks.tsx';
+import PaintPackEditor from './pages/admin/PaintPackEditor.tsx';
 
 function RootRedirect() {
   const [target, setTarget] = useState<'/app' | '/login' | null>(null);
@@ -35,6 +38,9 @@ export default function App() {
           </ProtectedRoute>
         }>
           <Route path="/app" element={<HomePage />} />
+          <Route path="/app/admin" element={<AdminPage />} />
+          <Route path="/app/admin/paint-packs" element={<ManagePaintPacks />} />
+          <Route path="/app/admin/paint-packs/:packId" element={<PaintPackEditor />} />
         </Route>
       </Routes>
     </BrowserRouter>

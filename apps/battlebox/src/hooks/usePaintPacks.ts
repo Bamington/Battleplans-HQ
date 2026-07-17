@@ -96,3 +96,54 @@ export async function fetchPackPaints(packId: string): Promise<LibraryPaint[]> {
     .map(r => (Array.isArray(r.hobby_items) ? r.hobby_items[0] : r.hobby_items))
     .filter((p): p is LibraryPaint => !!p);
 }
+
+// ── Admin: pack authoring ─────────────────────────────────────────────────────
+// Admins can see and manage every pack (the "Admins manage all paint packs" RLS
+// policy). Packs authored here are system/official packs with owner IS NULL.
+
+export interface PaintPackFields {
+  name: string;
+  brand: string | null;
+  description: string | null;
+  is_public: boolean;
+  is_official: boolean;
+}
+
+/** Every pack, for the admin list (not just public ones). */
+export async function fetchAllPacks(): Promise<PaintPack[]> {
+  const { data } = await supabase.from('paint_pack_summary').select(PACK_SELECT).order('name');
+  return ((data as Omit<PaintPack, 'added'>[]) ?? []).map(p => ({ ...p, added: false }));
+}
+
+export async function createPaintPack(fields: PaintPackFields): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase.from('paint_packs')
+    .insert({ ...fields, owner: null })
+    .select('id').single();
+  return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
+}
+
+export function updatePaintPack(id: string, fields: Partial<PaintPackFields>) {
+  return supabase.from('paint_packs').update(fields).eq('id', id);
+}
+
+export function deletePaintPack(id: string) {
+  return supabase.from('paint_packs').delete().eq('id', id);
+}
+
+export async function fetchPaintPackEdit(id: string): Promise<PaintPackFields | null> {
+  const { data } = await supabase.from('paint_packs')
+    .select('name, brand, description, is_public, is_official').eq('id', id).single();
+  return (data as PaintPackFields) ?? null;
+}
+
+/** Add paints to a pack, appending after the existing ones. */
+export async function addPackItems(packId: string, hobbyItemIds: number[], startOrder = 0): Promise<{ error: string | null }> {
+  if (!hobbyItemIds.length) return { error: null };
+  const rows = hobbyItemIds.map((id, i) => ({ pack_id: packId, hobby_item_id: id, display_order: startOrder + i }));
+  const { error } = await supabase.from('paint_pack_items').insert(rows);
+  return { error: error?.message ?? null };
+}
+
+export function removePackItem(packId: string, hobbyItemId: number) {
+  return supabase.from('paint_pack_items').delete().eq('pack_id', packId).eq('hobby_item_id', hobbyItemId);
+}
