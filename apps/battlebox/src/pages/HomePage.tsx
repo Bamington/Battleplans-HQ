@@ -11,10 +11,10 @@ import { ModelDetailModal } from '../components/ModelDetailModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
-import { PaintItem } from '../components/PaintItem';
-import { PaintPacksSheet } from '../components/PaintPacksSheet';
-import { useUserPaints } from '../hooks/usePaintPacks';
-import type { LibraryPaint } from '../hooks/usePaintPacks';
+import { PaintPackItem } from '../components/PaintPackItem';
+import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
+import { usePaintPacks, addPaintPack, removePaintPack } from '../hooks/usePaintPacks';
+import type { PaintPack } from '../hooks/usePaintPacks';
 import {
   useModels, useBoxes, useMatchingGameIds,
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
@@ -253,34 +253,73 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   );
 }
 
-// ── Your Paints ─────────────────────────────────────────────────────────────
+// ── Paints (packs) ────────────────────────────────────────────────────────────
 
 function PaintsColumn({ userId }: { userId: string | null }) {
-  const { paints, loading, loadingMore, hasMore, loadMore, refetch } = useUserPaints(userId);
-  const [packsOpen, setPacksOpen] = useState(false);
+  const { packs, loading, error, refetch } = usePaintPacks(userId);
+  const [search, setSearch] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const query = search.trim().toLowerCase();
+
+  const filtered = query
+    ? packs.filter(p => `${p.name} ${p.brand ?? ''}`.toLowerCase().includes(query))
+    : packs;
+  const viewing = packs.find(p => p.id === viewingId) ?? null;
+
+  const handleAdd = async (pack: PaintPack) => {
+    if (!userId || busyId) return;
+    setBusyId(pack.id);
+    await addPaintPack(userId, pack.id);
+    setBusyId(null);
+    refetch();
+  };
+  const handleRemove = async (pack: PaintPack) => {
+    if (!userId || busyId) return;
+    setBusyId(pack.id);
+    await removePaintPack(userId, pack.id);
+    setBusyId(null);
+    refetch();
+  };
 
   return (
     <>
-    <ScrollColumn<LibraryPaint>
+    <ScrollColumn<PaintPack>
       icon={<PaintsHeaderIcon />}
-      title="Your Paints"
-      description="Paints you've added to your collection."
-      items={paints}
+      title="Paint Packs"
+      description="Add sets of paints to your collection."
+      beforeList={
+        <div className="w-full shrink-0">
+          <Input
+            size="sm" type="search" className="w-full"
+            placeholder="Search packs…"
+            leftIcon={<Magnifer className="w-4 h-4" />}
+            value={search} onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      }
+      items={filtered}
       loading={loading}
-      empty="No paints yet. Browse packs to add some."
-      hasMore={hasMore}
-      loadingMore={loadingMore}
-      onLoadMore={loadMore}
+      empty={error ?? (query ? 'No packs match your search.' : 'No packs available yet.')}
       listClassName={ROW_LIST}
       getKey={p => p.id}
-      renderItem={p => <PaintItem paint={p} />}
-      footer={
-        <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center shrink-0" onClick={() => setPacksOpen(true)}>
-          Browse Packs
-        </Button>
-      }
+      renderItem={p => (
+        <PaintPackItem
+          pack={p}
+          busy={busyId === p.id}
+          onAdd={() => handleAdd(p)}
+          onRemove={() => handleRemove(p)}
+          onView={() => setViewingId(p.id)}
+        />
+      )}
     />
-    <PaintPacksSheet open={packsOpen} onClose={() => setPacksOpen(false)} userId={userId} onChanged={refetch} />
+    <PaintPackDetailModal
+      pack={viewing}
+      busy={busyId === viewingId}
+      onClose={() => setViewingId(null)}
+      onAdd={() => viewing && handleAdd(viewing)}
+      onRemove={() => viewing && handleRemove(viewing)}
+    />
     </>
   );
 }
