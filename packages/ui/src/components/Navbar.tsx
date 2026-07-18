@@ -32,7 +32,11 @@ import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropd
 import Settings from '../icons/Settings';
 import UserCircle from '../icons/UserCircle';
 import ProfileModal from './ProfileModal';
+import ImpersonationBanner from './ImpersonationBanner';
 import { usePlatformApps } from '../hooks/usePlatformApps';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
+import { setImpersonatedRole } from '../lib/impersonation';
+import Eye from '../icons/Eye';
 
 export interface AppEntry {
   /** Stable id, matching public.platform_apps.slug */
@@ -179,24 +183,28 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
   const navigate = useNavigate();
   const { apps: accessibleApps } = usePlatformApps();
   const apps = appsOverride ?? accessibleApps;
+  // realRole gates the "view as" controls; isAdmin follows the previewed role,
+  // so Admin Tools correctly disappears while impersonating.
+  const { realRole, effectiveRole, isImpersonating } = useEffectiveRole();
+  const isAdmin = effectiveRole === 'admin';
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
-    // Get the current session on mount, then fetch role
+    // Get the current session on mount, then fetch the display name. The role
+    // is handled separately by useEffectiveRole, which also applies the
+    // "view as" lens.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
         const { data } = await supabase
           .from('user_profiles')
-          .select('role, username')
+          .select('username')
           .eq('id', u.id)
           .single();
-        setIsAdmin(data?.role === 'admin');
         setUsername(data?.username ?? null);
       }
       setLoading(false);
@@ -341,6 +349,38 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                     <DropdownDivider />
                   </>
                 )}
+
+                {/* ── View as ────────────────────────────────────────────────
+                    Offered on realRole, not isAdmin, so "Stop impersonating"
+                    stays reachable once the lens has hidden admin status. ── */}
+                {realRole === 'admin' && (
+                  <>
+                    {isImpersonating ? (
+                      <DropdownItem
+                        icon={<Eye className="w-4 h-4 text-warning-500" />}
+                        onClick={() => setImpersonatedRole(null)}
+                      >
+                        <span className="text-gray-200">Stop impersonating</span>
+                      </DropdownItem>
+                    ) : (
+                      <>
+                        <DropdownItem
+                          icon={<Eye className="w-4 h-4 text-gray-400" />}
+                          onClick={() => setImpersonatedRole('beta_tester')}
+                        >
+                          <span className="text-gray-200">Impersonate Beta User</span>
+                        </DropdownItem>
+                        <DropdownItem
+                          icon={<Eye className="w-4 h-4 text-gray-400" />}
+                          onClick={() => setImpersonatedRole('user')}
+                        >
+                          <span className="text-gray-200">Impersonate User</span>
+                        </DropdownItem>
+                      </>
+                    )}
+                    <DropdownDivider />
+                  </>
+                )}
                 <DropdownItem
                   icon={<LogoutIcon className="w-4 h-4 text-red-500" />}
                   onClick={handleLogout}
@@ -368,6 +408,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
       onClose={() => setProfileOpen(false)}
       onSaved={setUsername}
     />
+    <ImpersonationBanner />
     </>
   );
 };

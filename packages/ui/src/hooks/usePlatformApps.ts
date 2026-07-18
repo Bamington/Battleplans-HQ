@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getCurrentApp } from '../lib/currentApp';
+import { useImpersonatedRole } from '../lib/impersonation';
 import type { AppEntry } from '../components/Navbar';
 
 interface PlatformAppRow {
@@ -38,12 +39,16 @@ export function usePlatformApps(): UsePlatformAppsResult {
   const [apps, setApps] = useState<AppEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const current = getCurrentApp();
+  const impersonated = useImpersonatedRole();
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const { data, error } = await supabase.rpc('my_platform_apps');
+      // as_role is ignored server-side unless the caller is really an admin.
+      const { data, error } = await supabase.rpc('my_platform_apps', {
+        as_role: impersonated,
+      });
       if (cancelled) return;
 
       if (error) {
@@ -86,7 +91,7 @@ export function usePlatformApps(): UsePlatformAppsResult {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [current]);
+  }, [current, impersonated]);
 
   const hasAccess = loading ? null : apps.some((a) => a.slug === current);
 

@@ -21,6 +21,7 @@ import { usePlatformApps } from '../hooks/usePlatformApps';
 import { getCurrentApp } from '../lib/currentApp';
 import { appendSessionToUrl } from '../lib/supabase';
 import Button from './Button';
+import ImpersonationBanner from './ImpersonationBanner';
 import Lock from '../icons/Lock';
 
 interface Props {
@@ -61,6 +62,8 @@ export default function AppAccessRoute({ children, appName }: Props) {
             as we roll more of the platform out.
           </p>
         </div>
+
+        <ImpersonationBanner />
 
         {elsewhere.length > 0 && (
           <div className="w-full flex flex-col gap-2 pt-2">

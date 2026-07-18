@@ -1,46 +1,15 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffectiveRole } from './useEffectiveRole';
 
+/**
+ * Whether the UI should treat this user as an admin.
+ *
+ * False while an admin is previewing a lower access level, so admin-only menus
+ * and routes disappear for the duration — otherwise "view as a regular user"
+ * would still show Admin Tools, which no regular user has. Server-side checks
+ * are unaffected: the admin's real identity still backs every RLS policy and
+ * security-definer RPC.
+ */
 export function useIsAdmin(): { isAdmin: boolean; loading: boolean } {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function checkRole(userId: string) {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      if (!cancelled) {
-        setIsAdmin(data?.role === 'admin');
-        setLoading(false);
-      }
-    }
-
-    // onAuthStateChange fires immediately with INITIAL_SESSION once the
-    // Supabase client has restored the session from storage. Using this
-    // instead of getSession() avoids the race where getSession() is called
-    // before the session is fully hydrated and returns null.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (cancelled) return;
-        if (session?.user) {
-          checkRole(session.user.id);
-        } else {
-          setIsAdmin(false);
-          setLoading(false);
-        }
-      }
-    );
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { isAdmin, loading };
+  const { effectiveRole, loading } = useEffectiveRole();
+  return { isAdmin: effectiveRole === 'admin', loading };
 }
