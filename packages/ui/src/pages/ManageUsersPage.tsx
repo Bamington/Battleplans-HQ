@@ -14,7 +14,7 @@ import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown'
 import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import Navbar from '../components/Navbar';
-import type { AppEntry, Breadcrumb } from '../components/Navbar';
+import type { Breadcrumb } from '../components/Navbar';
 
 type UserRow = {
   id:         string;
@@ -44,7 +44,6 @@ const ROLE_LABEL: Record<UserRow['role'], string> = {
 
 interface ManageUsersPageProps {
   logo?: React.ReactNode;
-  apps?: AppEntry[];
   /** Breadcrumb trail. Defaults to Home / Admin Tools / Manage Users. */
   breadcrumbs?: Breadcrumb[];
 }
@@ -55,7 +54,7 @@ const DEFAULT_CRUMBS: Breadcrumb[] = [
   { label: 'Manage Users' },
 ];
 
-export default function ManageUsersPage({ logo, apps, breadcrumbs = DEFAULT_CRUMBS }: ManageUsersPageProps) {
+export default function ManageUsersPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: ManageUsersPageProps) {
   const navigate = useNavigate();
   const [users, setUsers]         = useState<UserRow[]>([]);
   const [locations, setLocations] = useState<LocationRow[]>([]);
@@ -200,7 +199,7 @@ export default function ManageUsersPage({ logo, apps, breadcrumbs = DEFAULT_CRUM
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">
 
-      <Navbar fixed={false} logo={logo} apps={apps} breadcrumbs={breadcrumbs} />
+      <Navbar fixed={false} logo={logo} breadcrumbs={breadcrumbs} />
 
       <div className="flex-1 flex flex-col items-center p-8 pt-10">
         <div className="w-full max-w-2xl flex flex-col gap-6">

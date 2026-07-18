@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import type { AppEntry, Breadcrumb } from '../components/Navbar';
+import type { Breadcrumb } from '../components/Navbar';
 import Button from '../components/Button';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import AltArrowRight from '../icons/AltArrowRight';
@@ -14,7 +14,6 @@ export interface AdminToolLink {
 
 export interface AdminToolsPageProps {
   logo?: React.ReactNode;
-  apps?: AppEntry[];
   description?: string;
   links: AdminToolLink[];
   /** Breadcrumb trail. Defaults to Home / Admin Tools. */
@@ -46,13 +45,13 @@ function AdminLinkItem({ title, description, href }: AdminToolLink) {
   );
 }
 
-export default function AdminToolsPage({ logo, apps, description, links, breadcrumbs = DEFAULT_CRUMBS }: AdminToolsPageProps) {
+export default function AdminToolsPage({ logo, description, links, breadcrumbs = DEFAULT_CRUMBS }: AdminToolsPageProps) {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">
 
-      <Navbar fixed={false} logo={logo} apps={apps} breadcrumbs={breadcrumbs} />
+      <Navbar fixed={false} logo={logo} breadcrumbs={breadcrumbs} />
 
       <div className="flex-1 flex flex-col items-center p-8 pt-12">
         <div className="w-full max-w-lg flex flex-col gap-6">

@@ -32,8 +32,11 @@ import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropd
 import Settings from '../icons/Settings';
 import UserCircle from '../icons/UserCircle';
 import ProfileModal from './ProfileModal';
+import { usePlatformApps } from '../hooks/usePlatformApps';
 
 export interface AppEntry {
+  /** Stable id, matching public.platform_apps.slug */
+  slug?: string;
   /** Display name shown in the switcher */
   name: string;
   /** URL to navigate to. Use '#' for apps not yet launched. */
@@ -64,9 +67,9 @@ interface NavbarProps {
    */
   breadcrumbs?: Breadcrumb[];
   /**
-   * When provided, the logo becomes a platform switcher dropdown.
-   * List all Battleplans apps; mark the current one with active: true.
-   * Apps with href '#' are shown as coming soon (disabled).
+   * Overrides the switcher's app list. Normally omitted — the Navbar loads the
+   * apps the signed-in user may access itself. Pass this only to render a fixed
+   * list (e.g. the component gallery).
    */
   apps?: AppEntry[];
   /**
@@ -172,8 +175,10 @@ function Breadcrumbs({ items }: { items: Breadcrumb[] }) {
   );
 }
 
-const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumbs = [] }: NavbarProps) => {
+const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, logo, breadcrumbs = [] }: NavbarProps) => {
   const navigate = useNavigate();
+  const { apps: accessibleApps } = usePlatformApps();
+  const apps = appsOverride ?? accessibleApps;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -232,7 +237,9 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
       <div className="px-3 pt-3 pb-[13px] flex items-center">
 
         {/* ── Logo / platform switcher ─────────────────────────────── */}
-        {apps && apps.length > 0 ? (
+        {/* With only one accessible app there's nothing to switch to, so the
+            logo stays a plain link rather than a dropdown of one. */}
+        {apps && apps.length > 1 ? (
           <Dropdown
             align="left"
             menuClassName="w-56"
@@ -255,7 +262,7 @@ const Navbar = ({ fixed = true, className = '', children, apps, logo, breadcrumb
             </DropdownHeader>
             {apps.map((app) => (
               <DropdownItem
-                key={app.name}
+                key={app.slug ?? app.name}
                 disabled={app.href === '#'}
                 onClick={
                   app.href === '#'
