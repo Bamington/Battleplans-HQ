@@ -25,7 +25,7 @@ import Input from '../components/Input';
 import Modal from '../components/Modal';
 import Navbar from '../components/Navbar';
 import RichTextEditor from '../components/RichTextEditor';
-import type { AppEntry, Breadcrumb } from '../components/Navbar';
+import type { Breadcrumb } from '../components/Navbar';
 import type { UpdateApp } from '../hooks/useUpdates';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -56,7 +56,6 @@ const EMPTY_FORM = { title: '', body: '', version: '', apps: [] as string[], pub
 
 interface ManageUpdatesPageProps {
   logo?: React.ReactNode;
-  apps?: AppEntry[];
   /** Breadcrumb trail. Defaults to Home / Admin Tools / Manage Updates. */
   breadcrumbs?: Breadcrumb[];
 }
@@ -77,7 +76,7 @@ function formatDate(iso: string | null): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function ManageUpdatesPage({ logo, apps, breadcrumbs = DEFAULT_CRUMBS }: ManageUpdatesPageProps) {
+export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: ManageUpdatesPageProps) {
   const navigate = useNavigate();
 
   const [updates, setUpdates] = useState<UpdateRow[]>([]);
@@ -199,7 +198,7 @@ export default function ManageUpdatesPage({ logo, apps, breadcrumbs = DEFAULT_CR
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
-      <Navbar fixed={false} logo={logo} apps={apps} breadcrumbs={breadcrumbs} />
+      <Navbar fixed={false} logo={logo} breadcrumbs={breadcrumbs} />
 
       <div className="flex-1 flex flex-col items-center p-8 pt-10">
         <div className="w-full max-w-3xl flex flex-col gap-6">

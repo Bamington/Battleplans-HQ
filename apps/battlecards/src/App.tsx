@@ -48,7 +48,7 @@ import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
 import ManagePacks from './pages/ManagePacks';
 import ManageUpdates from './pages/ManageUpdates';
-import { AdminRoute, ProtectedRoute, WelcomeModal } from '@battleplans/ui';
+import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal } from '@battleplans/ui';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -93,12 +93,15 @@ function App() {
         <Route path="/gallery" element={<ComponentGallery />} />
 
         {/* ── Protected routes — require a signed-in user ─────────────────
-             The guard redirects unauthenticated users to /login. Every /app
-             route lives inside it. ── */}
+             The first guard redirects unauthenticated users to /login; the
+             second checks their platform access level covers this app. Every
+             /app route lives inside them. ── */}
         <Route element={
           <ProtectedRoute>
-            <WelcomeModal appName="BattleCards" fields={{ username: true }} />
-            <Outlet />
+            <AppAccessRoute appName="BattleCards">
+              <WelcomeModal appName="BattleCards" fields={{ username: true }} />
+              <Outlet />
+            </AppAccessRoute>
           </ProtectedRoute>
         }>
 

@@ -1,5 +1,4 @@
 import { AdminRoute, AdminToolsPage } from '@battleplans/ui';
-import { APPS } from '../components/AppNavbar';
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -17,7 +16,6 @@ export default function AdminPage() {
     <AdminRoute>
       <AdminToolsPage
         logo={<BattlePlanLogo />}
-        apps={APPS}
         description="Manage locations, games, and other app-wide settings."
         links={LINKS}
       />

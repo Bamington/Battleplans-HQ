@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { supabase, ProtectedRoute, WelcomeModal } from '@battleplans/ui';
+import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import HomePage from './pages/HomePage.tsx';
@@ -34,11 +34,14 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* ── Protected routes — redirect unauthenticated users to /login ── */}
+        {/* ── Protected routes — redirect unauthenticated users to /login,
+               then gate on the user's platform access level ── */}
         <Route element={
           <ProtectedRoute>
-            <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true }} />
-            <Outlet />
+            <AppAccessRoute appName="BattlePlan">
+              <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true }} />
+              <Outlet />
+            </AppAccessRoute>
           </ProtectedRoute>
         }>
           <Route path="/app" element={<HomePage />} />

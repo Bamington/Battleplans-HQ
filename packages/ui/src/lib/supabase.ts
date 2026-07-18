@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
+import { getImpersonatedRole, setImpersonatedRole } from './impersonation'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -40,6 +41,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // server, and we scrub it from the URL immediately after consuming it.
 
 const SESSION_HASH_KEY = 'bp_session'
+// An admin's "view as" role travels with the session so the lens survives a
+// switch between apps — the gate being per-app is the point of testing it.
+const ROLE_HASH_KEY = 'bp_role'
 
 /**
  * Append the current session to a cross-app URL so the destination can restore
@@ -55,7 +59,9 @@ export async function appendSessionToUrl(href: string): Promise<string> {
     refresh_token: session.refresh_token,
   }))
   const sep = href.includes('#') ? '&' : '#'
-  return `${href}${sep}${SESSION_HASH_KEY}=${payload}`
+  const role = getImpersonatedRole()
+  return `${href}${sep}${SESSION_HASH_KEY}=${payload}` +
+    (role ? `&${ROLE_HASH_KEY}=${role}` : '')
 }
 
 /**
@@ -67,19 +73,28 @@ export async function consumeSessionFromUrl(): Promise<void> {
   if (typeof window === 'undefined' || !window.location.hash) return
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
   const raw = params.get(SESSION_HASH_KEY)
-  if (!raw) return
+  const role = params.get(ROLE_HASH_KEY)
+  if (!raw && !role) return
 
-  try {
-    const { access_token, refresh_token } = JSON.parse(decodeURIComponent(raw))
-    if (access_token && refresh_token) {
-      await supabase.auth.setSession({ access_token, refresh_token })
+  // Carry over an admin's "view as" lens. Safe to apply before knowing whether
+  // the arriving user is an admin: my_platform_apps() ignores the pretend role
+  // for anyone who isn't, and it can only ever narrow what they see.
+  if (role === 'user' || role === 'beta_tester') setImpersonatedRole(role)
+
+  if (raw) {
+    try {
+      const { access_token, refresh_token } = JSON.parse(decodeURIComponent(raw))
+      if (access_token && refresh_token) {
+        await supabase.auth.setSession({ access_token, refresh_token })
+      }
+    } catch {
+      // Malformed hand-off — ignore and fall through to scrubbing the URL.
     }
-  } catch {
-    // Malformed hand-off — ignore and fall through to scrubbing the URL.
   }
 
   // Remove the token from the URL + history so it can't leak or be re-used.
   params.delete(SESSION_HASH_KEY)
+  params.delete(ROLE_HASH_KEY)
   const rest = params.toString()
   const clean = window.location.pathname + window.location.search + (rest ? `#${rest}` : '')
   window.history.replaceState(null, '', clean)

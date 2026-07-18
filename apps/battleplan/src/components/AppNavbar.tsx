@@ -1,32 +1,10 @@
 import { useLocation, matchPath } from 'react-router-dom';
 import { Navbar } from '@battleplans/ui';
-import type { AppEntry, Breadcrumb } from '@battleplans/ui';
+import type { Breadcrumb } from '@battleplans/ui';
 
-const APPS: AppEntry[] = [
-  {
-    name: 'BattleCards',
-    href: 'https://battleplans-hq-battlecards-one.vercel.app/app',
-    description: 'Build and manage unit cards',
-  },
-  {
-    name: 'BattlePack',
-    href: '#',
-    description: 'Organise wargaming events',
-  },
-  {
-    name: 'BattlePlan',
-    href: '/',
-    description: 'Find stores and book tables',
-    active: true,
-  },
-  {
-    name: 'BattleBox',
-    href: 'https://battleplans-hq-battlebox.vercel.app/app',
-    description: 'Track your miniature collection',
-  },
-];
-
-export { APPS };
+// The platform switcher's app list is no longer defined here — Navbar loads the
+// apps this user may access from the database (see supabase/migrations/
+// 20260719120000_platform_access.sql).
 
 // ── Breadcrumbs ────────────────────────────────────────────────────────────
 // One entry per screen. The trail's last crumb is the current page. Home is
@@ -56,5 +34,5 @@ type NavbarProps = Parameters<typeof Navbar>[0];
 
 export default function AppNavbar(props: Omit<NavbarProps, 'apps'>) {
   const crumbs = useBreadcrumbs();
-  return <Navbar {...props} apps={APPS} breadcrumbs={props.breadcrumbs ?? crumbs} />;
+  return <Navbar {...props} breadcrumbs={props.breadcrumbs ?? crumbs} />;
 }

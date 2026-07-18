@@ -1,6 +1,8 @@
 // Components
 export { default as AdminRoute } from './components/AdminRoute'
 export { default as ProtectedRoute } from './components/ProtectedRoute'
+export { default as AppAccessRoute } from './components/AppAccessRoute'
+export { default as ImpersonationBanner } from './components/ImpersonationBanner'
 export { default as WelcomeModal, WelcomeModalView, ProfileFields } from './components/WelcomeModal'
 export type { WelcomeModalFields, WelcomeModalViewProps, WelcomeLocation, ProfileFieldsProps } from './components/WelcomeModal'
 export { default as ProfileModal } from './components/ProfileModal'
@@ -187,7 +189,19 @@ export { default as Widget2Bold } from './icons/bold/Widget2'
 
 // Auth & lib
 export { supabase, redirectTo, appendSessionToUrl, consumeSessionFromUrl } from './lib/supabase'
+export { setCurrentApp, getCurrentApp } from './lib/currentApp'
+export type { AppSlug } from './lib/currentApp'
+export {
+  getImpersonatedRole,
+  setImpersonatedRole,
+  useImpersonatedRole,
+} from './lib/impersonation'
+export type { ImpersonatedRole } from './lib/impersonation'
 export { useIsAdmin } from './hooks/useIsAdmin'
+export { useEffectiveRole } from './hooks/useEffectiveRole'
+export type { UserRole, UseEffectiveRoleResult } from './hooks/useEffectiveRole'
+export { usePlatformApps } from './hooks/usePlatformApps'
+export type { UsePlatformAppsResult } from './hooks/usePlatformApps'
 export { useAutoPageSize } from './hooks/useAutoPageSize'
 export { useUpdates } from './hooks/useUpdates'
 export type { AppUpdate, UpdateApp } from './hooks/useUpdates'
