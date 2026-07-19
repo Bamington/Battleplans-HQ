@@ -27,39 +27,44 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
-  /** Called with the new collection's id once it's saved. */
-  onCreated: (id: string) => void;
+  /** Called with the new collection's id once it's saved. `addModels` is true
+   *  when the user chose "Create and Add Models", so the caller can follow up
+   *  with the model picker. */
+  onCreated: (id: string, addModels: boolean) => void;
 }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Box' | 'Collection'>('Box');
   const [gameId, setGameId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  /** Which CTA is mid-save, so only that button shows a spinner. */
+  const [saving, setSaving] = useState<null | 'create' | 'createAdd'>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Start from a clean form each time the modal opens.
   useEffect(() => {
     if (!open) return;
     setName(''); setType('Box'); setGameId(null); setPurchaseDate(null);
-    setSaving(false); setError(null);
+    setSaving(null); setError(null);
   }, [open]);
 
   if (!open) return null;
 
-  const save = async () => {
-    if (!userId) return;
-    setSaving(true); setError(null);
+  const save = async (addModels: boolean) => {
+    if (!userId || saving) return;
+    setSaving(addModels ? 'createAdd' : 'create'); setError(null);
     const { id, error: err } = await createBox(userId, {
       name: name.trim(),
       type,
       game_id: gameId,
       purchase_date: purchaseDate,
     });
-    setSaving(false);
+    setSaving(null);
     if (err || !id) { setError('Could not add the collection. Please try again.'); return; }
-    onCreated(id);
+    onCreated(id, addModels);
     onClose();
   };
+
+  const disabled = name.trim() === '' || saving !== null || !userId;
 
   const overlay = (
     <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={onClose}>
@@ -95,9 +100,22 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
 
           <p className="font-body text-xs text-neutral-500">You can add photos once the collection is created.</p>
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>
-            <Button color="primary" disabled={name.trim() === '' || saving || !userId} loading={saving} onClick={save}>Add Collection</Button>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              color="primary" className="w-full justify-center"
+              disabled={disabled} loading={saving === 'create'}
+              onClick={() => save(false)}
+            >
+              Create Collection
+            </Button>
+            <Button
+              variant="outline" color="primary" className="w-full justify-center"
+              disabled={disabled} loading={saving === 'createAdd'}
+              onClick={() => save(true)}
+            >
+              Create and Add Models
+            </Button>
+            <Button variant="ghost" color="secondary" className="w-full justify-center" onClick={onClose}>Cancel</Button>
           </div>
         </div>
       </div>

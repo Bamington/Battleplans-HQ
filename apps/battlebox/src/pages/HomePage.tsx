@@ -238,6 +238,8 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       open={addOpen}
       onClose={() => setAddOpen(false)}
       userId={userId}
+      // "Create and Add Models" also passes an `addModels` flag; until the model
+      // picker is built both CTAs just open the new collection.
       onCreated={id => { refetch(); onOpenBox(id); }}
     />
     <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} onChanged={refetch} />
