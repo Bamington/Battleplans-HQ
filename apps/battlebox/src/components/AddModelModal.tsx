@@ -8,8 +8,9 @@ import { createPortal } from 'react-dom';
 import { Button, Input } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { GamePicker } from './GamePicker';
+import { CollectionPicker } from './CollectionPicker';
 import { Chip } from './filterControls';
-import { createModel } from '../hooks/useCollection';
+import { createModel, addModelToBox } from '../hooks/useCollection';
 import type { ModelStatus } from '../hooks/useCollection';
 
 const STATUSES: { value: ModelStatus; label: string }[] = [
@@ -41,6 +42,7 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
   const [gameId, setGameId] = useState<string | null>(null);
   const [count, setCount] = useState(1);
   const [status, setStatus] = useState<ModelStatus>('None');
+  const [boxId, setBoxId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
   const [paintedDate, setPaintedDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -49,11 +51,18 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
   // Start from a clean form each time the modal opens.
   useEffect(() => {
     if (!open) return;
-    setName(''); setGameId(null); setCount(1); setStatus('None');
+    setName(''); setGameId(null); setCount(1); setStatus('None'); setBoxId(null);
     setPurchaseDate(null); setPaintedDate(null); setSaving(false); setError(null);
   }, [open]);
 
   if (!open) return null;
+
+  // A painted date only makes sense once the model is painted; drop any value
+  // carried over when the status moves away from Painted.
+  const pickStatus = (s: ModelStatus) => {
+    setStatus(s);
+    if (s !== 'Painted') setPaintedDate(null);
+  };
 
   const save = async () => {
     if (!userId) return;
@@ -64,10 +73,11 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
       count: Math.max(1, count || 1),
       status,
       purchase_date: purchaseDate,
-      painted_date: paintedDate,
+      painted_date: status === 'Painted' ? paintedDate : null,
     });
+    if (err || !id) { setSaving(false); setError('Could not add the model. Please try again.'); return; }
+    if (boxId) await addModelToBox(id, boxId);
     setSaving(false);
-    if (err || !id) { setError('Could not add the model. Please try again.'); return; }
     onCreated(id);
     onClose();
   };
@@ -94,19 +104,27 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
             <span className="font-body text-sm font-medium text-white">Status</span>
             <div className="flex flex-wrap gap-2">
               {STATUSES.map(s => (
-                <Chip key={s.value} label={s.label} selected={status === s.value} onClick={() => setStatus(s.value)} />
+                <Chip key={s.value} label={s.label} selected={status === s.value} onClick={() => pickStatus(s.value)} />
               ))}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="font-body text-sm font-medium text-white">Collection <span className="text-neutral-500 font-normal">(optional)</span></span>
+            <CollectionPicker userId={userId} value={boxId} onChange={setBoxId} enabled={open} />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Purchase Date</span>
             <div className="flex gap-3"><DateField label="Date" value={purchaseDate} onChange={setPurchaseDate} /></div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <span className="font-body text-sm font-medium text-white">Painted Date</span>
-            <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
-          </div>
+
+          {status === 'Painted' && (
+            <div className="flex flex-col gap-1.5">
+              <span className="font-body text-sm font-medium text-white">Painted Date</span>
+              <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
+            </div>
+          )}
 
           {error && <p className="font-body text-sm text-red-400">{error}</p>}
 

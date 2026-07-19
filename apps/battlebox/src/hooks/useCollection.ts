@@ -772,6 +772,27 @@ export async function createModel(userId: string, fields: NewModelFields): Promi
   return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
 }
 
+export interface BoxOption { id: string; name: string; type: 'Box' | 'Collection' }
+
+/** The user's boxes/collections, for the "add to collection" picker. Only
+ *  fetched when `enabled` (the form is showing). */
+export function useUserBoxes(userId: string | null, enabled: boolean): BoxOption[] {
+  const [boxes, setBoxes] = useState<BoxOption[]>([]);
+  useEffect(() => {
+    if (!enabled || !userId) { setBoxes([]); return; }
+    let cancelled = false;
+    supabase.from('boxes').select('id, name, type').eq('user_id', userId).order('name')
+      .then(({ data }) => { if (!cancelled) setBoxes((data as BoxOption[]) ?? []); });
+    return () => { cancelled = true; };
+  }, [userId, enabled]);
+  return boxes;
+}
+
+/** Put a model in a collection. */
+export function addModelToBox(modelId: string, boxId: string) {
+  return supabase.from('model_boxes').insert({ model_id: modelId, box_id: boxId });
+}
+
 // ── Photo management (model_images / box_images) ───────────────────────────────
 
 /** One editable photo row, resolved to a display URL. */
