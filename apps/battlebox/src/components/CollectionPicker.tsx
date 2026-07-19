@@ -1,17 +1,22 @@
 /**
  * CollectionPicker.tsx — Searchable single-select of one of the user's
  * collections. Optional: the selection can be cleared with "No collection".
+ *
+ * When a game is selected, only that game's collections are offered; with no
+ * game, every collection is.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUserBoxes } from '../hooks/useCollection';
 
 const ChevronIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg viewBox="0 0 16 16" fill="none" className={className}><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
-export function CollectionPicker({ userId, value, onChange, enabled = true }: {
+export function CollectionPicker({ userId, gameId, value, onChange, enabled = true }: {
   userId: string | null;
+  /** Restrict the options to this game's collections; null shows them all. */
+  gameId: string | null;
   value: string | null;
   onChange: (id: string | null) => void;
   enabled?: boolean;
@@ -19,8 +24,18 @@ export function CollectionPicker({ userId, value, onChange, enabled = true }: {
   const boxes = useUserBoxes(userId, enabled);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const selected = boxes.find(b => b.id === value) ?? null;
-  const shown = boxes.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+
+  const forGame = gameId ? boxes.filter(b => b.game_id === gameId) : boxes;
+  const selected = forGame.find(b => b.id === value) ?? null;
+  const shown = forGame.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+
+  // Changing the game can strand an already-picked collection — drop it once
+  // the list has loaded so we never save a mismatched pairing.
+  useEffect(() => {
+    if (!value || boxes.length === 0) return;
+    if (!forGame.some(b => b.id === value)) onChange(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, boxes.length, value]);
 
   const pick = (id: string | null) => { onChange(id); setOpen(false); setSearch(''); };
 
@@ -57,7 +72,9 @@ export function CollectionPicker({ userId, value, onChange, enabled = true }: {
 
             {shown.length === 0 ? (
               <p className="px-2 py-2 font-body text-sm text-neutral-500">
-                {boxes.length === 0 ? 'No collections yet.' : 'No collections found.'}
+                {boxes.length === 0 ? 'No collections yet.'
+                  : forGame.length === 0 ? 'No collections for this game.'
+                  : 'No collections found.'}
               </p>
             ) : shown.map(b => (
               <button
