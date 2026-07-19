@@ -10,6 +10,7 @@ import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { ModelDetailModal } from '../components/ModelDetailModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
+import { AddModelModal } from '../components/AddModelModal';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
@@ -107,9 +108,9 @@ function FilterControls({ count, onOpen, search, onSearch, searchPlaceholder }: 
 }
 
 /** The single Add action pinned below a collection list. */
-function AddButton({ label }: { label: string }) {
+function AddButton({ label, onClick }: { label: string; onClick?: () => void }) {
   return (
-    <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center shrink-0">
+    <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="w-full justify-center shrink-0" onClick={onClick}>
       {label}
     </Button>
   );
@@ -131,6 +132,7 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
   const [view,    setView]    = useState<View>('gallery');
   const [filters, setFilters] = useState<ModelFilters>(EMPTY_MODEL_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
 
@@ -161,7 +163,13 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       renderItem={m => (gallery
         ? <ModelGridItem model={m} onClick={() => onOpenModel(m.id)} />
         : <ModelItem     model={m} onClick={() => onOpenModel(m.id)} />)}
-      footer={<AddButton label="Add Model" />}
+      footer={<AddButton label="Add Model" onClick={() => setAddOpen(true)} />}
+    />
+    <AddModelModal
+      open={addOpen}
+      onClose={() => setAddOpen(false)}
+      userId={userId}
+      onCreated={id => { refetch(); onOpenModel(id); }}
     />
     <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={refetch} onOpenBox={onOpenBox} />
     <ModelFilterSheet

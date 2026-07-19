@@ -752,6 +752,26 @@ export function deleteBox(boxId: string) {
   return supabase.from('boxes').delete().eq('id', boxId);
 }
 
+// ── Create a model ────────────────────────────────────────────────────────────
+
+export interface NewModelFields {
+  name: string;
+  game_id: string | null;
+  count: number;
+  status: ModelStatus;
+  purchase_date: string | null;
+  painted_date: string | null;
+}
+
+/** Add a model to the user's collection. Photos are added afterwards via the
+ *  model's Edit form, which needs the new row's id. */
+export async function createModel(userId: string, fields: NewModelFields): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase.from('models')
+    .insert({ ...fields, user_id: userId })
+    .select('id').single();
+  return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
+}
+
 // ── Photo management (model_images / box_images) ───────────────────────────────
 
 /** One editable photo row, resolved to a display URL. */
