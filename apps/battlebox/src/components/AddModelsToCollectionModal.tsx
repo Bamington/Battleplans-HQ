@@ -56,8 +56,29 @@ export function AddModelsToCollectionModal({ boxId, userId, onClose, onAdded }: 
   const q = search.trim().toLowerCase();
   const shown = q ? models.filter(m => m.name.toLowerCase().includes(q)) : models;
 
+  // Unfiled models first — those are the ones you're most likely adding.
+  const unfiled = shown.filter(m => m.collections.length === 0);
+  const filed   = shown.filter(m => m.collections.length > 0);
+
   const toggle = (id: string) =>
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  /** Collections (if any), then model count, then painted status. */
+  const subtitle = (m: ModelOption) => [
+    ...(m.collections.length ? [m.collections.join(', ')] : []),
+    `${m.count} ${m.count === 1 ? 'model' : 'models'}`,
+    STATUS_LABEL[m.status],
+  ].join(' · ');
+
+  const row = (m: ModelOption) => (
+    <PickRow
+      key={m.id}
+      title={m.name}
+      subtitle={subtitle(m)}
+      selected={selected.includes(m.id)}
+      onSelect={() => toggle(m.id)}
+    />
+  );
 
   const save = async () => {
     if (!selected.length || saving) return;
@@ -97,15 +118,19 @@ export function AddModelsToCollectionModal({ boxId, userId, onClose, onAdded }: 
             <p className="py-8 text-center font-body text-sm text-neutral-500">
               {models.length === 0 ? 'No models for this game yet.' : 'No models match your search.'}
             </p>
-          ) : shown.map(m => (
-            <PickRow
-              key={m.id}
-              title={m.name}
-              subtitle={`${m.count} ${m.count === 1 ? 'model' : 'models'} · ${STATUS_LABEL[m.status]}`}
-              selected={selected.includes(m.id)}
-              onSelect={() => toggle(m.id)}
-            />
-          ))}
+          ) : (
+            <>
+              {unfiled.map(row)}
+              {unfiled.length > 0 && filed.length > 0 && (
+                <div className="flex items-center gap-2 py-1.5" aria-hidden="true">
+                  <span className="h-px flex-1 bg-neutral-800" />
+                  <span className="font-body text-xs text-neutral-500">Already in a collection</span>
+                  <span className="h-px flex-1 bg-neutral-800" />
+                </div>
+              )}
+              {filed.map(row)}
+            </>
+          )}
         </div>
 
         <div className="px-5 pt-3 pb-4 shrink-0 flex flex-col gap-2">

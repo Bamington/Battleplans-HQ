@@ -798,15 +798,36 @@ export interface ModelOption {
   name: string;
   status: ModelStatus;
   count: number;
+  /** Names of the collections this model already belongs to. */
+  collections: string[];
+}
+
+interface ModelOptionRow {
+  id: string;
+  name: string;
+  status: ModelStatus;
+  count: number;
+  model_boxes: { box: { name: string } | { name: string }[] | null }[] | null;
 }
 
 /** The user's models for the "add models" picker, restricted to one game.
  *  A null gameId (a collection with no game) matches every model. */
 export async function fetchModelsForGame(userId: string, gameId: string | null): Promise<ModelOption[]> {
-  let q = supabase.from('models').select('id, name, status, count').eq('user_id', userId);
+  let q = supabase.from('models')
+    .select('id, name, status, count, model_boxes ( box:boxes ( name ) )')
+    .eq('user_id', userId);
   if (gameId) q = q.eq('game_id', gameId);
   const { data } = await q.order('name');
-  return (data as ModelOption[]) ?? [];
+  return ((data as ModelOptionRow[]) ?? []).map(r => ({
+    id: r.id,
+    name: r.name,
+    status: r.status,
+    count: r.count,
+    collections: (r.model_boxes ?? [])
+      .map(mb => (Array.isArray(mb.box) ? mb.box[0] : mb.box))
+      .map(b => b?.name)
+      .filter((n): n is string => !!n),
+  }));
 }
 
 /** Put several models in a collection at once. Existing memberships are left
