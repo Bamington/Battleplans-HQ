@@ -793,6 +793,24 @@ export function addModelToBox(modelId: string, boxId: string) {
   return supabase.from('model_boxes').insert({ model_id: modelId, box_id: boxId });
 }
 
+// ── Create a collection ───────────────────────────────────────────────────────
+
+export interface NewBoxFields {
+  name: string;
+  type: 'Box' | 'Collection';
+  game_id: string | null;
+  purchase_date: string | null;
+}
+
+/** Add a box/collection. Photos are added afterwards via its Edit form, which
+ *  needs the new row's id. */
+export async function createBox(userId: string, fields: NewBoxFields): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase.from('boxes')
+    .insert({ ...fields, user_id: userId })
+    .select('id').single();
+  return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
+}
+
 // ── Photo management (model_images / box_images) ───────────────────────────────
 
 /** One editable photo row, resolved to a display URL. */

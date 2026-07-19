@@ -11,6 +11,7 @@ import { ModelDetailModal } from '../components/ModelDetailModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { AddModelModal } from '../components/AddModelModal';
+import { AddCollectionModal } from '../components/AddCollectionModal';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
@@ -196,6 +197,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   const [view,    setView]    = useState<View>('list');
   const [filters, setFilters] = useState<CollectionFilters>(EMPTY_COLLECTION_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
   const searchGameIds = useMatchingGameIds(query);
@@ -230,7 +232,13 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       renderItem={b => (gallery
         ? <BoxGridItem box={b} onClick={() => onOpenBox(b.id)} />
         : <BoxItem     box={b} onClick={() => onOpenBox(b.id)} />)}
-      footer={<AddButton label="Add Collection" />}
+      footer={<AddButton label="Add Collection" onClick={() => setAddOpen(true)} />}
+    />
+    <AddCollectionModal
+      open={addOpen}
+      onClose={() => setAddOpen(false)}
+      userId={userId}
+      onCreated={id => { refetch(); onOpenBox(id); }}
     />
     <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} onChanged={refetch} />
     <CollectionFilterSheet
