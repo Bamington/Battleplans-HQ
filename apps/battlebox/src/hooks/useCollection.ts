@@ -793,6 +793,32 @@ export function addModelToBox(modelId: string, boxId: string) {
   return supabase.from('model_boxes').insert({ model_id: modelId, box_id: boxId });
 }
 
+export interface ModelOption {
+  id: string;
+  name: string;
+  status: ModelStatus;
+  count: number;
+}
+
+/** The user's models for the "add models" picker, restricted to one game.
+ *  A null gameId (a collection with no game) matches every model. */
+export async function fetchModelsForGame(userId: string, gameId: string | null): Promise<ModelOption[]> {
+  let q = supabase.from('models').select('id, name, status, count').eq('user_id', userId);
+  if (gameId) q = q.eq('game_id', gameId);
+  const { data } = await q.order('name');
+  return (data as ModelOption[]) ?? [];
+}
+
+/** Put several models in a collection at once. Existing memberships are left
+ *  alone rather than erroring on the (model_id, box_id) unique index. */
+export async function addModelsToBox(boxId: string, modelIds: string[]): Promise<{ error: string | null }> {
+  if (!modelIds.length) return { error: null };
+  const rows = modelIds.map(id => ({ model_id: id, box_id: boxId }));
+  const { error } = await supabase.from('model_boxes')
+    .upsert(rows, { onConflict: 'model_id,box_id', ignoreDuplicates: true });
+  return { error: error?.message ?? null };
+}
+
 // ── Create a collection ───────────────────────────────────────────────────────
 
 export interface NewBoxFields {

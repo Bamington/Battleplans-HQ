@@ -12,6 +12,7 @@ import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { AddModelModal } from '../components/AddModelModal';
 import { AddCollectionModal } from '../components/AddCollectionModal';
+import { AddModelsToCollectionModal } from '../components/AddModelsToCollectionModal';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
@@ -198,6 +199,8 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   const [filters, setFilters] = useState<CollectionFilters>(EMPTY_COLLECTION_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  /** Set to a new collection's id when the user chose "Create and Add Models". */
+  const [addModelsBoxId, setAddModelsBoxId] = useState<string | null>(null);
   const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
   const searchGameIds = useMatchingGameIds(query);
@@ -238,9 +241,19 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       open={addOpen}
       onClose={() => setAddOpen(false)}
       userId={userId}
-      // "Create and Add Models" also passes an `addModels` flag; until the model
-      // picker is built both CTAs just open the new collection.
-      onCreated={id => { refetch(); onOpenBox(id); }}
+      onCreated={(id, addModels) => {
+        refetch();
+        // "Create and Add Models" goes to the picker first; the plain CTA
+        // opens the new collection straight away.
+        if (addModels) setAddModelsBoxId(id);
+        else onOpenBox(id);
+      }}
+    />
+    <AddModelsToCollectionModal
+      boxId={addModelsBoxId}
+      userId={userId}
+      onClose={() => setAddModelsBoxId(null)}
+      onAdded={() => { refetch(); if (addModelsBoxId) onOpenBox(addModelsBoxId); }}
     />
     <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} onChanged={refetch} />
     <CollectionFilterSheet
