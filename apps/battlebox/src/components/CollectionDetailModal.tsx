@@ -153,7 +153,7 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
             {/* Add models — an existing one, or a brand-new one filed straight in. */}
             <div className="flex gap-2">
               <Button
-                variant="outline" color="secondary" size="sm"
+                variant="outline" color="primary" size="sm"
                 leftIcon={<AddCircle className="w-4 h-4" />}
                 className="flex-1 justify-center"
                 onClick={() => setAddExisting(true)}
@@ -161,7 +161,7 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
                 Add Model
               </Button>
               <Button
-                variant="outline" color="secondary" size="sm"
+                variant="outline" color="primary" size="sm"
                 leftIcon={<AddCircle className="w-4 h-4" />}
                 className="flex-1 justify-center"
                 onClick={() => setAddNew(true)}
