@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, Shield, RichTextEditor, ListCheck, Gallery, CloseCircle } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
@@ -16,6 +16,7 @@ import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
   useAdminLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
+  useRecentBookedGames,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
 import type { Location, BattleSuggestion } from '../hooks/useBookingData';
@@ -90,6 +91,7 @@ function NewBookingModal({
   const { games,     loading: gamesLoading }     = useGames();
   const { locations, loading: locationsLoading } = useLocations();
   const { username, preferredLocationId }        = useUserProfile(userId);
+  const { gameIds: recentGameIds }               = useRecentBookedGames(userId, 5);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
   const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
 
@@ -109,6 +111,46 @@ function NewBookingModal({
     if (!locations.some(l => l.id === preferredLocationId)) return;
     setLocationId(preferredLocationId);
   }, [open, locationId, preferredLocationId, locations]);
+
+  // Pre-select the game they last booked, unless they've already picked one.
+  // Guarded on that game still being bookable.
+  useEffect(() => {
+    if (!open || gameId || recentGameIds.length === 0) return;
+    const last = recentGameIds[0];
+    if (!games.some(g => g.id === last)) return;
+    setGameId(last);
+  }, [open, gameId, recentGameIds, games]);
+
+  /**
+   * Their recent games first, then a divider, then everything else A–Z — so the
+   * handful of games someone actually books are always a glance away.
+   */
+  const gameOptions = useMemo(() => {
+    const recent = recentGameIds
+      .map(id => games.find(g => g.id === id))
+      .filter((g): g is NonNullable<typeof g> => Boolean(g));
+    const recentIds = new Set(recent.map(g => g.id));
+    const rest = games
+      .filter(g => !recentIds.has(g.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return [...recent, ...rest].map((g, i) => {
+      const icon = GAME_ICONS[g.slug];
+      return {
+        value: g.id,
+        label: g.name,
+        // First row after the recent block gets the divider.
+        separatorBefore: recent.length > 0 && i === recent.length,
+        icon: (
+          <span className="size-6 rounded overflow-hidden bg-neutral-700 flex items-center justify-center">
+            {icon
+              ? <img src={icon} alt="" className="w-full h-full object-cover" />
+              : <Widget2 className="w-3.5 h-3.5 text-neutral-400" />}
+          </span>
+        ),
+      };
+    });
+  }, [games, recentGameIds]);
 
   // Reset downstream fields when upstream selection changes
   const handleLocationChange = (id: string) => { setLocationId(id); setDate(''); setTimeslotId(''); };
@@ -176,20 +218,7 @@ function NewBookingModal({
           onChange={setGameId}
           disabled={gamesLoading}
           emptyLabel="No games match your search."
-          options={games.map(g => {
-            const icon = GAME_ICONS[g.slug];
-            return {
-              value: g.id,
-              label: g.name,
-              icon: (
-                <span className="size-6 rounded overflow-hidden bg-neutral-700 flex items-center justify-center">
-                  {icon
-                    ? <img src={icon} alt="" className="w-full h-full object-cover" />
-                    : <Widget2 className="w-3.5 h-3.5 text-neutral-400" />}
-                </span>
-              ),
-            };
-          })}
+          options={gameOptions}
         />
 
         <SearchSelect
@@ -868,9 +897,14 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
         />
       )}
       footer={
-        <Button variant="outline" color="primary" className="w-full justify-center" onClick={() => navigate('/app/manage-store')}>
-          Manage Store
-        </Button>
+        <div className="flex gap-3 w-full shrink-0">
+          <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
+            Manage Store
+          </Button>
+          <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
+            Stats
+          </Button>
+        </div>
       }
     />
   );

@@ -16,10 +16,13 @@ export interface AppUpdate {
 export type UpdateApp = 'battlecards' | 'battleplan' | 'battlepack' | 'battlebox';
 
 /**
- * Returns every published update tagged for `app`, newest first.
+ * Returns every published, visible update tagged for `app`, newest first.
  *
  * An update with an empty `apps` array is tagged for no app and never appears —
  * each app only sees updates that explicitly name it.
+ *
+ * `visible` is the admin's show/hide switch, separate from the draft/published
+ * state, so an article can be pulled from the column without being unpublished.
  */
 export function useUpdates(app: UpdateApp) {
   const [updates, setUpdates] = useState<AppUpdate[]>([]);
@@ -33,6 +36,7 @@ export function useUpdates(app: UpdateApp) {
       .from('updates')
       .select('id, title, body, version, published_by_name, published_at')
       .eq('published', true)
+      .eq('visible', true)
       .contains('apps', [app])           // apps @> '{app}' — hits the GIN index
       .order('published_at', { ascending: false, nullsFirst: false })
       .then(({ data }) => {

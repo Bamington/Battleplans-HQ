@@ -37,6 +37,8 @@ interface UpdateRow {
   version:           string | null;
   apps:              string[];
   published:         boolean;
+  /** Show/hide switch, independent of the draft/published state. */
+  visible:           boolean;
   published_by:      string | null;
   published_by_name: string | null;
   published_at:      string | null;
@@ -52,7 +54,7 @@ const ALL_APPS: { value: UpdateApp; label: string }[] = [
 
 const APP_LABEL = Object.fromEntries(ALL_APPS.map(a => [a.value, a.label]));
 
-const EMPTY_FORM = { title: '', body: '', version: '', apps: [] as string[], published: false };
+const EMPTY_FORM = { title: '', body: '', version: '', apps: [] as string[], published: false, visible: true };
 
 interface ManageUpdatesPageProps {
   logo?: React.ReactNode;
@@ -100,7 +102,7 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
     setLoading(true);
     const { data, error } = await supabase
       .from('updates')
-      .select('id, title, body, version, apps, published, published_by, published_by_name, published_at, created_at')
+      .select('id, title, body, version, apps, published, visible, published_by, published_by_name, published_at, created_at')
       .order('created_at', { ascending: false });
     if (error) setError(error.message);
     else setUpdates((data ?? []) as UpdateRow[]);
@@ -138,6 +140,7 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
       version:   u.version ?? '',
       apps:      u.apps ?? [],
       published: u.published,
+      visible:   u.visible ?? true,
     });
     setFormError(null);
     setFormOpen(true);
@@ -162,6 +165,7 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
       version:   form.version.trim() || null,
       apps:      form.apps,
       published: form.published,
+      visible:   form.visible,
     };
 
     // Stamp the byline only on the transition into "published" — never overwrite
@@ -235,6 +239,11 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
                     <Badge color={u.published ? 'success' : 'warning'} size="sm">
                       {u.published ? 'Published' : 'Draft'}
                     </Badge>
+                    {/* Only worth flagging on published posts — a draft is
+                        already hidden regardless. */}
+                    {u.published && !u.visible && (
+                      <Badge color="gray" size="sm">Hidden</Badge>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -347,6 +356,13 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
             }
             checked={form.published}
             onChange={e => setForm(f => ({ ...f, published: e.target.checked }))}
+          />
+
+          <Checkbox
+            label="Visible"
+            helperText="Uncheck to pull this from the in-app News & Updates column without unpublishing it."
+            checked={form.visible}
+            onChange={e => setForm(f => ({ ...f, visible: e.target.checked }))}
           />
 
           {formError && <p className="font-body text-sm text-red-400">{formError}</p>}
