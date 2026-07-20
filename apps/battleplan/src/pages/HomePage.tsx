@@ -19,7 +19,7 @@ import {
   useRecentBookedGames,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { Location, BattleSuggestion } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion, UpcomingBooking } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -312,11 +312,11 @@ function NewBookingModal({
 // rendered height. If you change a row's design, change the constant with it.
 //
 // BookingItem = 2 border + 26 padding (p-[13px]) + max(64 thumbnail, text).
-// Both variants are four lines — heading 24 + muted 20 + date 20 + time 20 = 84
-// — so My Bookings and Upcoming Bookings share a row height.
+// Four lines — heading 24 + muted 20 + date 20 + time 20 = 84.
 const BOOKING_ITEM_H  = 112;
-const UPCOMING_ITEM_H = 112;
-// My Battles scrolls instead of paginating, so it needs no fixed row height.
+// My Battles and the two store booking columns scroll instead of paginating, so
+// they need no fixed row height — the store columns carry group dividers, whose
+// height a single per-row constant couldn't account for.
 // NewsItem = 2 border + 26 padding + title 24 + rule 1 + clamped body 116
 //            (5 lines of SM Regular, measured) + button ~38 + three 6px gaps.
 //            Rounded up: a slightly high value costs a little whitespace, a low
@@ -864,38 +864,135 @@ function formatBookingDate(iso: string): string {
   return `${DAY_NAMES[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
 }
 
-function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]; selectedId: string }) {
-  // selectedId is chosen from the navbar venue picker; '' = all of this admin's
-  // venues, otherwise a single venue.
-  const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
+const TodayIcon = () => (
+  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="10" width="36" height="32" rx="3" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/>
+    <path d="M6 20h36" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M16 6v8M32 6v8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <circle cx="24" cy="31" r="5" fill="currentColor"/>
+  </svg>
+);
 
-  const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
-  const navigate = useNavigate();
+/** 'Monday, 20/07' — the label above a day's bookings. */
+function formatDayDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return `${DAYS[dt.getDay()]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * A booking list flattened into rows, with a divider wherever the group changes.
+ *
+ * These lists scroll rather than paginate: a page size derived from one fixed
+ * row height can't account for dividers, and a date's bookings splitting across
+ * a page boundary would defeat the grouping anyway.
+ */
+type BookingRow =
+  | { kind: 'divider'; key: string; label: string }
+  | { kind: 'booking'; key: string; booking: UpcomingBooking };
+
+/** Assumes `bookings` is already ordered so grouped rows sit together. */
+function groupRows(bookings: UpcomingBooking[], labelOf: (b: UpcomingBooking) => string): BookingRow[] {
+  const rows: BookingRow[] = [];
+  let current: string | null = null;
+  for (const b of bookings) {
+    const label = labelOf(b);
+    if (label !== current) {
+      rows.push({ kind: 'divider', key: `divider:${label}`, label });
+      current = label;
+    }
+    rows.push({ kind: 'booking', key: b.id, booking: b });
+  }
+  return rows;
+}
+
+function BookingDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1.5 first:pt-0">
+      <span className="shrink-0 font-body text-xs uppercase tracking-wider text-neutral-500">{label}</span>
+      <span className="flex-1 border-t border-neutral-700" />
+    </div>
+  );
+}
+
+/** Shared row renderer for both store booking columns. */
+function renderBookingRow(row: BookingRow, onDeleted: () => void) {
+  if (row.kind === 'divider') return <BookingDivider label={row.label} />;
+  const b = row.booking;
+  return (
+    <BookingItem
+      bookingId={b.id}
+      gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
+      gameName={b.game?.name ?? 'No game'}
+      location={b.location.name}
+      date={formatBookingDate(b.date)}
+      time={formatBookingTime(b.timeslot)}
+      customerName={b.user_name ?? undefined}
+      variant="store"
+      onDeleted={onDeleted}
+    />
+  );
+}
+
+interface StoreColumnProps {
+  bookings: UpcomingBooking[];
+  loading:  boolean;
+  refetch:  () => void;
+  /** Today, as YYYY-MM-DD. Passed in so both columns split on the same day. */
+  todayIso: string;
+}
+
+function TodaysBookingsCard({ bookings, loading, refetch, todayIso }: StoreColumnProps) {
+  // Grouped by timeslot, earliest first — the order a venue works through a day.
+  const rows = useMemo(() => {
+    const mine = bookings
+      .filter(b => b.date === todayIso)
+      .sort((a, b) => (a.timeslot.start_time ?? '').localeCompare(b.timeslot.start_time ?? ''));
+    return groupRows(mine, b => `${b.timeslot.name} · ${formatBookingTime(b.timeslot)}`);
+  }, [bookings, todayIso]);
 
   return (
-    <PaginatedColumn
+    <ScrollColumn
+      icon={<TodayIcon />}
+      title="Today's Bookings"
+      description={formatDayDate(todayIso)}
+      items={rows}
+      loading={loading}
+      empty="No bookings today."
+      getKey={r => r.key}
+      renderItem={r => renderBookingRow(r, refetch)}
+    />
+  );
+}
+
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso }: StoreColumnProps) {
+  const navigate = useNavigate();
+
+  // Today's bookings live in their own column, so this starts from tomorrow.
+  //
+  // The hook orders by timeslot_id, which isn't chronological — harmless as a
+  // flat list, but under a date heading an evening slot above an afternoon one
+  // reads as a bug. Sort by date then start time so each day runs in order.
+  const rows = useMemo(() => {
+    const ordered = bookings
+      .filter(b => b.date > todayIso)
+      .sort((a, b) =>
+        a.date.localeCompare(b.date) ||
+        (a.timeslot.start_time ?? '').localeCompare(b.timeslot.start_time ?? ''));
+    return groupRows(ordered, b => formatDayDate(b.date));
+  }, [bookings, todayIso]);
+
+  return (
+    <ScrollColumn
       icon={<CalendarIcon />}
       title="Upcoming Bookings"
-      description="All upcoming table bookings at your venues."
-      items={bookings}
-      itemHeight={UPCOMING_ITEM_H}
+      description="Table bookings from tomorrow onwards."
+      items={rows}
       loading={loading}
       empty="No upcoming bookings."
-      resetPageKey={selectedId}
-      getKey={b => b.id}
-      renderItem={b => (
-        <BookingItem
-          bookingId={b.id}
-          gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-          gameName={b.game?.name ?? 'No game'}
-          location={b.location.name}
-          date={formatBookingDate(b.date)}
-          time={formatBookingTime(b.timeslot)}
-          customerName={b.user_name ?? undefined}
-          variant="store"
-          onDeleted={refetch}
-        />
-      )}
+      getKey={r => r.key}
+      renderItem={r => renderBookingRow(r, refetch)}
       footer={
         <div className="flex gap-3 w-full shrink-0">
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
@@ -907,6 +1004,31 @@ function UpcomingBookingsCard({ locations, selectedId }: { locations: Location[]
         </div>
       }
     />
+  );
+}
+
+/**
+ * The store view's two booking columns. One fetch feeds both, so they can't
+ * disagree and a change refreshes them together.
+ */
+function StoreBookingColumns({ locations, selectedId }: { locations: Location[]; selectedId: string }) {
+  // selectedId is chosen from the navbar venue picker; '' = all of this admin's
+  // venues, otherwise a single venue.
+  const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
+  const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
+
+  // One definition of "today" for both columns, so a booking can never fall
+  // into both (or neither) if the day ticks over between two renders.
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const shared = { bookings, loading, refetch, todayIso };
+
+  return (
+    <>
+      <TodaysBookingsCard   {...shared} />
+      <UpcomingBookingsCard {...shared} />
+    </>
   );
 }
 
@@ -968,7 +1090,7 @@ export default function HomePage() {
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           {viewingStore ? (
-            <UpcomingBookingsCard locations={adminLocations} selectedId={selectedVenueId} />
+            <StoreBookingColumns locations={adminLocations} selectedId={selectedVenueId} />
           ) : (
             <>
               <BookingCard userId={userId} />
