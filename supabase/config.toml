@@ -385,6 +385,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Called by a Postgres trigger on bookings, not by the browser, so there's no
+# user JWT to verify — the function authenticates the caller itself via the
+# BOOKING_WEBHOOK_SECRET shared with the trigger.
+[functions.send-booking-notification]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

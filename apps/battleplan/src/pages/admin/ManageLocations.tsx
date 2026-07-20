@@ -7,12 +7,13 @@ import {
   Dropdown,
   DropdownDivider,
   DropdownItem,
+  Home,
   Input,
   Letter,
   MenuDots,
   Modal,
-  MultiSelectDropdown,
   Pen2,
+  SearchSelect,
   TrashBinMinimalistic,
   UploadMinimalistic,
   UsersGroupRounded,
@@ -23,6 +24,7 @@ import AppNavbar from '../../components/AppNavbar';
 type LocationRow = {
   id: string;
   name: string;
+  address: string;
   icon: string | null;
   store_email: string | null;
   admins: string[] | null;
@@ -36,12 +38,13 @@ type UserRow = {
 
 type LocationFormState = {
   name: string;
+  address: string;    // required — the column is NOT NULL
   icon: string;       // URL or empty string
   store_email: string;
   admins: string[];   // user ids
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', icon: '', store_email: '', admins: [] };
+const EMPTY_FORM: LocationFormState = { name: '', address: '', icon: '', store_email: '', admins: [] };
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -179,7 +182,7 @@ function ManageLocationsInner() {
     setLoading(true);
     const { data, error } = await supabase
       .from('locations')
-      .select('id, name, icon, store_email, admins')
+      .select('id, name, address, icon, store_email, admins')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -195,13 +198,14 @@ function ManageLocationsInner() {
   }
 
   async function handleAdd() {
-    if (!addForm.name.trim()) return;
+    if (!addForm.name.trim() || !addForm.address.trim()) return;
     setAdding(true);
     setAddError(null);
     const { data, error } = await supabase
       .from('locations')
       .insert({
         name: addForm.name.trim(),
+        address: addForm.address.trim(),
         icon: addForm.icon || null,
         store_email: addForm.store_email.trim() || null,
       })
@@ -219,6 +223,7 @@ function ManageLocationsInner() {
     setEditTarget(loc);
     setEditForm({
       name: loc.name,
+      address: loc.address ?? '',
       icon: loc.icon ?? '',
       store_email: loc.store_email ?? '',
       admins: loc.admins ?? [],
@@ -227,11 +232,12 @@ function ManageLocationsInner() {
   }
 
   async function handleSaveEdit() {
-    if (!editTarget || !editForm.name.trim()) return;
+    if (!editTarget || !editForm.name.trim() || !editForm.address.trim()) return;
     setSaving(true);
     setEditError(null);
     const next = {
       name: editForm.name.trim(),
+      address: editForm.address.trim(),
       icon: editForm.icon || null,
       store_email: editForm.store_email.trim() || null,
       admins: editForm.admins,
@@ -314,6 +320,12 @@ function ManageLocationsInner() {
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <p className="font-body text-sm font-medium text-white leading-none">{loc.name}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      {loc.address && (
+                        <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
+                          <Home className="size-3 shrink-0" />
+                          {loc.address}
+                        </span>
+                      )}
                       {loc.store_email && (
                         <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
                           <Letter className="size-3 shrink-0" />
@@ -326,7 +338,7 @@ function ManageLocationsInner() {
                           {loc.admins.length} {loc.admins.length === 1 ? 'admin' : 'admins'}
                         </span>
                       )}
-                      {!loc.store_email && (!loc.admins || loc.admins.length === 0) && (
+                      {!loc.address && !loc.store_email && (!loc.admins || loc.admins.length === 0) && (
                         <span className="font-body text-xs text-neutral-600">No details set</span>
                       )}
                     </div>
@@ -398,6 +410,13 @@ function ManageLocationsInner() {
                 disabled={adding}
               />
               <Input
+                label="Address"
+                value={addForm.address}
+                onChange={e => setAddForm(f => ({ ...f, address: e.target.value }))}
+                placeholder="e.g. 12 Main Street, Werribee VIC"
+                disabled={adding}
+              />
+              <Input
                 label="Store Email"
                 type="email"
                 value={addForm.store_email}
@@ -421,7 +440,7 @@ function ManageLocationsInner() {
             <Button variant="ghost" color="secondary" disabled={adding} onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button color="primary" loading={adding} disabled={!addForm.name.trim()} onClick={handleAdd}>
+            <Button color="primary" loading={adding} disabled={!addForm.name.trim() || !addForm.address.trim()} onClick={handleAdd}>
               Add Location
             </Button>
           </div>
@@ -447,6 +466,12 @@ function ManageLocationsInner() {
                   disabled={saving}
                 />
                 <Input
+                  label="Address"
+                  value={editForm.address}
+                  onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                  disabled={saving}
+                />
+                <Input
                   label="Store Email"
                   type="email"
                   value={editForm.store_email}
@@ -463,20 +488,20 @@ function ManageLocationsInner() {
               disabled={saving}
             />
 
-            {/* Venue admins — MultiSelectDropdown works on labels, so map
-                emails back to user ids on change. */}
+            {/* Venue admins — searchable multi-select, keyed by user id so
+                nothing depends on email strings staying unique. */}
             <div className="flex flex-col gap-1">
               <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Venue Admins</p>
-              <MultiSelectDropdown
-                label=""
+              <SearchSelect
+                multiple
                 placeholder="No venue admins"
+                searchPlaceholder="Search users…"
                 helperText="These users can manage bookings and tables for this venue."
-                options={users.map(u => u.email)}
-                selected={users.filter(u => editForm.admins.includes(u.id)).map(u => u.email)}
-                onChange={emails => {
-                  const ids = users.filter(u => emails.includes(u.email)).map(u => u.id);
-                  setEditForm(f => ({ ...f, admins: ids }));
-                }}
+                emptyLabel="No users match that search."
+                options={users.map(u => ({ value: u.id, label: u.email }))}
+                value={editForm.admins}
+                onChange={ids => setEditForm(f => ({ ...f, admins: ids }))}
+                disabled={saving}
               />
             </div>
 
@@ -486,7 +511,7 @@ function ManageLocationsInner() {
               <Button variant="ghost" color="secondary" disabled={saving} onClick={() => setEditTarget(null)}>
                 Cancel
               </Button>
-              <Button color="primary" loading={saving} disabled={!editForm.name.trim()} onClick={handleSaveEdit}>
+              <Button color="primary" loading={saving} disabled={!editForm.name.trim() || !editForm.address.trim()} onClick={handleSaveEdit}>
                 Save
               </Button>
             </div>

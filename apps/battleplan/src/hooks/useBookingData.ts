@@ -161,6 +161,47 @@ export function useAllGames(userId?: string | null) {
   return { games, loading };
 }
 
+// ── useRecentBookedGames ──────────────────────────────────────────────────────
+// The games this user has booked most recently, newest first and de-duplicated.
+// Drives two things in the New Booking modal: pre-selecting the game they last
+// booked, and floating their recent games to the top of the picker.
+
+/** How much booking history to scan to find `limit` distinct games. */
+const RECENT_SCAN_ROWS = 50;
+
+export function useRecentBookedGames(userId: string | null, limit = 5) {
+  const [gameIds, setGameIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) { setGameIds([]); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    supabase
+      .from('bookings')
+      .select('game_id, date')
+      .eq('user_id', userId)
+      .not('game_id', 'is', null)
+      .order('date', { ascending: false })
+      .limit(RECENT_SCAN_ROWS)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const seen: string[] = [];
+        for (const row of (data as { game_id: string }[] | null) ?? []) {
+          if (!seen.includes(row.game_id)) seen.push(row.game_id);
+          if (seen.length >= limit) break;
+        }
+        setGameIds(seen);
+        setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [userId, limit]);
+
+  return { gameIds, loading };
+}
+
 // ── useLocations ──────────────────────────────────────────────────────────────
 
 export function useLocations() {
