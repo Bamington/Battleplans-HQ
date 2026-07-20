@@ -4,6 +4,7 @@ import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal } from '@battlep
 import Login from './pages/Login.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import HomePage from './pages/HomePage.tsx';
+import CollectionStatsPage from './pages/CollectionStatsPage.tsx';
 import AdminPage from './pages/admin/AdminPage.tsx';
 import ManagePaintPacks from './pages/admin/ManagePaintPacks.tsx';
 import PaintPackEditor from './pages/admin/PaintPackEditor.tsx';
@@ -41,6 +42,7 @@ export default function App() {
           </ProtectedRoute>
         }>
           <Route path="/app" element={<HomePage />} />
+          <Route path="/app/stats" element={<CollectionStatsPage />} />
           <Route path="/app/admin" element={<AdminPage />} />
           <Route path="/app/admin/paint-packs" element={<ManagePaintPacks />} />
           <Route path="/app/admin/paint-packs/:packId" element={<PaintPackEditor />} />
