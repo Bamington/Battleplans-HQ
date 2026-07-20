@@ -15,6 +15,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,9 +68,14 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
 
   if (!open) return null;
 
-  return (
+  // Portalled to <body> so the modal escapes any ancestor that would trap it.
+  // Below lg the builder's side panels are bottom drawers with a `transform`
+  // (which makes them the containing block for `position: fixed` children) plus
+  // `overflow-hidden` — rendering inline left modals clipped inside the drawer.
+  // Sitting on <body> also puts the modal above the drawer's own z-50.
+  const overlay = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -85,6 +91,10 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
         className={[
           'relative z-10 w-full max-w-[90vw]',
           lgMaxW,
+          // Never taller than the viewport — long modals (e.g. paginated skill
+          // pickers) would otherwise run off the top and bottom of a phone
+          // screen, since the overlay centres them. Scroll inside instead.
+          'max-h-[90dvh] overflow-y-auto',
           'bg-gray-800 border border-gray-700 rounded-lg shadow-xl',
           restClass,
         ].filter(Boolean).join(' ')}
@@ -93,6 +103,8 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
       </div>
     </div>
   );
+
+  return createPortal(overlay, document.body);
 };
 
 export default Modal;

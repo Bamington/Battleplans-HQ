@@ -752,6 +752,112 @@ export function deleteBox(boxId: string) {
   return supabase.from('boxes').delete().eq('id', boxId);
 }
 
+// ── Create a model ────────────────────────────────────────────────────────────
+
+export interface NewModelFields {
+  name: string;
+  game_id: string | null;
+  count: number;
+  status: ModelStatus;
+  purchase_date: string | null;
+  painted_date: string | null;
+}
+
+/** Add a model to the user's collection. Photos are added afterwards via the
+ *  model's Edit form, which needs the new row's id. */
+export async function createModel(userId: string, fields: NewModelFields): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase.from('models')
+    .insert({ ...fields, user_id: userId })
+    .select('id').single();
+  return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
+}
+
+export interface BoxOption { id: string; name: string; type: 'Box' | 'Collection'; game_id: string | null }
+
+/** The user's boxes/collections, for the "add to collection" picker. Only
+ *  fetched when `enabled` (the form is showing). */
+export function useUserBoxes(userId: string | null, enabled: boolean): BoxOption[] {
+  const [boxes, setBoxes] = useState<BoxOption[]>([]);
+  useEffect(() => {
+    if (!enabled || !userId) { setBoxes([]); return; }
+    let cancelled = false;
+    supabase.from('boxes').select('id, name, type, game_id').eq('user_id', userId).order('name')
+      .then(({ data }) => { if (!cancelled) setBoxes((data as BoxOption[]) ?? []); });
+    return () => { cancelled = true; };
+  }, [userId, enabled]);
+  return boxes;
+}
+
+/** Put a model in a collection. */
+export function addModelToBox(modelId: string, boxId: string) {
+  return supabase.from('model_boxes').insert({ model_id: modelId, box_id: boxId });
+}
+
+export interface ModelOption {
+  id: string;
+  name: string;
+  status: ModelStatus;
+  count: number;
+  /** Names of the collections this model already belongs to. */
+  collections: string[];
+}
+
+interface ModelOptionRow {
+  id: string;
+  name: string;
+  status: ModelStatus;
+  count: number;
+  model_boxes: { box: { name: string } | { name: string }[] | null }[] | null;
+}
+
+/** The user's models for the "add models" picker, restricted to one game.
+ *  A null gameId (a collection with no game) matches every model. */
+export async function fetchModelsForGame(userId: string, gameId: string | null): Promise<ModelOption[]> {
+  let q = supabase.from('models')
+    .select('id, name, status, count, model_boxes ( box:boxes ( name ) )')
+    .eq('user_id', userId);
+  if (gameId) q = q.eq('game_id', gameId);
+  const { data } = await q.order('name');
+  return ((data as ModelOptionRow[]) ?? []).map(r => ({
+    id: r.id,
+    name: r.name,
+    status: r.status,
+    count: r.count,
+    collections: (r.model_boxes ?? [])
+      .map(mb => (Array.isArray(mb.box) ? mb.box[0] : mb.box))
+      .map(b => b?.name)
+      .filter((n): n is string => !!n),
+  }));
+}
+
+/** Put several models in a collection at once. Existing memberships are left
+ *  alone rather than erroring on the (model_id, box_id) unique index. */
+export async function addModelsToBox(boxId: string, modelIds: string[]): Promise<{ error: string | null }> {
+  if (!modelIds.length) return { error: null };
+  const rows = modelIds.map(id => ({ model_id: id, box_id: boxId }));
+  const { error } = await supabase.from('model_boxes')
+    .upsert(rows, { onConflict: 'model_id,box_id', ignoreDuplicates: true });
+  return { error: error?.message ?? null };
+}
+
+// ── Create a collection ───────────────────────────────────────────────────────
+
+export interface NewBoxFields {
+  name: string;
+  type: 'Box' | 'Collection';
+  game_id: string | null;
+  purchase_date: string | null;
+}
+
+/** Add a box/collection. Photos are added afterwards via its Edit form, which
+ *  needs the new row's id. */
+export async function createBox(userId: string, fields: NewBoxFields): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase.from('boxes')
+    .insert({ ...fields, user_id: userId })
+    .select('id').single();
+  return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
+}
+
 // ── Photo management (model_images / box_images) ───────────────────────────────
 
 /** One editable photo row, resolved to a display URL. */
