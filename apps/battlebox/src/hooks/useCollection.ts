@@ -961,12 +961,23 @@ async function currentUserId(): Promise<string | null> {
   return data.session?.user?.id ?? null;
 }
 
-/** A page of the paint library (public paints + the user's own), name-searched
- *  and optionally filtered to a set of brands. */
-export async function searchPaints(query: string, page: number, brands: string[] = [], excludeIds: number[] = [], pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
-  const uid = await currentUserId();
-  let q = supabase.from('hobby_items').select('id, name, brand, type, swatch', { count: 'exact' });
-  q = uid ? q.or(`public.eq.true,owner.eq.${uid}`) : q.eq('public', true);
+/** Which paints a search covers: the user's collection, or the whole library. */
+export type PaintScope = 'mine' | 'all';
+
+/** A page of paints, name-searched and optionally filtered to a set of brands.
+ *  `scope` picks the source: 'mine' is the user's collection (the user_paints
+ *  view — owned paints plus paints from packs they've added), 'all' is the full
+ *  library (public paints plus the user's own). */
+export async function searchPaints(query: string, page: number, brands: string[] = [], excludeIds: number[] = [], scope: PaintScope = 'all', pageSize = 8): Promise<{ items: PaintOption[]; total: number }> {
+  let q;
+  if (scope === 'mine') {
+    // user_paints is security_invoker and already scoped to the caller.
+    q = supabase.from('user_paints').select('id, name, brand, type, swatch', { count: 'exact' });
+  } else {
+    const uid = await currentUserId();
+    q = supabase.from('hobby_items').select('id, name, brand, type, swatch', { count: 'exact' });
+    q = uid ? q.or(`public.eq.true,owner.eq.${uid}`) : q.eq('public', true);
+  }
   const term = query.trim();
   if (term) q = q.ilike('name', `%${term}%`);
   if (brands.length) q = q.in('brand', brands);

@@ -13,7 +13,7 @@ import {
   searchPaints, createPaint, addModelPaint, useHobbyBrands,
   searchRecipes, createRecipe, addModelRecipe,
 } from '../hooks/useCollection';
-import type { PaintOption, RecipeOption } from '../hooks/useCollection';
+import type { PaintOption, RecipeOption, PaintScope } from '../hooks/useCollection';
 
 type Kind = 'paint' | 'recipe';
 type Step = 'pick' | 'create';
@@ -83,6 +83,9 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
   const [selected, setSelected] = useState<string | number | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Which paints to search (paints only). Default to the user's own collection.
+  const [scope, setScope] = useState<PaintScope>('mine');
+
   // Brand filter (paints only).
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [brandOpen, setBrandOpen] = useState(false);
@@ -100,19 +103,21 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
   useEffect(() => {
     if (!open) return;
     setStep('pick'); setSearch(''); setPage(0); setSelected(null); setSaving(false);
-    setBrandFilter([]); setBrandOpen(false);
+    setScope('mine'); setBrandFilter([]); setBrandOpen(false);
     setName(''); setBrand(''); setType('Paint'); setSwatch('#8a8f98'); setNote(''); setDescription('');
   }, [open, kind]);
 
   const fetchPage = useCallback(async () => {
     if (kind === 'paint') {
-      const { items, total } = await searchPaints(search, page, brandFilter);
+      const { items, total } = await searchPaints(search, page, brandFilter, [], scope);
       setPaints(items); setTotal(total);
     } else {
       const { items, total } = await searchRecipes(search, page);
       setRecipes(items); setTotal(total);
     }
-  }, [kind, search, page, brandFilter]);
+  }, [kind, search, page, brandFilter, scope]);
+
+  const pickScope = (s: PaintScope) => { setScope(s); setPage(0); setSelected(null); };
 
   const toggleBrand = (b: string) => {
     setBrandFilter(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
@@ -198,6 +203,26 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
 
             <div className="flex flex-col gap-2">
               <span className="font-body text-sm font-medium text-white">Add Existing {noun}</span>
+
+              {/* Scope tabs (paints only) — narrow to the user's collection or
+                  browse the whole library. */}
+              {kind === 'paint' && (
+                <div className="flex p-0.5 bg-neutral-800 border border-neutral-700 rounded-lg">
+                  {([['mine', 'My Paints'], ['all', 'All Paints']] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => pickScope(value)}
+                      className={`flex-1 px-3 py-1.5 rounded-md font-body text-sm transition-colors ${
+                        scope === value ? 'bg-primary-600 text-white' : 'text-neutral-300 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <Input
                 size="sm" type="search" className="w-full"
                 placeholder={`Search ${kind === 'paint' ? 'paints' : 'recipes'}…`}
@@ -244,7 +269,10 @@ export function AddPaintRecipeModal({ open, onClose, kind, modelId, onAdded }: {
               <div className="flex flex-col gap-1.5 min-h-[3rem]">
                 {(kind === 'paint' ? paints.length : recipes.length) === 0 ? (
                   <p className="font-body text-sm text-neutral-500 py-3 text-center">
-                    {search ? `No ${kind === 'paint' ? 'paints' : 'recipes'} match.` : `No ${kind === 'paint' ? 'paints' : 'recipes'} yet — create one above.`}
+                    {kind === 'paint' && scope === 'mine'
+                      ? (search ? 'No paints in your collection match.' : 'No paints in your collection — try All Paints, or create one above.')
+                      : search ? `No ${kind === 'paint' ? 'paints' : 'recipes'} match.`
+                      : `No ${kind === 'paint' ? 'paints' : 'recipes'} yet — create one above.`}
                   </p>
                 ) : kind === 'paint' ? (
                   paints.map(p => (
