@@ -19,13 +19,16 @@ const STATUS_LABEL: Record<ModelStatus, string> = {
   'Painted':           'Painted',
 };
 
-export function AddModelsToCollectionModal({ boxId, userId, onClose, onAdded }: {
+export function AddModelsToCollectionModal({ boxId, userId, onClose, onAdded, dismissLabel = 'Skip for now' }: {
   /** The collection to add to; null keeps the modal closed. */
   boxId: string | null;
   userId: string | null;
   onClose: () => void;
   /** Fired once models have been added, so lists can refresh. */
   onAdded: () => void;
+  /** "Skip for now" suits the create-a-collection flow; "Cancel" suits opening
+   *  this from a collection that already exists. */
+  dismissLabel?: string;
 }) {
   const [boxName, setBoxName] = useState('');
   const [models, setModels] = useState<ModelOption[]>([]);
@@ -142,7 +145,7 @@ export function AddModelsToCollectionModal({ boxId, userId, onClose, onAdded }: 
             Add{selected.length ? ` ${selected.length}` : ''} {selected.length === 1 ? 'Model' : 'Models'}
           </Button>
           <Button variant="ghost" color="secondary" className="w-full justify-center" onClick={onClose}>
-            Skip for now
+            {dismissLabel}
           </Button>
         </div>
       </div>
