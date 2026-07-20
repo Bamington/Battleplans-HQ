@@ -1,4 +1,4 @@
-# BattleBox — Claude Instructions
+# BattleBench — Claude Instructions
 
 These rules apply to every command in this project.
 

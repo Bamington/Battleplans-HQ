@@ -1,7 +1,7 @@
 /**
  * filterControls.tsx — Shared building blocks for the filter sheets (models +
  * collections): section headers, collapsible accordions, a date range with
- * presets, toggle chips, and the game multi-select dropdown. All in BattleBox's
+ * presets, toggle chips, and the game multi-select dropdown. All in BattleBench's
  * neutral/amber language.
  */
 

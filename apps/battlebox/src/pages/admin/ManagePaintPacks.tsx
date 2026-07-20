@@ -7,8 +7,8 @@ import { KebabMenu } from '../../components/KebabMenu';
 import { fetchAllPacks, createPaintPack, deletePaintPack, paintPackImageUrl } from '../../hooks/usePaintPacks';
 import type { PaintPack } from '../../hooks/usePaintPacks';
 
-const BattleBoxLogo = () => (
-  <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
+const BattleBenchLogo = () => (
+  <span className="font-heading text-white text-base tracking-wide">BattleBench</span>
 );
 
 const CRUMBS = [
@@ -61,7 +61,7 @@ function ManagePaintPacksInner() {
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">
-      <AppNavbar fixed={false} logo={<BattleBoxLogo />} breadcrumbs={CRUMBS} />
+      <AppNavbar fixed={false} logo={<BattleBenchLogo />} breadcrumbs={CRUMBS} />
 
       <div className="flex-1 flex flex-col items-center p-8 pt-10">
         <div className="w-full max-w-2xl flex flex-col gap-6">

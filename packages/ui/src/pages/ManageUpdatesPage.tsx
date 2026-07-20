@@ -49,7 +49,7 @@ const ALL_APPS: { value: UpdateApp; label: string }[] = [
   { value: 'battlecards', label: 'BattleCards' },
   { value: 'battleplan',  label: 'BattlePlan'  },
   { value: 'battlepack',  label: 'BattlePack'  },
-  { value: 'battlebox',   label: 'BattleBox'   },
+  { value: 'battlebox',   label: 'BattleBench'   },
 ];
 
 const APP_LABEL = Object.fromEntries(ALL_APPS.map(a => [a.value, a.label]));

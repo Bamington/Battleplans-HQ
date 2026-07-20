@@ -34,8 +34,8 @@ export default function App() {
                then gate on the user's platform access level ── */}
         <Route element={
           <ProtectedRoute>
-            <AppAccessRoute appName="BattleBox">
-              <WelcomeModal appName="BattleBox" fields={{ username: true }} />
+            <AppAccessRoute appName="BattleBench">
+              <WelcomeModal appName="BattleBench" fields={{ username: true }} />
               <Outlet />
             </AppAccessRoute>
           </ProtectedRoute>

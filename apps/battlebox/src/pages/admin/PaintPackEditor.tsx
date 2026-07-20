@@ -14,8 +14,8 @@ import type { LibraryPaint } from '../../hooks/usePaintPacks';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-const BattleBoxLogo = () => (
-  <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
+const BattleBenchLogo = () => (
+  <span className="font-heading text-white text-base tracking-wide">BattleBench</span>
 );
 
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -140,7 +140,7 @@ function PaintPackEditorInner() {
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">
-      <AppNavbar fixed={false} logo={<BattleBoxLogo />} breadcrumbs={[
+      <AppNavbar fixed={false} logo={<BattleBenchLogo />} breadcrumbs={[
         { label: 'Home', href: '/app' },
         { label: 'Admin Tools', href: '/app/admin' },
         { label: 'Paint Packs', href: '/app/admin/paint-packs' },
