@@ -31,8 +31,8 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const BattleBoxLogo = () => (
-  <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
+const BattleBenchLogo = () => (
+  <span className="font-heading text-white text-base tracking-wide">BattleBench</span>
 );
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950">
 
-      <AppNavbar fixed={false} logo={<BattleBoxLogo />} />
+      <AppNavbar fixed={false} logo={<BattleBenchLogo />} />
 
       <div className="flex-1 flex flex-col items-center justify-center gap-2.5 p-3">
 
@@ -148,13 +148,13 @@ export default function Login() {
               <form className="w-full md:w-[450px] p-5 flex flex-col gap-4" onSubmit={handleSubmit}>
 
                 <h1 className="font-heading text-white text-[19.8px] leading-7">
-                  {isSignIn ? 'Sign in to BattleBox' : 'Create your account'}
+                  {isSignIn ? 'Sign in to BattleBench' : 'Create your account'}
                 </h1>
 
                 <Input
                   label="Email"
                   type="email"
-                  placeholder="name@battlebox.app"
+                  placeholder="name@battlebench.app"
                   leftIcon={<EmailIcon />}
                   value={email}
                   onChange={e => setEmail(e.target.value)}
@@ -247,7 +247,7 @@ export default function Login() {
         {/* ── Version footer ── */}
         <div className="shrink-0 flex items-center gap-3 font-body font-bold text-xs text-neutral-800 tracking-[1.2px] uppercase">
           <div className="flex items-center gap-1">
-            <span>BattleBox version</span>
+            <span>BattleBench version</span>
             <span>{__APP_VERSION__}</span>
           </div>
           <span>–</span>

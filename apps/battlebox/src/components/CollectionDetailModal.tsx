@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Sheet, Lightbox, UserRounded, Box } from '@battleplans/ui';
+import { Sheet, Lightbox, UserRounded, Box, Button, AddCircle } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { ImageCarousel } from './ImageCarousel';
 import { ModelItem } from './ModelItem';
 import { KebabMenu } from './KebabMenu';
 import { EditCollectionModal } from './EditCollectionModal';
+import { AddModelModal } from './AddModelModal';
+import { AddModelsToCollectionModal } from './AddModelsToCollectionModal';
 import { ConfirmDialog } from './ConfirmDialog';
-import { useBoxDetail, deleteBox } from '../hooks/useCollection';
+import { useBoxDetail, deleteBox, useUserId } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -50,12 +52,23 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
   /** Refresh the collections list after an edit/delete. */
   onChanged?: () => void;
 }) {
+  const userId = useUserId();
   const { box, refetch } = useBoxDetail(boxId);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  useEffect(() => { setLightbox(null); setEditing(false); setConfirmDelete(false); }, [boxId]);
+  /** Pick existing models to add to this collection. */
+  const [addExisting, setAddExisting] = useState(false);
+  /** Create a brand-new model already filed into this collection. */
+  const [addNew, setAddNew] = useState(false);
+  useEffect(() => {
+    setLightbox(null); setEditing(false); setConfirmDelete(false);
+    setAddExisting(false); setAddNew(false);
+  }, [boxId]);
   const iconUrl = box?.game?.slug ? GAME_ICONS[box.game.slug] ?? null : null;
+
+  /** Both add flows change this collection's membership. */
+  const afterAdd = () => { refetch(); onChanged?.(); };
 
   const doDelete = async () => {
     if (boxId) { await deleteBox(boxId); onChanged?.(); onClose(); }
@@ -136,6 +149,28 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
                 </div>
               )
             )}
+
+            {/* Add models — an existing one, or a brand-new one filed straight in.
+                Stacked on narrow screens: side by side, the labels wrap to two
+                lines below ~640px. */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline" color="primary" size="sm"
+                leftIcon={<AddCircle className="w-4 h-4" />}
+                className="flex-1 justify-center"
+                onClick={() => setAddExisting(true)}
+              >
+                Add Existing Model
+              </Button>
+              <Button
+                variant="outline" color="primary" size="sm"
+                leftIcon={<AddCircle className="w-4 h-4" />}
+                className="flex-1 justify-center"
+                onClick={() => setAddNew(true)}
+              >
+                Add New Model
+              </Button>
+            </div>
           </div>
 
           <Lightbox
@@ -151,6 +186,26 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
             boxId={boxId}
             onClose={() => setEditing(false)}
             onChanged={() => { refetch(); onChanged?.(); }}
+          />
+
+          {/* Pick from models that already exist. */}
+          <AddModelsToCollectionModal
+            boxId={addExisting ? boxId : null}
+            userId={userId}
+            onClose={() => setAddExisting(false)}
+            onAdded={afterAdd}
+            dismissLabel="Cancel"
+          />
+
+          {/* Create one from scratch, already filed into this collection. */}
+          <AddModelModal
+            open={addNew}
+            onClose={() => setAddNew(false)}
+            userId={userId}
+            initialGameId={box.gameId}
+            initialBoxId={box.id}
+            initialPurchaseDate={box.purchaseDate}
+            onCreated={afterAdd}
           />
 
           <ConfirmDialog

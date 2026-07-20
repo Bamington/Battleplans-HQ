@@ -52,8 +52,8 @@ const PaintsHeaderIcon = () => (
   </svg>
 );
 
-const BattleBoxLogo = () => (
-  <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
+const BattleBenchLogo = () => (
+  <span className="font-heading text-white text-base tracking-wide">BattleBench</span>
 );
 
 // ── Shared column bits ────────────────────────────────────────────────────────
@@ -390,7 +390,7 @@ export default function HomePage() {
           just below the fold and the columns reclaim its height. */}
       <div className="h-dvh flex flex-col min-h-0">
 
-        <AppNavbar fixed={false} logo={<BattleBoxLogo />} />
+        <AppNavbar fixed={false} logo={<BattleBenchLogo />} />
 
         <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
           <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 pb-2 scroll-px-3 md:scroll-px-9 lg:px-0 lg:pb-0">
@@ -408,7 +408,7 @@ export default function HomePage() {
 
       </div>
 
-      <AppFooter className="shrink-0" appName="BattleBox" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+      <AppFooter className="shrink-0" appName="BattleBench" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
   );

@@ -1,7 +1,7 @@
 import { AdminRoute, AdminToolsPage } from '@battleplans/ui';
 
-const BattleBoxLogo = () => (
-  <span className="font-heading text-white text-base tracking-wide">BattleBox</span>
+const BattleBenchLogo = () => (
+  <span className="font-heading text-white text-base tracking-wide">BattleBench</span>
 );
 
 const LINKS = [
@@ -12,7 +12,7 @@ export default function AdminPage() {
   return (
     <AdminRoute>
       <AdminToolsPage
-        logo={<BattleBoxLogo />}
+        logo={<BattleBenchLogo />}
         description="Manage paint packs and other app-wide settings."
         links={LINKS}
       />

@@ -31,12 +31,19 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
   );
 }
 
-export function AddModelModal({ open, onClose, userId, onCreated }: {
+export function AddModelModal({
+  open, onClose, userId, onCreated,
+  initialGameId = null, initialBoxId = null, initialPurchaseDate = null,
+}: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
   /** Called with the new model's id once it's saved. */
   onCreated: (id: string) => void;
+  /** Prefills, used when adding straight into a collection. */
+  initialGameId?: string | null;
+  initialBoxId?: string | null;
+  initialPurchaseDate?: string | null;
 }) {
   const [name, setName] = useState('');
   const [gameId, setGameId] = useState<string | null>(null);
@@ -48,12 +55,14 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Start from a clean form each time the modal opens.
+  // Start from a clean form each time the modal opens — seeded with whatever
+  // the caller prefilled (e.g. opened from inside a collection).
   useEffect(() => {
     if (!open) return;
-    setName(''); setGameId(null); setCount(1); setStatus('None'); setBoxId(null);
-    setPurchaseDate(null); setPaintedDate(null); setSaving(false); setError(null);
-  }, [open]);
+    setName(''); setCount(1); setStatus('None'); setPaintedDate(null);
+    setGameId(initialGameId); setBoxId(initialBoxId); setPurchaseDate(initialPurchaseDate);
+    setSaving(false); setError(null);
+  }, [open, initialGameId, initialBoxId, initialPurchaseDate]);
 
   if (!open) return null;
 
@@ -111,7 +120,15 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Collection <span className="text-neutral-500 font-normal">(optional)</span></span>
-            <CollectionPicker userId={userId} gameId={gameId} value={boxId} onChange={setBoxId} enabled={open} />
+            <CollectionPicker
+              userId={userId} gameId={gameId} value={boxId} enabled={open}
+              onChange={(id, box) => {
+                setBoxId(id);
+                // A box was bought as one purchase, so its models share that
+                // date. A Collection is just a grouping, so it implies nothing.
+                if (box?.type === 'Box' && box.purchase_date) setPurchaseDate(box.purchase_date);
+              }}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

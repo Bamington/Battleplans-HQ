@@ -600,6 +600,8 @@ export interface BoxDetail {
   name: string;
   type: 'Box' | 'Collection';
   game: CollectionGame | null;
+  /** The game's id, for prefilling forms opened from this collection. */
+  gameId: string | null;
   purchaseDate: string | null;
   includesString: string | null;
   /** How many models are in this collection. */
@@ -626,6 +628,7 @@ interface BoxDetailRow {
   id: string;
   name: string;
   type: 'Box' | 'Collection';
+  game_id: string | null;
   purchase_date: string | null;
   includes_string: string | null;
   image_path: string | null;
@@ -635,7 +638,7 @@ interface BoxDetailRow {
 }
 
 const BOX_DETAIL_SELECT =
-  'id, name, type, purchase_date, includes_string, image_path, game:games ( name, slug ), ' +
+  'id, name, type, game_id, purchase_date, includes_string, image_path, game:games ( name, slug ), ' +
   'box_images ( image_path, image_url, is_primary, display_order ), ' +
   'model_boxes ( model:models ( id, name, status, count, image_path, ' +
     'game:games ( name, slug ), model_images ( image_path, is_primary, display_order ) ) )';
@@ -663,6 +666,7 @@ function mapBoxDetail(r: BoxDetailRow): BoxDetail {
     name: r.name,
     type: r.type,
     game: r.game,
+    gameId: r.game_id,
     purchaseDate: r.purchase_date,
     includesString: r.includes_string,
     modelCount: members.length,
@@ -772,7 +776,13 @@ export async function createModel(userId: string, fields: NewModelFields): Promi
   return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
 }
 
-export interface BoxOption { id: string; name: string; type: 'Box' | 'Collection'; game_id: string | null }
+export interface BoxOption {
+  id: string;
+  name: string;
+  type: 'Box' | 'Collection';
+  game_id: string | null;
+  purchase_date: string | null;
+}
 
 /** The user's boxes/collections, for the "add to collection" picker. Only
  *  fetched when `enabled` (the form is showing). */
@@ -781,7 +791,7 @@ export function useUserBoxes(userId: string | null, enabled: boolean): BoxOption
   useEffect(() => {
     if (!enabled || !userId) { setBoxes([]); return; }
     let cancelled = false;
-    supabase.from('boxes').select('id, name, type, game_id').eq('user_id', userId).order('name')
+    supabase.from('boxes').select('id, name, type, game_id, purchase_date').eq('user_id', userId).order('name')
       .then(({ data }) => { if (!cancelled) setBoxes((data as BoxOption[]) ?? []); });
     return () => { cancelled = true; };
   }, [userId, enabled]);

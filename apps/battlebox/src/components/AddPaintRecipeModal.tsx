@@ -1,7 +1,7 @@
 /**
  * AddPaintRecipeModal.tsx — Add a paint (hobby_item) or recipe to a model.
  *
- * Mirrors BattleCards' Add-Keyword flow in BattleBox's language: a "Create New"
+ * Mirrors BattleCards' Add-Keyword flow in BattleBench's language: a "Create New"
  * button, an OR divider, then an "Add Existing" searchable/paginated list.
  * Portalled above the model sheet (which sits inside a transformed panel).
  */
