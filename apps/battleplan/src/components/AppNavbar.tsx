@@ -15,6 +15,7 @@ const ADMIN: Breadcrumb = { label: 'Admin Tools', href: '/app/admin' };
 
 const CRUMBS: { pattern: string; trail: Breadcrumb[] }[] = [
   { pattern: '/app/stats',           trail: [HOME, { label: 'Battle Stats' }] },
+  { pattern: '/app/store-stats',     trail: [HOME, { label: 'Store Stats' }] },
   { pattern: '/app/manage-store',    trail: [HOME, { label: 'Manage Store' }] },
   { pattern: '/app/admin',           trail: [HOME, { label: 'Admin Tools' }] },
   { pattern: '/app/admin/users',     trail: [HOME, ADMIN, { label: 'Manage Users' }] },
