@@ -134,6 +134,22 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
               )}
             </div>
 
+            {box.includes.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <span className="font-body text-sm text-neutral-400">Includes:</span>
+                {box.includes.map(m => (
+                  <ModelItem key={m.id} model={m} onClick={onOpenModel ? () => onOpenModel(m.id) : undefined} />
+                ))}
+              </div>
+            ) : (
+              box.includesString && (
+                <div className="flex flex-col gap-2">
+                  <span className="font-body text-sm text-neutral-400">Includes:</span>
+                  <p className="font-body text-sm text-white">{box.includesString}</p>
+                </div>
+              )
+            )}
+
             {/* Add models — an existing one, or a brand-new one filed straight in. */}
             <div className="flex gap-2">
               <Button
@@ -153,22 +169,6 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
                 Add New Model
               </Button>
             </div>
-
-            {box.includes.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                <span className="font-body text-sm text-neutral-400">Includes:</span>
-                {box.includes.map(m => (
-                  <ModelItem key={m.id} model={m} onClick={onOpenModel ? () => onOpenModel(m.id) : undefined} />
-                ))}
-              </div>
-            ) : (
-              box.includesString && (
-                <div className="flex flex-col gap-2">
-                  <span className="font-body text-sm text-neutral-400">Includes:</span>
-                  <p className="font-body text-sm text-white">{box.includesString}</p>
-                </div>
-              )
-            )}
           </div>
 
           <Lightbox
