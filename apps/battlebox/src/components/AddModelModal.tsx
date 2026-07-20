@@ -111,7 +111,15 @@ export function AddModelModal({ open, onClose, userId, onCreated }: {
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Collection <span className="text-neutral-500 font-normal">(optional)</span></span>
-            <CollectionPicker userId={userId} gameId={gameId} value={boxId} onChange={setBoxId} enabled={open} />
+            <CollectionPicker
+              userId={userId} gameId={gameId} value={boxId} enabled={open}
+              onChange={(id, box) => {
+                setBoxId(id);
+                // A box was bought as one purchase, so its models share that
+                // date. A Collection is just a grouping, so it implies nothing.
+                if (box?.type === 'Box' && box.purchase_date) setPurchaseDate(box.purchase_date);
+              }}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

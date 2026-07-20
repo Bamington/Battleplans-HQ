@@ -772,7 +772,13 @@ export async function createModel(userId: string, fields: NewModelFields): Promi
   return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
 }
 
-export interface BoxOption { id: string; name: string; type: 'Box' | 'Collection'; game_id: string | null }
+export interface BoxOption {
+  id: string;
+  name: string;
+  type: 'Box' | 'Collection';
+  game_id: string | null;
+  purchase_date: string | null;
+}
 
 /** The user's boxes/collections, for the "add to collection" picker. Only
  *  fetched when `enabled` (the form is showing). */
@@ -781,7 +787,7 @@ export function useUserBoxes(userId: string | null, enabled: boolean): BoxOption
   useEffect(() => {
     if (!enabled || !userId) { setBoxes([]); return; }
     let cancelled = false;
-    supabase.from('boxes').select('id, name, type, game_id').eq('user_id', userId).order('name')
+    supabase.from('boxes').select('id, name, type, game_id, purchase_date').eq('user_id', userId).order('name')
       .then(({ data }) => { if (!cancelled) setBoxes((data as BoxOption[]) ?? []); });
     return () => { cancelled = true; };
   }, [userId, enabled]);

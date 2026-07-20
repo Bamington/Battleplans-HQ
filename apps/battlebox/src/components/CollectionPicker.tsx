@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useUserBoxes } from '../hooks/useCollection';
+import type { BoxOption } from '../hooks/useCollection';
 
 const ChevronIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg viewBox="0 0 16 16" fill="none" className={className}><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -18,7 +19,8 @@ export function CollectionPicker({ userId, gameId, value, onChange, enabled = tr
   /** Restrict the options to this game's collections; null shows them all. */
   gameId: string | null;
   value: string | null;
-  onChange: (id: string | null) => void;
+  /** Receives the full option too, so callers can inherit from it. */
+  onChange: (id: string | null, box: BoxOption | null) => void;
   enabled?: boolean;
 }) {
   const boxes = useUserBoxes(userId, enabled);
@@ -33,11 +35,11 @@ export function CollectionPicker({ userId, gameId, value, onChange, enabled = tr
   // the list has loaded so we never save a mismatched pairing.
   useEffect(() => {
     if (!value || boxes.length === 0) return;
-    if (!forGame.some(b => b.id === value)) onChange(null);
+    if (!forGame.some(b => b.id === value)) onChange(null, null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, boxes.length, value]);
 
-  const pick = (id: string | null) => { onChange(id); setOpen(false); setSearch(''); };
+  const pick = (box: BoxOption | null) => { onChange(box?.id ?? null, box); setOpen(false); setSearch(''); };
 
   return (
     <div>
@@ -80,7 +82,7 @@ export function CollectionPicker({ userId, gameId, value, onChange, enabled = tr
               <button
                 key={b.id}
                 type="button"
-                onClick={() => pick(b.id)}
+                onClick={() => pick(b)}
                 className={`flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors ${b.id === value ? 'bg-primary-950' : 'hover:bg-white/5'}`}
               >
                 <span className="flex-1 font-body text-sm text-white truncate">{b.name}</span>
