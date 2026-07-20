@@ -20,6 +20,7 @@ import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
 import { PaintPackFilterSheet } from '../components/PaintPackFilterSheet';
 import { usePaintPacks, addPaintPack, removePaintPack } from '../hooks/usePaintPacks';
 import type { PaintPack } from '../hooks/usePaintPacks';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import {
   useModels, useBoxes, useMatchingGameIds,
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
@@ -141,7 +142,7 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
 }) {
   const navigate = useNavigate();
   const [view,    setView]    = useState<View>('gallery');
-  const [filters, setFilters] = useState<ModelFilters>(EMPTY_MODEL_FILTERS);
+  const [filters, setFilters] = useLocalStorageState<ModelFilters>('battlebench:models-filters', EMPTY_MODEL_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [search,  setSearch]  = useState('');
@@ -214,7 +215,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   onOpenModel: (id: string) => void;
 }) {
   const [view,    setView]    = useState<View>('list');
-  const [filters, setFilters] = useState<CollectionFilters>(EMPTY_COLLECTION_FILTERS);
+  const [filters, setFilters] = useLocalStorageState<CollectionFilters>('battlebench:collections-filters', EMPTY_COLLECTION_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   /** Set to a new collection's id when the user chose "Create and Add Models". */
