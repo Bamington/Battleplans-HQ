@@ -150,15 +150,17 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
               )
             )}
 
-            {/* Add models — an existing one, or a brand-new one filed straight in. */}
-            <div className="flex gap-2">
+            {/* Add models — an existing one, or a brand-new one filed straight in.
+                Stacked on narrow screens: side by side, the labels wrap to two
+                lines below ~640px. */}
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 variant="outline" color="primary" size="sm"
                 leftIcon={<AddCircle className="w-4 h-4" />}
                 className="flex-1 justify-center"
                 onClick={() => setAddExisting(true)}
               >
-                Add Model
+                Add Existing Model
               </Button>
               <Button
                 variant="outline" color="primary" size="sm"
