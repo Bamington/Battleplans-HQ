@@ -333,7 +333,7 @@ function BookingCard({ userId }: { userId: string | null }) {
     <>
       <PaginatedColumn
         icon={<BoxIcon />}
-        title="My Bookings"
+        title="Your Bookings"
         description="Tables you've booked at your favorite local game stores."
         items={bookings}
         itemHeight={BOOKING_ITEM_H}
@@ -653,7 +653,7 @@ function MyBattlesCard({ userId, refreshSignal = 0 }: { userId: string | null; r
     <>
       <ScrollColumn
         icon={<Shield className="w-12 h-12 text-primary-500" />}
-        title="My Battles"
+        title="Your Battles"
         description="The games you've played, and how they went."
         toggle={{
           value: view,
