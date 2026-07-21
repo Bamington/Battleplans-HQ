@@ -2,6 +2,8 @@
 export { default as AdminRoute } from './components/AdminRoute'
 export { default as ProtectedRoute } from './components/ProtectedRoute'
 export { default as AppAccessRoute } from './components/AppAccessRoute'
+export { default as AuthCallback } from './components/AuthCallback'
+export { default as ResetPassword } from './components/ResetPassword'
 export { default as ImpersonationBanner } from './components/ImpersonationBanner'
 export { default as WelcomeModal, WelcomeModalView, ProfileFields } from './components/WelcomeModal'
 export type { WelcomeModalFields, WelcomeModalViewProps, WelcomeLocation, ProfileFieldsProps } from './components/WelcomeModal'
@@ -190,7 +192,7 @@ export { default as VideocameraBold } from './icons/bold/Videocamera'
 export { default as Widget2Bold } from './icons/bold/Widget2'
 
 // Auth & lib
-export { supabase, redirectTo, appendSessionToUrl, consumeSessionFromUrl } from './lib/supabase'
+export { supabase, authRedirectTo, appendSessionToUrl, consumeSessionFromUrl } from './lib/supabase'
 export { avatarUrl, uploadAvatar } from './lib/avatars'
 export { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from './lib/profileDisplay'
 export type { ProfileDisplay } from './lib/profileDisplay'

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, redirectTo, Input, Button, Checkbox } from '@battleplans/ui';
+import { supabase, authRedirectTo, Input, Button, Checkbox } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 
 declare const __APP_VERSION__: string;
@@ -77,7 +77,13 @@ export default function Login() {
         setLoading(false);
         return;
       }
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        // Without this the confirmation link uses the project's single Site
+        // URL, so signing up here would mail you a link into a different app.
+        options: { emailRedirectTo: authRedirectTo() },
+      });
       setLoading(false);
       if (error) {
         setError(error.message);
@@ -92,7 +98,7 @@ export default function Login() {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: { redirectTo: authRedirectTo() },
     });
     if (error) {
       setError(error.message);
@@ -108,7 +114,9 @@ export default function Login() {
     }
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: authRedirectTo('/auth/reset-password'),
+    });
     setLoading(false);
     if (error) {
       setError(error.message);
