@@ -119,12 +119,22 @@ serve(async (req: Request) => {
   // (not the service role) means an expired or forged token simply fails.
   const asCaller = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: authHeader } },
   });
 
-  const { data: { user }, error: userError } = await asCaller.auth.getUser();
+  // The token has to be passed to getUser() explicitly. Bare getUser() resolves
+  // the caller from the client's own stored session, which is always empty in a
+  // function — it fails identically for a valid and a forged token, so the
+  // mistake is invisible without a real one to test against.
+  const token = authHeader.slice('bearer '.length).trim();
+  const { data: { user }, error: userError } = await asCaller.auth.getUser(token);
   if (userError || !user?.email) {
-    return json(401, { error: 'Not signed in' });
+    console.error('auth-handoff: caller not authenticated', userError);
+    // The reason describes the caller's own token, so it gives nothing away —
+    // and it's the difference between a one-line fix and another round trip.
+    return json(401, {
+      error: 'Not signed in',
+      reason: userError?.message ?? 'user has no email address',
+    });
   }
 
   // generateLink() does not send an email — it returns the token we hand over.
