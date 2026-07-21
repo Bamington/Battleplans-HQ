@@ -40,7 +40,7 @@ export default function App() {
         <Route element={
           <ProtectedRoute>
             <AppAccessRoute appName="BattlePlan">
-              <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true }} />
+              <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true, bookingEmailNote: true }} />
               <Outlet />
             </AppAccessRoute>
           </ProtectedRoute>

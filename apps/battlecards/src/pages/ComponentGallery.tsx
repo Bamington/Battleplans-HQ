@@ -288,6 +288,7 @@ const WelcomeModalGalleryDemo = () => {
   const [username,   setUsername]   = useState('Chris');
   const [locationId, setLocationId] = useState('');
   const [error,      setError]      = useState<string | null>(null);
+  const [avatar,     setAvatar]     = useState<Blob | null | undefined>(undefined);
 
   const MOCK_LOCATIONS = [
     { id: 'loc-1', name: 'Battleground North' },
@@ -310,13 +311,19 @@ const WelcomeModalGalleryDemo = () => {
         BattlePlan variant
       </Button>
       <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-        Blocking in-app; here "Continue" closes it.
+        Blocking in-app; here "Continue" closes it. The picture is optional and
+        never blocks Continue.
+        {avatar instanceof Blob && ` Picked: ${Math.round(avatar.size / 1024)} KB.`}
       </p>
       {variant && (
         <WelcomeModalView
           appName={variant === 'plan' ? 'BattlePlan' : 'BattleCards'}
+          showAvatar
+          avatarInitials="CH"
+          onAvatarChange={setAvatar}
           showUsername
           showPreferredLocation={variant === 'plan'}
+          showBookingEmailNote={variant === 'plan'}
           username={username}
           onUsernameChange={setUsername}
           preferredLocationId={locationId}

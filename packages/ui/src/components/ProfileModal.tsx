@@ -19,8 +19,7 @@ import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import Modal from './Modal';
 import Button from './Button';
-import AvatarPicker from './AvatarPicker';
-import { ProfileFields, type WelcomeLocation } from './WelcomeModal';
+import { ProfileFields, getInitials, type WelcomeLocation } from './WelcomeModal';
 
 interface ProfileModalProps {
   open: boolean;
@@ -32,15 +31,6 @@ interface ProfileModalProps {
    * it was removed). Only fires when the picture actually changed.
    */
   onAvatarSaved?: (url: string | null) => void;
-}
-
-/** Up to two uppercase initials, for the picker's no-picture fallback. */
-function getInitials(name: string, email?: string | null): string {
-  const trimmed = name.trim();
-  if (trimmed) {
-    return trimmed.split(/\s+/).slice(0, 2).map(p => p[0].toUpperCase()).join('');
-  }
-  return email ? email[0].toUpperCase() : '';
 }
 
 type Status = 'loading' | 'ready';
@@ -172,14 +162,12 @@ export default function ProfileModal({ open, onClose, onSaved, onAvatarSaved }: 
             className="flex flex-col gap-4"
             onSubmit={e => { e.preventDefault(); handleSave(); }}
           >
-            <AvatarPicker
-              currentUrl={savedAvatarUrl}
-              initials={getInitials(username, email)}
-              onChange={setPendingAvatar}
-              disabled={saving}
-            />
-
             <ProfileFields
+              showAvatar
+              avatarUrl={savedAvatarUrl}
+              avatarInitials={getInitials(username, email)}
+              onAvatarChange={setPendingAvatar}
+              disabled={saving}
               showUsername
               showPreferredLocation={showLocation}
               username={username}
