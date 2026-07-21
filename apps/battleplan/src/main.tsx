@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { consumeSessionFromUrl, setCurrentApp } from '@battleplans/ui';
+import { consumeSessionFromUrl, setCurrentApp, initNativeAuth } from '@battleplans/ui';
 import './index.css';
 import App from './App.tsx';
 
@@ -13,6 +13,10 @@ setCurrentApp('battleplan');
 if (import.meta.env.DEV) {
   document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.setAttribute('href', '/favicon-dev.svg');
 }
+
+// Catch auth deep links coming back from the system browser. Registered before
+// render so a link that launched the app cold isn't missed. No-op on web.
+initNativeAuth();
 
 // Restore a session handed off from another Battleplans app (via URL hash)
 // before rendering, so the app boots already logged in.

@@ -245,6 +245,8 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
     <nav
       className={[
         'w-full z-30 bg-gray-900 border-b border-gray-700 shrink-0',
+        // Clears the status bar / notch in a native shell; 0px everywhere else.
+        'pt-safe pl-safe pr-safe',
         fixed ? 'fixed top-0 left-0' : 'relative',
         className,
       ].join(' ')}

@@ -1,7 +1,7 @@
 {
   "name": "@battleplans/battleplan",
   "private": true,
-  "version": "2.10.0",
+  "version": "2.11.0",
   "type": "module",
   "engines": {
     "node": "22.x"
@@ -10,11 +10,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "pnpm build && cap sync",
+    "cap:open:android": "cap open android"
   },
   "dependencies": {
     "@battleplans/ui": "workspace:*",
     "@capacitor/android": "^8.2.0",
+    "@capacitor/app": "^8.0.3",
     "@capacitor/browser": "^8.0.3",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",

@@ -10,16 +10,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BattleCards</title>
 
-    <!-- Space Grotesk (body) — Google Fonts -->
+    <!--
+      Space Grotesk and Tanker are now bundled as @font-face in
+      packages/ui/src/index.css — requesting them here too would just download
+      the same faces twice.
+
+      Noto Sans stays on Google Fonts: it's used only by the Blood Bowl and Star
+      Player card templates, which need its 'CTGR'/'wdth' variation axes. Worth
+      bundling as well if BattleCards ever ships a native build, since a card
+      would otherwise render in a fallback face when offline.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500&display=swap"
       rel="stylesheet"
     />
-
-    <!-- Tanker (headings) — Fontshare (not available on Google Fonts) -->
-    <link href="https://api.fontshare.com/v2/css?f=tanker@400" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
