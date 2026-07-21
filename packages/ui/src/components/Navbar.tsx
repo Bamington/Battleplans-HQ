@@ -27,6 +27,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { supabase, appendSessionToUrl } from '../lib/supabase';
 import { avatarUrl } from '../lib/avatars';
+import { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from '../lib/profileDisplay';
 import logotype from '../assets/battlecards-logotype-svg.svg';
 import Button from './Button';
 import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropdown';
@@ -190,8 +191,9 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
   const isAdmin = effectiveRole === 'admin';
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState<string | null>(null);
-  const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
+  // Shared so the onboarding modal — a sibling in the tree, not a child — can
+  // update the name and picture the moment it saves.
+  const { username, avatarUrl: avatarSrc } = useProfileDisplay();
   const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -207,8 +209,10 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
           .select('username, avatar_path')
           .eq('id', u.id)
           .single();
-        setUsername(data?.username ?? null);
-        setAvatarSrc(avatarUrl(data?.avatar_path));
+        publishProfileDisplay({
+          username: data?.username ?? null,
+          avatarUrl: avatarUrl(data?.avatar_path),
+        });
       }
       setLoading(false);
     });
@@ -219,7 +223,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (!u) { setUsername(null); setAvatarSrc(null); }
+      if (!u) clearProfileDisplay();
     });
 
     return () => subscription.unsubscribe();
@@ -414,11 +418,10 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
 
       </div>
     </nav>
+    {/* No callbacks needed — ProfileModal publishes to the shared store. */}
     <ProfileModal
       open={profileOpen}
       onClose={() => setProfileOpen(false)}
-      onSaved={setUsername}
-      onAvatarSaved={setAvatarSrc}
     />
     <ImpersonationBanner />
     </>

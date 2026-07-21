@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
+import { publishProfileDisplay } from '../lib/profileDisplay';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileFields, getInitials, type WelcomeLocation } from './WelcomeModal';
@@ -26,16 +27,11 @@ interface ProfileModalProps {
   onClose: () => void;
   /** Called with the saved username after a successful save (before close). */
   onSaved?: (username: string) => void;
-  /**
-   * Called after a successful save with the new avatar's public URL (or null if
-   * it was removed). Only fires when the picture actually changed.
-   */
-  onAvatarSaved?: (url: string | null) => void;
 }
 
 type Status = 'loading' | 'ready';
 
-export default function ProfileModal({ open, onClose, onSaved, onAvatarSaved }: ProfileModalProps) {
+export default function ProfileModal({ open, onClose, onSaved }: ProfileModalProps) {
   const [status,              setStatus]              = useState<Status>('loading');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
@@ -115,7 +111,8 @@ export default function ProfileModal({ open, onClose, onSaved, onAvatarSaved }: 
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
     // row first could leave avatar_path pointing at an object that never landed.
-    let newAvatarUrl: string | null = null;
+    // Untouched → keep whatever was already saved.
+    let newAvatarUrl: string | null = savedAvatarUrl;
     if (pendingAvatar instanceof Blob) {
       try {
         update.avatar_path = await uploadAvatar(userId, pendingAvatar);
@@ -127,6 +124,7 @@ export default function ProfileModal({ open, onClose, onSaved, onAvatarSaved }: 
       }
     } else if (pendingAvatar === null) {
       update.avatar_path = null;
+      newAvatarUrl = null;
     }
 
     const { error: saveError } = await supabase
@@ -136,8 +134,8 @@ export default function ProfileModal({ open, onClose, onSaved, onAvatarSaved }: 
 
     setSaving(false);
     if (saveError) { setError(saveError.message); return; }
+    publishProfileDisplay({ username: trimmed, avatarUrl: newAvatarUrl });
     onSaved?.(trimmed);
-    if (pendingAvatar !== undefined) onAvatarSaved?.(newAvatarUrl);
     onClose();
   }
 

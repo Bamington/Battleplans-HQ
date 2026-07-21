@@ -27,6 +27,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
+import { publishProfileDisplay } from '../lib/profileDisplay';
 import Modal from './Modal';
 import Input from './Input';
 import Select from './Select';
@@ -335,9 +336,12 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
     // row first could leave avatar_path pointing at an object that never landed.
+    // Untouched → keep whatever was already saved.
+    let newAvatarUrl: string | null = savedAvatarUrl;
     if (pendingAvatar instanceof Blob) {
       try {
         update.avatar_path = await uploadAvatar(userId, pendingAvatar);
+        newAvatarUrl = avatarUrl(update.avatar_path);
       } catch (err) {
         setSaving(false);
         setError(err instanceof Error ? err.message : 'Could not upload that picture.');
@@ -345,6 +349,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       }
     } else if (pendingAvatar === null) {
       update.avatar_path = null;
+      newAvatarUrl = null;
     }
 
     const { error: saveError } = await supabase
@@ -354,6 +359,10 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
     setSaving(false);
     if (saveError) { setError(saveError.message); return; }
+    // The Navbar is a sibling of this modal, so it can't be reached by a prop —
+    // publishing is what makes the new name and picture appear straight away
+    // instead of only after the next page load.
+    publishProfileDisplay({ username: trimmedUsername || null, avatarUrl: newAvatarUrl });
     setStatus('done');
   }
 

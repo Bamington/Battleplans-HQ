@@ -192,6 +192,8 @@ export { default as Widget2Bold } from './icons/bold/Widget2'
 // Auth & lib
 export { supabase, redirectTo, appendSessionToUrl, consumeSessionFromUrl } from './lib/supabase'
 export { avatarUrl, uploadAvatar } from './lib/avatars'
+export { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from './lib/profileDisplay'
+export type { ProfileDisplay } from './lib/profileDisplay'
 export { setCurrentApp, getCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {
