@@ -42,17 +42,30 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // some other site's page. Local dev ports are allowed so the switcher works
 // against `pnpm dev`.
 
-const ALLOWED_ORIGINS = [
-  'https://battleplan.app',
-  'https://battlecards.app',
-  'https://battlebench.app',
+// Bare hosts. Each apex 308-redirects to its www subdomain, so `www` is the
+// origin real users actually call from — both spellings are accepted rather
+// than betting on which one a given entry point lands on.
+const ALLOWED_HOSTS = [
+  'battleplan.app',
+  'battlecards.app',
+  'battlebench.app',
 ];
 
 /** True for our own apps, any of their Vercel deployments, and localhost dev. */
 function isAllowedOrigin(origin: string): boolean {
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return true;
-  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.protocol === 'https:') {
+    if (ALLOWED_HOSTS.includes(url.hostname.replace(/^www\./, ''))) return true;
+    if (/^[a-z0-9-]+\.vercel\.app$/.test(url.hostname)) return true;
+  }
+  if (url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')) {
+    return true;
+  }
   return false;
 }
 
