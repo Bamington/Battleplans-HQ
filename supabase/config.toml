@@ -156,11 +156,29 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://localhost:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# Each app sends users back to its own origin, so every app has to be listed or
+# Auth silently falls back to site_url and drops people into the wrong app.
+# The hosted project keeps its own copy of this list in the dashboard — this one
+# only covers `supabase start`.
+additional_redirect_urls = [
+  "http://localhost:5173/**",
+  "http://localhost:5174/**",
+  "http://localhost:5175/**",
+  # Each apex 308-redirects to www, so www is what window.location.origin
+  # actually reports and what has to be allow-listed. Apex is kept for the
+  # case where someone reaches an app before the redirect.
+  "https://www.battleplan.app/**",
+  "https://www.battlecards.app/**",
+  "https://www.battlebench.app/**",
+  "https://battleplan.app/**",
+  "https://battlecards.app/**",
+  "https://battlebench.app/**",
+  "com.bamington.battlecards://**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -389,6 +407,12 @@ deno_version = 2
 # user JWT to verify — the function authenticates the caller itself via the
 # BOOKING_WEBHOOK_SECRET shared with the trigger.
 [functions.send-booking-notification]
+verify_jwt = false
+
+# auth-handoff checks the caller's access token itself, and needs to answer the
+# browser's CORS preflight — which carries no Authorization header and would be
+# rejected before reaching the function if the gateway verified the JWT.
+[functions.auth-handoff]
 verify_jwt = false
 
 [analytics]

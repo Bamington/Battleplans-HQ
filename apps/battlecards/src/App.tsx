@@ -40,7 +40,6 @@ import CardBuilderGod from './pages/CardBuilderGod';
 import PrintDeck from './pages/PrintDeck';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
-import AuthCallback from './pages/AuthCallback';
 import PacksPlaceholder from './pages/PacksPlaceholder';
 import PackEditor from './pages/PackEditor';
 import AdminTools from './pages/AdminTools';
@@ -48,7 +47,7 @@ import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
 import ManagePacks from './pages/ManagePacks';
 import ManageUpdates from './pages/ManageUpdates';
-import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal } from '@battleplans/ui';
+import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -88,6 +87,9 @@ function App() {
 
         {/* ── OAuth callback — handles Google redirect ── */}
         <Route path="/auth/callback" element={<AuthCallback />} />
+
+        {/* ── Password reset — where the "lost password" email lands ── */}
+        <Route path="/auth/reset-password" element={<ResetPassword className="bg-gray-950" />} />
 
         {/* ── Component Gallery (dev tool) ── */}
         <Route path="/gallery" element={<ComponentGallery />} />
