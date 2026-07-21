@@ -4,6 +4,7 @@
  * Opened from the avatar dropdown in the navbar. Lets a signed-in user edit the
  * same details captured during onboarding, using the shared `ProfileFields`:
  *
+ *   • Profile picture    — always editable.
  *   • Username           — always editable.
  *   • Preferred location — shown only if the user has ever picked one (i.e. the
  *     stored preferred_location_id is set). BattleCards-only users who never
@@ -15,9 +16,11 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { avatarUrl, uploadAvatar } from '../lib/avatars';
+import { publishProfileDisplay } from '../lib/profileDisplay';
 import Modal from './Modal';
 import Button from './Button';
-import { ProfileFields, type WelcomeLocation } from './WelcomeModal';
+import { ProfileFields, getInitials, type WelcomeLocation } from './WelcomeModal';
 
 interface ProfileModalProps {
   open: boolean;
@@ -32,9 +35,13 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
   const [status,              setStatus]              = useState<Status>('loading');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
+  const [email,               setEmail]               = useState<string | null>(null);
   const [showLocation,        setShowLocation]        = useState(false);
   const [preferredLocationId, setPreferredLocationId] = useState('');
   const [locations,           setLocations]           = useState<WelcomeLocation[]>([]);
+  const [savedAvatarUrl,      setSavedAvatarUrl]      = useState<string | null>(null);
+  // undefined = untouched, Blob = new picture to upload, null = remove.
+  const [pendingAvatar,       setPendingAvatar]       = useState<Blob | null | undefined>(undefined);
   const [saving,              setSaving]              = useState(false);
   const [error,               setError]               = useState<string | null>(null);
 
@@ -51,13 +58,14 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, preferred_location_id')
+        .select('username, preferred_location_id, avatar_path')
         .eq('id', user.id)
         .single();
       if (cancelled) return;
 
       const hasLocation = !!profile?.preferred_location_id;
       setUserId(user.id);
+      setEmail(user.email ?? null);
       // Fall back to the Google name if a username was somehow never saved.
       const googleName =
         (user.user_metadata?.full_name as string | undefined) ??
@@ -65,6 +73,8 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       setUsername(profile?.username ?? googleName ?? '');
       setShowLocation(hasLocation);
       setPreferredLocationId(profile?.preferred_location_id ?? '');
+      setSavedAvatarUrl(avatarUrl(profile?.avatar_path));
+      setPendingAvatar(undefined);
 
       if (hasLocation) {
         const { data: locs } = await supabase
@@ -92,8 +102,30 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
     }
 
     setSaving(true);
-    const update: { username: string; preferred_location_id?: string } = { username: trimmed };
+    const update: {
+      username: string;
+      preferred_location_id?: string;
+      avatar_path?: string | null;
+    } = { username: trimmed };
     if (showLocation) update.preferred_location_id = preferredLocationId;
+
+    // Upload first: if storage fails there's nothing to undo, whereas saving the
+    // row first could leave avatar_path pointing at an object that never landed.
+    // Untouched → keep whatever was already saved.
+    let newAvatarUrl: string | null = savedAvatarUrl;
+    if (pendingAvatar instanceof Blob) {
+      try {
+        update.avatar_path = await uploadAvatar(userId, pendingAvatar);
+        newAvatarUrl = avatarUrl(update.avatar_path);
+      } catch (err) {
+        setSaving(false);
+        setError(err instanceof Error ? err.message : 'Could not upload that picture.');
+        return;
+      }
+    } else if (pendingAvatar === null) {
+      update.avatar_path = null;
+      newAvatarUrl = null;
+    }
 
     const { error: saveError } = await supabase
       .from('user_profiles')
@@ -102,6 +134,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
     setSaving(false);
     if (saveError) { setError(saveError.message); return; }
+    publishProfileDisplay({ username: trimmed, avatarUrl: newAvatarUrl });
     onSaved?.(trimmed);
     onClose();
   }
@@ -128,6 +161,11 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
             onSubmit={e => { e.preventDefault(); handleSave(); }}
           >
             <ProfileFields
+              showAvatar
+              avatarUrl={savedAvatarUrl}
+              avatarInitials={getInitials(username, email)}
+              onAvatarChange={setPendingAvatar}
+              disabled={saving}
               showUsername
               showPreferredLocation={showLocation}
               username={username}

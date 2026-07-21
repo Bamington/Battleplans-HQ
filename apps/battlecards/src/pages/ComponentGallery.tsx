@@ -22,7 +22,7 @@ import { Sidebar, SidebarItem } from '@battleplans/ui';
 import { AppFooter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
 import { Badge } from '@battleplans/ui';
-import { Avatar, AvatarGroup } from '@battleplans/ui';
+import { Avatar, AvatarGroup, AvatarPicker } from '@battleplans/ui';
 import { Card, CardImage, CardBody } from '@battleplans/ui';
 import { Dropdown, DropdownItem, DropdownDivider, DropdownHeader } from '@battleplans/ui';
 import { Input } from '@battleplans/ui';
@@ -288,6 +288,7 @@ const WelcomeModalGalleryDemo = () => {
   const [username,   setUsername]   = useState('Chris');
   const [locationId, setLocationId] = useState('');
   const [error,      setError]      = useState<string | null>(null);
+  const [avatar,     setAvatar]     = useState<Blob | null | undefined>(undefined);
 
   const MOCK_LOCATIONS = [
     { id: 'loc-1', name: 'Battleground North' },
@@ -310,13 +311,19 @@ const WelcomeModalGalleryDemo = () => {
         BattlePlan variant
       </Button>
       <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-        Blocking in-app; here "Continue" closes it.
+        Blocking in-app; here "Continue" closes it. The picture is optional and
+        never blocks Continue.
+        {avatar instanceof Blob && ` Picked: ${Math.round(avatar.size / 1024)} KB.`}
       </p>
       {variant && (
         <WelcomeModalView
           appName={variant === 'plan' ? 'BattlePlan' : 'BattleCards'}
+          showAvatar
+          avatarInitials="CH"
+          onAvatarChange={setAvatar}
           showUsername
           showPreferredLocation={variant === 'plan'}
+          showBookingEmailNote={variant === 'plan'}
           username={username}
           onUsernameChange={setUsername}
           preferredLocationId={locationId}
@@ -599,6 +606,8 @@ const ComponentGallery = () => {
   const [counterError,   setCounterError]   = useState(0);
   const [multiSelected,  setMultiSelected]  = useState<string[]>([]);
   const [multiSelected2, setMultiSelected2] = useState<string[]>([]);
+  // AvatarPicker demo: undefined = untouched, Blob = cropped, null = removed.
+  const [pickedAvatar,   setPickedAvatar]   = useState<Blob | null | undefined>(undefined);
   const [modalOpen,          setModalOpen]          = useState(false);
   const [uploadPhotoOpen,    setUploadPhotoOpen]    = useState(false);
   const [addonModalOpen,     setAddonModalOpen]     = useState(false);
@@ -1552,6 +1561,51 @@ const ComponentGallery = () => {
               <Avatar initials="CM" color="danger"   bordered />
             </AvatarGroup>
           </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          AVATAR PICKER — Profile picture chooser
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="AvatarPicker">
+        <div className="flex flex-col gap-6">
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              Empty — falls back to initials. Picking a file opens the crop dialog.
+            </p>
+            <AvatarPicker
+              initials="JL"
+              onChange={blob => setPickedAvatar(blob)}
+            />
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              With an existing picture — gains a Remove action
+            </p>
+            <AvatarPicker
+              currentUrl={heroImage}
+              initials="JL"
+              onChange={blob => setPickedAvatar(blob)}
+            />
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              Disabled (parent form is saving)
+            </p>
+            <AvatarPicker initials="JL" onChange={() => {}} disabled />
+          </div>
+
+          <Text variant="paragraph" size="sm">
+            Last onChange: {pickedAvatar === undefined
+              ? 'untouched'
+              : pickedAvatar === null
+                ? 'removed'
+                : `${Math.round(pickedAvatar.size / 1024)} KB JPEG`}
+          </Text>
 
         </div>
       </GallerySection>

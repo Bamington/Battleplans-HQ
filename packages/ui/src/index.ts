@@ -19,6 +19,8 @@ export type { AdminToolLink, AdminToolsPageProps } from './pages/AdminToolsPage'
 export { default as ManageUsersPage } from './pages/ManageUsersPage'
 export { default as ManageUpdatesPage } from './pages/ManageUpdatesPage'
 export { default as Avatar, AvatarGroup } from './components/Avatar'
+export { default as AvatarPicker } from './components/AvatarPicker'
+export type { AvatarPickerProps } from './components/AvatarPicker'
 export { default as Badge } from './components/Badge'
 export type { BadgeColor } from './components/Badge'
 export { default as Banner } from './components/Banner'
@@ -189,6 +191,9 @@ export { default as Widget2Bold } from './icons/bold/Widget2'
 
 // Auth & lib
 export { supabase, redirectTo, appendSessionToUrl, consumeSessionFromUrl } from './lib/supabase'
+export { avatarUrl, uploadAvatar } from './lib/avatars'
+export { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from './lib/profileDisplay'
+export type { ProfileDisplay } from './lib/profileDisplay'
 export { setCurrentApp, getCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {

@@ -26,6 +26,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { supabase, appendSessionToUrl } from '../lib/supabase';
+import { avatarUrl } from '../lib/avatars';
+import { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from '../lib/profileDisplay';
 import logotype from '../assets/battlecards-logotype-svg.svg';
 import Button from './Button';
 import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropdown';
@@ -189,7 +191,9 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
   const isAdmin = effectiveRole === 'admin';
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState<string | null>(null);
+  // Shared so the onboarding modal — a sibling in the tree, not a child — can
+  // update the name and picture the moment it saves.
+  const { username, avatarUrl: avatarSrc } = useProfileDisplay();
   const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -202,10 +206,13 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
       if (u) {
         const { data } = await supabase
           .from('user_profiles')
-          .select('username')
+          .select('username, avatar_path')
           .eq('id', u.id)
           .single();
-        setUsername(data?.username ?? null);
+        publishProfileDisplay({
+          username: data?.username ?? null,
+          avatarUrl: avatarUrl(data?.avatar_path),
+        });
       }
       setLoading(false);
     });
@@ -216,7 +223,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (!u) setUsername(null);
+      if (!u) clearProfileDisplay();
     });
 
     return () => subscription.unsubscribe();
@@ -322,12 +329,20 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                                hover:bg-primary-950 hover:border-primary-900
                                transition-colors cursor-pointer"
                   >
-                    {/* Avatar circle */}
-                    <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-primary-900 flex items-center justify-center">
-                      <span className="font-body font-bold text-xs text-gray-300 uppercase tracking-[1.2px] leading-4">
-                        {initials}
-                      </span>
-                    </div>
+                    {/* Avatar circle — profile picture, else initials */}
+                    {avatarSrc ? (
+                      <img
+                        src={avatarSrc}
+                        alt={displayName ?? 'Your profile picture'}
+                        className="shrink-0 w-[22px] h-[22px] rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-primary-900 flex items-center justify-center">
+                        <span className="font-body font-bold text-xs text-gray-300 uppercase tracking-[1.2px] leading-4">
+                          {initials}
+                        </span>
+                      </div>
+                    )}
                   </button>
                 }
               >
@@ -403,10 +418,10 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
 
       </div>
     </nav>
+    {/* No callbacks needed — ProfileModal publishes to the shared store. */}
     <ProfileModal
       open={profileOpen}
       onClose={() => setProfileOpen(false)}
-      onSaved={setUsername}
     />
     <ImpersonationBanner />
     </>
