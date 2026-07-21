@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, authRedirectTo, Input, Button, Checkbox } from '@battleplans/ui';
+import { supabase, authRedirectTo, signInWithProvider, Input, Button, Checkbox } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 
 declare const __APP_VERSION__: string;
@@ -96,14 +96,14 @@ export default function Login() {
   async function handleGoogleSignIn() {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: authRedirectTo() },
-    });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    }
+    // Routes itself per platform: a redirect on web, the system browser on
+    // native — Google refuses to render its consent screen in a WebView.
+    const { error } = await signInWithProvider('google');
+    if (error) setError(error.message);
+    // Cleared unconditionally: on native this resolves once the system browser
+    // is showing, and if the user backs out of it they return to a live button
+    // rather than one stuck disabled. On web the page is already leaving.
+    setLoading(false);
   }
 
   async function handleForgotPassword(e: React.MouseEvent) {

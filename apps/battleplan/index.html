@@ -3,19 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      viewport-fit=cover lets the page draw under the status bar and home
+      indicator, which is what makes env(safe-area-inset-*) report real values.
+      The pt-safe / pl-safe utilities in packages/ui then pad content back out.
+      Without this opt-in the insets are always 0px and the app renders letterboxed
+      inside a native shell.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>BattlePlan</title>
 
-    <!-- Space Grotesk (body) — Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-
-    <!-- Tanker (headings) — Fontshare -->
-    <link href="https://api.fontshare.com/v2/css?f=tanker@400" rel="stylesheet" />
+    <!--
+      Space Grotesk and Tanker are bundled as @font-face in packages/ui/src/index.css
+      rather than fetched from Google Fonts / Fontshare, so the app renders correctly
+      offline and inside a native WebView. Don't reintroduce CDN <link> tags here —
+      they'd download the same faces a second time.
+    -->
   </head>
   <body>
     <div id="root"></div>

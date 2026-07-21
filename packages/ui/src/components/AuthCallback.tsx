@@ -66,6 +66,16 @@ export default function AuthCallback({ className = 'bg-gray-950', redirectTo = '
       navigate(to, { replace: true });
     };
 
+    // A session can already be in place by the time this mounts — on native the
+    // deep-link handler does the code exchange itself, and on web a fast
+    // detectSessionInUrl can beat the first render. Either way the auth event
+    // has been and gone, so waiting only for the next one would stall until the
+    // timeout. Recovery is unaffected: those links route straight to
+    // /auth/reset-password and never reach this screen.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) finish(redirectTo);
+    });
+
     // PASSWORD_RECOVERY arrives with the session when the user followed a reset
     // link, which is the only reliable way to tell the two apart — the URL has
     // usually been scrubbed by the client before this component mounts.
