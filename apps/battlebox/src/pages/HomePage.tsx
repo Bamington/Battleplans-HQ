@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
   ScrollColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
@@ -19,6 +20,7 @@ import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
 import { PaintPackFilterSheet } from '../components/PaintPackFilterSheet';
 import { usePaintPacks, addPaintPack, removePaintPack } from '../hooks/usePaintPacks';
 import type { PaintPack } from '../hooks/usePaintPacks';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import {
   useModels, useBoxes, useMatchingGameIds,
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
@@ -54,6 +56,13 @@ const PaintsHeaderIcon = () => (
 
 const BattleBenchLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattleBench</span>
+);
+
+const ChartIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M2.5 13.5V2.5M2.5 13.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <path d="M5.5 13.5V9M8.5 13.5V6M11.5 13.5V4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+  </svg>
 );
 
 // ── Shared column bits ────────────────────────────────────────────────────────
@@ -131,8 +140,9 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
   onCloseModel: () => void;
   onOpenBox: (id: string) => void;
 }) {
+  const navigate = useNavigate();
   const [view,    setView]    = useState<View>('gallery');
-  const [filters, setFilters] = useState<ModelFilters>(EMPTY_MODEL_FILTERS);
+  const [filters, setFilters] = useLocalStorageState<ModelFilters>('battlebench:models-filters', EMPTY_MODEL_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [search,  setSearch]  = useState('');
@@ -165,7 +175,16 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       renderItem={m => (gallery
         ? <ModelGridItem model={m} onClick={() => onOpenModel(m.id)} />
         : <ModelItem     model={m} onClick={() => onOpenModel(m.id)} />)}
-      footer={<AddButton label="Add Model" onClick={() => setAddOpen(true)} />}
+      footer={
+        <div className="flex gap-2 w-full shrink-0">
+          <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="flex-1 justify-center" onClick={() => setAddOpen(true)}>
+            Add Model
+          </Button>
+          <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/stats')}>
+            Stats
+          </Button>
+        </div>
+      }
     />
     <AddModelModal
       open={addOpen}
@@ -196,7 +215,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   onOpenModel: (id: string) => void;
 }) {
   const [view,    setView]    = useState<View>('list');
-  const [filters, setFilters] = useState<CollectionFilters>(EMPTY_COLLECTION_FILTERS);
+  const [filters, setFilters] = useLocalStorageState<CollectionFilters>('battlebench:collections-filters', EMPTY_COLLECTION_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   /** Set to a new collection's id when the user chose "Create and Add Models". */
