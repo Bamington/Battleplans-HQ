@@ -25,7 +25,7 @@ import FriendProfileModal from './FriendProfileModal';
 import UserHandUp from '../icons/UserHandUp';
 import MenuDots from '../icons/MenuDots';
 import AddCircle from '../icons/AddCircle';
-import ArrowRight from '../icons/ArrowRight';
+import CheckCircle from '../icons/CheckCircle';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
@@ -41,7 +41,10 @@ function CardAvatar({ url, handle }: { url: string | null; handle: string }) {
   );
 }
 
-const CARD = 'bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 shadow-md overflow-hidden w-full';
+/* Gap is deliberately not baked in — two classes setting `gap` on one element
+   resolve by stylesheet order, not the order written here, so each card sets
+   its own. All three currently use gap-3 (12px) so adjacent cards line up. */
+const CARD = 'bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-3 shadow-md overflow-hidden w-full';
 
 // ── Request card ─────────────────────────────────────────────────────────────
 
@@ -55,20 +58,20 @@ function RequestCard({
   return (
     <div className={`${CARD} items-start`}>
       <CardAvatar url={request.avatarUrl} handle={request.handle} />
-      {/* Button sits BELOW the handle rather than beside it: side by side, a
-          long handle was truncated to a few characters — and the handle is the
-          only thing identifying who is asking. */}
-      <div className="flex flex-col flex-1 min-w-0 gap-2 justify-center">
+      {/* Back beside the handle now the button is icon-only — at that width it
+          no longer squeezes the handle down to a few characters. */}
+      <div className="flex flex-1 min-w-0 gap-2 items-center justify-between self-stretch">
         <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
         <Button
           variant="outline"
           color="primary"
-          rightIcon={<ArrowRight className="w-4 h-4" />}
+          size="sm"
+          aria-label={`Accept friend request from @${request.handle}`}
           disabled={busy}
           onClick={onAccept}
-          className="self-start"
+          className="shrink-0"
         >
-          Accept
+          <CheckCircle className="w-4 h-4" />
         </Button>
       </div>
     </div>
