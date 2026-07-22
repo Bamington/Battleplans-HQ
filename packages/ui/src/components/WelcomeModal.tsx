@@ -28,6 +28,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import { publishProfileDisplay } from '../lib/profileDisplay';
+import { normaliseHandle, validateHandle, describeProfileSaveError } from '../lib/handles';
+import { useHandleAvailability } from '../hooks/useHandleAvailability';
 import Modal from './Modal';
 import Input from './Input';
 import Select from './Select';
@@ -80,6 +82,14 @@ export interface ProfileFieldsProps {
   showPreferredLocation: boolean;
   username: string;
   onUsernameChange: (value: string) => void;
+  /** Show the unique @handle field. */
+  showHandle?: boolean;
+  handle?: string;
+  onHandleChange?: (value: string) => void;
+  /** The handle already saved — used to skip the check when it's unchanged. */
+  originalHandle?: string | null;
+  /** Signed-in user's id, so their own handle isn't reported as taken. */
+  selfId?: string | null;
   preferredLocationId: string;
   onPreferredLocationChange: (value: string) => void;
   locations: WelcomeLocation[];
@@ -97,12 +107,19 @@ export function ProfileFields({
   showPreferredLocation,
   username,
   onUsernameChange,
+  showHandle = false,
+  handle = '',
+  onHandleChange,
+  originalHandle,
+  selfId,
   preferredLocationId,
   onPreferredLocationChange,
   locations,
   error,
   disabled = false,
 }: ProfileFieldsProps) {
+  const availability = useHandleAvailability(handle, selfId ?? null, originalHandle);
+
   return (
     <>
       {showAvatar && onAvatarChange && (
@@ -122,6 +139,31 @@ export function ProfileFields({
           onChange={e => onUsernameChange(e.target.value)}
           state={error ? 'error' : 'default'}
           required
+          disabled={disabled}
+        />
+      )}
+
+      {showHandle && onHandleChange && (
+        <Input
+          label="Handle"
+          placeholder="your-handle"
+          // Input is coerced to the legal alphabet as it's typed. Length is not
+          // padded, so a too-short value still needs validateHandle on save.
+          value={handle}
+          onChange={e => onHandleChange(normaliseHandle(e.target.value))}
+          leftIcon={<span className="font-body text-sm text-gray-500">@</span>}
+          state={
+            availability.status === 'invalid' || availability.status === 'taken' ? 'error'
+            : availability.status === 'available' ? 'success'
+            : error ? 'error'
+            : 'default'
+          }
+          helperText={
+            availability.message
+            ?? 'This is how friends find you. Letters, numbers, - and _.'
+          }
+          required
+          disabled={disabled}
         />
       )}
 
@@ -158,6 +200,11 @@ export interface WelcomeModalViewProps {
   showBookingEmailNote?: boolean;
   username: string;
   onUsernameChange: (value: string) => void;
+  showHandle?: boolean;
+  handle?: string;
+  onHandleChange?: (value: string) => void;
+  originalHandle?: string | null;
+  selfId?: string | null;
   preferredLocationId: string;
   onPreferredLocationChange: (value: string) => void;
   locations: WelcomeLocation[];
@@ -177,6 +224,11 @@ export function WelcomeModalView({
   showBookingEmailNote = false,
   username,
   onUsernameChange,
+  showHandle,
+  handle,
+  onHandleChange,
+  originalHandle,
+  selfId,
   preferredLocationId,
   onPreferredLocationChange,
   locations,
@@ -196,7 +248,7 @@ export function WelcomeModalView({
             Welcome to {appName}
           </h1>
           <p className="font-body text-base text-gray-300 leading-6">
-            Other users will see your Username and Profile Picture.
+            Other users will see your Username, Handle and Profile Picture.
           </p>
           {showBookingEmailNote && (
             <p className="font-body text-base text-gray-300 leading-6">
@@ -214,6 +266,11 @@ export function WelcomeModalView({
           showPreferredLocation={showPreferredLocation}
           username={username}
           onUsernameChange={onUsernameChange}
+          showHandle={showHandle}
+          handle={handle}
+          onHandleChange={onHandleChange}
+          originalHandle={originalHandle}
+          selfId={selfId}
           preferredLocationId={preferredLocationId}
           onPreferredLocationChange={onPreferredLocationChange}
           locations={locations}
@@ -248,6 +305,8 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
   const [status,              setStatus]              = useState<Status>('loading');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
+  const [handle,              setHandle]              = useState('');
+  const [originalHandle,      setOriginalHandle]      = useState<string | null>(null);
   const [email,               setEmail]               = useState<string | null>(null);
   const [preferredLocationId, setPreferredLocationId] = useState('');
   const [locations,           setLocations]           = useState<WelcomeLocation[]>([]);
@@ -267,7 +326,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, preferred_location_id, avatar_path')
+        .select('username, handle, preferred_location_id, avatar_path')
         .eq('id', user.id)
         .single();
 
@@ -276,8 +335,10 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       const existingUsername = profile?.username ?? '';
       const existingLocation = profile?.preferred_location_id ?? '';
 
-      // The picture is deliberately absent from this check — it's optional, so
-      // a missing one must never keep the blocking modal on screen.
+      // Neither the picture nor the handle gates this modal. The picture is
+      // optional, and the handle is auto-assigned at signup — so both are
+      // offered for editing here, but a blocking modal must never hinge on
+      // something the user already has or may not want.
       const missing =
         (wantUsername && !existingUsername) ||
         (wantLocation && !existingLocation);
@@ -287,6 +348,8 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       setUserId(user.id);
       setEmail(user.email ?? null);
       setSavedAvatarUrl(avatarUrl(profile?.avatar_path));
+      setHandle(profile?.handle ?? '');
+      setOriginalHandle(profile?.handle ?? null);
       // Prefill the username from any value already saved, else the Google
       // display name as an editable starting point.
       const googleName =
@@ -324,14 +387,18 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       setError('Please select a preferred location.');
       return;
     }
+    const handleError = validateHandle(handle);
+    if (handleError) { setError(handleError); return; }
 
     setSaving(true);
     const update: {
       username?: string;
+      handle?: string;
       preferred_location_id?: string;
       avatar_path?: string | null;
     } = {};
     if (wantUsername) update.username = trimmedUsername;
+    if (handle !== originalHandle) update.handle = handle;
     if (wantLocation) update.preferred_location_id = preferredLocationId;
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
@@ -358,7 +425,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       .eq('id', userId);
 
     setSaving(false);
-    if (saveError) { setError(saveError.message); return; }
+    if (saveError) { setError(describeProfileSaveError(saveError)); return; }
     // The Navbar is a sibling of this modal, so it can't be reached by a prop —
     // publishing is what makes the new name and picture appear straight away
     // instead of only after the next page load.
@@ -380,6 +447,11 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       showBookingEmailNote={wantEmailNote}
       username={username}
       onUsernameChange={setUsername}
+      showHandle
+      handle={handle}
+      onHandleChange={setHandle}
+      originalHandle={originalHandle}
+      selfId={userId}
       preferredLocationId={preferredLocationId}
       onPreferredLocationChange={setPreferredLocationId}
       locations={locations}

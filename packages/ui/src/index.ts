@@ -197,6 +197,16 @@ export { initNativeAuth, signInWithProvider } from './lib/nativeAuth'
 export { avatarUrl, uploadAvatar } from './lib/avatars'
 export { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from './lib/profileDisplay'
 export type { ProfileDisplay } from './lib/profileDisplay'
+export {
+  HANDLE_PATTERN,
+  HANDLE_MAX_LENGTH,
+  normaliseHandle,
+  validateHandle,
+  isHandleAvailable,
+  describeProfileSaveError,
+} from './lib/handles'
+export { useHandleAvailability } from './hooks/useHandleAvailability'
+export type { HandleStatus, HandleAvailability } from './hooks/useHandleAvailability'
 export { setCurrentApp, getCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {

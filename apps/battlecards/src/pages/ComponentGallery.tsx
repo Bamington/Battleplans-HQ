@@ -289,6 +289,7 @@ const WelcomeModalGalleryDemo = () => {
   const [locationId, setLocationId] = useState('');
   const [error,      setError]      = useState<string | null>(null);
   const [avatar,     setAvatar]     = useState<Blob | null | undefined>(undefined);
+  const [handle,     setHandle]     = useState('');
 
   const MOCK_LOCATIONS = [
     { id: 'loc-1', name: 'Battleground North' },
@@ -324,6 +325,9 @@ const WelcomeModalGalleryDemo = () => {
           showUsername
           showPreferredLocation={variant === 'plan'}
           showBookingEmailNote={variant === 'plan'}
+          showHandle
+          handle={handle}
+          onHandleChange={setHandle}
           username={username}
           onUsernameChange={setUsername}
           preferredLocationId={locationId}
@@ -348,6 +352,7 @@ const WelcomeModalGalleryDemo = () => {
 const ProfileModalGalleryDemo = () => {
   const [variant,    setVariant]    = useState<null | 'username' | 'full'>(null);
   const [username,   setUsername]   = useState('Chris');
+  const [handle,     setHandle]     = useState('chris-h');
   const [locationId, setLocationId] = useState('loc-1');
   const [error,      setError]      = useState<string | null>(null);
 
@@ -382,6 +387,9 @@ const ProfileModalGalleryDemo = () => {
                 showPreferredLocation={variant === 'full'}
                 username={username}
                 onUsernameChange={setUsername}
+                showHandle
+                handle={handle}
+                onHandleChange={setHandle}
                 preferredLocationId={locationId}
                 onPreferredLocationChange={setLocationId}
                 locations={MOCK_LOCATIONS}

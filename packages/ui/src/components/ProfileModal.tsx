@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import { publishProfileDisplay } from '../lib/profileDisplay';
+import { validateHandle, describeProfileSaveError } from '../lib/handles';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileFields, getInitials, type WelcomeLocation } from './WelcomeModal';
@@ -35,6 +36,8 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
   const [status,              setStatus]              = useState<Status>('loading');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
+  const [handle,              setHandle]              = useState('');
+  const [originalHandle,      setOriginalHandle]      = useState<string | null>(null);
   const [email,               setEmail]               = useState<string | null>(null);
   const [showLocation,        setShowLocation]        = useState(false);
   const [preferredLocationId, setPreferredLocationId] = useState('');
@@ -58,7 +61,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, preferred_location_id, avatar_path')
+        .select('username, handle, preferred_location_id, avatar_path')
         .eq('id', user.id)
         .single();
       if (cancelled) return;
@@ -71,6 +74,8 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
         (user.user_metadata?.full_name as string | undefined) ??
         (user.user_metadata?.name as string | undefined) ?? '';
       setUsername(profile?.username ?? googleName ?? '');
+      setHandle(profile?.handle ?? '');
+      setOriginalHandle(profile?.handle ?? null);
       setShowLocation(hasLocation);
       setPreferredLocationId(profile?.preferred_location_id ?? '');
       setSavedAvatarUrl(avatarUrl(profile?.avatar_path));
@@ -100,13 +105,17 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       setError('Please select a preferred location.');
       return;
     }
+    const handleError = validateHandle(handle);
+    if (handleError) { setError(handleError); return; }
 
     setSaving(true);
     const update: {
       username: string;
+      handle?: string;
       preferred_location_id?: string;
       avatar_path?: string | null;
     } = { username: trimmed };
+    if (handle !== originalHandle) update.handle = handle;
     if (showLocation) update.preferred_location_id = preferredLocationId;
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
@@ -133,7 +142,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       .eq('id', userId);
 
     setSaving(false);
-    if (saveError) { setError(saveError.message); return; }
+    if (saveError) { setError(describeProfileSaveError(saveError)); return; }
     publishProfileDisplay({ username: trimmed, avatarUrl: newAvatarUrl });
     onSaved?.(trimmed);
     onClose();
@@ -166,6 +175,11 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
               avatarInitials={getInitials(username, email)}
               onAvatarChange={setPendingAvatar}
               disabled={saving}
+              showHandle
+              handle={handle}
+              onHandleChange={setHandle}
+              originalHandle={originalHandle}
+              selfId={userId}
               showUsername
               showPreferredLocation={showLocation}
               username={username}
