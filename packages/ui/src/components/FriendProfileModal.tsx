@@ -54,7 +54,9 @@ export default function FriendProfileModal({
       <div className="p-5 flex flex-col gap-3 items-start">
 
         <div className="flex items-center justify-center w-full">
-          <div className="w-[120px] h-[120px] rounded-full overflow-hidden bg-neutral-700 flex items-center justify-center shrink-0">
+          {/* Square, like every other avatar surface — the cropper frames a
+              square, so a circle here would hide corners the user kept. */}
+          <div className="w-[120px] h-[120px] rounded-lg overflow-hidden bg-neutral-700 flex items-center justify-center shrink-0">
             {avatarUrl
               ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
               : <UserRounded className="w-14 h-14 text-neutral-400" />}
