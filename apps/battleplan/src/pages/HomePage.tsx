@@ -1096,11 +1096,12 @@ export default function HomePage() {
               <BookingCard userId={userId} />
               <SuggestedBattlesCard userId={userId} onLogged={() => setBattlesVersion(v => v + 1)} />
               <MyBattlesCard userId={userId} refreshSignal={battlesVersion} />
+              {/* Personal, so it belongs with the other personal columns — a
+                  store admin sees it under "Your Profile", not while they have
+                  a venue selected. */}
+              <FriendsColumn />
             </>
           )}
-          {/* Friends are personal, not venue-specific, so this sits outside the
-              store-admin branch — same treatment as News & Updates. */}
-          <FriendsColumn />
           <NewsCard />
         </div>
       </main>

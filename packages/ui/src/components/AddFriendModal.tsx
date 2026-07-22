@@ -66,20 +66,21 @@ export default function AddFriendModal({
 
   return (
     <Modal open onClose={busy ? () => {} : onClose} className="max-w-md">
+      {/* p-5 / gap-4 and the heading+blurb pair match ProfileModal and
+          WelcomeModal, so all three dialogs sit on the same rhythm. */}
       <form
-        className="p-5 flex flex-col gap-3 items-end"
+        className="p-5 flex flex-col gap-4"
         onSubmit={e => { e.preventDefault(); handleSubmit(); }}
       >
-        <div className="w-full flex flex-col">
+        <div className="flex flex-col gap-1">
           <h2 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
             Add Friends
           </h2>
+          <p className="font-body text-base text-gray-300 leading-6">
+            You can add a friend by sending them an Email invitation, or by entering
+            their BattlePlan username.
+          </p>
         </div>
-
-        <p className="font-body text-base text-gray-300 leading-6 w-full">
-          You can add a friend by sending them an Email invitation, or by entering
-          their BattlePlan username.
-        </p>
 
         <Input
           label="Friend’s Email Address"
@@ -88,7 +89,6 @@ export default function AddFriendModal({
           value={email}
           onChange={e => setEmail(e.target.value)}
           disabled={!onInvite || busy}
-          className="w-full"
           helperText={
             onInvite
               ? 'We’ll send them an invite on Battleplan if they have an account. If not, they’ll receive an Email invitation.'
@@ -96,17 +96,19 @@ export default function AddFriendModal({
           }
         />
 
-        <HR variant="text" label="OR" className="w-full" />
+        <HR variant="text" label="OR" spacing="none" />
 
         <Input
           label="Friend’s BattlePlan Username"
-          placeholder="e.g. @captainamerica"
+          placeholder="e.g. captainamerica"
           value={handle}
           // Coerced to the legal alphabet as it's typed, so a pasted "@name"
           // becomes "name" rather than failing validation for the leading @.
           onChange={e => setHandle(normaliseHandle(e.target.value))}
+          // The @ is shown rather than typed — normaliseHandle strips it anyway,
+          // so a user who types one would watch it vanish.
+          leftIcon={<span className="font-body text-sm text-neutral-400">@</span>}
           disabled={busy}
-          className="w-full"
           state={error ? 'error' : 'default'}
           // The error REPLACES the hint rather than appearing under it. Input
           // colours helperText from `state`, so keeping both would render two
@@ -114,7 +116,7 @@ export default function AddFriendModal({
           helperText={error ?? 'They’ll see the invitation on their BattlePlan dashboard.'}
         />
 
-        <div className="flex gap-3 items-center justify-end w-full">
+        <div className="flex gap-3 items-center justify-end">
           <Button type="button" variant="ghost" color="danger" disabled={busy} onClick={onClose}>
             Cancel
           </Button>

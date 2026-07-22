@@ -47,6 +47,14 @@ function CardAvatar({ url, handle }: { url: string | null; handle: string }) {
    its own. All three currently use gap-3 (12px) so adjacent cards line up. */
 const CARD = 'bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-3 shadow-md overflow-hidden w-full';
 
+/** Day/month/year, matching how dates read elsewhere in BattlePlan. */
+function formatSentDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 // ── Request card ─────────────────────────────────────────────────────────────
 
 function RequestCard({
@@ -114,6 +122,9 @@ function PendingCard({
       <CardAvatar url={request.avatarUrl} handle={request.handle} />
       <div className="flex flex-col flex-1 min-w-0 justify-center">
         <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
+        <p className="font-body font-bold text-sm leading-5 text-neutral-300 opacity-50 truncate">
+          Sent {formatSentDate(request.createdAt)}
+        </p>
       </div>
       <Dropdown
         align="right"
@@ -225,7 +236,12 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
           description="Users who you’ve connected with on Battleplan. Invite them to your games!"
         />
 
-        <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col gap-3">
+        {/* Outer box scrolls; the inner list stays content-sized. Collapsing
+            these into one scrolling flex column shrinks cards that clip their
+            own overflow — the same trap ScrollColumn documents. Gap matches
+            DEFAULT_LIST so this column sits flush with the others. */}
+        <div className="w-full flex-1 min-h-0 overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
           {loading ? (
             <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
           ) : (
@@ -235,7 +251,7 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
                   repeating it in the column just says the same thing twice. */}
               {incoming.length > 0 && (
                 <>
-                  <HR variant="text" label="Friend Requests" />
+                  <HR variant="text" label="Friend Requests" spacing="none" />
                   {incoming.map(r => (
                     <RequestCard
                       key={r.friendshipId}
@@ -252,7 +268,7 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
                   because they're actionable, then ones waiting on them. */}
               {outgoing.length > 0 && (
                 <>
-                  <HR variant="text" label="Pending Friend Requests" />
+                  <HR variant="text" label="Pending Friend Requests" spacing="none" />
                   {outgoing.map(r => (
                     <PendingCard
                       key={r.friendshipId}
@@ -266,7 +282,7 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
 
               {friends.length > 0 && (
                 <>
-                  <HR variant="text" label="Your Friends" />
+                  <HR variant="text" label="Your Friends" spacing="none" />
                   {friends.map(f => (
                     <FriendCard
                       key={f.friendshipId}
@@ -286,23 +302,23 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
               )}
             </>
           )}
+          </div>
         </div>
 
-        <div className="flex gap-3 items-center w-full">
-          <Button
-            variant="outline"
-            color="primary"
-            className="flex-1"
-            leftIcon={<AddCircle className="w-4 h-4" />}
-            onClick={() => {
-              if (onAddFriends) { onAddFriends(); return; }
-              clearError();
-              setAddOpen(true);
-            }}
-          >
-            Add Friends
-          </Button>
-        </div>
+        {/* Same footer shape as the other columns' single-action buttons. */}
+        <Button
+          variant="outline"
+          color="primary"
+          className="w-full justify-center shrink-0"
+          leftIcon={<AddCircle className="w-4 h-4" />}
+          onClick={() => {
+            if (onAddFriends) { onAddFriends(); return; }
+            clearError();
+            setAddOpen(true);
+          }}
+        >
+          Add Friends
+        </Button>
       </ColumnShell>
 
       {/* Both dialogs share this column's hook, so accepting or auto-accepting
@@ -344,9 +360,8 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
               Decline friend request
             </h2>
             <p className="font-body text-base text-gray-300 leading-6">
-              Decline the request from @{pendingDecline?.handle}? They won’t be told,
-              and they won’t be able to ask again — though you can still add them
-              yourself later.
+              Decline the request from @{pendingDecline?.handle}? They won’t be able
+              to ask again — though you can still add them yourself later.
             </p>
           </div>
           <div className="flex gap-3">
