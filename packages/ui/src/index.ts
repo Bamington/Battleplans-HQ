@@ -207,6 +207,19 @@ export {
 } from './lib/handles'
 export { useHandleAvailability } from './hooks/useHandleAvailability'
 export type { HandleStatus, HandleAvailability } from './hooks/useHandleAvailability'
+export {
+  listFriends,
+  listFriendRequests,
+  findProfileByHandle,
+  sendFriendRequest,
+  respondToFriendRequest,
+  removeFriendship,
+  blockUser,
+  unblockUser,
+} from './lib/friends'
+export type { Friend, FriendRequest, PublicProfile } from './lib/friends'
+export { useFriends } from './hooks/useFriends'
+export type { UseFriends } from './hooks/useFriends'
 export { setCurrentApp, getCurrentApp, useCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {
