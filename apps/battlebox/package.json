@@ -1,8 +1,10 @@
 {
   "name": "@battleplans/battlebox",
   "private": true,
-  "version": "0.15.1",
+  "version": "0.15.2",
   "type": "module",
+  "main": "./src/App.tsx",
+  "types": "./src/App.tsx",
   "engines": {
     "node": "22.x"
   },

@@ -18,7 +18,7 @@
  */
 
 import { usePlatformApps } from '../hooks/usePlatformApps';
-import { getCurrentApp } from '../lib/currentApp';
+import { useCurrentApp } from '../lib/currentApp';
 import { appendSessionToUrl } from '../lib/supabase';
 import Button from './Button';
 import ImpersonationBanner from './ImpersonationBanner';
@@ -32,6 +32,8 @@ interface Props {
 
 export default function AppAccessRoute({ children, appName }: Props) {
   const { apps, loading, hasAccess } = usePlatformApps();
+  // Read before the early returns — hooks can't be called conditionally.
+  const slug = useCurrentApp();
 
   if (loading) {
     return (
@@ -43,7 +45,7 @@ export default function AppAccessRoute({ children, appName }: Props) {
 
   if (hasAccess) return <>{children}</>;
 
-  const name = appName ?? getCurrentApp() ?? 'This app';
+  const name = appName ?? slug ?? 'This app';
   const elsewhere = apps.filter((a) => a.href !== '#' && !a.active);
 
   return (

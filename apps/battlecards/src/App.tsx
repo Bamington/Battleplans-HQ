@@ -98,6 +98,23 @@ function App() {
              The first guard redirects unauthenticated users to /login; the
              second checks their platform access level covers this app. Every
              /app route lives inside them. ── */}
+        {appRoutes()}
+
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+/**
+ * The app's own screens, as a route subtree.
+ *
+ * Exported so the native BattlePlan HQ shell can mount it alongside the other
+ * apps' subtrees. HQ shows one app at a time, so these paths don't need
+ * prefixing — `/app` means whichever app is currently mounted. Public routes
+ * (/login, /auth/*, /gallery) stay out: HQ owns one copy for all three apps.
+ */
+export function appRoutes() {
+  return (
         <Route element={
           <ProtectedRoute>
             <AppAccessRoute appName="BattleCards">
@@ -143,9 +160,6 @@ function App() {
           <Route path="/app/print" element={<PrintDeck />} />
 
         </Route>
-
-      </Routes>
-    </BrowserRouter>
   );
 }
 

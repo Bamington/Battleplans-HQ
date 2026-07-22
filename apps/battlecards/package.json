@@ -1,8 +1,10 @@
 {
   "name": "@battleplans/battlecards",
   "private": true,
-  "version": "0.26.1",
+  "version": "0.26.2",
   "type": "module",
+  "main": "./src/App.tsx",
+  "types": "./src/App.tsx",
   "engines": {
     "node": "22.x"
   },

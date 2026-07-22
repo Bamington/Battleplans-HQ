@@ -25,7 +25,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
 import { supabase, appendSessionToUrl } from '../lib/supabase';
+import { setCurrentApp, type AppSlug } from '../lib/currentApp';
 import { avatarUrl } from '../lib/avatars';
 import { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from '../lib/profileDisplay';
 import logotype from '../assets/battlecards-logotype-svg.svg';
@@ -185,6 +187,24 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
   const navigate = useNavigate();
   const { apps: accessibleApps } = usePlatformApps();
   const apps = appsOverride ?? accessibleApps;
+
+  /**
+   * Move the user to another Battleplans app.
+   *
+   * On the web the apps are separate origins, so this is a real navigation and
+   * the session has to travel with it. Natively they're all the same binary
+   * inside BattlePlan HQ — switching origin there would walk the user out of
+   * the app and into a browser, which is exactly what HQ exists to stop. So
+   * native swaps the mounted app instead and the session simply stays put.
+   */
+  async function switchToApp(app: AppEntry): Promise<void> {
+    if (Capacitor.isNativePlatform() && app.slug) {
+      setCurrentApp(app.slug as AppSlug);
+      navigate('/app');
+      return;
+    }
+    window.location.href = await appendSessionToUrl(app.href);
+  }
   // realRole gates the "view as" controls; isAdmin follows the previewed role,
   // so Admin Tools correctly disappears while impersonating.
   const { realRole, effectiveRole, isImpersonating } = useEffectiveRole();
@@ -286,7 +306,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                     ? undefined
                     : app.active
                       ? () => navigate('/app')
-                      : async () => { window.location.href = await appendSessionToUrl(app.href); }
+                      : () => switchToApp(app)
                 }
                 className={app.active ? 'opacity-100' : ''}
               >
