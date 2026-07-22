@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--
+      viewport-fit=cover lets the page draw under the status bar and home
+      indicator, which is what makes env(safe-area-inset-*) report real values.
+      The pt-safe / pl-safe utilities in packages/ui then pad content back out.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>BattlePlan HQ</title>
+
+    <!--
+      Space Grotesk and Tanker are bundled as @font-face in
+      packages/ui/src/index.css. Don't reintroduce CDN <link> tags here — they'd
+      download the same faces a second time, and break text rendering offline.
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

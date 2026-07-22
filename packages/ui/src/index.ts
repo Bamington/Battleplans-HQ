@@ -207,7 +207,7 @@ export {
 } from './lib/handles'
 export { useHandleAvailability } from './hooks/useHandleAvailability'
 export type { HandleStatus, HandleAvailability } from './hooks/useHandleAvailability'
-export { setCurrentApp, getCurrentApp } from './lib/currentApp'
+export { setCurrentApp, getCurrentApp, useCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {
   getImpersonatedRole,

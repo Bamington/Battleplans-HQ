@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { getCurrentApp } from '../lib/currentApp';
+import { useCurrentApp } from '../lib/currentApp';
 import { useImpersonatedRole } from '../lib/impersonation';
 import type { AppEntry } from '../components/Navbar';
 
@@ -38,7 +38,9 @@ export interface UsePlatformAppsResult {
 export function usePlatformApps(): UsePlatformAppsResult {
   const [apps, setApps] = useState<AppEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const current = getCurrentApp();
+  // Reactive: inside the HQ shell this changes as the user moves between apps,
+  // and the switcher's "current" marker has to follow.
+  const current = useCurrentApp();
   const impersonated = useImpersonatedRole();
 
   useEffect(() => {

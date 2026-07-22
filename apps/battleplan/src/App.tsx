@@ -12,6 +12,41 @@ import ManageLocations from './pages/admin/ManageLocations.tsx';
 import ManageGames from './pages/admin/ManageGames.tsx';
 import ManageUpdates from './pages/admin/ManageUpdates.tsx';
 
+/**
+ * The app's own screens, as a route subtree.
+ *
+ * Exported so the native BattlePlan HQ shell can mount it alongside the other
+ * apps' subtrees without this file's paths changing: HQ shows one app at a
+ * time, so `/app` means whichever app is currently mounted. Keeping this as the
+ * single definition means the standalone web build below and the HQ build can't
+ * drift apart.
+ *
+ * Public routes (/login, /auth/*) deliberately stay out of it — HQ owns one
+ * copy of those for all three apps.
+ */
+export function appRoutes() {
+  return (
+    <Route element={
+      <ProtectedRoute>
+        <AppAccessRoute appName="BattlePlan">
+          <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true, bookingEmailNote: true }} />
+          <Outlet />
+        </AppAccessRoute>
+      </ProtectedRoute>
+    }>
+      <Route path="/app" element={<HomePage />} />
+      <Route path="/app/stats" element={<BattleStatsPage />} />
+      <Route path="/app/store-stats" element={<StoreStatsPage />} />
+      <Route path="/app/manage-store" element={<ManageStore />} />
+      <Route path="/app/admin" element={<AdminPage />} />
+      <Route path="/app/admin/users" element={<ManageUsers />} />
+      <Route path="/app/admin/locations" element={<ManageLocations />} />
+      <Route path="/app/admin/games" element={<ManageGames />} />
+      <Route path="/app/admin/updates" element={<ManageUpdates />} />
+    </Route>
+  );
+}
+
 function RootRedirect() {
   const [target, setTarget] = useState<'/app' | '/login' | null>(null);
 
@@ -37,24 +72,7 @@ export default function App() {
 
         {/* ── Protected routes — redirect unauthenticated users to /login,
                then gate on the user's platform access level ── */}
-        <Route element={
-          <ProtectedRoute>
-            <AppAccessRoute appName="BattlePlan">
-              <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true, bookingEmailNote: true }} />
-              <Outlet />
-            </AppAccessRoute>
-          </ProtectedRoute>
-        }>
-          <Route path="/app" element={<HomePage />} />
-          <Route path="/app/stats" element={<BattleStatsPage />} />
-          <Route path="/app/store-stats" element={<StoreStatsPage />} />
-          <Route path="/app/manage-store" element={<ManageStore />} />
-          <Route path="/app/admin" element={<AdminPage />} />
-          <Route path="/app/admin/users" element={<ManageUsers />} />
-          <Route path="/app/admin/locations" element={<ManageLocations />} />
-          <Route path="/app/admin/games" element={<ManageGames />} />
-          <Route path="/app/admin/updates" element={<ManageUpdates />} />
-        </Route>
+        {appRoutes()}
       </Routes>
     </BrowserRouter>
   );
