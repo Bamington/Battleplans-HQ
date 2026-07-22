@@ -26,6 +26,7 @@ import UserHandUp from '../icons/UserHandUp';
 import MenuDots from '../icons/MenuDots';
 import AddCircle from '../icons/AddCircle';
 import CheckCircle from '../icons/CheckCircle';
+import CloseCircle from '../icons/CloseCircle';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
@@ -49,11 +50,12 @@ const CARD = 'bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex 
 // ── Request card ─────────────────────────────────────────────────────────────
 
 function RequestCard({
-  request, busy, onAccept,
+  request, busy, onAccept, onDecline,
 }: {
   request: FriendRequest;
   busy: boolean;
   onAccept: () => void;
+  onDecline: () => void;
 }) {
   return (
     <div className={`${CARD} items-start`}>
@@ -62,17 +64,30 @@ function RequestCard({
           no longer squeezes the handle down to a few characters. */}
       <div className="flex flex-1 min-w-0 gap-2 items-center justify-between self-stretch">
         <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
-        <Button
-          variant="outline"
-          color="primary"
-          size="sm"
-          aria-label={`Accept friend request from @${request.handle}`}
-          disabled={busy}
-          onClick={onAccept}
-          className="shrink-0"
-        >
-          <CheckCircle className="w-4 h-4" />
-        </Button>
+        {/* Decline sits left of Accept so the affirmative action is the one
+            nearest the edge, matching the profile modal. */}
+        <div className="flex gap-2 items-center shrink-0">
+          <Button
+            variant="outline"
+            color="danger"
+            size="sm"
+            aria-label={`Decline friend request from @${request.handle}`}
+            disabled={busy}
+            onClick={onDecline}
+          >
+            <CloseCircle className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            color="primary"
+            size="sm"
+            aria-label={`Accept friend request from @${request.handle}`}
+            disabled={busy}
+            onClick={onAccept}
+          >
+            <CheckCircle className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -195,6 +210,7 @@ export interface FriendsColumnProps {
 export default function FriendsColumn({ onAddFriends, onOpenFriend, className }: FriendsColumnProps) {
   const { friends, incoming, outgoing, loading, busy, error, clearError, respond, remove, sendRequest } = useFriends();
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
+  const [pendingDecline, setPendingDecline] = useState<FriendRequest | null>(null);
   const [addOpen,        setAddOpen]        = useState(false);
   const [viewing,        setViewing]        = useState<Friend | null>(null);
 
@@ -226,6 +242,7 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
                       request={r}
                       busy={busy}
                       onAccept={() => respond(r.friendshipId, true)}
+                      onDecline={() => setPendingDecline(r)}
                     />
                   ))}
                 </>
@@ -313,6 +330,50 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
         busy={busy}
         error={error}
       />
+
+      {/* Declining asks first because it can't be walked back from this side:
+          the row survives so the sender can't simply ask again. */}
+      <Modal
+        open={pendingDecline !== null}
+        onClose={() => setPendingDecline(null)}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
+              Decline friend request
+            </h2>
+            <p className="font-body text-base text-gray-300 leading-6">
+              Decline the request from @{pendingDecline?.handle}? They won’t be told,
+              and they won’t be able to ask again — though you can still add them
+              yourself later.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              color="secondary"
+              className="flex-1"
+              disabled={busy}
+              onClick={() => setPendingDecline(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="danger"
+              className="flex-1"
+              loading={busy}
+              onClick={async () => {
+                if (!pendingDecline) return;
+                await respond(pendingDecline.friendshipId, false);
+                setPendingDecline(null);
+              }}
+            >
+              Decline
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Removing a friend is destructive and silent on their side, so it asks
           first — the same confirm step used elsewhere for deletes. */}
