@@ -17,6 +17,10 @@
  *   3. Dates are formatted from their parts rather than via `new Date(...)`,
  *      so a 'YYYY-MM-DD' can't drift a day across timezones.
  *
+ * Test venues: a location with is_test set is one you own for testing, and its
+ * store_email is your own address — so mail needs no special routing here, only
+ * a '[TEST]' subject marker to tell it apart in the inbox.
+ *
  * Contract — POST one of:
  *   { event: 'created',   booking_id }  the row is read back from the database
  *   { event: 'cancelled', booking: {…} } the row is GONE (cancelling deletes it),
@@ -273,7 +277,7 @@ serve(async (req) => {
 
     const { data: location, error: locationErr } = await supabase
       .from('locations')
-      .select('id, name, address, store_email')
+      .select('id, name, address, store_email, is_test')
       .eq('id', booking.location_id)
       .single();
     if (locationErr || !location) {
@@ -281,7 +285,8 @@ serve(async (req) => {
     }
 
     // A venue with no store email simply isn't set up for notifications yet —
-    // that's expected, not a failure.
+    // that's expected, not a failure. It's also what makes a half-configured
+    // test venue harmless: nothing is sent until an address is set.
     if (!location.store_email) {
       console.log(`No store email configured for location: ${location.name}`);
       return json({ success: false, message: 'No store email configured' });
@@ -328,7 +333,10 @@ serve(async (req) => {
       body: JSON.stringify({
         from: fromEmail,
         to: [location.store_email],
-        subject,
+        // Flagged in the subject so a test never gets mistaken for a real
+        // booking — they land in the same inbox whenever you point a test
+        // store at an address you already use.
+        subject: location.is_test ? `[TEST] ${subject}` : subject,
         html,
         text,
         // So the store can just hit reply and reach the customer.
@@ -342,7 +350,7 @@ serve(async (req) => {
     }
 
     const result = await res.json();
-    console.log(`Sent ${cancelled ? 'cancellation' : 'booking'} notification for ${booking.id} to ${location.store_email}`);
+    console.log(`Sent ${location.is_test ? 'TEST ' : ''}${cancelled ? 'cancellation' : 'booking'} notification for ${booking.id} to ${location.store_email}`);
     return json({ success: true, email_id: result.id });
 
   } catch (error) {

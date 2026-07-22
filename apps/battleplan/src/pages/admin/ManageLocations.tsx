@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   AdminRoute,
   AltArrowLeft,
+  Badge,
   Button,
+  Checkbox,
   Dropdown,
   DropdownDivider,
   DropdownItem,
@@ -28,6 +30,7 @@ type LocationRow = {
   icon: string | null;
   store_email: string | null;
   admins: string[] | null;
+  is_test: boolean;
 };
 
 /** Shape returned by the admin_list_users RPC. */
@@ -42,9 +45,12 @@ type LocationFormState = {
   icon: string;       // URL or empty string
   store_email: string;
   admins: string[];   // user ids
+  is_test: boolean;
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', address: '', icon: '', store_email: '', admins: [] };
+const EMPTY_FORM: LocationFormState = {
+  name: '', address: '', icon: '', store_email: '', admins: [], is_test: false,
+};
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -140,6 +146,62 @@ function IconUpload({ name, value, onChange, disabled }: IconUploadProps) {
   );
 }
 
+// ── Test venue fields ───────────────────────────────────────────────────────
+
+/**
+ * A test venue is for exercising booking features without a real store or
+ * customer ever being emailed. The flag itself only hides the venue — mail is
+ * safe because the venue's Store Email is an address you own.
+ *
+ * That rests on one assumption, and this is the only place it can be broken:
+ * ticking the box on a venue that already has a *real* store's address in it.
+ * Hence the warning, which names the address rather than talking about it in
+ * the abstract — the whole point is to make you look at the actual value.
+ */
+function TestVenueFields({
+  form,
+  onChange,
+  disabled,
+}: {
+  form: LocationFormState;
+  onChange: (patch: Partial<LocationFormState>) => void;
+  disabled?: boolean;
+}) {
+  const email = form.store_email.trim();
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Testing</p>
+      <div className="flex flex-col gap-2 mt-1">
+        <Checkbox
+          color="yellow"
+          label="Test venue"
+          helperText="Hidden from everyone but admins, so no real customer can book it."
+          checked={form.is_test}
+          onChange={e => onChange({ is_test: e.target.checked })}
+          disabled={disabled}
+        />
+        {form.is_test && (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2">
+            {email ? (
+              <p className="font-body text-xs text-yellow-500/90">
+                Booking notifications go to <span className="text-yellow-300">{email}</span>.
+                Make sure that address is yours — a test venue does not stop mail
+                being sent, it only stops real customers booking.
+              </p>
+            ) : (
+              <p className="font-body text-xs text-yellow-500/90">
+                No Store Email set, so no notifications will be sent. Add your own
+                address above if you want to test the emails themselves.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 
 function ManageLocationsInner() {
@@ -182,7 +244,7 @@ function ManageLocationsInner() {
     setLoading(true);
     const { data, error } = await supabase
       .from('locations')
-      .select('id, name, address, icon, store_email, admins')
+      .select('id, name, address, icon, store_email, admins, is_test')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -208,6 +270,7 @@ function ManageLocationsInner() {
         address: addForm.address.trim(),
         icon: addForm.icon || null,
         store_email: addForm.store_email.trim() || null,
+        is_test: addForm.is_test,
       })
       .select()
       .single();
@@ -227,6 +290,7 @@ function ManageLocationsInner() {
       icon: loc.icon ?? '',
       store_email: loc.store_email ?? '',
       admins: loc.admins ?? [],
+      is_test: loc.is_test ?? false,
     });
     setEditError(null);
   }
@@ -241,6 +305,7 @@ function ManageLocationsInner() {
       icon: editForm.icon || null,
       store_email: editForm.store_email.trim() || null,
       admins: editForm.admins,
+      is_test: editForm.is_test,
     };
     const { error } = await supabase
       .from('locations')
@@ -318,7 +383,12 @@ function ManageLocationsInner() {
                   )}
 
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <p className="font-body text-sm font-medium text-white leading-none">{loc.name}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-body text-sm font-medium text-white leading-none truncate">{loc.name}</p>
+                      {loc.is_test && (
+                        <Badge color="warning" variant="outline" shape="pill">TEST</Badge>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                       {loc.address && (
                         <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
@@ -326,8 +396,10 @@ function ManageLocationsInner() {
                           {loc.address}
                         </span>
                       )}
+                      {/* Tinted on a test venue, because that address is the
+                          one thing about it worth double-checking at a glance. */}
                       {loc.store_email && (
-                        <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
+                        <span className={`flex items-center gap-1 font-body text-xs truncate ${loc.is_test ? 'text-yellow-500/80' : 'text-neutral-400'}`}>
                           <Letter className="size-3 shrink-0" />
                           {loc.store_email}
                         </span>
@@ -434,6 +506,12 @@ function ManageLocationsInner() {
             disabled={adding}
           />
 
+          <TestVenueFields
+            form={addForm}
+            onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
+            disabled={adding}
+          />
+
           {addError && <p className="font-body text-sm text-red-400">{addError}</p>}
 
           <div className="flex items-center justify-end gap-3">
@@ -504,6 +582,12 @@ function ManageLocationsInner() {
                 disabled={saving}
               />
             </div>
+
+            <TestVenueFields
+              form={editForm}
+              onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
+              disabled={saving}
+            />
 
             {editError && <p className="font-body text-sm text-red-400">{editError}</p>}
 
