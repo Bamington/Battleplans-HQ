@@ -36,6 +36,12 @@ export interface UseFriends {
   error: string | null
   /** True while an action is in flight, for disabling buttons. */
   busy: boolean
+  /**
+   * Drop the current error. Needed because one hook instance is shared by the
+   * list and its dialogs — without this, a failed send stays on screen behind
+   * the dialog that caused it.
+   */
+  clearError: () => void
   refresh: () => Promise<void>
   /** Send by @username. Resolves true on success, false if it failed. */
   sendRequest: (handle: string) => Promise<boolean>
@@ -108,6 +114,7 @@ export function useFriends(): UseFriends {
     loading,
     error,
     busy,
+    clearError: useCallback(() => setError(null), []),
     refresh,
     sendRequest: useCallback((handle: string) => run(() => sendFriendRequest(handle)), [run]),
     respond:     useCallback((id: string, accept: boolean) => run(() => respondToFriendRequest(id, accept)), [run]),

@@ -71,6 +71,24 @@ function RequestCard({
   );
 }
 
+// ── Pending (outgoing) card ──────────────────────────────────────────────────
+
+/**
+ * A request you've sent that hasn't been answered. Handle and picture only —
+ * they haven't accepted, so their real name still isn't yours to see. No
+ * actions either: there is nothing to do but wait.
+ */
+function PendingCard({ request }: { request: FriendRequest }) {
+  return (
+    <div className={`${CARD} items-center`}>
+      <CardAvatar url={request.avatarUrl} handle={request.handle} />
+      <div className="flex flex-col flex-1 min-w-0 justify-center">
+        <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Friend card ──────────────────────────────────────────────────────────────
 
 function FriendCard({
@@ -140,12 +158,12 @@ export interface FriendsColumnProps {
 }
 
 export default function FriendsColumn({ onAddFriends, onOpenFriend, className }: FriendsColumnProps) {
-  const { friends, incoming, loading, busy, error, respond, remove, sendRequest } = useFriends();
+  const { friends, incoming, outgoing, loading, busy, error, clearError, respond, remove, sendRequest } = useFriends();
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
   const [addOpen,        setAddOpen]        = useState(false);
   const [viewing,        setViewing]        = useState<Friend | null>(null);
 
-  const isEmpty = friends.length === 0 && incoming.length === 0;
+  const isEmpty = friends.length === 0 && incoming.length === 0 && outgoing.length === 0;
 
   return (
     <>
@@ -175,6 +193,17 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
                       busy={busy}
                       onAccept={() => respond(r.friendshipId, true)}
                     />
+                  ))}
+                </>
+              )}
+
+              {/* Sits between the two: requests waiting on YOU come first
+                  because they're actionable, then ones waiting on them. */}
+              {outgoing.length > 0 && (
+                <>
+                  <HR variant="text" label="Pending Friend Requests" />
+                  {outgoing.map(r => (
+                    <PendingCard key={r.friendshipId} request={r} />
                   ))}
                 </>
               )}
@@ -209,7 +238,11 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
             color="primary"
             className="flex-1"
             leftIcon={<AddCircle className="w-4 h-4" />}
-            onClick={() => (onAddFriends ? onAddFriends() : setAddOpen(true))}
+            onClick={() => {
+              if (onAddFriends) { onAddFriends(); return; }
+              clearError();
+              setAddOpen(true);
+            }}
           >
             Add Friends
           </Button>
@@ -218,9 +251,11 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
 
       {/* Both dialogs share this column's hook, so accepting or auto-accepting
           updates the list without a second round of fetching. */}
+      {/* Clear on close as well as open: the error belongs to the dialog that
+          caused it, and would otherwise sit in the column behind it. */}
       <AddFriendModal
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={() => { clearError(); setAddOpen(false); }}
         onSend={sendRequest}
         busy={busy}
         error={error}

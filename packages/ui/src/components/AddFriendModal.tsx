@@ -108,10 +108,11 @@ export default function AddFriendModal({
           disabled={busy}
           className="w-full"
           state={error ? 'error' : 'default'}
-          helperText="They’ll see the invitation on their BattlePlan dashboard."
+          // The error REPLACES the hint rather than appearing under it. Input
+          // colours helperText from `state`, so keeping both would render two
+          // red lines — the hint looking like part of the failure.
+          helperText={error ?? 'They’ll see the invitation on their BattlePlan dashboard.'}
         />
-
-        {error && <p className="font-body text-sm text-red-400 w-full">{error}</p>}
 
         <div className="flex gap-3 items-center justify-end w-full">
           <Button type="button" variant="ghost" color="danger" disabled={busy} onClick={onClose}>
