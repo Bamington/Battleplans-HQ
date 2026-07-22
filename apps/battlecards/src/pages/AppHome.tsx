@@ -100,7 +100,7 @@ import iconKillTeam from '../../../../packages/ui/src/assets/games/icons/kill-te
 import iconStarcraft from '../../../../packages/ui/src/assets/games/icons/starcraft.svg';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
-import iconRyg from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
+import iconRyg from '../../../../packages/ui/src/assets/games/icons/ryg.png';
 import logoRyg from '../../../../packages/ui/src/assets/games/logos/logo-ryg.png';
 import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
 import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-blood-bowl.png';

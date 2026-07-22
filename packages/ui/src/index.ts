@@ -197,7 +197,7 @@ export { initNativeAuth, signInWithProvider } from './lib/nativeAuth'
 export { avatarUrl, uploadAvatar } from './lib/avatars'
 export { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from './lib/profileDisplay'
 export type { ProfileDisplay } from './lib/profileDisplay'
-export { setCurrentApp, getCurrentApp } from './lib/currentApp'
+export { setCurrentApp, getCurrentApp, useCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {
   getImpersonatedRole,

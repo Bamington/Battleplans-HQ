@@ -1,0 +1,66 @@
+/* ── Base styles (shared tokens, fonts, Tailwind) ───────────────────────── */
+@import '../../../packages/ui/src/index.css';
+
+/*
+ * Tailwind only scans the Vite project root for class names, which for HQ is
+ * apps/hq — a directory containing almost no markup. Every screen HQ renders
+ * lives in a sibling app, so without these the utilities those screens use are
+ * never generated and they render half-styled. (Symptom: HQ's stylesheet comes
+ * out smaller than BattleCards' own.)
+ *
+ * packages/ui covers itself with its own @source ".".
+ */
+@source '../../battleplan/src';
+@source '../../battlecards/src';
+@source '../../battlebox/src';
+
+/*
+ * Per-app theming inside one binary.
+ *
+ * Standalone, each app sets its own primary palette in an @theme block at build
+ * time — violet for BattlePlan, amber for BattleBench, and packages/ui's blue
+ * for BattleCards. HQ contains all three, so a build-time choice can't work:
+ * only one would win.
+ *
+ * Tailwind v4 compiles utilities down to var() references (bg-primary-500
+ * becomes `background-color: var(--color-primary-500)`), so redefining those
+ * variables on an ancestor re-themes everything beneath it — no rebuild, no
+ * class swapping. HQ stamps data-app on a wrapper and the active app's palette
+ * takes over.
+ *
+ * The blocks below are copied verbatim from each app's own index.css. If one of
+ * those changes, change it here too — there's no way to import an @theme block
+ * into a scoped selector.
+ */
+
+/* BattlePlan — violet */
+[data-app='battleplan'] {
+  --color-primary-50:  #f5f3ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #ddd6fe;
+  --color-primary-300: #c4b5fd;
+  --color-primary-400: #a78bfa;
+  --color-primary-500: #8b5cf6;
+  --color-primary-600: #7c3aed;
+  --color-primary-700: #6d28d9;
+  --color-primary-800: #5b21b6;
+  --color-primary-900: #4c1d95;
+  --color-primary-950: #2e1065;
+}
+
+/* BattleBench — amber */
+[data-app='battlebox'] {
+  --color-primary-50:  #fffbeb;
+  --color-primary-100: #fef3c7;
+  --color-primary-200: #fde68a;
+  --color-primary-300: #fcd34d;
+  --color-primary-400: #fbbf24;
+  --color-primary-500: #f59e0b;
+  --color-primary-600: #d97706;
+  --color-primary-700: #b45309;
+  --color-primary-800: #92400e;
+  --color-primary-900: #78350f;
+  --color-primary-950: #431407;
+}
+
+/* BattleCards keeps packages/ui's blue, so it needs no override. */

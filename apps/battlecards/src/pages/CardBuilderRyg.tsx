@@ -63,7 +63,7 @@ import { supabase } from '@battleplans/ui';
 import type { Addon, RygWarriorTypeStats, RygTalentStats, RygTalentParamField, RygSpellStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 // @ts-ignore
-import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
+import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.png';
 import logoRygLarge from '../../../../packages/ui/src/assets/games/logos/logo-ryg.png';
 
 // ── Card-local data shapes ────────────────────────────────────────────────────

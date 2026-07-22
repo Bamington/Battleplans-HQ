@@ -1,8 +1,10 @@
 {
   "name": "@battleplans/battleplan",
   "private": true,
-  "version": "2.11.0",
+  "version": "2.11.1",
   "type": "module",
+  "main": "./src/App.tsx",
+  "types": "./src/App.tsx",
   "engines": {
     "node": "22.x"
   },
@@ -10,9 +12,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "cap:sync": "pnpm build && cap sync",
-    "cap:open:android": "cap open android"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@battleplans/ui": "workspace:*",

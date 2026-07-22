@@ -25,7 +25,7 @@ import RygGodForm from '../components/RygGodForm';
 import { AddCircle } from '@battleplans/ui';
 import { CloseCircle } from '@battleplans/ui';
 // @ts-ignore
-import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.svg';
+import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.png';
 import logoRygLarge from '../../../../packages/ui/src/assets/games/logos/logo-ryg.png';
 import { supabase } from '@battleplans/ui';
 import type { RygGodStats } from '../lib/database.types';
