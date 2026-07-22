@@ -220,6 +220,13 @@ export {
 export type { Friend, FriendRequest, PublicProfile } from './lib/friends'
 export { useFriends } from './hooks/useFriends'
 export type { UseFriends } from './hooks/useFriends'
+export { default as FriendsColumn } from './components/FriendsColumn'
+export type { FriendsColumnProps } from './components/FriendsColumn'
+export { default as AddFriendModal } from './components/AddFriendModal'
+export type { AddFriendModalProps } from './components/AddFriendModal'
+export { default as FriendProfileModal } from './components/FriendProfileModal'
+export type { FriendProfileModalProps, FriendProfileState } from './components/FriendProfileModal'
+export { default as UserHandUp } from './icons/UserHandUp'
 export { setCurrentApp, getCurrentApp, useCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {
