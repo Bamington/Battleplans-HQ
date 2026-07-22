@@ -53,20 +53,24 @@ function RequestCard({
   onAccept: () => void;
 }) {
   return (
-    <div className={`${CARD} items-center`}>
+    <div className={`${CARD} items-start`}>
       <CardAvatar url={request.avatarUrl} handle={request.handle} />
-      <div className="flex flex-col flex-1 min-w-0 justify-center">
+      {/* Button sits BELOW the handle rather than beside it: side by side, a
+          long handle was truncated to a few characters — and the handle is the
+          only thing identifying who is asking. */}
+      <div className="flex flex-col flex-1 min-w-0 gap-2 justify-center">
         <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
+        <Button
+          variant="outline"
+          color="primary"
+          rightIcon={<ArrowRight className="w-4 h-4" />}
+          disabled={busy}
+          onClick={onAccept}
+          className="self-start"
+        >
+          Accept
+        </Button>
       </div>
-      <Button
-        variant="outline"
-        color="primary"
-        rightIcon={<ArrowRight className="w-4 h-4" />}
-        disabled={busy}
-        onClick={onAccept}
-      >
-        Accept
-      </Button>
     </div>
   );
 }
@@ -75,16 +79,44 @@ function RequestCard({
 
 /**
  * A request you've sent that hasn't been answered. Handle and picture only —
- * they haven't accepted, so their real name still isn't yours to see. No
- * actions either: there is nothing to do but wait.
+ * they haven't accepted, so their real name still isn't yours to see.
+ *
+ * Withdrawing skips the confirm step that removing a friend gets: nothing is
+ * lost, the other person may never have seen it, and you can simply ask again.
  */
-function PendingCard({ request }: { request: FriendRequest }) {
+function PendingCard({
+  request, busy, onWithdraw,
+}: {
+  request: FriendRequest;
+  busy: boolean;
+  onWithdraw: () => void;
+}) {
   return (
     <div className={`${CARD} items-center`}>
       <CardAvatar url={request.avatarUrl} handle={request.handle} />
       <div className="flex flex-col flex-1 min-w-0 justify-center">
         <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
       </div>
+      <Dropdown
+        align="right"
+        trigger={
+          <button
+            type="button"
+            aria-label={`Options for the request to @${request.handle}`}
+            className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0"
+          >
+            <MenuDots className="w-4 h-4 text-white" />
+          </button>
+        }
+      >
+        <DropdownItem
+          icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />}
+          disabled={busy}
+          onClick={onWithdraw}
+        >
+          <span className="text-red-400">Remove Friend Request</span>
+        </DropdownItem>
+      </Dropdown>
     </div>
   );
 }
@@ -179,10 +211,9 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
             <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
           ) : (
             <>
-              {error && (
-                <p className="font-body text-sm text-red-400 text-center py-1">{error}</p>
-              )}
-
+              {/* No error line here on purpose. Every action that can fail is
+                  started from a dialog, and that dialog shows the reason —
+                  repeating it in the column just says the same thing twice. */}
               {incoming.length > 0 && (
                 <>
                   <HR variant="text" label="Friend Requests" />
@@ -203,7 +234,12 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
                 <>
                   <HR variant="text" label="Pending Friend Requests" />
                   {outgoing.map(r => (
-                    <PendingCard key={r.friendshipId} request={r} />
+                    <PendingCard
+                      key={r.friendshipId}
+                      request={r}
+                      busy={busy}
+                      onWithdraw={() => remove(r.friendshipId)}
+                    />
                   ))}
                 </>
               )}
@@ -251,8 +287,8 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
 
       {/* Both dialogs share this column's hook, so accepting or auto-accepting
           updates the list without a second round of fetching. */}
-      {/* Clear on close as well as open: the error belongs to the dialog that
-          caused it, and would otherwise sit in the column behind it. */}
+      {/* Cleared on open and close so a previous failure isn't still showing
+          the next time the dialog is opened. */}
       <AddFriendModal
         open={addOpen}
         onClose={() => { clearError(); setAddOpen(false); }}
