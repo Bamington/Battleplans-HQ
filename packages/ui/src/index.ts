@@ -216,8 +216,9 @@ export {
   removeFriendship,
   blockUser,
   unblockUser,
+  friendTopGames,
 } from './lib/friends'
-export type { Friend, FriendRequest, PublicProfile } from './lib/friends'
+export type { Friend, FriendRequest, PublicProfile, FriendGameStat } from './lib/friends'
 export { useFriends } from './hooks/useFriends'
 export type { UseFriends } from './hooks/useFriends'
 export { default as FriendsColumn } from './components/FriendsColumn'

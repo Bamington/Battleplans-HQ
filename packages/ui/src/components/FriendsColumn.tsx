@@ -215,10 +215,12 @@ export interface FriendsColumnProps {
   onAddFriends?: () => void;
   /** Override opening a friend's profile. Omit to use the built-in modal. */
   onOpenFriend?: (friend: Friend) => void;
+  /** Resolve a game slug to an icon URL, for the profile modal's stats. */
+  resolveGameIcon?: (slug: string) => string | undefined;
   className?: string;
 }
 
-export default function FriendsColumn({ onAddFriends, onOpenFriend, className }: FriendsColumnProps) {
+export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameIcon, className }: FriendsColumnProps) {
   const { friends, incoming, outgoing, loading, busy, error, clearError, respond, remove, sendRequest } = useFriends();
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
   const [pendingDecline, setPendingDecline] = useState<FriendRequest | null>(null);
@@ -336,8 +338,10 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, className }:
       <FriendProfileModal
         open={viewing !== null}
         onClose={() => setViewing(null)}
+        userId={viewing?.id}
         handle={viewing?.handle ?? ''}
         avatarUrl={viewing?.avatarUrl}
+        resolveGameIcon={resolveGameIcon}
         state={
           viewing
             ? { kind: 'friends', friendshipId: viewing.friendshipId, username: viewing.username }

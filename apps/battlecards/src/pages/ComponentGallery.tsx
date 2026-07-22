@@ -308,7 +308,8 @@ const FriendsModalsGalleryDemo = () => {
       <p className="font-body text-xs text-gray-400 dark:text-gray-500 w-full">
         The Add Friend CTA enables on a valid username format only — it never checks
         whether the user exists, which would leak who has an account. Email invites
-        are disabled until Phase 2.
+        are disabled until Phase 2. The Friends state loads a friend’s top games,
+        which appear only in a signed-in app with an accepted friend.
       </p>
 
       <AddFriendModal

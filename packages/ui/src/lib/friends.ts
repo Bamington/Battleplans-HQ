@@ -46,6 +46,15 @@ export interface PublicProfile {
   avatarUrl: string | null
 }
 
+export interface FriendGameStat {
+  gameId: string
+  name: string
+  /** Game slug, for the caller to resolve an icon. */
+  slug: string
+  played: number
+  won: number
+}
+
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 /**
@@ -127,6 +136,26 @@ export async function findProfileByHandle(handle: string): Promise<PublicProfile
     handle:    data.handle as string,
     avatarUrl: avatarUrl(data.avatar_path as string | null),
   }
+}
+
+/**
+ * A friend's most-played games. Returns [] for anyone who isn't an accepted
+ * friend — the gate is in the SECURITY DEFINER function, not here, so a caller
+ * cannot read a stranger's battle stats by calling this directly.
+ */
+export async function friendTopGames(userId: string, limit = 3): Promise<FriendGameStat[]> {
+  const { data, error } = await supabase.rpc('friend_top_games', {
+    target_user_id: userId,
+    limit_n: limit,
+  })
+  if (error) raise(error)
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    gameId: r.game_id as string,
+    name:   r.name as string,
+    slug:   r.slug as string,
+    played: Number(r.played),
+    won:    Number(r.won),
+  }))
 }
 
 // ── Writes ───────────────────────────────────────────────────────────────────

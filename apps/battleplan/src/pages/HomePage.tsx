@@ -1099,7 +1099,7 @@ export default function HomePage() {
               {/* Personal, so it belongs with the other personal columns — a
                   store admin sees it under "Your Profile", not while they have
                   a venue selected. */}
-              <FriendsColumn />
+              <FriendsColumn resolveGameIcon={slug => GAME_ICONS[slug]} />
             </>
           )}
           <NewsCard />
