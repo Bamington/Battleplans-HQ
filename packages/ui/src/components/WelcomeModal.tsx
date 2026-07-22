@@ -13,10 +13,22 @@
  *
  * The profile picture is offered in every app and is always OPTIONAL — it never
  * gates the modal, or a user who simply doesn't want one could never get past it.
+ * The same goes for the Username, which is auto-assigned at signup and only
+ * offered here for editing.
  *
- * Data lives on `public.user_profiles` (username, preferred_location_id,
+ * NAMING — the two name fields cross over between code and interface:
+ *
+ *   `username` column → labelled "Your Name". Private free text. Only stores
+ *                       you book with and friends you accept can see it, which
+ *                       is why the copy suggests using a real name.
+ *   `handle` column   → labelled "Username". Public, unique, searchable.
+ *
+ * Each field states its own privacy rule; there is deliberately no general
+ * summary line, which would only repeat them less precisely.
+ *
+ * Data lives on `public.user_profiles` (username, handle, preferred_location_id,
  * avatar_path). The gate re-reads that row on mount; if every *required* field
- * is already set the modal never renders. A username set in one app therefore
+ * is already set the modal never renders. A name set in one app therefore
  * carries over to the other — BattlePlan only additionally needs the preferred
  * location, and a user who lands there second gets another chance at a picture.
  *
@@ -133,11 +145,12 @@ export function ProfileFields({
 
       {showUsername && (
         <Input
-          label="Username"
-          placeholder="Choose a username"
+          label="Your Name"
+          placeholder="Your name"
           value={username}
           onChange={e => onUsernameChange(e.target.value)}
           state={error ? 'error' : 'default'}
+          helperText="Use your real name — only stores you book with and friends you accept can see it."
           required
           disabled={disabled}
         />
@@ -145,8 +158,8 @@ export function ProfileFields({
 
       {showHandle && onHandleChange && (
         <Input
-          label="Handle"
-          placeholder="your-handle"
+          label="Username"
+          placeholder="your-username"
           // Input is coerced to the legal alphabet as it's typed. Length is not
           // padded, so a too-short value still needs validateHandle on save.
           value={handle}
@@ -160,7 +173,7 @@ export function ProfileFields({
           }
           helperText={
             availability.message
-            ?? 'This is how friends find you. Letters, numbers, - and _.'
+            ?? 'This is public. People can find you by searching for your Username. Letters, numbers, - and _.'
           }
           required
           disabled={disabled}
@@ -247,9 +260,9 @@ export function WelcomeModalView({
           <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
             Welcome to {appName}
           </h1>
-          <p className="font-body text-base text-gray-300 leading-6">
-            Other users will see your Username, Handle and Profile Picture.
-          </p>
+          {/* No general privacy summary here — each field carries its own,
+              stated precisely and next to the input it applies to. The email
+              note stays because no field explains it. */}
           {showBookingEmailNote && (
             <p className="font-body text-base text-gray-300 leading-6">
               Your email address is only shared with stores when you make a booking.
@@ -380,7 +393,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
     const trimmedUsername = username.trim();
     if (wantUsername && !trimmedUsername) {
-      setError('Please enter a username.');
+      setError('Please enter your name.');
       return;
     }
     if (wantLocation && !preferredLocationId) {

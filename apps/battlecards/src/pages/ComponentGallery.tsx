@@ -282,7 +282,10 @@ const AddToPackModalGalleryDemo = () => {
  *  WelcomeModal self-fetches the signed-in user's profile and blocks until the
  *  required fields are saved; here we drive it with local state and mock
  *  locations, and "Continue" just closes it. Toggles between the BattleCards
- *  (username only) and BattlePlan (username + preferred location) field sets. */
+ *  (name only) and BattlePlan (name + preferred location) field sets.
+ *
+ *  Note "Your Name" is the `username` column and "Username" is the `handle`
+ *  column — the two cross over between code and interface. */
 const WelcomeModalGalleryDemo = () => {
   const [variant,    setVariant]    = useState<null | 'cards' | 'plan'>(null);
   const [username,   setUsername]   = useState('Chris');
@@ -297,7 +300,7 @@ const WelcomeModalGalleryDemo = () => {
   ];
 
   function handleSave() {
-    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (!username.trim()) { setError('Please enter your name.'); return; }
     if (variant === 'plan' && !locationId) { setError('Please select a preferred location.'); return; }
     setError(null);
     setVariant(null);
@@ -362,7 +365,7 @@ const ProfileModalGalleryDemo = () => {
   ];
 
   function handleSave() {
-    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (!username.trim()) { setError('Please enter your name.'); return; }
     if (variant === 'full' && !locationId) { setError('Please select a preferred location.'); return; }
     setError(null);
     setVariant(null);
@@ -370,7 +373,7 @@ const ProfileModalGalleryDemo = () => {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => { setError(null); setVariant('username'); }}>Username only</Button>
+      <Button onClick={() => { setError(null); setVariant('username'); }}>Name only</Button>
       <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('full'); }}>
         With preferred location
       </Button>

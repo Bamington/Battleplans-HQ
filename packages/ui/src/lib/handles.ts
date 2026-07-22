@@ -1,9 +1,18 @@
 /**
- * handles.ts — @handle validation and availability
+ * handles.ts — validation and availability for the public @username
  *
- * A handle is the unique, lowercase identifier used to find a user (friend
- * search, and later their public page). It is deliberately separate from
- * `username`, which is a free display name and may repeat.
+ * ⚠️ NAMING: the code says "handle", the interface says "Username".
+ *
+ *   user_profiles.handle    → shown to users as "Username"  (public, unique,
+ *                             what people search for)
+ *   user_profiles.username  → shown to users as "Your Name" (private, free
+ *                             text, only visible to stores you book with and
+ *                             friends you accept)
+ *
+ * The column names are deliberately left alone; only the labels changed. So
+ * "handle" in code is what a user calls their Username, and the DB's "username"
+ * is what they call their Name. Copy in this file follows the USER's names,
+ * because these strings are read by users, not developers.
  *
  * The rules here MUST stay in step with the check constraint in
  * 20260722000000_user_handles.sql — the database is the real authority, and a
@@ -38,11 +47,11 @@ export function normaliseHandle(raw: string): string {
 
 /** Human-readable reason the handle is invalid, or null when it's fine. */
 export function validateHandle(handle: string): string | null {
-  if (!handle) return 'Please choose a handle.'
-  if (handle.length < 3) return 'Handles need at least 3 characters.'
-  if (handle.length > HANDLE_MAX_LENGTH) return `Handles can be at most ${HANDLE_MAX_LENGTH} characters.`
-  if (!/^[a-z0-9]/.test(handle)) return 'Handles must start with a letter or number.'
-  if (!HANDLE_PATTERN.test(handle)) return 'Handles can only use letters, numbers, - and _.'
+  if (!handle) return 'Please choose a username.'
+  if (handle.length < 3) return 'Usernames need at least 3 characters.'
+  if (handle.length > HANDLE_MAX_LENGTH) return `Usernames can be at most ${HANDLE_MAX_LENGTH} characters.`
+  if (!/^[a-z0-9]/.test(handle)) return 'Usernames must start with a letter or number.'
+  if (!HANDLE_PATTERN.test(handle)) return 'Usernames can only use letters, numbers, - and _.'
   return null
 }
 
@@ -54,8 +63,8 @@ export function validateHandle(handle: string): string | null {
  * shown a raw Postgres constraint message.
  */
 export function describeProfileSaveError(error: { code?: string; message: string }): string {
-  if (error.code === '23505') return 'That handle was just taken. Please choose another.'
-  if (error.code === '23514') return 'That handle isn’t valid. Use 3–24 letters, numbers, - or _.'
+  if (error.code === '23505') return 'That username was just taken. Please choose another.'
+  if (error.code === '23514') return 'That username isn’t valid. Use 3–24 letters, numbers, - or _.'
   return error.message
 }
 

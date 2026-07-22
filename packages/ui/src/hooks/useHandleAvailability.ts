@@ -1,5 +1,8 @@
 /**
- * useHandleAvailability.ts — live "is this @handle free?" check
+ * useHandleAvailability.ts — live "is this @username free?" check
+ *
+ * Naming: `handle` is the column; users see it labelled "Username". See the
+ * note at the top of lib/handles.ts.
  *
  * Debounced so typing doesn't fire a query per keystroke, and guarded against
  * out-of-order responses: a slow reply for an earlier value must not overwrite
@@ -63,8 +66,8 @@ export function useHandleAvailability(
 
   const message =
     status === 'invalid'   ? validateHandle(handle)
-  : status === 'taken'     ? 'That handle is already taken.'
-  : status === 'available' ? 'That handle is available.'
+  : status === 'taken'     ? 'That username is already taken.'
+  : status === 'available' ? 'That username is available.'
   : null
 
   return { status, message }

@@ -4,11 +4,18 @@
  * Opened from the avatar dropdown in the navbar. Lets a signed-in user edit the
  * same details captured during onboarding, using the shared `ProfileFields`:
  *
- *   • Profile picture    — always editable.
- *   • Username           — always editable.
+ *   • Profile picture    — always editable. Public.
+ *   • "Your Name"        — always editable. The `username` column. Private:
+ *     only stores you book with and friends you accept ever see it.
+ *   • "Username"         — always editable. The `handle` column. Public and
+ *     unique; this is what people search for.
  *   • Preferred location — shown only if the user has ever picked one (i.e. the
  *     stored preferred_location_id is set). BattleCards-only users who never
  *     touched BattlePlan won't see it.
+ *
+ * Note the deliberate crossover between the two name fields: the DB's
+ * `username` is the UI's "Your Name", and the DB's `handle` is the UI's
+ * "Username". See the note at the top of lib/handles.ts.
  *
  * Unlike the blocking WelcomeModal, this one is dismissable (Cancel / backdrop).
  * It re-reads the profile each time it opens so it always shows current values.
@@ -100,7 +107,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
     setError(null);
 
     const trimmed = username.trim();
-    if (!trimmed) { setError('Please enter a username.'); return; }
+    if (!trimmed) { setError('Please enter your name.'); return; }
     if (showLocation && !preferredLocationId) {
       setError('Please select a preferred location.');
       return;
