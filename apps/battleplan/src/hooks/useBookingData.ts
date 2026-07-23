@@ -27,7 +27,7 @@ export interface Booking {
   date:      string;
   user_name: string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string };
+  location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
 }
 
@@ -44,7 +44,7 @@ interface RawBookingRow {
   timeslot_start_time:  string | null;
   timeslot_end_time:    string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string } | null;
+  location:  { id: string; name: string; address: string | null } | null;
   timeslot:  { id: string; name: string; start_time: string; end_time: string } | null;
 }
 
@@ -54,7 +54,7 @@ const BOOKING_SELECT = `
   id, date, user_name, location_id, timeslot_id,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
   game:games(id, name, slug),
-  location:locations(id, name),
+  location:locations(id, name, address),
   timeslot:timeslots(id, name, start_time, end_time)
 `;
 
@@ -68,8 +68,9 @@ function mapBookingRow(r: RawBookingRow): Booking {
     user_name: r.user_name,
     game:      r.game ?? null,
     location: {
-      id:   r.location?.id ?? r.location_id ?? '',
-      name: r.location_name ?? r.location?.name ?? '',
+      id:      r.location?.id ?? r.location_id ?? '',
+      name:    r.location_name ?? r.location?.name ?? '',
+      address: r.location?.address ?? null,
     },
     timeslot: {
       id:         r.timeslot?.id ?? r.timeslot_id ?? '',

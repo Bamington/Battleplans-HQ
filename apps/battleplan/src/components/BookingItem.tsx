@@ -22,7 +22,7 @@ const MenuDotsIcon = () => (
  */
 export type BookingItemVariant = 'user' | 'store';
 
-export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted }: {
+export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted, onClick }: {
   bookingId: string;
   gameIcon?: string;
   gameName: string;
@@ -33,6 +33,8 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
   customerName?: string;
   variant?: BookingItemVariant;
   onDeleted?: () => void;
+  /** Makes the card tappable (opens the booking modal). The menu stops propagation. */
+  onClick?: () => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting,    setDeleting]    = useState(false);
@@ -46,7 +48,13 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
 
   return (
     <>
-      <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden">
+      <div
+        className={`bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden ${onClick ? 'cursor-pointer hover:border-neutral-600 transition-colors' : ''}`}
+        onClick={onClick}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }) : undefined}
+      >
 
         {/* Game thumbnail */}
         <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
@@ -69,22 +77,24 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
           <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
         </div>
 
-        {/* 3-dot menu */}
-        <Dropdown
-          align="right"
-          trigger={
-            <button type="button" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
-              <MenuDotsIcon />
-            </button>
-          }
-        >
-          <DropdownItem
-            icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />}
-            onClick={() => setConfirmOpen(true)}
+        {/* 3-dot menu — stops propagation so it doesn't also open the card. */}
+        <div onClick={e => e.stopPropagation()}>
+          <Dropdown
+            align="right"
+            trigger={
+              <button type="button" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
+                <MenuDotsIcon />
+              </button>
+            }
           >
-            <span className="text-red-400">Cancel Booking</span>
-          </DropdownItem>
-        </Dropdown>
+            <DropdownItem
+              icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />}
+              onClick={() => setConfirmOpen(true)}
+            >
+              <span className="text-red-400">Cancel Booking</span>
+            </DropdownItem>
+          </Dropdown>
+        </div>
 
       </div>
 

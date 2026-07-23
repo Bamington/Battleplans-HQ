@@ -27,6 +27,7 @@ export interface IncomingBookingShare {
   date: string
   locationId: string | null
   locationName: string | null
+  locationAddress: string | null
   timeslotName: string | null
   timeslotStart: string | null
   timeslotEnd: string | null
@@ -73,9 +74,10 @@ export async function listIncomingBookingShares(): Promise<IncomingBookingShare[
     respondedAt:   (r.responded_at as string | null) ?? null,
     bookingId:     r.booking_id as string,
     date:          r.date as string,
-    locationId:    (r.location_id as string | null) ?? null,
-    locationName:  (r.location_name as string | null) ?? null,
-    timeslotName:  (r.timeslot_name as string | null) ?? null,
+    locationId:      (r.location_id as string | null) ?? null,
+    locationName:    (r.location_name as string | null) ?? null,
+    locationAddress: (r.location_address as string | null) ?? null,
+    timeslotName:    (r.timeslot_name as string | null) ?? null,
     timeslotStart: (r.timeslot_start_time as string | null) ?? null,
     timeslotEnd:   (r.timeslot_end_time as string | null) ?? null,
     gameId:        (r.game_id as string | null) ?? null,

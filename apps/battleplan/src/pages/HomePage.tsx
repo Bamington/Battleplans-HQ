@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, Shield, RichTextEditor, ListCheck, Gallery, CloseCircle, FriendsColumn } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares } from '@battleplans/ui';
+import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
@@ -12,6 +13,7 @@ import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
 import { BookingItem } from '../components/BookingItem';
+import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
@@ -19,7 +21,7 @@ import {
   useRecentBookedGames,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { Location, BattleSuggestion, UpcomingBooking } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion, UpcomingBooking, Booking } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -311,9 +313,6 @@ function NewBookingModal({
 // from the space left over (see useAutoPageSize), so these must match the rows'
 // rendered height. If you change a row's design, change the constant with it.
 //
-// BookingItem = 2 border + 26 padding (p-[13px]) + max(64 thumbnail, text).
-// Four lines — heading 24 + muted 20 + date 20 + time 20 = 84.
-const BOOKING_ITEM_H  = 112;
 // My Battles and the two store booking columns scroll instead of paginating, so
 // they need no fixed row height — the store columns carry group dividers, whose
 // height a single per-row constant couldn't account for.
@@ -325,51 +324,148 @@ const NEWS_ITEM_H     = 230;
 // Suggestion card: 2 border + 26 padding + 40 icon row + 8 gap + ~34 button.
 const SUGGESTION_ITEM_H = 122;
 
+const DAY_NAMES_SHORT = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function bookingDateLabel(iso: string): string {
+  const [y,m,d] = iso.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return `${DAY_NAMES_SHORT[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
+}
+
+/** A booking someone shared with you — dashed purple, with Accept / Decline. */
+function InvitationCard({ share, busy, onAccept, onDecline, onOpen }: {
+  share: IncomingBookingShare;
+  busy: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  onOpen: () => void;
+}) {
+  const icon = share.gameSlug ? GAME_ICONS[share.gameSlug] : undefined;
+  const time = share.timeslotStart
+    ? formatBookingTime({ start_time: share.timeslotStart, end_time: share.timeslotEnd ?? '' })
+    : '';
+  return (
+    <div
+      className="bg-primary-950 border border-primary-600 border-dashed rounded-lg p-[13px] flex gap-3 items-start shadow-md overflow-hidden w-full cursor-pointer"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+    >
+      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-stretch">
+        {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
+      </div>
+      <div className="flex flex-col flex-1 min-w-0 justify-center">
+        <p className="font-heading text-primary-200 text-lg leading-6 truncate">{share.gameName ?? 'Booking'} with @{share.sharer.handle}</p>
+        <p className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</p>
+        <p className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</p>
+        <p className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</p>
+      </div>
+      <div className="flex flex-col gap-2.5 items-end justify-center self-stretch" onClick={e => e.stopPropagation()}>
+        <Button variant="outline" color="primary" size="sm" rightIcon={<CheckCircleIcon className="w-4 h-4" />} disabled={busy} onClick={onAccept}>Accept</Button>
+        <Button variant="outline" color="danger" size="sm" rightIcon={<CloseCircle className="w-4 h-4" />} disabled={busy} onClick={onDecline}>Decline</Button>
+      </div>
+    </div>
+  );
+}
+
 function BookingCard({ userId }: { userId: string | null }) {
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [viewing, setViewing] = useState<Booking | null>(null);
+  const [invite,  setInvite]  = useState<IncomingBookingShare | null>(null);
   const { bookings, loading, refetch } = useUserBookings(userId);
+  const { incoming, busy, respond, refresh: refreshShares } = useBookingShares();
+
+  const pendingInvites = incoming.filter(s => s.status === 'pending');
+  const isEmpty = bookings.length === 0 && pendingInvites.length === 0;
 
   return (
     <>
-      <PaginatedColumn
-        icon={<BoxIcon />}
-        title="Your Bookings"
-        description="Tables you've booked at your favorite local game stores."
-        items={bookings}
-        itemHeight={BOOKING_ITEM_H}
-        loading={loading}
-        empty="No upcoming bookings."
-        getKey={b => b.id}
-        renderItem={b => {
-          const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-          const [y,m,d] = b.date.split('-').map(Number);
-          const dt = new Date(y, m-1, d);
-          const dateLabel = `${DAY_NAMES[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
-          return (
-            <BookingItem
-              bookingId={b.id}
-              gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-              gameName={b.game?.name ?? 'No game'}
-              location={b.location.name}
-              date={dateLabel}
-              time={formatBookingTime(b.timeslot)}
-              variant="user"
-              onDeleted={refetch}
-            />
-          );
-        }}
-        footer={
-          <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center shrink-0" onClick={() => setNewBookingOpen(true)}>
-            New Booking
-          </Button>
-        }
-      />
+      <ColumnShell>
+        <ColumnHeader
+          icon={<BoxIcon />}
+          title="Your Bookings"
+          description="Tables you've booked at your favorite local game stores."
+        />
+
+        <div className="w-full flex-1 min-h-0 overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
+            {loading ? (
+              <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
+            ) : (
+              <>
+                {pendingInvites.length > 0 && (
+                  <>
+                    <HR variant="text" label="Invitations" spacing="none" />
+                    {pendingInvites.map(s => (
+                      <InvitationCard
+                        key={s.shareId}
+                        share={s}
+                        busy={busy}
+                        onAccept={() => respond(s.shareId, true)}
+                        onDecline={() => respond(s.shareId, false)}
+                        onOpen={() => setInvite(s)}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {bookings.length > 0 && (
+                  <>
+                    {pendingInvites.length > 0 && <HR variant="text" label="Your Bookings" spacing="none" />}
+                    {bookings.map(b => (
+                      <BookingItem
+                        key={b.id}
+                        bookingId={b.id}
+                        gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
+                        gameName={b.game?.name ?? 'No game'}
+                        location={b.location.name}
+                        date={bookingDateLabel(b.date)}
+                        time={formatBookingTime(b.timeslot)}
+                        variant="user"
+                        onDeleted={refetch}
+                        onClick={() => setViewing(b)}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {isEmpty && (
+                  <p className="font-body text-sm text-neutral-500 text-center py-4">No upcoming bookings.</p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center shrink-0" onClick={() => setNewBookingOpen(true)}>
+          New Booking
+        </Button>
+      </ColumnShell>
 
       <NewBookingModal
         open={newBookingOpen}
         onClose={() => setNewBookingOpen(false)}
         userId={userId}
         onCreated={refetch}
+      />
+
+      <BookingDetailModal
+        open={viewing !== null}
+        booking={viewing}
+        onClose={() => setViewing(null)}
+        onCancelled={refetch}
+      />
+
+      <BookingInvitationModal
+        open={invite !== null}
+        share={invite}
+        busy={busy}
+        onClose={() => setInvite(null)}
+        onRespond={async accept => {
+          if (!invite) return;
+          const ok = await respond(invite.shareId, accept);
+          if (ok) { setInvite(null); refreshShares(); }
+        }}
       />
     </>
   );

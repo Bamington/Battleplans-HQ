@@ -229,6 +229,8 @@ export {
   withdrawBookingShare,
 } from './lib/bookingShares'
 export type { BookingShareStatus, IncomingBookingShare, OutgoingBookingShare } from './lib/bookingShares'
+export { useBookingShares } from './hooks/useBookingShares'
+export type { UseBookingShares } from './hooks/useBookingShares'
 export { default as FriendsColumn } from './components/FriendsColumn'
 export type { FriendsColumnProps } from './components/FriendsColumn'
 export { default as AddFriendModal } from './components/AddFriendModal'
@@ -236,6 +238,9 @@ export type { AddFriendModalProps } from './components/AddFriendModal'
 export { default as FriendProfileModal } from './components/FriendProfileModal'
 export type { FriendProfileModalProps, FriendProfileState } from './components/FriendProfileModal'
 export { default as UserHandUp } from './icons/UserHandUp'
+export { default as MapPin } from './icons/MapPin'
+export { default as Calendar } from './icons/Calendar'
+export { default as Notebook } from './icons/Notebook'
 export { setCurrentApp, getCurrentApp, useCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {
