@@ -284,7 +284,12 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameI
 
               {friends.length > 0 && (
                 <>
-                  <HR variant="text" label="Your Friends" spacing="none" />
+                  {/* Only label this section when something sits above it — with
+                      no requests, "Your Friends" is the whole column and the
+                      divider is just noise. */}
+                  {(incoming.length > 0 || outgoing.length > 0) && (
+                    <HR variant="text" label="Your Friends" spacing="none" />
+                  )}
                   {friends.map(f => (
                     <FriendCard
                       key={f.friendshipId}
