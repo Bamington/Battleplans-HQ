@@ -543,7 +543,10 @@ export function useTableAvailability(
         .select('table_id, store_tables!inner(id)', { count: 'exact', head: true })
         .eq('timeslot_id', timeslotId)
         .eq('store_tables.enabled', true),
-      supabase.from('bookings').select('id', { count: 'exact', head: true })
+      // booking_occupancy, not bookings: a regular user can no longer read
+      // other people's bookings, but they still need the slot's taken-count to
+      // see availability. The view exposes occupancy without any identity.
+      supabase.from('booking_occupancy').select('id', { count: 'exact', head: true })
         .eq('location_id', locationId)
         .eq('date', date)
         .eq('timeslot_id', timeslotId),
