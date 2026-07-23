@@ -221,6 +221,14 @@ export {
 export type { Friend, FriendRequest, PublicProfile, FriendGameStat } from './lib/friends'
 export { useFriends } from './hooks/useFriends'
 export type { UseFriends } from './hooks/useFriends'
+export {
+  listIncomingBookingShares,
+  listOutgoingBookingShares,
+  shareBooking,
+  respondToBookingShare,
+  withdrawBookingShare,
+} from './lib/bookingShares'
+export type { BookingShareStatus, IncomingBookingShare, OutgoingBookingShare } from './lib/bookingShares'
 export { default as FriendsColumn } from './components/FriendsColumn'
 export type { FriendsColumnProps } from './components/FriendsColumn'
 export { default as AddFriendModal } from './components/AddFriendModal'

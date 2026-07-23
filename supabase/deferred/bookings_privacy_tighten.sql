@@ -1,8 +1,10 @@
--- 20260723020000_bookings_privacy_tighten.sql
+-- bookings_privacy_tighten.sql  (DEFERRED — deliberately NOT in supabase/migrations/)
 --
--- ⚠️  DEPLOY-TIME ONLY. DO NOT APPLY to the shared database until the code that
---     reads `booking_occupancy` for availability (useTableAvailability) is LIVE
---     IN PRODUCTION.
+-- ⚠️  DEPLOY-TIME ONLY. This file lives in supabase/deferred/ so a routine
+--     `db push` can't sweep it up. At prod-deploy time, move it into
+--     supabase/migrations/ with a current timestamp and push (or run its body
+--     directly). DO NOT apply until the code that reads `booking_occupancy` for
+--     availability (useTableAvailability) is LIVE IN PRODUCTION.
 --
 -- This is the breaking half of the bookings privacy fix. It stops a regular
 -- user reading anyone else's bookings — which also stops the OLD availability
