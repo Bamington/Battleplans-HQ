@@ -337,15 +337,19 @@ export function BookingDetailModal({
 // ── Invitee modal ────────────────────────────────────────────────────────────
 
 export function BookingInvitationModal({
-  open, onClose, share, busy, onRespond,
+  open, onClose, share, busy, onRespond, onLeave,
 }: {
   open: boolean;
   onClose: () => void;
   share: IncomingBookingShare | null;
   busy: boolean;
   onRespond: (accept: boolean) => void;
+  /** Called when leaving a booking you'd already accepted. */
+  onLeave?: () => void;
 }) {
   if (!open || !share) return null;
+
+  const accepted = share.status === 'accepted';
 
   const timeslotLabel = share.timeslotName
     ? `${share.timeslotName}${share.timeslotStart ? ` (${formatBookingTime({ start_time: share.timeslotStart, end_time: share.timeslotEnd ?? '' })})` : ''}`
@@ -363,26 +367,41 @@ export function BookingInvitationModal({
 
         <DetailsList address={share.locationAddress} date={share.date} timeslotLabel={timeslotLabel} />
 
-        <div className="flex gap-3 items-center justify-center w-full">
-          <Button
-            variant="outline"
-            color="danger"
-            rightIcon={<CloseCircle className="w-4 h-4" />}
-            disabled={busy}
-            onClick={() => onRespond(false)}
-          >
-            Decline Invite
-          </Button>
-          <Button
-            variant="outline"
-            color="primary"
-            rightIcon={<CheckCircle className="w-4 h-4" />}
-            loading={busy}
-            onClick={() => onRespond(true)}
-          >
-            Accept Invite
-          </Button>
-        </div>
+        {accepted ? (
+          // Already accepted — the only action left is to back out.
+          <div className="flex items-center justify-center w-full">
+            <Button
+              variant="outline"
+              color="danger"
+              rightIcon={<CloseCircle className="w-4 h-4" />}
+              loading={busy}
+              onClick={() => onLeave?.()}
+            >
+              Leave Booking
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-3 items-center justify-center w-full">
+            <Button
+              variant="outline"
+              color="danger"
+              rightIcon={<CloseCircle className="w-4 h-4" />}
+              disabled={busy}
+              onClick={() => onRespond(false)}
+            >
+              Decline Invite
+            </Button>
+            <Button
+              variant="outline"
+              color="success"
+              rightIcon={<CheckCircle className="w-4 h-4" />}
+              loading={busy}
+              onClick={() => onRespond(true)}
+            >
+              Accept Invite
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );

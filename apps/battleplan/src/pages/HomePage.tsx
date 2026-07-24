@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -345,24 +345,74 @@ function InvitationCard({ share, busy, onAccept, onDecline, onOpen }: {
     : '';
   return (
     <div
-      className="bg-primary-950 border border-primary-600 border-dashed rounded-lg p-[13px] flex gap-3 items-start shadow-md overflow-hidden w-full cursor-pointer"
+      className="bg-primary-950 border border-primary-600 border-dashed rounded-lg p-[13px] flex flex-col gap-1.5 shadow-md overflow-hidden w-full cursor-pointer"
       onClick={onOpen}
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
     >
-      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-stretch">
+      <div className="flex gap-3 items-start w-full">
+        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-stretch">
+          {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
+        </div>
+        <div className="flex flex-col flex-1 min-w-0 justify-center">
+          <p className="font-heading text-primary-200 text-lg leading-6 truncate">{share.gameName ?? 'Booking'} with @{share.sharer.handle}</p>
+          <p className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</p>
+          <p className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</p>
+          <p className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</p>
+        </div>
+      </div>
+      {/* Buttons below the info, full-width. Decline (red) left, Accept (green) right. */}
+      <div className="flex gap-2.5 items-center w-full" onClick={e => e.stopPropagation()}>
+        <Button variant="outline" color="danger" size="sm" className="flex-1 justify-center" rightIcon={<CloseCircle className="w-4 h-4" />} disabled={busy} onClick={onDecline}>Decline</Button>
+        <Button variant="outline" color="success" size="sm" className="flex-1 justify-center" rightIcon={<CheckCircleIcon className="w-4 h-4" />} disabled={busy} onClick={onAccept}>Accept</Button>
+      </div>
+    </div>
+  );
+}
+
+/** A booking you accepted an invite to — a normal card titled "{game} with
+ *  @{sharer}", tappable, with a Leave option. */
+function AcceptedBookingCard({ share, busy, onOpen, onLeave }: {
+  share: IncomingBookingShare;
+  busy: boolean;
+  onOpen: () => void;
+  onLeave: () => void;
+}) {
+  const icon = share.gameSlug ? GAME_ICONS[share.gameSlug] : undefined;
+  const time = share.timeslotStart
+    ? formatBookingTime({ start_time: share.timeslotStart, end_time: share.timeslotEnd ?? '' })
+    : '';
+  return (
+    <div
+      className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden cursor-pointer hover:border-neutral-600 transition-colors"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+    >
+      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
         {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
       </div>
-      <div className="flex flex-col flex-1 min-w-0 justify-center">
-        <p className="font-heading text-primary-200 text-lg leading-6 truncate">{share.gameName ?? 'Booking'} with @{share.sharer.handle}</p>
-        <p className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</p>
-        <p className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</p>
-        <p className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</p>
+      <div className="flex flex-col flex-1 min-w-0 self-stretch justify-center">
+        <span className="font-heading text-lg text-white leading-6 truncate">{share.gameName ?? 'Booking'} with @{share.sharer.handle}</span>
+        <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</span>
+        <span className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</span>
+        <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
       </div>
-      <div className="flex flex-col gap-2.5 items-end justify-center self-stretch" onClick={e => e.stopPropagation()}>
-        <Button variant="outline" color="primary" size="sm" rightIcon={<CheckCircleIcon className="w-4 h-4" />} disabled={busy} onClick={onAccept}>Accept</Button>
-        <Button variant="outline" color="danger" size="sm" rightIcon={<CloseCircle className="w-4 h-4" />} disabled={busy} onClick={onDecline}>Decline</Button>
+      <div onClick={e => e.stopPropagation()}>
+        <Dropdown
+          align="right"
+          trigger={
+            <button type="button" aria-label="Booking options" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
+              <MenuDots className="w-4 h-4 text-white" />
+            </button>
+          }
+        >
+          <DropdownItem icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />} disabled={busy} onClick={onLeave}>
+            <span className="text-red-400">Leave Booking</span>
+          </DropdownItem>
+        </Dropdown>
       </div>
     </div>
   );
@@ -373,10 +423,17 @@ function BookingCard({ userId }: { userId: string | null }) {
   const [viewing, setViewing] = useState<Booking | null>(null);
   const [invite,  setInvite]  = useState<IncomingBookingShare | null>(null);
   const { bookings, loading, refetch } = useUserBookings(userId);
-  const { incoming, busy, respond, refresh: refreshShares } = useBookingShares();
+  const { incoming, busy, respond, leave, refresh: refreshShares } = useBookingShares();
 
-  const pendingInvites = incoming.filter(s => s.status === 'pending');
-  const isEmpty = bookings.length === 0 && pendingInvites.length === 0;
+  const pendingInvites  = incoming.filter(s => s.status === 'pending');
+  // Bookings you accepted an invite to sit in your bookings list, alongside your
+  // own — one combined list, ordered by date.
+  const acceptedShares  = incoming.filter(s => s.status === 'accepted');
+  const yourBookings = useMemo(() => [
+    ...bookings.map(b => ({ kind: 'own' as const, date: b.date, booking: b })),
+    ...acceptedShares.map(s => ({ kind: 'shared' as const, date: s.date, share: s })),
+  ].sort((a, b) => a.date.localeCompare(b.date)), [bookings, acceptedShares]);
+  const isEmpty = yourBookings.length === 0 && pendingInvites.length === 0;
 
   return (
     <>
@@ -409,21 +466,29 @@ function BookingCard({ userId }: { userId: string | null }) {
                   </>
                 )}
 
-                {bookings.length > 0 && (
+                {yourBookings.length > 0 && (
                   <>
                     {pendingInvites.length > 0 && <HR variant="text" label="Your Bookings" spacing="none" />}
-                    {bookings.map(b => (
+                    {yourBookings.map(row => row.kind === 'own' ? (
                       <BookingItem
-                        key={b.id}
-                        bookingId={b.id}
-                        gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-                        gameName={b.game?.name ?? 'No game'}
-                        location={b.location.name}
-                        date={bookingDateLabel(b.date)}
-                        time={formatBookingTime(b.timeslot)}
+                        key={row.booking.id}
+                        bookingId={row.booking.id}
+                        gameIcon={row.booking.game?.slug ? GAME_ICONS[row.booking.game.slug] : undefined}
+                        gameName={row.booking.game?.name ?? 'No game'}
+                        location={row.booking.location.name}
+                        date={bookingDateLabel(row.booking.date)}
+                        time={formatBookingTime(row.booking.timeslot)}
                         variant="user"
                         onDeleted={refetch}
-                        onClick={() => setViewing(b)}
+                        onClick={() => setViewing(row.booking)}
+                      />
+                    ) : (
+                      <AcceptedBookingCard
+                        key={row.share.shareId}
+                        share={row.share}
+                        busy={busy}
+                        onOpen={() => setInvite(row.share)}
+                        onLeave={async () => { const ok = await leave(row.share.shareId); if (ok) refreshShares(); }}
                       />
                     ))}
                   </>
@@ -464,6 +529,11 @@ function BookingCard({ userId }: { userId: string | null }) {
         onRespond={async accept => {
           if (!invite) return;
           const ok = await respond(invite.shareId, accept);
+          if (ok) { setInvite(null); refreshShares(); }
+        }}
+        onLeave={async () => {
+          if (!invite) return;
+          const ok = await leave(invite.shareId);
           if (ok) { setInvite(null); refreshShares(); }
         }}
       />

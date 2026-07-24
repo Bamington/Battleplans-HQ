@@ -35,6 +35,8 @@ export interface UseBookingShares {
   respond: (shareId: string, accept: boolean) => Promise<boolean>
   /** Withdraw a share I sent. */
   withdraw: (shareId: string) => Promise<boolean>
+  /** Leave a booking I accepted an invite to (same delete, invitee side). */
+  leave: (shareId: string) => Promise<boolean>
 }
 
 export function useBookingShares(): UseBookingShares {
@@ -97,5 +99,6 @@ export function useBookingShares(): UseBookingShares {
     share:    useCallback((bookingId: string, handle: string) => run(() => shareBooking(bookingId, handle)), [run]),
     respond:  useCallback((shareId: string, accept: boolean) => run(() => respondToBookingShare(shareId, accept)), [run]),
     withdraw: useCallback((shareId: string) => run(() => withdrawBookingShare(shareId)), [run]),
+    leave:    useCallback((shareId: string) => run(() => withdrawBookingShare(shareId)), [run]),
   }
 }
