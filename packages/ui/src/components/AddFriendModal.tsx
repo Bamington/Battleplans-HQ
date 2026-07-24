@@ -1,12 +1,18 @@
 /**
  * AddFriendModal.tsx — "Add Friends" dialog
  *
- * Two ways in: an email invitation, or a @username. Only one is used per send.
+ * One way in: a @username.
+ *
+ * Inviting by email address was tried and removed. Doing it without turning the
+ * box into an account-lookup oracle meant the invitation could never touch
+ * `friendships` until it was accepted, a declined invitation had to go on
+ * looking pending forever, and one sent to an address that never signed up had
+ * nowhere to go. The dialog deliberately makes no promise about it returning.
  *
  * Validation is FORMAT ONLY, deliberately. Checking whether the value matches a
  * real account before sending would turn this box into a directory: type
- * addresses or handles, watch the button light up, learn who has an account.
- * The send itself is the only thing that touches real records.
+ * handles, watch the button light up, learn who has an account. The send itself
+ * is the only thing that touches real records.
  *
  * Takes `onSend` rather than calling the RPC itself so it shares one useFriends
  * instance with whatever rendered it. That matters: sending to someone who had
@@ -18,19 +24,13 @@ import { normaliseHandle, validateHandle } from '../lib/handles';
 import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
-import HR from './HR';
 import ArrowRight from '../icons/ArrowRight';
-
-/** Good enough to catch typos; the real test is whether the mail arrives. */
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface AddFriendModalProps {
   open: boolean;
   onClose: () => void;
   /** Sends a request by @username. Resolves true on success. */
   onSend: (handle: string) => Promise<boolean>;
-  /** Sends an email invitation. Omit while that half isn't built. */
-  onInvite?: (email: string) => Promise<boolean>;
   /** True while a send is in flight. */
   busy?: boolean;
   /** Failure from the last attempt, safe to display. */
@@ -38,28 +38,21 @@ export interface AddFriendModalProps {
 }
 
 export default function AddFriendModal({
-  open, onClose, onSend, onInvite, busy = false, error = null,
+  open, onClose, onSend, busy = false, error = null,
 }: AddFriendModalProps) {
-  const [email,  setEmail]  = useState('');
   const [handle, setHandle] = useState('');
 
   // Start clean each time it opens, so a previous attempt isn't still sitting
-  // in the fields.
+  // in the field.
   useEffect(() => {
-    if (open) { setEmail(''); setHandle(''); }
+    if (open) setHandle('');
   }, [open]);
 
-  const emailReady  = EMAIL_PATTERN.test(email.trim());
-  const handleReady = validateHandle(handle) === null;
-  const canSend     = (handleReady || (emailReady && !!onInvite)) && !busy;
+  const canSend = validateHandle(handle) === null && !busy;
 
   async function handleSubmit() {
     if (!canSend) return;
-    // The username is the actionable path, so it wins if somehow both are set.
-    const ok = handleReady
-      ? await onSend(handle)
-      : onInvite ? await onInvite(email.trim()) : false;
-    if (ok) onClose();
+    if (await onSend(handle)) onClose();
   }
 
   if (!open) return null;
@@ -77,26 +70,9 @@ export default function AddFriendModal({
             Add Friends
           </h2>
           <p className="font-body text-base text-gray-300 leading-6">
-            You can add a friend by sending them an Email invitation, or by entering
-            their BattlePlan username.
+            Add a friend by entering their BattlePlan username.
           </p>
         </div>
-
-        <Input
-          label="Friend’s Email Address"
-          type="email"
-          placeholder="e.g. steverogers@avengermail.com"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          disabled={!onInvite || busy}
-          helperText={
-            onInvite
-              ? 'We’ll send them an invite on Battleplan if they have an account. If not, they’ll receive an Email invitation.'
-              : 'Email invitations are coming soon — for now, add a friend by their username.'
-          }
-        />
-
-        <HR variant="text" label="OR" spacing="none" />
 
         <Input
           label="Friend’s BattlePlan Username"
