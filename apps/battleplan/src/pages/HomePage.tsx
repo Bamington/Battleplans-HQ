@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -351,12 +351,14 @@ function InvitationCard({ share, busy, onAccept, onDecline, onOpen }: {
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
     >
-      <div className="flex gap-3 items-start w-full">
-        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-stretch">
+      <div className="flex gap-3 items-center w-full">
+        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-center">
           {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
         </div>
         <div className="flex flex-col flex-1 min-w-0 justify-center">
-          <p className="font-heading text-primary-200 text-lg leading-6 truncate">{share.gameName ?? 'Booking'} with @{share.sharer.handle}</p>
+          <p className="font-heading text-primary-200 text-lg leading-6 line-clamp-2">
+            {share.gameName ?? 'Booking'} with <HandleLink userId={share.sharer.id} handle={share.sharer.handle} avatarUrl={share.sharer.avatarUrl} />
+          </p>
           <p className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</p>
           <p className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</p>
           <p className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</p>
@@ -385,22 +387,24 @@ function AcceptedBookingCard({ share, busy, onOpen, onLeave }: {
     : '';
   return (
     <div
-      className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden cursor-pointer hover:border-neutral-600 transition-colors"
+      className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-center shadow-md overflow-hidden cursor-pointer hover:border-neutral-600 transition-colors"
       onClick={onOpen}
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
     >
-      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
+      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-center">
         {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
       </div>
-      <div className="flex flex-col flex-1 min-w-0 self-stretch justify-center">
-        <span className="font-heading text-lg text-white leading-6 truncate">{share.gameName ?? 'Booking'} with @{share.sharer.handle}</span>
+      <div className="flex flex-col flex-1 min-w-0 justify-center">
+        <span className="font-heading text-lg text-white leading-6 line-clamp-2">
+          {share.gameName ?? 'Booking'} with <HandleLink userId={share.sharer.id} handle={share.sharer.handle} avatarUrl={share.sharer.avatarUrl} />
+        </span>
         <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</span>
         <span className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</span>
         <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
       </div>
-      <div onClick={e => e.stopPropagation()}>
+      <div className="self-start" onClick={e => e.stopPropagation()}>
         <Dropdown
           align="right"
           trigger={
@@ -1251,6 +1255,7 @@ export default function HomePage() {
   const viewingStore = isLocationAdmin && selectedVenueId !== '';
 
   return (
+    <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
@@ -1290,5 +1295,6 @@ export default function HomePage() {
       <AppFooter className="shrink-0" appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
+    </ProfileModalProvider>
   );
 }

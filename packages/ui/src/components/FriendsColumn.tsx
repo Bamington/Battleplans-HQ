@@ -71,7 +71,7 @@ function RequestCard({
       {/* Back beside the handle now the button is icon-only — at that width it
           no longer squeezes the handle down to a few characters. */}
       <div className="flex flex-1 min-w-0 gap-2 items-center justify-between self-stretch">
-        <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
+        <p className="font-heading text-primary-400 text-lg leading-6 truncate">@{request.handle}</p>
         {/* Decline sits left of Accept so the affirmative action is the one
             nearest the edge, matching the profile modal. */}
         <div className="flex gap-2 items-center shrink-0">
@@ -121,7 +121,7 @@ function PendingCard({
     <div className={`${CARD} items-center`}>
       <CardAvatar url={request.avatarUrl} handle={request.handle} />
       <div className="flex flex-col flex-1 min-w-0 justify-center">
-        <p className="font-heading text-white text-lg leading-6 truncate">@{request.handle}</p>
+        <p className="font-heading text-primary-400 text-lg leading-6 truncate">@{request.handle}</p>
         <p className="font-body font-bold text-sm leading-5 text-neutral-300 opacity-50 truncate">
           Sent {formatSentDate(request.createdAt)}
         </p>
@@ -170,7 +170,7 @@ function FriendCard({
     >
       <CardAvatar url={friend.avatarUrl} handle={friend.handle} />
       <div className="flex flex-col flex-1 min-w-0 self-stretch justify-center">
-        <p className="font-heading text-white text-lg leading-6 truncate">@{friend.handle}</p>
+        <p className="font-heading text-primary-400 text-lg leading-6 truncate">@{friend.handle}</p>
         {friend.username && (
           <p className="font-body font-bold text-sm leading-5 text-neutral-300 opacity-50 truncate">
             {friend.username}

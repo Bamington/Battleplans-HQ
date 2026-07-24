@@ -21,7 +21,7 @@ import {
   CheckCircle, CloseCircle, ArrowRight, TrashBinMinimalistic, MenuDots,
   useBookingShares, useFriends,
   normaliseHandle, validateHandle,
-  supabase,
+  supabase, HandleLink,
   type IncomingBookingShare, type OutgoingBookingShare,
 } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
@@ -50,13 +50,13 @@ function GameThumb({ slug, name }: { slug: string | null; name: string }) {
 
 /** Header: game thumbnail, game name, venue, and an optional attribution line. */
 function BookingHeader({
-  gameName, gameSlug, venue, invitedByHandle, bookedBy,
+  gameName, gameSlug, venue, invitedBy, bookedBy,
 }: {
   gameName: string;
   gameSlug: string | null;
   venue: string | null;
-  /** Invitee view: "Invited by @handle". */
-  invitedByHandle?: string;
+  /** Invitee view: "Invited by @handle" — the handle opens their profile. */
+  invitedBy?: { id: string; handle: string; avatarUrl: string | null };
   /** Store view: "Booked by {customer}". */
   bookedBy?: string;
 }) {
@@ -70,9 +70,9 @@ function BookingHeader({
         {venue && (
           <p className="font-body font-bold text-base text-neutral-300 leading-6 opacity-50 truncate">{venue}</p>
         )}
-        {invitedByHandle && (
+        {invitedBy && (
           <p className="font-body text-sm text-neutral-50 leading-5 truncate">
-            Invited by <span className="font-bold">@{invitedByHandle}</span>
+            Invited by <HandleLink userId={invitedBy.id} handle={invitedBy.handle} avatarUrl={invitedBy.avatarUrl} className="font-bold" />
           </p>
         )}
         {bookedBy && (
@@ -184,7 +184,9 @@ function InviteFriendsTab({
                   : <UserRounded className="w-7 h-7 text-neutral-400" />}
               </div>
               <div className="flex flex-col flex-1 min-w-0 justify-center">
-                <p className="font-heading text-white text-lg leading-6 truncate">@{inv.recipient.handle}</p>
+                <p className="font-heading text-white text-lg leading-6 truncate">
+                  <HandleLink userId={inv.recipient.id} handle={inv.recipient.handle} avatarUrl={inv.recipient.avatarUrl} />
+                </p>
                 {friendName.get(inv.recipient.id) && (
                   <p className="font-body font-bold text-sm leading-5 text-neutral-300 opacity-50 truncate">
                     {friendName.get(inv.recipient.id)}
@@ -357,30 +359,40 @@ export function BookingInvitationModal({
 
   return (
     <Modal open onClose={busy ? () => {} : onClose} className="max-w-md">
-      <div className="p-5 flex flex-col gap-3">
+      <div className="p-5 flex flex-col gap-3 relative">
+        {/* Once accepted there's no bottom CTA — "Leave Booking" as a big button
+            reads as "close this dialog". It lives in the 3-dot menu instead. */}
+        {accepted && (
+          <div className="absolute top-4 right-4">
+            <Dropdown
+              align="right"
+              trigger={
+                <button type="button" aria-label="Booking options" className="p-1 opacity-50 hover:opacity-100 transition-opacity">
+                  <MenuDots className="w-4 h-4 text-white" />
+                </button>
+              }
+            >
+              <DropdownItem
+                icon={<CloseCircle className="w-4 h-4 text-red-400" />}
+                disabled={busy}
+                onClick={() => onLeave?.()}
+              >
+                <span className="text-red-400">Leave Booking</span>
+              </DropdownItem>
+            </Dropdown>
+          </div>
+        )}
+
         <BookingHeader
           gameName={share.gameName ?? 'No game'}
           gameSlug={share.gameSlug}
           venue={share.locationName}
-          invitedByHandle={share.sharer.handle}
+          invitedBy={{ id: share.sharer.id, handle: share.sharer.handle, avatarUrl: share.sharer.avatarUrl }}
         />
 
         <DetailsList address={share.locationAddress} date={share.date} timeslotLabel={timeslotLabel} />
 
-        {accepted ? (
-          // Already accepted — the only action left is to back out.
-          <div className="flex items-center justify-center w-full">
-            <Button
-              variant="outline"
-              color="danger"
-              rightIcon={<CloseCircle className="w-4 h-4" />}
-              loading={busy}
-              onClick={() => onLeave?.()}
-            >
-              Leave Booking
-            </Button>
-          </div>
-        ) : (
+        {!accepted && (
           <div className="flex gap-3 items-center justify-center w-full">
             <Button
               variant="outline"
