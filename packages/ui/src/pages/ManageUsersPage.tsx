@@ -20,6 +20,10 @@ type UserRow = {
   id:         string;
   email:      string;
   role:       'user' | 'beta_tester' | 'admin';
+  /** Public @username. */
+  handle:     string | null;
+  /** "Your Name" — private display name, shown to admins here. */
+  username:   string | null;
   created_at: string;
 };
 
@@ -241,18 +245,19 @@ export default function ManageUsersPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: 
                 className="flex items-center gap-4 px-5 py-3.5 bg-neutral-900 hover:bg-neutral-800 transition-colors"
               >
                 {/* Avatar initials */}
-                <div className="shrink-0 size-8 rounded-full bg-primary-900 flex items-center justify-center">
+                <div className="shrink-0 size-8 rounded-sm bg-primary-900 flex items-center justify-center">
                   <span className="font-body font-bold text-xs text-neutral-300 uppercase tracking-wide">
-                    {u.email[0]}
+                    {(u.handle ?? u.email)[0]}
                   </span>
                 </div>
 
-                {/* Email + date */}
+                {/* @username (real name) over email */}
                 <div className="flex-1 min-w-0 flex flex-col">
-                  <span className="font-body text-sm text-white truncate">{u.email}</span>
-                  <span className="font-body text-xs text-neutral-500">
-                    Joined {new Date(u.created_at).toLocaleDateString()}
+                  <span className="font-body text-sm truncate">
+                    <span className="text-primary-400">@{u.handle ?? '—'}</span>
+                    {u.username && <span className="text-white"> ({u.username})</span>}
                   </span>
+                  <span className="font-body text-xs text-neutral-500 truncate">{u.email}</span>
                 </div>
 
                 {/* Role badge */}

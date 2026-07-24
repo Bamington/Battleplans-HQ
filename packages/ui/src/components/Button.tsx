@@ -48,6 +48,11 @@ export interface ButtonProps {
   /** HTML button type attribute */
   type?: 'button' | 'submit' | 'reset';
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  /**
+   * Accessible name. Required when the button is icon-only — with no text
+   * child there is otherwise nothing for a screen reader to announce.
+   */
+  'aria-label'?: string;
   /** Extra Tailwind classes for one-off tweaks */
   className?: string;
   children: React.ReactNode;
@@ -160,6 +165,7 @@ const Button = ({
   onClick,
   className = '',
   children,
+  'aria-label': ariaLabel,
 }: ButtonProps) => {
   const isDisabled = disabled || loading;
 
@@ -178,6 +184,7 @@ const Button = ({
       disabled={isDisabled}
       onClick={onClick}
       className={classes}
+      aria-label={ariaLabel}
     >
       {loading ? <Spinner /> : leftIcon}
       {children}

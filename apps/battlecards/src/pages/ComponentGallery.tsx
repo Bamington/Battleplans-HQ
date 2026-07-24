@@ -71,6 +71,8 @@ import SaveTemplateModal from '../components/SaveTemplateModal';
 import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
 import BlogEntryPreview from '../components/BlogEntryPreview';
 import { Modal, WelcomeModalView, ProfileFields, UpdateModal, MarkdownBody, Pagination } from '@battleplans/ui';
+import { AddFriendModal, FriendProfileModal } from '@battleplans/ui';
+import type { FriendProfileState } from '@battleplans/ui';
 
 /** A real release note, used to demo markdown rendering + clamping. */
 const MARKDOWN_SAMPLE = [
@@ -276,19 +278,76 @@ const AddToPackModalGalleryDemo = () => {
   );
 };
 
+// ── FriendsModalsGalleryDemo ─────────────────────────────────────────────────
+
+/** The two presentational friends dialogs. Both take explicit props, so they
+ *  demo without a session — unlike FriendsColumn, which fetches its own data
+ *  and is therefore only meaningful inside a signed-in app.
+ *
+ *  Note the profile modal shows the real name ONLY in the "friends" state: a
+ *  name is private until the request is accepted. */
+const FriendsModalsGalleryDemo = () => {
+  const [addOpen, setAddOpen] = useState(false);
+  const [profile, setProfile] = useState<null | FriendProfileState>(null);
+
+  const STATES: { label: string; state: FriendProfileState }[] = [
+    { label: 'Not connected',   state: { kind: 'none' } },
+    { label: 'Request sent',    state: { kind: 'outgoing', friendshipId: 'demo' } },
+    { label: 'Request received', state: { kind: 'incoming', friendshipId: 'demo' } },
+    { label: 'Friends',         state: { kind: 'friends', friendshipId: 'demo', username: 'Bam Harrison' } },
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setAddOpen(true)}>Add Friend modal</Button>
+      {STATES.map(s => (
+        <Button key={s.label} variant="outline" color="secondary" onClick={() => setProfile(s.state)}>
+          Profile — {s.label}
+        </Button>
+      ))}
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500 w-full">
+        The Add Friend CTA enables on a valid username format only — it never checks
+        whether the user exists, which would leak who has an account. Email invites
+        are disabled until Phase 2. The Friends state loads a friend’s top games,
+        which appear only in a signed-in app with an accepted friend.
+      </p>
+
+      <AddFriendModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSend={async () => { setAddOpen(false); return true; }}
+      />
+
+      <FriendProfileModal
+        open={profile !== null}
+        onClose={() => setProfile(null)}
+        handle="bamington"
+        state={profile ?? { kind: 'none' }}
+        onSendRequest={() => setProfile(null)}
+        onRespond={() => setProfile(null)}
+        onWithdraw={() => setProfile(null)}
+      />
+    </div>
+  );
+};
+
 // ── WelcomeModalGalleryDemo ──────────────────────────────────────────────────
 
 /** Presentational preview of the onboarding WelcomeModalView. The real
  *  WelcomeModal self-fetches the signed-in user's profile and blocks until the
  *  required fields are saved; here we drive it with local state and mock
  *  locations, and "Continue" just closes it. Toggles between the BattleCards
- *  (username only) and BattlePlan (username + preferred location) field sets. */
+ *  (name only) and BattlePlan (name + preferred location) field sets.
+ *
+ *  Note "Your Name" is the `username` column and "Username" is the `handle`
+ *  column — the two cross over between code and interface. */
 const WelcomeModalGalleryDemo = () => {
   const [variant,    setVariant]    = useState<null | 'cards' | 'plan'>(null);
   const [username,   setUsername]   = useState('Chris');
   const [locationId, setLocationId] = useState('');
   const [error,      setError]      = useState<string | null>(null);
   const [avatar,     setAvatar]     = useState<Blob | null | undefined>(undefined);
+  const [handle,     setHandle]     = useState('');
 
   const MOCK_LOCATIONS = [
     { id: 'loc-1', name: 'Battleground North' },
@@ -296,7 +355,7 @@ const WelcomeModalGalleryDemo = () => {
   ];
 
   function handleSave() {
-    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (!username.trim()) { setError('Please enter your name.'); return; }
     if (variant === 'plan' && !locationId) { setError('Please select a preferred location.'); return; }
     setError(null);
     setVariant(null);
@@ -324,6 +383,9 @@ const WelcomeModalGalleryDemo = () => {
           showUsername
           showPreferredLocation={variant === 'plan'}
           showBookingEmailNote={variant === 'plan'}
+          showHandle
+          handle={handle}
+          onHandleChange={setHandle}
           username={username}
           onUsernameChange={setUsername}
           preferredLocationId={locationId}
@@ -348,6 +410,7 @@ const WelcomeModalGalleryDemo = () => {
 const ProfileModalGalleryDemo = () => {
   const [variant,    setVariant]    = useState<null | 'username' | 'full'>(null);
   const [username,   setUsername]   = useState('Chris');
+  const [handle,     setHandle]     = useState('chris-h');
   const [locationId, setLocationId] = useState('loc-1');
   const [error,      setError]      = useState<string | null>(null);
 
@@ -357,7 +420,7 @@ const ProfileModalGalleryDemo = () => {
   ];
 
   function handleSave() {
-    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (!username.trim()) { setError('Please enter your name.'); return; }
     if (variant === 'full' && !locationId) { setError('Please select a preferred location.'); return; }
     setError(null);
     setVariant(null);
@@ -365,7 +428,7 @@ const ProfileModalGalleryDemo = () => {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => { setError(null); setVariant('username'); }}>Username only</Button>
+      <Button onClick={() => { setError(null); setVariant('username'); }}>Name only</Button>
       <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('full'); }}>
         With preferred location
       </Button>
@@ -382,6 +445,9 @@ const ProfileModalGalleryDemo = () => {
                 showPreferredLocation={variant === 'full'}
                 username={username}
                 onUsernameChange={setUsername}
+                showHandle
+                handle={handle}
+                onHandleChange={setHandle}
                 preferredLocationId={locationId}
                 onPreferredLocationChange={setLocationId}
                 locations={MOCK_LOCATIONS}
@@ -1563,6 +1629,13 @@ const ComponentGallery = () => {
           </div>
 
         </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          FRIENDS — Add Friend + Friend Profile
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Friends / Modals">
+        <FriendsModalsGalleryDemo />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════

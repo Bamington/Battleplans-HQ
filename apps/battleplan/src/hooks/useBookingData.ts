@@ -27,7 +27,7 @@ export interface Booking {
   date:      string;
   user_name: string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string };
+  location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
 }
 
@@ -44,7 +44,7 @@ interface RawBookingRow {
   timeslot_start_time:  string | null;
   timeslot_end_time:    string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string } | null;
+  location:  { id: string; name: string; address: string | null } | null;
   timeslot:  { id: string; name: string; start_time: string; end_time: string } | null;
 }
 
@@ -54,7 +54,7 @@ const BOOKING_SELECT = `
   id, date, user_name, location_id, timeslot_id,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
   game:games(id, name, slug),
-  location:locations(id, name),
+  location:locations(id, name, address),
   timeslot:timeslots(id, name, start_time, end_time)
 `;
 
@@ -68,8 +68,9 @@ function mapBookingRow(r: RawBookingRow): Booking {
     user_name: r.user_name,
     game:      r.game ?? null,
     location: {
-      id:   r.location?.id ?? r.location_id ?? '',
-      name: r.location_name ?? r.location?.name ?? '',
+      id:      r.location?.id ?? r.location_id ?? '',
+      name:    r.location_name ?? r.location?.name ?? '',
+      address: r.location?.address ?? null,
     },
     timeslot: {
       id:         r.timeslot?.id ?? r.timeslot_id ?? '',
@@ -387,7 +388,7 @@ export interface UpcomingBooking {
   date:      string;
   user_name: string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string };
+  location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
 }
 
@@ -543,7 +544,10 @@ export function useTableAvailability(
         .select('table_id, store_tables!inner(id)', { count: 'exact', head: true })
         .eq('timeslot_id', timeslotId)
         .eq('store_tables.enabled', true),
-      supabase.from('bookings').select('id', { count: 'exact', head: true })
+      // booking_occupancy, not bookings: a regular user can no longer read
+      // other people's bookings, but they still need the slot's taken-count to
+      // see availability. The view exposes occupancy without any identity.
+      supabase.from('booking_occupancy').select('id', { count: 'exact', head: true })
         .eq('location_id', locationId)
         .eq('date', date)
         .eq('timeslot_id', timeslotId),
@@ -800,8 +804,29 @@ export function useSuggestedBattles(userId: string | null) {
         .eq('user_id', userId).gte('date_played', sinceIso),
       supabase.from('battle_suggestion_dismissals').select('booking_id')
         .eq('user_id', userId),
-    ]).then(([bkRes, btRes, dmRes]) => {
-      const bookings  = ((bkRes.data as unknown as RawBookingRow[]) ?? []).map(mapBookingRow);
+      // Bookings you accepted an invite to feed the same nudge, on the same
+      // rules — a past game you attended but haven't logged.
+      supabase.from('my_incoming_booking_shares')
+        .select('booking_id, date, game_id, game_name, game_slug, location_id, location_name')
+        .eq('status', 'accepted').gte('date', sinceIso).lt('date', todayIso),
+    ]).then(([bkRes, btRes, dmRes, shRes]) => {
+      const ownBookings = ((bkRes.data as unknown as RawBookingRow[]) ?? []).map(mapBookingRow);
+      // Accepted shared bookings, shaped like a booking so the loop treats them
+      // identically. Their id is the owner's booking id (fine for dismissals —
+      // that table is keyed by (user_id, booking_id), and the row exists).
+      const sharedBookings: Booking[] = ((shRes.data as {
+        booking_id: string; date: string;
+        game_id: string | null; game_name: string | null; game_slug: string | null;
+        location_id: string | null; location_name: string | null;
+      }[] | null) ?? []).map(s => ({
+        id: s.booking_id,
+        date: s.date,
+        user_name: null,
+        game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
+        location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
+        timeslot: { id: '', name: '', start_time: '', end_time: '' },
+      }));
+      const bookings  = [...ownBookings, ...sharedBookings];
       const battles   = (btRes.data as { date_played: string; game_id: string | null }[] | null) ?? [];
       const dismissedIds = new Set((dmRes.data as { booking_id: string }[] | null ?? []).map(d => d.booking_id));
       // Duplicate bookings for the same day + game collapse into one suggestion, so

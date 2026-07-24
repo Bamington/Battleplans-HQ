@@ -197,6 +197,52 @@ export { initNativeAuth, signInWithProvider } from './lib/nativeAuth'
 export { avatarUrl, uploadAvatar } from './lib/avatars'
 export { useProfileDisplay, publishProfileDisplay, clearProfileDisplay } from './lib/profileDisplay'
 export type { ProfileDisplay } from './lib/profileDisplay'
+export {
+  HANDLE_PATTERN,
+  HANDLE_MAX_LENGTH,
+  normaliseHandle,
+  validateHandle,
+  isHandleAvailable,
+  describeProfileSaveError,
+} from './lib/handles'
+export { useHandleAvailability } from './hooks/useHandleAvailability'
+export type { HandleStatus, HandleAvailability } from './hooks/useHandleAvailability'
+export {
+  listFriends,
+  listFriendRequests,
+  findProfileByHandle,
+  sendFriendRequest,
+  respondToFriendRequest,
+  removeFriendship,
+  blockUser,
+  unblockUser,
+  friendTopGames,
+} from './lib/friends'
+export type { Friend, FriendRequest, PublicProfile, FriendGameStat } from './lib/friends'
+export { useFriends } from './hooks/useFriends'
+export type { UseFriends } from './hooks/useFriends'
+export {
+  listIncomingBookingShares,
+  listOutgoingBookingShares,
+  shareBooking,
+  respondToBookingShare,
+  withdrawBookingShare,
+} from './lib/bookingShares'
+export type { BookingShareStatus, IncomingBookingShare, OutgoingBookingShare } from './lib/bookingShares'
+export { useBookingShares } from './hooks/useBookingShares'
+export type { UseBookingShares } from './hooks/useBookingShares'
+export { default as FriendsColumn } from './components/FriendsColumn'
+export type { FriendsColumnProps } from './components/FriendsColumn'
+export { default as AddFriendModal } from './components/AddFriendModal'
+export type { AddFriendModalProps } from './components/AddFriendModal'
+export { default as FriendProfileModal } from './components/FriendProfileModal'
+export type { FriendProfileModalProps, FriendProfileState } from './components/FriendProfileModal'
+export { ProfileModalProvider, useProfileLauncher, HandleLink } from './components/ProfileModalProvider'
+export type { ProfileModalProviderProps, ProfileTarget, HandleLinkProps } from './components/ProfileModalProvider'
+export { default as UserHandUp } from './icons/UserHandUp'
+export { default as MapPin } from './icons/MapPin'
+export { default as Calendar } from './icons/Calendar'
+export { default as Notebook } from './icons/Notebook'
 export { setCurrentApp, getCurrentApp, useCurrentApp } from './lib/currentApp'
 export type { AppSlug } from './lib/currentApp'
 export {

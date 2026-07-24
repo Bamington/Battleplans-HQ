@@ -13,12 +13,29 @@
  *
  * The profile picture is offered in every app and is always OPTIONAL — it never
  * gates the modal, or a user who simply doesn't want one could never get past it.
+ * The same goes for the Username, which is auto-assigned at signup and only
+ * offered here for editing.
  *
- * Data lives on `public.user_profiles` (username, preferred_location_id,
- * avatar_path). The gate re-reads that row on mount; if every *required* field
- * is already set the modal never renders. A username set in one app therefore
+ * NAMING — the two name fields cross over between code and interface:
+ *
+ *   `username` column → labelled "Your Name". Private free text. Only stores
+ *                       you book with and friends you accept can see it, which
+ *                       is why the copy suggests using a real name.
+ *   `handle` column   → labelled "Username". Public, unique, searchable.
+ *
+ * Each field states its own privacy rule; there is deliberately no general
+ * summary line, which would only repeat them less precisely.
+ *
+ * Data lives on `public.user_profiles` (username, handle, preferred_location_id,
+ * avatar_path, onboarded). The gate re-reads that row on mount; if every
+ * *required* field is already set — AND the user has been through onboarding
+ * once (`onboarded`) — the modal never renders. A name set in one app therefore
  * carries over to the other — BattlePlan only additionally needs the preferred
  * location, and a user who lands there second gets another chance at a picture.
+ *
+ * `onboarded` starts false for everyone (see the 20260724010000 migration) so
+ * that the social-era release re-prompts every existing user once to review
+ * their Username and set a Name; saving flips it true.
  *
  * `WelcomeModalView` is the presentational half (used by the component gallery);
  * `WelcomeModal` wraps it with the data-fetching + gating logic.
@@ -28,6 +45,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import { publishProfileDisplay } from '../lib/profileDisplay';
+import { normaliseHandle, validateHandle, describeProfileSaveError } from '../lib/handles';
+import { useHandleAvailability } from '../hooks/useHandleAvailability';
 import Modal from './Modal';
 import Input from './Input';
 import Select from './Select';
@@ -80,6 +99,14 @@ export interface ProfileFieldsProps {
   showPreferredLocation: boolean;
   username: string;
   onUsernameChange: (value: string) => void;
+  /** Show the unique @handle field. */
+  showHandle?: boolean;
+  handle?: string;
+  onHandleChange?: (value: string) => void;
+  /** The handle already saved — used to skip the check when it's unchanged. */
+  originalHandle?: string | null;
+  /** Signed-in user's id, so their own handle isn't reported as taken. */
+  selfId?: string | null;
   preferredLocationId: string;
   onPreferredLocationChange: (value: string) => void;
   locations: WelcomeLocation[];
@@ -97,12 +124,19 @@ export function ProfileFields({
   showPreferredLocation,
   username,
   onUsernameChange,
+  showHandle = false,
+  handle = '',
+  onHandleChange,
+  originalHandle,
+  selfId,
   preferredLocationId,
   onPreferredLocationChange,
   locations,
   error,
   disabled = false,
 }: ProfileFieldsProps) {
+  const availability = useHandleAvailability(handle, selfId ?? null, originalHandle);
+
   return (
     <>
       {showAvatar && onAvatarChange && (
@@ -116,12 +150,38 @@ export function ProfileFields({
 
       {showUsername && (
         <Input
-          label="Username"
-          placeholder="Choose a username"
+          label="Your Name"
+          placeholder="Your name"
           value={username}
           onChange={e => onUsernameChange(e.target.value)}
           state={error ? 'error' : 'default'}
+          helperText="Use your real name — only stores you book with and friends you accept can see it."
           required
+          disabled={disabled}
+        />
+      )}
+
+      {showHandle && onHandleChange && (
+        <Input
+          label="Username"
+          placeholder="your-username"
+          // Input is coerced to the legal alphabet as it's typed. Length is not
+          // padded, so a too-short value still needs validateHandle on save.
+          value={handle}
+          onChange={e => onHandleChange(normaliseHandle(e.target.value))}
+          leftIcon={<span className="font-body text-sm text-gray-500">@</span>}
+          state={
+            availability.status === 'invalid' || availability.status === 'taken' ? 'error'
+            : availability.status === 'available' ? 'success'
+            : error ? 'error'
+            : 'default'
+          }
+          helperText={
+            availability.message
+            ?? 'This is public. People can find you by searching for your Username. Letters, numbers, - and _.'
+          }
+          required
+          disabled={disabled}
         />
       )}
 
@@ -158,6 +218,11 @@ export interface WelcomeModalViewProps {
   showBookingEmailNote?: boolean;
   username: string;
   onUsernameChange: (value: string) => void;
+  showHandle?: boolean;
+  handle?: string;
+  onHandleChange?: (value: string) => void;
+  originalHandle?: string | null;
+  selfId?: string | null;
   preferredLocationId: string;
   onPreferredLocationChange: (value: string) => void;
   locations: WelcomeLocation[];
@@ -177,6 +242,11 @@ export function WelcomeModalView({
   showBookingEmailNote = false,
   username,
   onUsernameChange,
+  showHandle,
+  handle,
+  onHandleChange,
+  originalHandle,
+  selfId,
   preferredLocationId,
   onPreferredLocationChange,
   locations,
@@ -195,9 +265,9 @@ export function WelcomeModalView({
           <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
             Welcome to {appName}
           </h1>
-          <p className="font-body text-base text-gray-300 leading-6">
-            Other users will see your Username and Profile Picture.
-          </p>
+          {/* No general privacy summary here — each field carries its own,
+              stated precisely and next to the input it applies to. The email
+              note stays because no field explains it. */}
           {showBookingEmailNote && (
             <p className="font-body text-base text-gray-300 leading-6">
               Your email address is only shared with stores when you make a booking.
@@ -214,6 +284,11 @@ export function WelcomeModalView({
           showPreferredLocation={showPreferredLocation}
           username={username}
           onUsernameChange={onUsernameChange}
+          showHandle={showHandle}
+          handle={handle}
+          onHandleChange={onHandleChange}
+          originalHandle={originalHandle}
+          selfId={selfId}
           preferredLocationId={preferredLocationId}
           onPreferredLocationChange={onPreferredLocationChange}
           locations={locations}
@@ -225,6 +300,62 @@ export function WelcomeModalView({
           {saving ? 'Saving…' : 'Continue'}
         </Button>
       </form>
+    </Modal>
+  );
+}
+
+// ── Intro stage ───────────────────────────────────────────────────────────────
+// The first of the modal's two stages. It explains WHY the user is being asked
+// to look at their profile — the username/name split now drives friends and
+// booking invites — so a re-prompted user isn't just staring at the same
+// onboarding form again. "Review my Username" advances to the form.
+
+const ArrowRightIcon = () => (
+  <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" aria-hidden="true">
+    <path
+      d="M3.333 8h9.334M9.333 4.667 12.667 8l-3.334 3.333"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export function WelcomeIntroView({ onContinue }: { onContinue: () => void }) {
+  return (
+    // Blocking, like the form stage — the backdrop can't dismiss it.
+    <Modal open onClose={() => {}} className="max-w-md">
+      <div className="p-5 flex flex-col gap-4">
+        <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
+          Profiles have changed!
+        </h1>
+
+        <div className="flex flex-col gap-4 font-body text-base leading-6 text-gray-200">
+          <p>
+            We’ve added new social features that let you add friends, and invite
+            other players to your table bookings.
+          </p>
+          <p>
+            <strong className="font-semibold text-white">Your Username will be public</strong>
+            {' '}— other players will be able to see it, and this is how they’ll add
+            you as a friend.
+          </p>
+          <p>
+            Your <strong className="font-semibold text-white">Name is your real,
+            actual name</strong>. Only friends you accept and stores you book with
+            can see it.
+          </p>
+          <p>
+            Because of this change, please review your Name and Username before
+            continuing.
+          </p>
+        </div>
+
+        <Button className="w-full" onClick={onContinue} rightIcon={<ArrowRightIcon />}>
+          Review my Username
+        </Button>
+      </div>
     </Modal>
   );
 }
@@ -246,8 +377,15 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
   const wantEmailNote = !!fields.bookingEmailNote;
 
   const [status,              setStatus]              = useState<Status>('loading');
+  // Two-stage flow: an intro that explains why the profile matters now, then the
+  // form. Only users who predate the social features (show_profile_intro) see the
+  // intro — a brand-new signup has nothing that "changed" and starts on the form.
+  // load() sets the real starting stage once the profile is read.
+  const [stage,               setStage]               = useState<'intro' | 'form'>('form');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
+  const [handle,              setHandle]              = useState('');
+  const [originalHandle,      setOriginalHandle]      = useState<string | null>(null);
   const [email,               setEmail]               = useState<string | null>(null);
   const [preferredLocationId, setPreferredLocationId] = useState('');
   const [locations,           setLocations]           = useState<WelcomeLocation[]>([]);
@@ -267,7 +405,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, preferred_location_id, avatar_path')
+        .select('username, handle, preferred_location_id, avatar_path, onboarded, show_profile_intro')
         .eq('id', user.id)
         .single();
 
@@ -276,17 +414,30 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       const existingUsername = profile?.username ?? '';
       const existingLocation = profile?.preferred_location_id ?? '';
 
-      // The picture is deliberately absent from this check — it's optional, so
-      // a missing one must never keep the blocking modal on screen.
+      // Neither the picture nor the handle gates this modal. The picture is
+      // optional, and the handle is auto-assigned at signup — so both are
+      // offered for editing here, but a blocking modal must never hinge on
+      // something the user already has or may not want.
+      //
+      // `onboarded` is the exception that makes everyone pass through once:
+      // username + name now power the social features, so on this release we
+      // re-prompt every existing user (all backfilled to onboarded = false) to
+      // review their auto-assigned Username and set a Name. handleSave flips it
+      // true, so it fires exactly once. The field gates above still apply on top
+      // — a user onboarded on BattleCards is re-shown here only for the location
+      // BattlePlan additionally needs.
       const missing =
         (wantUsername && !existingUsername) ||
-        (wantLocation && !existingLocation);
+        (wantLocation && !existingLocation) ||
+        !profile?.onboarded;
 
       if (!missing) { setStatus('done'); return; }
 
       setUserId(user.id);
       setEmail(user.email ?? null);
       setSavedAvatarUrl(avatarUrl(profile?.avatar_path));
+      setHandle(profile?.handle ?? '');
+      setOriginalHandle(profile?.handle ?? null);
       // Prefill the username from any value already saved, else the Google
       // display name as an editable starting point.
       const googleName =
@@ -304,6 +455,9 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
         if (!cancelled && locs) setLocations(locs as WelcomeLocation[]);
       }
 
+      // Existing users get the "Profiles have changed!" intro first; new signups
+      // skip it and land straight on the form.
+      setStage(profile?.show_profile_intro ? 'intro' : 'form');
       setStatus('needed');
     }
 
@@ -317,22 +471,30 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
     const trimmedUsername = username.trim();
     if (wantUsername && !trimmedUsername) {
-      setError('Please enter a username.');
+      setError('Please enter your name.');
       return;
     }
     if (wantLocation && !preferredLocationId) {
       setError('Please select a preferred location.');
       return;
     }
+    const handleError = validateHandle(handle);
+    if (handleError) { setError(handleError); return; }
 
     setSaving(true);
     const update: {
       username?: string;
+      handle?: string;
       preferred_location_id?: string;
       avatar_path?: string | null;
+      onboarded?: boolean;
     } = {};
     if (wantUsername) update.username = trimmedUsername;
+    if (handle !== originalHandle) update.handle = handle;
     if (wantLocation) update.preferred_location_id = preferredLocationId;
+    // Saving the modal is the one-time confirmation that closes the re-onboarding
+    // prompt for good; without this the user would be asked again next login.
+    update.onboarded = true;
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
     // row first could leave avatar_path pointing at an object that never landed.
@@ -358,7 +520,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       .eq('id', userId);
 
     setSaving(false);
-    if (saveError) { setError(saveError.message); return; }
+    if (saveError) { setError(describeProfileSaveError(saveError)); return; }
     // The Navbar is a sibling of this modal, so it can't be reached by a prop —
     // publishing is what makes the new name and picture appear straight away
     // instead of only after the next page load.
@@ -367,6 +529,10 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
   }
 
   if (status !== 'needed') return null;
+
+  if (stage === 'intro') {
+    return <WelcomeIntroView onContinue={() => setStage('form')} />;
+  }
 
   return (
     <WelcomeModalView
@@ -380,6 +546,11 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       showBookingEmailNote={wantEmailNote}
       username={username}
       onUsernameChange={setUsername}
+      showHandle
+      handle={handle}
+      onHandleChange={setHandle}
+      originalHandle={originalHandle}
+      selfId={userId}
       preferredLocationId={preferredLocationId}
       onPreferredLocationChange={setPreferredLocationId}
       locations={locations}
