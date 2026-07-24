@@ -378,9 +378,10 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
   const [status,              setStatus]              = useState<Status>('loading');
   // Two-stage flow: an intro that explains why the profile matters now, then the
-  // form. Re-prompted users would otherwise just see the onboarding form reappear
-  // with no context. Everyone lands on 'intro' first and clicks through.
-  const [stage,               setStage]               = useState<'intro' | 'form'>('intro');
+  // form. Only users who predate the social features (show_profile_intro) see the
+  // intro — a brand-new signup has nothing that "changed" and starts on the form.
+  // load() sets the real starting stage once the profile is read.
+  const [stage,               setStage]               = useState<'intro' | 'form'>('form');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
   const [handle,              setHandle]              = useState('');
@@ -404,7 +405,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, handle, preferred_location_id, avatar_path, onboarded')
+        .select('username, handle, preferred_location_id, avatar_path, onboarded, show_profile_intro')
         .eq('id', user.id)
         .single();
 
@@ -454,6 +455,9 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
         if (!cancelled && locs) setLocations(locs as WelcomeLocation[]);
       }
 
+      // Existing users get the "Profiles have changed!" intro first; new signups
+      // skip it and land straight on the form.
+      setStage(profile?.show_profile_intro ? 'intro' : 'form');
       setStatus('needed');
     }
 
