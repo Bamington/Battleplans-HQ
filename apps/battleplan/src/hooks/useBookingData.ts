@@ -804,8 +804,29 @@ export function useSuggestedBattles(userId: string | null) {
         .eq('user_id', userId).gte('date_played', sinceIso),
       supabase.from('battle_suggestion_dismissals').select('booking_id')
         .eq('user_id', userId),
-    ]).then(([bkRes, btRes, dmRes]) => {
-      const bookings  = ((bkRes.data as unknown as RawBookingRow[]) ?? []).map(mapBookingRow);
+      // Bookings you accepted an invite to feed the same nudge, on the same
+      // rules — a past game you attended but haven't logged.
+      supabase.from('my_incoming_booking_shares')
+        .select('booking_id, date, game_id, game_name, game_slug, location_id, location_name')
+        .eq('status', 'accepted').gte('date', sinceIso).lt('date', todayIso),
+    ]).then(([bkRes, btRes, dmRes, shRes]) => {
+      const ownBookings = ((bkRes.data as unknown as RawBookingRow[]) ?? []).map(mapBookingRow);
+      // Accepted shared bookings, shaped like a booking so the loop treats them
+      // identically. Their id is the owner's booking id (fine for dismissals —
+      // that table is keyed by (user_id, booking_id), and the row exists).
+      const sharedBookings: Booking[] = ((shRes.data as {
+        booking_id: string; date: string;
+        game_id: string | null; game_name: string | null; game_slug: string | null;
+        location_id: string | null; location_name: string | null;
+      }[] | null) ?? []).map(s => ({
+        id: s.booking_id,
+        date: s.date,
+        user_name: null,
+        game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
+        location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
+        timeslot: { id: '', name: '', start_time: '', end_time: '' },
+      }));
+      const bookings  = [...ownBookings, ...sharedBookings];
       const battles   = (btRes.data as { date_played: string; game_id: string | null }[] | null) ?? [];
       const dismissedIds = new Set((dmRes.data as { booking_id: string }[] | null ?? []).map(d => d.booking_id));
       // Duplicate bookings for the same day + game collapse into one suggestion, so
