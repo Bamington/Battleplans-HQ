@@ -27,10 +27,15 @@
  * summary line, which would only repeat them less precisely.
  *
  * Data lives on `public.user_profiles` (username, handle, preferred_location_id,
- * avatar_path). The gate re-reads that row on mount; if every *required* field
- * is already set the modal never renders. A name set in one app therefore
+ * avatar_path, onboarded). The gate re-reads that row on mount; if every
+ * *required* field is already set — AND the user has been through onboarding
+ * once (`onboarded`) — the modal never renders. A name set in one app therefore
  * carries over to the other — BattlePlan only additionally needs the preferred
  * location, and a user who lands there second gets another chance at a picture.
+ *
+ * `onboarded` starts false for everyone (see the 20260724010000 migration) so
+ * that the social-era release re-prompts every existing user once to review
+ * their Username and set a Name; saving flips it true.
  *
  * `WelcomeModalView` is the presentational half (used by the component gallery);
  * `WelcomeModal` wraps it with the data-fetching + gating logic.
@@ -339,7 +344,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, handle, preferred_location_id, avatar_path')
+        .select('username, handle, preferred_location_id, avatar_path, onboarded')
         .eq('id', user.id)
         .single();
 
@@ -352,9 +357,18 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       // optional, and the handle is auto-assigned at signup — so both are
       // offered for editing here, but a blocking modal must never hinge on
       // something the user already has or may not want.
+      //
+      // `onboarded` is the exception that makes everyone pass through once:
+      // username + name now power the social features, so on this release we
+      // re-prompt every existing user (all backfilled to onboarded = false) to
+      // review their auto-assigned Username and set a Name. handleSave flips it
+      // true, so it fires exactly once. The field gates above still apply on top
+      // — a user onboarded on BattleCards is re-shown here only for the location
+      // BattlePlan additionally needs.
       const missing =
         (wantUsername && !existingUsername) ||
-        (wantLocation && !existingLocation);
+        (wantLocation && !existingLocation) ||
+        !profile?.onboarded;
 
       if (!missing) { setStatus('done'); return; }
 
@@ -409,10 +423,14 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
       handle?: string;
       preferred_location_id?: string;
       avatar_path?: string | null;
+      onboarded?: boolean;
     } = {};
     if (wantUsername) update.username = trimmedUsername;
     if (handle !== originalHandle) update.handle = handle;
     if (wantLocation) update.preferred_location_id = preferredLocationId;
+    // Saving the modal is the one-time confirmation that closes the re-onboarding
+    // prompt for good; without this the user would be asked again next login.
+    update.onboarded = true;
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
     // row first could leave avatar_path pointing at an object that never landed.
