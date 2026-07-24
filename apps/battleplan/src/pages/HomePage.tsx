@@ -1013,7 +1013,7 @@ function BookingDivider({ label }: { label: string }) {
 }
 
 /** Shared row renderer for both store booking columns. */
-function renderBookingRow(row: BookingRow, onDeleted: () => void) {
+function renderBookingRow(row: BookingRow, onDeleted: () => void, onOpen: (b: UpcomingBooking) => void) {
   if (row.kind === 'divider') return <BookingDivider label={row.label} />;
   const b = row.booking;
   return (
@@ -1027,6 +1027,7 @@ function renderBookingRow(row: BookingRow, onDeleted: () => void) {
       customerName={b.user_name ?? undefined}
       variant="store"
       onDeleted={onDeleted}
+      onClick={() => onOpen(b)}
     />
   );
 }
@@ -1037,9 +1038,11 @@ interface StoreColumnProps {
   refetch:  () => void;
   /** Today, as YYYY-MM-DD. Passed in so both columns split on the same day. */
   todayIso: string;
+  /** Opens the booking modal for a tapped booking. */
+  onOpen:   (b: UpcomingBooking) => void;
 }
 
-function TodaysBookingsCard({ bookings, loading, refetch, todayIso }: StoreColumnProps) {
+function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: StoreColumnProps) {
   // Grouped by timeslot, earliest first — the order a venue works through a day.
   const rows = useMemo(() => {
     const mine = bookings
@@ -1057,12 +1060,12 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso }: StoreColum
       loading={loading}
       empty="No bookings today."
       getKey={r => r.key}
-      renderItem={r => renderBookingRow(r, refetch)}
+      renderItem={r => renderBookingRow(r, refetch, onOpen)}
     />
   );
 }
 
-function UpcomingBookingsCard({ bookings, loading, refetch, todayIso }: StoreColumnProps) {
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: StoreColumnProps) {
   const navigate = useNavigate();
 
   // Today's bookings live in their own column, so this starts from tomorrow.
@@ -1088,7 +1091,7 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso }: StoreCol
       loading={loading}
       empty="No upcoming bookings."
       getKey={r => r.key}
-      renderItem={r => renderBookingRow(r, refetch)}
+      renderItem={r => renderBookingRow(r, refetch, onOpen)}
       footer={
         <div className="flex gap-3 w-full shrink-0">
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
@@ -1112,18 +1115,30 @@ function StoreBookingColumns({ locations, selectedId }: { locations: Location[];
   // venues, otherwise a single venue.
   const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
   const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
+  const [viewing, setViewing] = useState<UpcomingBooking | null>(null);
 
   // One definition of "today" for both columns, so a booking can never fall
   // into both (or neither) if the day ticks over between two renders.
   const now = new Date();
   const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const shared = { bookings, loading, refetch, todayIso };
+  const shared = { bookings, loading, refetch, todayIso, onOpen: setViewing };
 
   return (
     <>
       <TodaysBookingsCard   {...shared} />
       <UpcomingBookingsCard {...shared} />
+
+      {/* Store mode: Details + cancel, no Invite Friends — this booking is a
+          customer's, not the admin's to share. */}
+      <BookingDetailModal
+        open={viewing !== null}
+        booking={viewing}
+        mode="store"
+        customerName={viewing?.user_name ?? undefined}
+        onClose={() => setViewing(null)}
+        onCancelled={() => { refetch(); setViewing(null); }}
+      />
     </>
   );
 }

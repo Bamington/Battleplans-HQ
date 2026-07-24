@@ -48,14 +48,17 @@ function GameThumb({ slug, name }: { slug: string | null; name: string }) {
   );
 }
 
-/** Header: game thumbnail, game name, venue, and an optional "Invited by" line. */
+/** Header: game thumbnail, game name, venue, and an optional attribution line. */
 function BookingHeader({
-  gameName, gameSlug, venue, invitedByHandle,
+  gameName, gameSlug, venue, invitedByHandle, bookedBy,
 }: {
   gameName: string;
   gameSlug: string | null;
   venue: string | null;
+  /** Invitee view: "Invited by @handle". */
   invitedByHandle?: string;
+  /** Store view: "Booked by {customer}". */
+  bookedBy?: string;
 }) {
   return (
     <div className="flex gap-3 items-center w-full">
@@ -70,6 +73,11 @@ function BookingHeader({
         {invitedByHandle && (
           <p className="font-body text-sm text-neutral-50 leading-5 truncate">
             Invited by <span className="font-bold">@{invitedByHandle}</span>
+          </p>
+        )}
+        {bookedBy && (
+          <p className="font-body text-sm text-neutral-50 leading-5 truncate">
+            Booked by <span className="font-bold">{bookedBy}</span>
           </p>
         )}
       </div>
@@ -204,13 +212,21 @@ function InviteFriendsTab({
 // ── Owner modal ──────────────────────────────────────────────────────────────
 
 export function BookingDetailModal({
-  open, onClose, booking, onCancelled,
+  open, onClose, booking, onCancelled, mode = 'owner', customerName,
 }: {
   open: boolean;
   onClose: () => void;
   booking: Booking | null;
   /** Called after the booking is cancelled, so the column can refetch. */
   onCancelled?: () => void;
+  /**
+   * 'owner' — your own booking: tabbed, with Invite Friends.
+   * 'store' — a venue admin viewing a customer's booking: Details only, no
+   *           invite (it's not theirs to share), but they can still cancel it.
+   */
+  mode?: 'owner' | 'store';
+  /** Store mode: the customer who made the booking. */
+  customerName?: string;
 }) {
   const [tab, setTab] = useState<'details' | 'invite'>('details');
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -218,6 +234,8 @@ export function BookingDetailModal({
   const { outgoing, busy, share, withdraw } = useBookingShares();
 
   if (!open || !booking) return null;
+
+  const isStore = mode === 'store';
 
   const segBase = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 font-body font-medium text-sm transition-colors';
 
@@ -255,27 +273,31 @@ export function BookingDetailModal({
             gameName={booking.game?.name ?? 'No game'}
             gameSlug={booking.game?.slug ?? null}
             venue={booking.location.name}
+            bookedBy={isStore ? customerName : undefined}
           />
 
-          {/* Segmented toggle — joined, primary-filled active. */}
-          <div className="flex h-10 w-full rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setTab('details')}
-              className={`${segBase} rounded-l-lg ${tab === 'details' ? 'bg-primary-600 text-white' : 'border border-primary-500 text-white'}`}
-            >
-              <InfoCircle className="w-4 h-4" /> Details
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('invite')}
-              className={`${segBase} rounded-r-lg ${tab === 'invite' ? 'bg-primary-600 text-white' : 'border border-primary-500 text-white'}`}
-            >
-              <UserRounded className="w-4 h-4" /> Invite Friends
-            </button>
-          </div>
+          {/* A store admin isn't the owner, so no Invite Friends tab — just the
+              booking's details (and the cancel option in the menu above). */}
+          {!isStore && (
+            <div className="flex h-10 w-full rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setTab('details')}
+                className={`${segBase} rounded-l-lg ${tab === 'details' ? 'bg-primary-600 text-white' : 'border border-primary-500 text-white'}`}
+              >
+                <InfoCircle className="w-4 h-4" /> Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('invite')}
+                className={`${segBase} rounded-r-lg ${tab === 'invite' ? 'bg-primary-600 text-white' : 'border border-primary-500 text-white'}`}
+              >
+                <UserRounded className="w-4 h-4" /> Invite Friends
+              </button>
+            </div>
+          )}
 
-          {tab === 'details' ? (
+          {isStore || tab === 'details' ? (
             <DetailsList
               address={booking.location.address}
               date={booking.date}

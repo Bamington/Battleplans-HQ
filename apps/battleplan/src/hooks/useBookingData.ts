@@ -388,7 +388,7 @@ export interface UpcomingBooking {
   date:      string;
   user_name: string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string };
+  location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
 }
 
