@@ -304,6 +304,62 @@ export function WelcomeModalView({
   );
 }
 
+// ── Intro stage ───────────────────────────────────────────────────────────────
+// The first of the modal's two stages. It explains WHY the user is being asked
+// to look at their profile — the username/name split now drives friends and
+// booking invites — so a re-prompted user isn't just staring at the same
+// onboarding form again. "Review my Username" advances to the form.
+
+const ArrowRightIcon = () => (
+  <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" aria-hidden="true">
+    <path
+      d="M3.333 8h9.334M9.333 4.667 12.667 8l-3.334 3.333"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export function WelcomeIntroView({ onContinue }: { onContinue: () => void }) {
+  return (
+    // Blocking, like the form stage — the backdrop can't dismiss it.
+    <Modal open onClose={() => {}} className="max-w-md">
+      <div className="p-5 flex flex-col gap-4">
+        <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
+          Profiles have changed!
+        </h1>
+
+        <div className="flex flex-col gap-4 font-body text-base leading-6 text-gray-200">
+          <p>
+            We’ve added new social features that let you add friends, and invite
+            other players to your table bookings.
+          </p>
+          <p>
+            <strong className="font-semibold text-white">Your Username will be public</strong>
+            {' '}— other players will be able to see it, and this is how they’ll add
+            you as a friend.
+          </p>
+          <p>
+            Your <strong className="font-semibold text-white">Name is your real,
+            actual name</strong>. Only friends you accept and stores you book with
+            can see it.
+          </p>
+          <p>
+            Because of this change, please review your Name and Username before
+            continuing.
+          </p>
+        </div>
+
+        <Button className="w-full" onClick={onContinue} rightIcon={<ArrowRightIcon />}>
+          Review my Username
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Smart wrapper ─────────────────────────────────────────────────────────────
 
 interface WelcomeModalProps {
@@ -321,6 +377,10 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
   const wantEmailNote = !!fields.bookingEmailNote;
 
   const [status,              setStatus]              = useState<Status>('loading');
+  // Two-stage flow: an intro that explains why the profile matters now, then the
+  // form. Re-prompted users would otherwise just see the onboarding form reappear
+  // with no context. Everyone lands on 'intro' first and clicks through.
+  const [stage,               setStage]               = useState<'intro' | 'form'>('intro');
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
   const [handle,              setHandle]              = useState('');
@@ -465,6 +525,10 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
   }
 
   if (status !== 'needed') return null;
+
+  if (stage === 'intro') {
+    return <WelcomeIntroView onContinue={() => setStage('form')} />;
+  }
 
   return (
     <WelcomeModalView
