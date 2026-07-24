@@ -169,6 +169,20 @@ export async function sendFriendRequest(handle: string): Promise<string> {
   return data as string
 }
 
+/**
+ * Send a request by email address. Deliberately reveals nothing about whether
+ * the address has an account: it always resolves without error, and a matching
+ * user quietly receives a normal in-app request while everything else is a
+ * silent no-op. The caller shows one generic message either way. See
+ * 20260724030000_friend_request_by_email.
+ */
+export async function sendFriendRequestByEmail(email: string): Promise<void> {
+  const { error } = await supabase.rpc('send_friend_request_by_email', {
+    target_email: email.trim(),
+  })
+  if (error) raise(error)
+}
+
 /** Accept or decline. Only the person who RECEIVED the request may call this. */
 export async function respondToFriendRequest(friendshipId: string, accept: boolean): Promise<void> {
   const { error } = await supabase.rpc('respond_to_friend_request', {

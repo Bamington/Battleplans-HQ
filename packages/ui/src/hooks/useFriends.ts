@@ -17,6 +17,7 @@ import {
   listFriends,
   listFriendRequests,
   sendFriendRequest,
+  sendFriendRequestByEmail,
   respondToFriendRequest,
   removeFriendship,
   blockUser,
@@ -45,6 +46,11 @@ export interface UseFriends {
   refresh: () => Promise<void>
   /** Send by @username. Resolves true on success, false if it failed. */
   sendRequest: (handle: string) => Promise<boolean>
+  /**
+   * Invite by email. Resolves true whether or not the address has an account —
+   * it never reveals which. A matching user quietly gets an in-app request.
+   */
+  invite: (email: string) => Promise<boolean>
   respond: (friendshipId: string, accept: boolean) => Promise<boolean>
   /** Unfriend, or withdraw a request you sent. */
   remove: (friendshipId: string) => Promise<boolean>
@@ -117,6 +123,7 @@ export function useFriends(): UseFriends {
     clearError: useCallback(() => setError(null), []),
     refresh,
     sendRequest: useCallback((handle: string) => run(() => sendFriendRequest(handle)), [run]),
+    invite:      useCallback((email: string) => run(() => sendFriendRequestByEmail(email)), [run]),
     respond:     useCallback((id: string, accept: boolean) => run(() => respondToFriendRequest(id, accept)), [run]),
     remove:      useCallback((id: string) => run(() => removeFriendship(id)), [run]),
     block:       useCallback((userId: string) => run(() => blockUser(userId)), [run]),
