@@ -221,7 +221,7 @@ export interface FriendsColumnProps {
 }
 
 export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameIcon, className }: FriendsColumnProps) {
-  const { friends, incoming, outgoing, loading, busy, error, clearError, respond, remove, sendRequest, invite } = useFriends();
+  const { friends, incoming, outgoing, loading, busy, error, clearError, respond, remove, sendRequest } = useFriends();
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
   const [pendingDecline, setPendingDecline] = useState<FriendRequest | null>(null);
   const [addOpen,        setAddOpen]        = useState(false);
@@ -336,7 +336,6 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameI
         open={addOpen}
         onClose={() => { clearError(); setAddOpen(false); }}
         onSend={sendRequest}
-        onInvite={invite}
         busy={busy}
         error={error}
       />

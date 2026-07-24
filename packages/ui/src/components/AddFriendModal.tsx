@@ -42,15 +42,11 @@ export default function AddFriendModal({
 }: AddFriendModalProps) {
   const [email,  setEmail]  = useState('');
   const [handle, setHandle] = useState('');
-  // The email path can't close straight onto the list — a new outgoing request
-  // there would give away that the address matched a real account. So it swaps
-  // to a generic confirmation instead, shown whether or not there was a match.
-  const [sent,   setSent]   = useState(false);
 
   // Start clean each time it opens, so a previous attempt isn't still sitting
   // in the fields.
   useEffect(() => {
-    if (open) { setEmail(''); setHandle(''); setSent(false); }
+    if (open) { setEmail(''); setHandle(''); }
   }, [open]);
 
   const emailReady  = EMAIL_PATTERN.test(email.trim());
@@ -60,40 +56,13 @@ export default function AddFriendModal({
   async function handleSubmit() {
     if (!canSend) return;
     // The username is the actionable path, so it wins if somehow both are set.
-    if (handleReady) {
-      if (await onSend(handle)) onClose();
-      return;
-    }
-    // Email path: show the same confirmation for any address, so success can't
-    // be read as "this one is registered".
-    if (onInvite && await onInvite(email.trim())) setSent(true);
+    const ok = handleReady
+      ? await onSend(handle)
+      : onInvite ? await onInvite(email.trim()) : false;
+    if (ok) onClose();
   }
 
   if (!open) return null;
-
-  if (sent) {
-    return (
-      <Modal open onClose={onClose} className="max-w-md">
-        <div className="p-5 flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
-              Invitation sent
-            </h2>
-            <p className="font-body text-base text-gray-300 leading-6">
-              If that email belongs to a BattlePlan player, your friend request is
-              on its way to their dashboard. For their privacy, we don’t reveal
-              whether an address is registered.
-            </p>
-          </div>
-          <div className="flex justify-end">
-            <Button type="button" color="primary" onClick={onClose}>
-              Done
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    );
-  }
 
   return (
     <Modal open onClose={busy ? () => {} : onClose} className="max-w-md">
@@ -108,8 +77,8 @@ export default function AddFriendModal({
             Add Friends
           </h2>
           <p className="font-body text-base text-gray-300 leading-6">
-            You can add a friend by their email address, or by entering their
-            BattlePlan username.
+            You can add a friend by sending them an Email invitation, or by entering
+            their BattlePlan username.
           </p>
         </div>
 
@@ -122,7 +91,7 @@ export default function AddFriendModal({
           disabled={!onInvite || busy}
           helperText={
             onInvite
-              ? 'If they already have a BattlePlan account, they’ll get your friend request. For privacy, we don’t reveal whether an address is registered.'
+              ? 'We’ll send them an invite on Battleplan if they have an account. If not, they’ll receive an Email invitation.'
               : 'Email invitations are coming soon — for now, add a friend by their username.'
           }
         />
