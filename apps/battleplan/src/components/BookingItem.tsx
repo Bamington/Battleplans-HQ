@@ -22,7 +22,7 @@ const MenuDotsIcon = () => (
  */
 export type BookingItemVariant = 'user' | 'store';
 
-export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted }: {
+export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted, onClick }: {
   bookingId: string;
   gameIcon?: string;
   gameName: string;
@@ -33,6 +33,8 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
   customerName?: string;
   variant?: BookingItemVariant;
   onDeleted?: () => void;
+  /** Makes the card tappable (opens the booking modal). The menu stops propagation. */
+  onClick?: () => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting,    setDeleting]    = useState(false);
@@ -46,20 +48,26 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
 
   return (
     <>
-      <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden">
+      <div
+        className={`bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-center shadow-md overflow-hidden ${onClick ? 'cursor-pointer hover:border-neutral-600 transition-colors' : ''}`}
+        onClick={onClick}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }) : undefined}
+      >
 
-        {/* Game thumbnail */}
-        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
+        {/* Game thumbnail — vertically centred against the text. */}
+        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-center">
           {gameIcon
             ? <img src={gameIcon} alt={gameName} className="w-full h-full object-cover" />
             : <span className="font-heading text-white text-xs text-center px-1 leading-tight">{gameName}</span>
           }
         </div>
 
-        {/* Text block — truncated so the row stays a fixed height, which the
-            home screen's auto page-size calculation depends on. */}
-        <div className="flex flex-col flex-1 min-w-0 self-stretch justify-center">
-          <span className="font-heading text-lg text-white leading-6 truncate">
+        {/* Heading wraps to a second line rather than truncating; the rest stays
+            single-line. */}
+        <div className="flex flex-col flex-1 min-w-0 justify-center">
+          <span className="font-heading text-lg text-white leading-6 line-clamp-2">
             {variant === 'store' ? (customerName ?? 'Guest') : gameName}
           </span>
           <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
@@ -69,22 +77,24 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
           <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
         </div>
 
-        {/* 3-dot menu */}
-        <Dropdown
-          align="right"
-          trigger={
-            <button type="button" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
-              <MenuDotsIcon />
-            </button>
-          }
-        >
-          <DropdownItem
-            icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />}
-            onClick={() => setConfirmOpen(true)}
+        {/* 3-dot menu — top-aligned; stops propagation so it doesn't open the card. */}
+        <div className="self-start" onClick={e => e.stopPropagation()}>
+          <Dropdown
+            align="right"
+            trigger={
+              <button type="button" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
+                <MenuDotsIcon />
+              </button>
+            }
           >
-            <span className="text-red-400">Cancel Booking</span>
-          </DropdownItem>
-        </Dropdown>
+            <DropdownItem
+              icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />}
+              onClick={() => setConfirmOpen(true)}
+            >
+              <span className="text-red-400">Cancel Booking</span>
+            </DropdownItem>
+          </Dropdown>
+        </div>
 
       </div>
 

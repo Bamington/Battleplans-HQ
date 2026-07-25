@@ -38,6 +38,12 @@ export interface HRProps {
    * Only used when variant='icon'.
    */
   icon?: React.ReactNode;
+  /**
+   * Vertical margin. Defaults to the standalone spacing that suits a rule
+   * separating page sections; use 'none' inside a flex/grid parent that already
+   * controls the gap, where the built-in margin would stack on top of it.
+   */
+  spacing?: 'default' | 'none';
   /** Extra Tailwind classes to merge onto the wrapper */
   className?: string;
 }
@@ -51,14 +57,20 @@ const HR = ({
   variant = 'default',
   label,
   icon,
+  spacing = 'default',
   className = '',
 }: HRProps) => {
+
+  // Baked into the class string rather than left to `className`, because two
+  // `my-*` utilities on one element resolve by stylesheet order, not the order
+  // they're written — so passing `my-0` silently loses to the built-in `my-8`.
+  const marginClass = spacing === 'none' ? '' : 'my-8';
 
   // ── default ────────────────────────────────────────────────────────────────
   // A simple full-width 1px horizontal rule.
   if (variant === 'default') {
     return (
-      <hr className={`h-px my-8 border-0 ${RULE_COLOR} ${className}`.trim()} />
+      <hr className={`h-px ${marginClass} border-0 ${RULE_COLOR} ${className}`.trim()} />
     );
   }
 
@@ -67,7 +79,7 @@ const HR = ({
   if (variant === 'trimmed') {
     return (
       <hr
-        className={`w-48 h-1 mx-auto my-6 border-0 rounded-sm ${RULE_COLOR} ${className}`.trim()}
+        className={`w-48 h-1 mx-auto ${spacing === "none" ? "" : "my-6"} border-0 rounded-sm ${RULE_COLOR} ${className}`.trim()}
       />
     );
   }
@@ -77,7 +89,7 @@ const HR = ({
   if (variant === 'shape') {
     return (
       <hr
-        className={`w-8 h-8 mx-auto my-8 border-0 rounded-sm ${RULE_COLOR} ${className}`.trim()}
+        className={`w-8 h-8 mx-auto ${marginClass} border-0 rounded-sm ${RULE_COLOR} ${className}`.trim()}
       />
     );
   }
@@ -87,7 +99,7 @@ const HR = ({
   // The icon is wrapped in a <span> that sits on top of the line.
   if (variant === 'icon') {
     return (
-      <div className={`flex items-center my-8 ${className}`.trim()}>
+      <div className={`flex items-center ${marginClass} ${className}`.trim()}>
         {/* Left rule */}
         <hr className={`flex-1 h-px border-0 ${RULE_COLOR}`} />
         {/* Centred icon — background matches the page to "cut" through the line */}
@@ -104,7 +116,7 @@ const HR = ({
   // A rule with a short text label centred on it (e.g. "or", "and").
   if (variant === 'text') {
     return (
-      <div className={`flex items-center my-8 ${className}`.trim()}>
+      <div className={`flex items-center ${marginClass} ${className}`.trim()}>
         {/* Left rule */}
         <hr className={`flex-1 h-px border-0 ${RULE_COLOR}`} />
         {/* Centred label */}
@@ -118,7 +130,7 @@ const HR = ({
   }
 
   // Fallback (should never be reached given the type constraint)
-  return <hr className={`h-px my-8 border-0 ${RULE_COLOR} ${className}`.trim()} />;
+  return <hr className={`h-px ${marginClass} border-0 ${RULE_COLOR} ${className}`.trim()} />;
 };
 
 export default HR;

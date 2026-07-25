@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, Shield, RichTextEditor, ListCheck, Gallery, CloseCircle } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
+import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
@@ -12,6 +13,7 @@ import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
 import { BookingItem } from '../components/BookingItem';
+import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
@@ -19,7 +21,7 @@ import {
   useRecentBookedGames,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { Location, BattleSuggestion, UpcomingBooking } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion, UpcomingBooking, Booking } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -311,9 +313,6 @@ function NewBookingModal({
 // from the space left over (see useAutoPageSize), so these must match the rows'
 // rendered height. If you change a row's design, change the constant with it.
 //
-// BookingItem = 2 border + 26 padding (p-[13px]) + max(64 thumbnail, text).
-// Four lines — heading 24 + muted 20 + date 20 + time 20 = 84.
-const BOOKING_ITEM_H  = 112;
 // My Battles and the two store booking columns scroll instead of paginating, so
 // they need no fixed row height — the store columns carry group dividers, whose
 // height a single per-row constant couldn't account for.
@@ -325,51 +324,222 @@ const NEWS_ITEM_H     = 230;
 // Suggestion card: 2 border + 26 padding + 40 icon row + 8 gap + ~34 button.
 const SUGGESTION_ITEM_H = 122;
 
+const DAY_NAMES_SHORT = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function bookingDateLabel(iso: string): string {
+  const [y,m,d] = iso.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return `${DAY_NAMES_SHORT[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
+}
+
+/** A booking someone shared with you — dashed purple, with Accept / Decline. */
+function InvitationCard({ share, busy, onAccept, onDecline, onOpen }: {
+  share: IncomingBookingShare;
+  busy: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  onOpen: () => void;
+}) {
+  const icon = share.gameSlug ? GAME_ICONS[share.gameSlug] : undefined;
+  const time = share.timeslotStart
+    ? formatBookingTime({ start_time: share.timeslotStart, end_time: share.timeslotEnd ?? '' })
+    : '';
+  return (
+    <div
+      className="bg-primary-950 border border-primary-600 border-dashed rounded-lg p-[13px] flex flex-col gap-1.5 shadow-md overflow-hidden w-full cursor-pointer"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+    >
+      <div className="flex gap-3 items-center w-full">
+        <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-center">
+          {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
+        </div>
+        <div className="flex flex-col flex-1 min-w-0 justify-center">
+          <p className="font-heading text-primary-200 text-lg leading-6 line-clamp-2">
+            {share.gameName ?? 'Booking'} with <HandleLink userId={share.sharer.id} handle={share.sharer.handle} avatarUrl={share.sharer.avatarUrl} />
+          </p>
+          <p className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</p>
+          <p className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</p>
+          <p className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</p>
+        </div>
+      </div>
+      {/* Buttons below the info, full-width. Decline (red) left, Accept (green) right. */}
+      <div className="flex gap-2.5 items-center w-full" onClick={e => e.stopPropagation()}>
+        <Button variant="outline" color="danger" size="sm" className="flex-1 justify-center" rightIcon={<CloseCircle className="w-4 h-4" />} disabled={busy} onClick={onDecline}>Decline</Button>
+        <Button variant="outline" color="success" size="sm" className="flex-1 justify-center" rightIcon={<CheckCircleIcon className="w-4 h-4" />} disabled={busy} onClick={onAccept}>Accept</Button>
+      </div>
+    </div>
+  );
+}
+
+/** A booking you accepted an invite to — a normal card titled "{game} with
+ *  @{sharer}", tappable, with a Leave option. */
+function AcceptedBookingCard({ share, busy, onOpen, onLeave }: {
+  share: IncomingBookingShare;
+  busy: boolean;
+  onOpen: () => void;
+  onLeave: () => void;
+}) {
+  const icon = share.gameSlug ? GAME_ICONS[share.gameSlug] : undefined;
+  const time = share.timeslotStart
+    ? formatBookingTime({ start_time: share.timeslotStart, end_time: share.timeslotEnd ?? '' })
+    : '';
+  return (
+    <div
+      className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-center shadow-md overflow-hidden cursor-pointer hover:border-neutral-600 transition-colors"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+    >
+      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-center">
+        {icon ? <img src={icon} alt="" className="w-full h-full object-cover" /> : <span className="font-heading text-white text-xs text-center px-1">{share.gameName ?? '?'}</span>}
+      </div>
+      <div className="flex flex-col flex-1 min-w-0 justify-center">
+        <span className="font-heading text-lg text-white leading-6 line-clamp-2">
+          {share.gameName ?? 'Booking'} with <HandleLink userId={share.sharer.id} handle={share.sharer.handle} avatarUrl={share.sharer.avatarUrl} />
+        </span>
+        <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">{share.locationName}</span>
+        <span className="font-body text-sm text-neutral-50 leading-5 truncate">{bookingDateLabel(share.date)}</span>
+        <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
+      </div>
+      <div className="self-start" onClick={e => e.stopPropagation()}>
+        <Dropdown
+          align="right"
+          trigger={
+            <button type="button" aria-label="Booking options" className="p-1 opacity-50 hover:opacity-100 transition-opacity shrink-0">
+              <MenuDots className="w-4 h-4 text-white" />
+            </button>
+          }
+        >
+          <DropdownItem icon={<TrashBinMinimalistic className="w-4 h-4 text-red-400" />} disabled={busy} onClick={onLeave}>
+            <span className="text-red-400">Leave Booking</span>
+          </DropdownItem>
+        </Dropdown>
+      </div>
+    </div>
+  );
+}
+
 function BookingCard({ userId }: { userId: string | null }) {
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [viewing, setViewing] = useState<Booking | null>(null);
+  const [invite,  setInvite]  = useState<IncomingBookingShare | null>(null);
   const { bookings, loading, refetch } = useUserBookings(userId);
+  const { incoming, busy, respond, leave, refresh: refreshShares } = useBookingShares();
+
+  const pendingInvites  = incoming.filter(s => s.status === 'pending');
+  // Bookings you accepted an invite to sit in your bookings list, alongside your
+  // own — one combined list, ordered by date.
+  const acceptedShares  = incoming.filter(s => s.status === 'accepted');
+  const yourBookings = useMemo(() => [
+    ...bookings.map(b => ({ kind: 'own' as const, date: b.date, booking: b })),
+    ...acceptedShares.map(s => ({ kind: 'shared' as const, date: s.date, share: s })),
+  ].sort((a, b) => a.date.localeCompare(b.date)), [bookings, acceptedShares]);
+  const isEmpty = yourBookings.length === 0 && pendingInvites.length === 0;
 
   return (
     <>
-      <PaginatedColumn
-        icon={<BoxIcon />}
-        title="Your Bookings"
-        description="Tables you've booked at your favorite local game stores."
-        items={bookings}
-        itemHeight={BOOKING_ITEM_H}
-        loading={loading}
-        empty="No upcoming bookings."
-        getKey={b => b.id}
-        renderItem={b => {
-          const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-          const [y,m,d] = b.date.split('-').map(Number);
-          const dt = new Date(y, m-1, d);
-          const dateLabel = `${DAY_NAMES[dt.getDay()]} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${String(y).slice(2)}`;
-          return (
-            <BookingItem
-              bookingId={b.id}
-              gameIcon={b.game?.slug ? GAME_ICONS[b.game.slug] : undefined}
-              gameName={b.game?.name ?? 'No game'}
-              location={b.location.name}
-              date={dateLabel}
-              time={formatBookingTime(b.timeslot)}
-              variant="user"
-              onDeleted={refetch}
-            />
-          );
-        }}
-        footer={
-          <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center shrink-0" onClick={() => setNewBookingOpen(true)}>
-            New Booking
-          </Button>
-        }
-      />
+      <ColumnShell>
+        <ColumnHeader
+          icon={<BoxIcon />}
+          title="Your Bookings"
+          description="Tables you've booked at your favorite local game stores."
+        />
+
+        <div className="w-full flex-1 min-h-0 overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
+            {loading ? (
+              <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
+            ) : (
+              <>
+                {pendingInvites.length > 0 && (
+                  <>
+                    <HR variant="text" label="Invitations" spacing="none" />
+                    {pendingInvites.map(s => (
+                      <InvitationCard
+                        key={s.shareId}
+                        share={s}
+                        busy={busy}
+                        onAccept={() => respond(s.shareId, true)}
+                        onDecline={() => respond(s.shareId, false)}
+                        onOpen={() => setInvite(s)}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {yourBookings.length > 0 && (
+                  <>
+                    {pendingInvites.length > 0 && <HR variant="text" label="Your Bookings" spacing="none" />}
+                    {yourBookings.map(row => row.kind === 'own' ? (
+                      <BookingItem
+                        key={row.booking.id}
+                        bookingId={row.booking.id}
+                        gameIcon={row.booking.game?.slug ? GAME_ICONS[row.booking.game.slug] : undefined}
+                        gameName={row.booking.game?.name ?? 'No game'}
+                        location={row.booking.location.name}
+                        date={bookingDateLabel(row.booking.date)}
+                        time={formatBookingTime(row.booking.timeslot)}
+                        variant="user"
+                        onDeleted={refetch}
+                        onClick={() => setViewing(row.booking)}
+                      />
+                    ) : (
+                      <AcceptedBookingCard
+                        key={row.share.shareId}
+                        share={row.share}
+                        busy={busy}
+                        onOpen={() => setInvite(row.share)}
+                        onLeave={async () => { const ok = await leave(row.share.shareId); if (ok) refreshShares(); }}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {isEmpty && (
+                  <p className="font-body text-sm text-neutral-500 text-center py-4">No upcoming bookings.</p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <Button variant="outline" color="primary" leftIcon={<AddCircleIcon />} className="w-full justify-center shrink-0" onClick={() => setNewBookingOpen(true)}>
+          New Booking
+        </Button>
+      </ColumnShell>
 
       <NewBookingModal
         open={newBookingOpen}
         onClose={() => setNewBookingOpen(false)}
         userId={userId}
         onCreated={refetch}
+      />
+
+      <BookingDetailModal
+        open={viewing !== null}
+        booking={viewing}
+        onClose={() => setViewing(null)}
+        onCancelled={refetch}
+      />
+
+      <BookingInvitationModal
+        open={invite !== null}
+        share={invite}
+        busy={busy}
+        onClose={() => setInvite(null)}
+        onRespond={async accept => {
+          if (!invite) return;
+          const ok = await respond(invite.shareId, accept);
+          if (ok) { setInvite(null); refreshShares(); }
+        }}
+        onLeave={async () => {
+          if (!invite) return;
+          const ok = await leave(invite.shareId);
+          if (ok) { setInvite(null); refreshShares(); }
+        }}
       />
     </>
   );
@@ -917,7 +1087,7 @@ function BookingDivider({ label }: { label: string }) {
 }
 
 /** Shared row renderer for both store booking columns. */
-function renderBookingRow(row: BookingRow, onDeleted: () => void) {
+function renderBookingRow(row: BookingRow, onDeleted: () => void, onOpen: (b: UpcomingBooking) => void) {
   if (row.kind === 'divider') return <BookingDivider label={row.label} />;
   const b = row.booking;
   return (
@@ -931,6 +1101,7 @@ function renderBookingRow(row: BookingRow, onDeleted: () => void) {
       customerName={b.user_name ?? undefined}
       variant="store"
       onDeleted={onDeleted}
+      onClick={() => onOpen(b)}
     />
   );
 }
@@ -941,9 +1112,11 @@ interface StoreColumnProps {
   refetch:  () => void;
   /** Today, as YYYY-MM-DD. Passed in so both columns split on the same day. */
   todayIso: string;
+  /** Opens the booking modal for a tapped booking. */
+  onOpen:   (b: UpcomingBooking) => void;
 }
 
-function TodaysBookingsCard({ bookings, loading, refetch, todayIso }: StoreColumnProps) {
+function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: StoreColumnProps) {
   // Grouped by timeslot, earliest first — the order a venue works through a day.
   const rows = useMemo(() => {
     const mine = bookings
@@ -961,12 +1134,12 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso }: StoreColum
       loading={loading}
       empty="No bookings today."
       getKey={r => r.key}
-      renderItem={r => renderBookingRow(r, refetch)}
+      renderItem={r => renderBookingRow(r, refetch, onOpen)}
     />
   );
 }
 
-function UpcomingBookingsCard({ bookings, loading, refetch, todayIso }: StoreColumnProps) {
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: StoreColumnProps) {
   const navigate = useNavigate();
 
   // Today's bookings live in their own column, so this starts from tomorrow.
@@ -992,7 +1165,7 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso }: StoreCol
       loading={loading}
       empty="No upcoming bookings."
       getKey={r => r.key}
-      renderItem={r => renderBookingRow(r, refetch)}
+      renderItem={r => renderBookingRow(r, refetch, onOpen)}
       footer={
         <div className="flex gap-3 w-full shrink-0">
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
@@ -1016,18 +1189,30 @@ function StoreBookingColumns({ locations, selectedId }: { locations: Location[];
   // venues, otherwise a single venue.
   const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
   const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
+  const [viewing, setViewing] = useState<UpcomingBooking | null>(null);
 
   // One definition of "today" for both columns, so a booking can never fall
   // into both (or neither) if the day ticks over between two renders.
   const now = new Date();
   const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const shared = { bookings, loading, refetch, todayIso };
+  const shared = { bookings, loading, refetch, todayIso, onOpen: setViewing };
 
   return (
     <>
       <TodaysBookingsCard   {...shared} />
       <UpcomingBookingsCard {...shared} />
+
+      {/* Store mode: Details + cancel, no Invite Friends — this booking is a
+          customer's, not the admin's to share. */}
+      <BookingDetailModal
+        open={viewing !== null}
+        booking={viewing}
+        mode="store"
+        customerName={viewing?.user_name ?? undefined}
+        onClose={() => setViewing(null)}
+        onCancelled={() => { refetch(); setViewing(null); }}
+      />
     </>
   );
 }
@@ -1070,6 +1255,7 @@ export default function HomePage() {
   const viewingStore = isLocationAdmin && selectedVenueId !== '';
 
   return (
+    <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
@@ -1096,6 +1282,10 @@ export default function HomePage() {
               <BookingCard userId={userId} />
               <SuggestedBattlesCard userId={userId} onLogged={() => setBattlesVersion(v => v + 1)} />
               <MyBattlesCard userId={userId} refreshSignal={battlesVersion} />
+              {/* Personal, so it belongs with the other personal columns — a
+                  store admin sees it under "Your Profile", not while they have
+                  a venue selected. */}
+              <FriendsColumn resolveGameIcon={slug => GAME_ICONS[slug]} />
             </>
           )}
           <NewsCard />
@@ -1105,5 +1295,6 @@ export default function HomePage() {
       <AppFooter className="shrink-0" appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
+    </ProfileModalProvider>
   );
 }

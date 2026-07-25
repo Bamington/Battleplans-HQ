@@ -356,10 +356,10 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                       <img
                         src={avatarSrc}
                         alt={displayName ?? 'Your profile picture'}
-                        className="shrink-0 w-[22px] h-[22px] rounded-full object-cover"
+                        className="shrink-0 w-[22px] h-[22px] rounded-sm object-cover"
                       />
                     ) : (
-                      <div className="shrink-0 w-[22px] h-[22px] rounded-full bg-primary-900 flex items-center justify-center">
+                      <div className="shrink-0 w-[22px] h-[22px] rounded-sm bg-primary-900 flex items-center justify-center">
                         <span className="font-body font-bold text-xs text-gray-300 uppercase tracking-[1.2px] leading-4">
                           {initials}
                         </span>

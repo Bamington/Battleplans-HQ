@@ -181,7 +181,9 @@ export default function AvatarPicker({
       </label>
 
       <div className="flex items-center gap-4">
-        <Avatar src={shownUrl} initials={initials} size="2xl" alt="Your profile picture" />
+        {/* Square to match how the picture is actually shown — and to match the
+            square cropper, so the preview is what the user just framed. */}
+        <Avatar src={shownUrl} initials={initials} size="2xl" shape="rounded" alt="Your profile picture" />
 
         <div className="flex flex-col gap-2 items-start">
           <input
@@ -240,7 +242,10 @@ export default function AvatarPicker({
                 crop={crop}
                 zoom={zoom}
                 aspect={1}
-                cropShape="round"
+                // Square, because that's how avatars are displayed — a round
+                // cropper would promise a circle the app never renders, and
+                // anything near the corners would look unexpectedly included.
+                cropShape="rect"
                 showGrid={false}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
