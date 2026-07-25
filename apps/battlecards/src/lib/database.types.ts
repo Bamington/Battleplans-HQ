@@ -298,7 +298,8 @@ export interface Game {
   id:          string
   name:        string
   slug:        string
-  status:      GameStatus
+  /** BattleCards content-readiness only. BattlePlan ignores this. */
+  battlecards_status: GameStatus
   stat_schema: StatField[]
   /** [width_mm, height_mm] â€” card dimensions for printing (no bleed) */
   print_size:  [number, number]

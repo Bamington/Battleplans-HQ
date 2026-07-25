@@ -53,7 +53,7 @@ interface RawBookingRow {
 const BOOKING_SELECT = `
   id, date, user_name, location_id, timeslot_id,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
-  game:games(id, name, slug),
+  game:game_catalogue(id, name, slug),
   location:locations(id, name, address),
   timeslot:timeslots(id, name, start_time, end_time)
 `;
@@ -122,8 +122,12 @@ export function useGames() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // game_catalogue, not `games`: the base table is gated by BattleCards'
+    // draft/beta/published content flag, which left non-admins picking from 4
+    // games instead of 99. Booking a table doesn't care whether anyone has
+    // authored cards for the game. See 20260725010000_game_catalogue.
     supabase
-      .from('games')
+      .from('game_catalogue')
       .select('id, name, slug')
       .eq('enabled_battleplan', true)
       .order('name')
@@ -149,7 +153,8 @@ export function useAllGames(userId?: string | null) {
 
   useEffect(() => {
     setLoading(true);
-    const base = supabase.from('games').select('id, name, slug');
+    // Same reason as useGames: read the catalogue, not the content-gated table.
+    const base = supabase.from('game_catalogue').select('id, name, slug');
     const query = userId
       ? base.or(`supported.eq.true,created_by.eq.${userId}`)
       : base.eq('supported', true);

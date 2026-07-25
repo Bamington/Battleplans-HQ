@@ -18,7 +18,7 @@ const PAGE = 500;
 const SELECT = `
   id, date, user_id, user_name, user_email,
   timeslot_id, timeslot_name, timeslot_start_time,
-  game:games(id, name, slug),
+  game:game_catalogue(id, name, slug),
   timeslot:timeslots(id, name, start_time)
 `;
 

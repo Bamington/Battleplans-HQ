@@ -16,7 +16,9 @@ export function useBattleStats(userId: string | null) {
     setLoading(true);
     supabase
       .from('battles')
-      .select('id, result, date_played, location_name, game:games(id, name, slug, supported), battle_opponents(opponent:opponents(id, name))')
+      // game_catalogue, not `games` — see useBattles. Stats grouped by game were
+      // silently dropping every unpublished-in-BattleCards game for non-admins.
+      .select('id, result, date_played, location_name, game:game_catalogue(id, name, slug, supported), battle_opponents(opponent:opponents(id, name))')
       .eq('user_id', userId)
       .limit(5000)
       .then(({ data }) => {

@@ -65,7 +65,11 @@ const PAGE_SIZE = 20;
 
 const BATTLE_SELECT =
   'id, date_played, opp_name, result, location_name, location_id, battle_notes, ' +
-  'game:games(id, name, slug), battle_images(id, image_path, is_primary, display_order), ' +
+  // game_catalogue, not `games`: the base table is gated by BattleCards'
+  // content-readiness flag, which made the game come back NULL on any battle
+  // whose game hasn't been published there — 80% of them — so non-admins saw
+  // cards with no game at all. See 20260725010000_game_catalogue.
+  'game:game_catalogue(id, name, slug), battle_images(id, image_path, is_primary, display_order), ' +
   'battle_opponents(opponent:opponents(id, name))';
 
 /**

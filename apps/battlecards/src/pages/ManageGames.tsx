@@ -64,7 +64,7 @@ export default function ManageGames() {
 
   function openEdit(game: Game) {
     setEditTarget(game);
-    setEditStatus(game.status);
+    setEditStatus(game.battlecards_status);
     setEditError(null);
   }
 
@@ -75,7 +75,7 @@ export default function ManageGames() {
 
     const { data: updated, error } = await supabase
       .from('games')
-      .update({ status: editStatus })
+      .update({ battlecards_status: editStatus })
       .eq('id', editTarget.id)
       .select('id');
 
@@ -92,7 +92,7 @@ export default function ManageGames() {
     }
 
     setGames(prev =>
-      prev.map(g => g.id === editTarget.id ? { ...g, status: editStatus } : g)
+      prev.map(g => g.id === editTarget.id ? { ...g, battlecards_status: editStatus } : g)
     );
     setSaving(false);
     setEditTarget(null);
@@ -177,8 +177,8 @@ export default function ManageGames() {
                 </div>
 
                 {/* Status badge */}
-                <Badge color={STATUS_COLOR[g.status]} variant="solid" size="sm">
-                  {STATUS_LABEL[g.status]}
+                <Badge color={STATUS_COLOR[g.battlecards_status]} variant="solid" size="sm">
+                  {STATUS_LABEL[g.battlecards_status]}
                 </Badge>
 
                 {/* ⋯ menu */}
