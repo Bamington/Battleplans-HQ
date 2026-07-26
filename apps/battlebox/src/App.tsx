@@ -7,6 +7,7 @@ import CollectionStatsPage from './pages/CollectionStatsPage.tsx';
 import AdminPage from './pages/admin/AdminPage.tsx';
 import ManagePaintPacks from './pages/admin/ManagePaintPacks.tsx';
 import PaintPackEditor from './pages/admin/PaintPackEditor.tsx';
+import ComponentGallery from './pages/ComponentGallery.tsx';
 
 /**
  * The app's own screens, as a route subtree.
@@ -57,6 +58,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-gray-950" />} />
+
+        {/* Component gallery — dev tool, not a user-facing screen */}
+        <Route path="/gallery" element={<ComponentGallery />} />
 
         {/* ── Protected routes — redirect unauthenticated users to /login,
                then gate on the user's platform access level ── */}

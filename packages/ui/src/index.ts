@@ -67,6 +67,12 @@ export { default as Text } from './components/Text'
 export { default as TextLink } from './components/TextLink'
 export { default as VR } from './components/VR'
 
+// Component gallery — the shared shell every app's /gallery is built from.
+// Dev tooling, not user-facing: see packages/ui/src/gallery/GalleryShell.tsx.
+export { default as GalleryShell, GallerySection, GalleryNote } from './gallery/GalleryShell'
+export type { GalleryNavItem, GalleryShellProps } from './gallery/GalleryShell'
+export { default as SharedGallerySections, SHARED_GALLERY_NAV } from './gallery/SharedSections'
+
 // Icons — regular
 export { default as AddCircle } from './icons/AddCircle'
 export { default as AltArrowDown } from './icons/AltArrowDown'
