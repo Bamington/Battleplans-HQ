@@ -29,6 +29,7 @@ import {
   GalleryNote,
   SharedGallerySections,
   SHARED_GALLERY_NAV,
+  Callout,
   Calendar,
   FileText,
   Gallery,
@@ -46,8 +47,10 @@ import {
   PackHero, DocumentSection, EmptySection, KeyInfoCard, ScheduleTable,
 } from '../components/PackDocument';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
+import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
+import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY } from '../registry/categories';
-import type { GameOption, LocationOption, Pack } from '../lib/packs';
+import type { GameOption, LocationOption, Pack, ScheduleItem } from '../lib/packs';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -58,6 +61,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-battlepack-list-item', label: 'Battlepack List Item', icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-pack-document',       label: 'Pack Document',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-event-basics-form',   label: 'Event Basics Form',    icon: <FileText className="w-5 h-5" /> },
+  { href: '#nav-rounds-breaks-form',  label: 'Rounds & Breaks Form', icon: <ListCheck className="w-5 h-5" /> },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -113,6 +117,7 @@ const EventBasicsFormDemo = () => {
           games={games}
           venues={venues}
           categoryKey="event-basics"
+          reload={async () => {}}
           onChange={patch => {
             setPack(prev => ({ ...prev, ...patch }) as Pack);
             setLog(prev => [JSON.stringify(patch), ...prev].slice(0, 5));
@@ -133,6 +138,101 @@ const EventBasicsFormDemo = () => {
         <pre className="mt-3 font-mono text-xs text-gray-400 whitespace-pre-wrap">
           {log.length ? log.map(l => `→ ${l}`).join('\n') : '→ (no changes yet)'}
         </pre>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Rounds & Breaks driven by an in-memory store standing in for the four writes
+ * it makes. The store enforces the same rule the DEFERRABLE unique constraint
+ * does — ordinals must end up 0..n-1 with no duplicates — so a reorder bug
+ * shows up here as a thrown error rather than silently.
+ */
+const RoundsBreaksFormDemo = () => {
+  const pack: Pack = {
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    starts_on: null, ends_on: null, description: null, owner_id: 'u1',
+    status: 'draft', slug: null, created_at: '', updated_at: '',
+  };
+
+  const [items, setItems] = useState<ScheduleItem[]>([
+    { id: 'a', pack_id: 'demo', ordinal: 0, kind: 'break', label: 'Registration', starts_at: '10:00:00', ends_at: '10:30:00' },
+    { id: 'b', pack_id: 'demo', ordinal: 1, kind: 'round', label: 'Round 1',      starts_at: '10:30:00', ends_at: '12:30:00' },
+    { id: 'c', pack_id: 'demo', ordinal: 2, kind: 'break', label: 'Lunch',        starts_at: '12:30:00', ends_at: '13:15:00' },
+    { id: 'd', pack_id: 'demo', ordinal: 3, kind: 'round', label: 'Round 2',      starts_at: '13:15:00', ends_at: '15:15:00' },
+  ]);
+  const [nextId, setNextId] = useState(1);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  /** Same invariant the database holds, checked in the demo so bugs surface. */
+  const assertContiguous = (next: ScheduleItem[]) => {
+    const ordinals = next.map(i => i.ordinal).sort((x, y) => x - y);
+    const ok = ordinals.every((o, i) => o === i);
+    setProblem(ok ? null : `Ordinals are not 0..n-1: [${ordinals.join(', ')}]`);
+  };
+
+  const ops: ScheduleOps = {
+    add: async (_packId, kind, ordinal, label) => {
+      const id = `new-${nextId}`;
+      setNextId(n => n + 1);
+      setItems(prev => [...prev, { id, pack_id: 'demo', ordinal, kind, label, starts_at: null, ends_at: null }]);
+    },
+    update: async (id, patch) => {
+      setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
+    },
+    remove: async (id) => {
+      setItems(prev => prev.filter(i => i.id !== id));
+    },
+    reorder: async (ordered) => {
+      const renumbered = ordered.map((item, i) => ({ ...item, ordinal: i }));
+      setItems(renumbered);
+      assertContiguous(renumbered);
+    },
+  };
+
+  return (
+    <div className="w-full flex flex-col gap-3 lg:flex-row">
+      <div className="w-full lg:w-72 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+        <RoundsBreaksForm
+          pack={pack}
+          rows={{}}
+          schedule={items}
+          games={[]}
+          venues={[]}
+          categoryKey="rounds-breaks"
+          onChange={() => {}}
+          reload={async () => {}}
+          ops={ops}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0 flex flex-col gap-3">
+        <div className="bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+          <p className="font-body text-xs uppercase tracking-[1.2px] text-gray-500 mb-2">
+            As the document renders it
+          </p>
+          <ScheduleTable
+            rows={items.map(i => ({
+              ordinal: i.ordinal,
+              kind: i.kind,
+              label: i.label ?? (i.kind === 'round' ? 'Round' : 'Break'),
+              time: i.starts_at && i.ends_at ? `${i.starts_at.slice(0, 5)} - ${i.ends_at.slice(0, 5)}` : i.starts_at?.slice(0, 5),
+            }))}
+          />
+        </div>
+
+        {problem && <Callout flavour="bad">{problem}</Callout>}
+
+        <GalleryNote>
+          Reordering renumbers the whole day in one write rather than shuffling
+          rows through spare ordinals. That works because the unique constraint
+          on (pack_id, ordinal) is deferred to the end of the transaction, so the
+          moment when two rows share a number never surfaces. Deleting closes the
+          gap for the same reason — the document's numbering should have no holes
+          in it. This demo asserts the same 0..n-1 invariant the database does and
+          shouts if it breaks.
+        </GalleryNote>
       </div>
     </div>
   );
@@ -262,6 +362,10 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-event-basics-form" title="Event Basics Form">
         <EventBasicsFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-rounds-breaks-form" title="Rounds & Breaks Form">
+        <RoundsBreaksFormDemo />
       </GallerySection>
 
     </GalleryShell>

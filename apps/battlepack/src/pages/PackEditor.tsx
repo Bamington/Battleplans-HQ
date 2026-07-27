@@ -91,6 +91,20 @@ export default function PackEditor() {
     return () => { cancelled = true; };
   }, [packId]);
 
+  /**
+   * Re-read everything a form may have written outside the pack row. Cheap
+   * enough at this scale, and it means a form never has to tell the editor
+   * which of its slices changed.
+   */
+  const reload = useCallback(async () => {
+    const [p, r, s] = await Promise.all([
+      getPack(packId), getCategoryRows(packId), getSchedule(packId),
+    ]);
+    if (p) setPack(p);
+    setRows(r);
+    setSchedule(s);
+  }, [packId]);
+
   const categories = useMemo(
     () => (pack ? visibleCategories(pack.game_id, rows) : []),
     [pack, rows],
@@ -366,6 +380,7 @@ export default function PackEditor() {
               {...ctx}
               categoryKey={activeDefinition.key}
               onChange={savePackFields}
+              reload={reload}
             />
           ) : (
             <p className="font-body text-sm text-gray-500">Pick a category on the left.</p>

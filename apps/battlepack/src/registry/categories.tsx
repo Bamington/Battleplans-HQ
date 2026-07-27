@@ -45,6 +45,7 @@ import {
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 import PlaceholderForm from '../components/forms/PlaceholderForm';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
+import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,8 +97,20 @@ export interface CategoryFormProps extends CategoryContext {
    * placeholder today, a generic section editor later) has no other way to know.
    */
   categoryKey: string;
-  /** Persist a partial change. The editor owns saving and error handling. */
+  /**
+   * Persist a partial change to the pack row. Only `core`-storage categories
+   * use this — schedule and section categories write to their own tables and
+   * then call `reload`.
+   */
   onChange: (patch: Record<string, unknown>) => void;
+  /**
+   * Re-read the pack's data from the database.
+   *
+   * Forms that write outside the pack row do their own writes (they know their
+   * own shape far better than the editor does) and then ask for a refresh, so
+   * the document and the left-nav badges catch up.
+   */
+  reload: () => Promise<void>;
 }
 
 export interface CategoryDefinition {
@@ -193,7 +206,7 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     // genuinely have no rounds — which is exactly why visibility has to live on
     // battlepack_categories and not on a content row this category doesn't own.
     isComplete: ({ schedule }) => schedule.length > 0,
-    Form: PlaceholderForm,
+    Form: RoundsBreaksForm,
   },
   {
     key: 'key-info',

@@ -216,6 +216,58 @@ export async function getSchedule(packId: string): Promise<ScheduleItem[]> {
   return (data ?? []) as ScheduleItem[];
 }
 
+/** Append a round or a break to the end of the day. */
+export async function addScheduleItem(
+  packId: string,
+  kind: ScheduleItem['kind'],
+  ordinal: number,
+  label?: string,
+): Promise<ScheduleItem> {
+  const { data, error } = await supabase
+    .from('battlepack_schedule_items')
+    .insert({ pack_id: packId, kind, ordinal, label: label ?? null })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as ScheduleItem;
+}
+
+export async function updateScheduleItem(
+  id: string,
+  patch: Partial<Pick<ScheduleItem, 'label' | 'starts_at' | 'ends_at' | 'kind'>>,
+): Promise<void> {
+  const { error } = await supabase.from('battlepack_schedule_items').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteScheduleItem(id: string): Promise<void> {
+  const { error } = await supabase.from('battlepack_schedule_items').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Renumber the whole day in one go.
+ *
+ * This is why `battlepack_schedule_items_pack_ordinal_key` is DEFERRABLE.
+ * Moving item 3 above item 2 means two rows briefly hold the same ordinal, and
+ * an immediate unique constraint would reject the batch halfway through. With
+ * the check deferred to the end of the transaction, the intermediate collision
+ * never matters — and PostgREST sends a multi-row upsert as one transaction, so
+ * there is no shuffling through temporary ordinals.
+ */
+export async function reorderSchedule(items: ScheduleItem[]): Promise<void> {
+  const rows = items.map((item, i) => ({
+    id: item.id,
+    pack_id: item.pack_id,
+    kind: item.kind,
+    ordinal: i,
+  }));
+  const { error } = await supabase
+    .from('battlepack_schedule_items')
+    .upsert(rows, { onConflict: 'id' });
+  if (error) throw error;
+}
+
 // ── Slugs ────────────────────────────────────────────────────────────────────
 
 /**
