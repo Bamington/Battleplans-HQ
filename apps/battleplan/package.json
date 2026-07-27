@@ -1,7 +1,7 @@
 {
   "name": "@battleplans/battleplan",
   "private": true,
-  "version": "2.12.1",
+  "version": "2.13.0",
   "type": "module",
   "main": "./src/App.tsx",
   "types": "./src/App.tsx",
