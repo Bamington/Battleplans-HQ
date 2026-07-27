@@ -24,9 +24,20 @@ function useBreadcrumbs(): Breadcrumb[] {
   return [];
 }
 
+/** The wordmark in the navbar's top-left. Exported so Login can use it too. */
+export const BattlePackLogo = () => (
+  <span className="font-heading text-white text-base tracking-wide">BattlePack</span>
+);
+
 type NavbarProps = Parameters<typeof Navbar>[0];
 
 export default function AppNavbar(props: Omit<NavbarProps, 'apps'>) {
   const crumbs = useBreadcrumbs();
-  return <Navbar {...props} breadcrumbs={props.breadcrumbs ?? crumbs} />;
+  return (
+    <Navbar
+      {...props}
+      logo={props.logo ?? <BattlePackLogo />}
+      breadcrumbs={props.breadcrumbs ?? crumbs}
+    />
+  );
 }

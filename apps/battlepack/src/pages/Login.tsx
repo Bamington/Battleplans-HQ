@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, authRedirectTo, Input, Button, Checkbox } from '@battleplans/ui';
-import AppNavbar from '../components/AppNavbar';
+import AppNavbar, { BattlePackLogo } from '../components/AppNavbar';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -31,9 +31,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const BattlePackLogo = () => (
-  <span className="font-heading text-white text-base tracking-wide">BattlePack</span>
-);
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 

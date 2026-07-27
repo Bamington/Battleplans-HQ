@@ -178,7 +178,7 @@ export default function PackEditor() {
   if (loading) {
     return (
       <div className="flex flex-col h-dvh bg-gray-950">
-        <AppNavbar />
+        <AppNavbar fixed={false} />
         <div className="flex-1 flex items-center justify-center font-body text-gray-500">Loading pack…</div>
       </div>
     );
@@ -187,7 +187,7 @@ export default function PackEditor() {
   if (error || !pack || !ctx) {
     return (
       <div className="flex flex-col h-dvh bg-gray-950">
-        <AppNavbar />
+        <AppNavbar fixed={false} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-md flex flex-col gap-4">
             <Callout flavour="bad">{error ?? 'Pack not found.'}</Callout>
