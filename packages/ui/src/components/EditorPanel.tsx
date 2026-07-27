@@ -1,13 +1,12 @@
 /**
- * EditorPanel.tsx — Right-aside chrome for the card-builder shell.
+ * EditorPanel.tsx — Right-aside chrome for the builder shell.
  *
  * The right-side editor panel is structurally identical across every builder:
- *   - Sticky header with a heading (e.g. "Edit Card", "Edit Rule").
+ *   - Sticky header with a heading (e.g. "Edit Card", "Event Basics").
  *   - Vertically scrollable body.
  *
  * What's *inside* the body — form fields, sections, modals — is entirely
- * game-specific and stays with the page. This component only owns the
- * chrome.
+ * page-specific and stays with the page. This component only owns the chrome.
  *
  * Designed to be rendered as the `rightPanel` slot of <BuilderShell>, which
  * supplies the surrounding `<aside>` and its responsive classes.
@@ -25,7 +24,7 @@ export interface EditorPanelProps {
   title: string;
   /** Optional right-aligned action node in the header (e.g. close button). */
   headerAction?: ReactNode;
-  /** Form contents — game-specific. */
+  /** Form contents — page-specific. */
   children?: ReactNode;
 }
 

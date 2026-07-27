@@ -27,10 +27,8 @@ import Markdown from 'react-markdown';
 import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
@@ -1412,9 +1410,9 @@ const CardBuilderBloodBowl = () => {
       leftPanelOpen={cardListOpen}
       onClosePanels={closePanels}
       leftPanel={appMode === 'edit' ? (
-        <CardListPanel
-          deckName={deckName}
-          editingDeckName={editingDeckName}
+        <ListPanel
+          title={deckName}
+          editingTitle={editingDeckName}
           inputRef={deckNameInputRef}
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
@@ -1511,7 +1509,7 @@ const CardBuilderBloodBowl = () => {
                 )}
               </div>
             ))}
-        </CardListPanel>
+        </ListPanel>
       ) : undefined}
       center={
         appMode === 'play' && playTab === 'rules' ? (

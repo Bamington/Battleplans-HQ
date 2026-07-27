@@ -1,8 +1,8 @@
 /**
  * cardBuilder.ts — Shared contracts for the card-builder shell + hook.
  *
- * Game-agnostic types that let `useCardBuilder` and the BuilderShell /
- * CardListPanel / EditorPanel / CenterViewport components stay decoupled
+ * Game-agnostic types that let `useCardBuilder`, the shared BuilderShell /
+ * ListPanel / EditorPanel chrome and this app's CenterViewport stay decoupled
  * from any specific game's card data shape.
  */
 

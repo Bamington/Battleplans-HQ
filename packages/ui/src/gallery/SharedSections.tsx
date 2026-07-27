@@ -39,6 +39,7 @@ import Avatar, { AvatarGroup } from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import Badge from '../components/Badge';
 import Banner from '../components/Banner';
+import BuilderShell from '../components/BuilderShell';
 import Button from '../components/Button';
 import ButtonPair from '../components/ButtonPair';
 import Callout from '../components/Callout';
@@ -48,6 +49,7 @@ import { ColumnShell, PaginatedColumn, ScrollColumn } from '../components/Column
 import ColumnHeader from '../components/ColumnHeader';
 import Counter from '../components/Counter';
 import Dropdown, { DropdownDivider, DropdownHeader, DropdownItem } from '../components/Dropdown';
+import EditorPanel from '../components/EditorPanel';
 import FriendProfileModal from '../components/FriendProfileModal';
 import type { FriendProfileState } from '../components/FriendProfileModal';
 import FriendsColumn from '../components/FriendsColumn';
@@ -56,6 +58,7 @@ import ImpersonationBanner from '../components/ImpersonationBanner';
 import Input from '../components/Input';
 import Lightbox from '../components/Lightbox';
 import List from '../components/List';
+import ListPanel from '../components/ListPanel';
 import MarkdownBody from '../components/MarkdownBody';
 import Modal from '../components/Modal';
 import ModeToggle from '../components/ModeToggle';
@@ -848,6 +851,111 @@ const HandleLinkGalleryDemo = () => (
   </ProfileModalProvider>
 );
 
+// ── BuilderShellGalleryDemo ──────────────────────────────────────────────────
+
+/** A builder list row. The panel body is a caller-owned slot — BattleCards puts
+ *  <UnitListEntry> here, BattlePack its category rows — so the demo supplies a
+ *  plain stand-in rather than pretending either belongs to the shell. */
+const DemoListRow = ({ label, active = false }: { label: string; active?: boolean }) => (
+  <button
+    type="button"
+    className={`w-full text-left px-3 py-2 rounded font-body text-sm truncate ${
+      active ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+/** <BuilderShell> + <ListPanel> + <EditorPanel> composed together. Stateful so
+ *  the inline rename and the responsive panel toggles are both demonstrable —
+ *  drop the preview below lg and the two asides become draggable bottom sheets. */
+const BuilderShellGalleryDemo = () => {
+  const [leftOpen,  setLeftOpen]  = useState(false);
+  const [rightOpen, setRightOpen] = useState(false);
+  const [title,     setTitle]     = useState<string | null>('Season 6 League');
+  const [editing,   setEditing]   = useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setEditing(true);
+    requestAnimationFrame(() => inputRef.current?.select());
+  };
+  const commit = (next: string) => {
+    const trimmed = next.trim();
+    setEditing(false);
+    if (trimmed) setTitle(trimmed);
+  };
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      {/* The shell is a full-viewport layout (h-dvh); the override boxes it into
+          the gallery so the section still scrolls normally. */}
+      <div className="w-full h-[600px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 [&>div]:!h-full">
+        <BuilderShell
+          navbar={
+            /* Stand-in for the app's <AppNavbar> — see the note below. */
+            <div className="shrink-0 h-14 px-4 flex items-center bg-gray-900 border-b border-gray-700">
+              <span className="font-heading text-sm text-white uppercase tracking-wide">App Navbar</span>
+            </div>
+          }
+          topBar={
+            <div className="lg:hidden shrink-0 px-3 py-2 flex gap-2 bg-gray-900 border-b border-gray-700">
+              <Button size="sm" variant="outline" onClick={() => { setLeftOpen(o => !o); setRightOpen(false); }}>
+                List
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setRightOpen(o => !o); setLeftOpen(false); }}>
+                Editor
+              </Button>
+            </div>
+          }
+          leftPanelOpen={leftOpen}
+          leftPanel={
+            <ListPanel
+              title={title}
+              editingTitle={editing}
+              inputRef={inputRef}
+              onStartEdit={startEdit}
+              onCommit={commit}
+              onCancelEdit={() => setEditing(false)}
+              footer={
+                <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
+                  Add Category
+                </Button>
+              }
+            >
+              <DemoListRow label="Event Basics" active />
+              <DemoListRow label="Event Timeline" />
+              <DemoListRow label="Rounds & Breaks" />
+            </ListPanel>
+          }
+          center={
+            <main className="flex-1 min-w-0 overflow-y-auto lg:order-2 flex items-center justify-center">
+              <span className="font-body text-sm text-gray-500">Centre slot — the page supplies this</span>
+            </main>
+          }
+          rightPanelOpen={rightOpen}
+          rightPanel={
+            <EditorPanel title="Event Basics">
+              <Input label="Event Name" value="Season 6 League" onChange={() => {}} />
+              <Counter label="Rounds" value={5} onChange={() => {}} />
+            </EditorPanel>
+          }
+          onClosePanels={() => { setLeftOpen(false); setRightOpen(false); }}
+        />
+      </div>
+      <GalleryNote>
+        The three-column editor layout, shared by BattleCards' card builders and
+        BattlePack's pack editor. Double-click the title to rename it. Below lg
+        the two asides become draggable bottom sheets that snap between full,
+        half and closed — narrow the window and use the List / Editor buttons.
+        The navbar and centre are plain slots: the shell owns the layout only, so
+        the demo stands in for both rather than shipping a navbar no app uses.
+      </GalleryNote>
+    </div>
+  );
+};
+
 // ── SharedGallerySections ────────────────────────────────────────────────────
 
 /**
@@ -902,6 +1010,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-lightbox',             label: 'Lightbox',             icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-handle-link',          label: 'Handle Link',          icon: <UserCircle className="w-5 h-5" /> },
   { href: '#nav-impersonation-banner', label: 'Impersonation Banner', icon: <Eye className="w-5 h-5" /> },
+  { href: '#nav-builder-shell',        label: 'Builder Shell',        icon: <Widget2 className="w-5 h-5" /> },
 ];
 
 export interface SharedGallerySectionsProps {
@@ -3077,6 +3186,124 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
       ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-impersonation-banner" title="Impersonation Banner">
         <ImpersonationBannerGalleryDemo />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUILDER SHELL
+          The three-column editor layout and its two aside panels. Shared by
+          BattleCards' card builders and BattlePack's pack editor; the centre
+          column is a plain slot, so each app supplies its own.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-builder-shell" title="Builder Shell">
+        <BuilderShellGalleryDemo />
+      </GallerySection>
+
+      <GallerySection title="Builder Shell / ListPanel">
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <ListPanel
+            title="UNSC Strike Team"
+            editingTitle={false}
+            inputRef={{ current: null }}
+            onStartEdit={() => {}}
+            onCommit={() => {}}
+            onCancelEdit={() => {}}
+            footer={
+              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
+                Add Unit
+              </Button>
+            }
+          >
+            <DemoListRow label="Spartan CQB" active />
+            <DemoListRow label="ODST Demolition" />
+            <DemoListRow label="Marine Squad" />
+          </ListPanel>
+        </div>
+
+        {/* With a header action slot (e.g. edit-mode toggle) and a subtitle line */}
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <ListPanel
+            title="Banished Vanguard"
+            editingTitle={false}
+            inputRef={{ current: null }}
+            onStartEdit={() => {}}
+            onCommit={() => {}}
+            onCancelEdit={() => {}}
+            headerSubtitle={
+              <p className="font-body text-xs font-bold text-gray-500 uppercase tracking-[1.2px] truncate">
+                370 Points
+              </p>
+            }
+            headerAction={
+              <button className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white" title="Edit deck">
+                <Pen2 className="w-4 h-4" />
+              </button>
+            }
+            footer={
+              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
+                Add Unit
+              </Button>
+            }
+          >
+            <DemoListRow label="Elite Honor Guard" />
+            <DemoListRow label="Brute Chieftain" active />
+            <DemoListRow label="Jackal Sniper" />
+          </ListPanel>
+        </div>
+
+        {/* Mid-rename — the state the inline editor is in after a double-click */}
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <ListPanel
+            title="Season 6 League"
+            editingTitle
+            inputRef={{ current: null }}
+            onStartEdit={() => {}}
+            onCommit={() => {}}
+            onCancelEdit={() => {}}
+          >
+            <DemoListRow label="Event Basics" active />
+            <DemoListRow label="Event Timeline" />
+          </ListPanel>
+        </div>
+
+        <GalleryNote>
+          The left aside. It titles a deck in BattleCards and a pack in
+          BattlePack, so the prop is `title`, not either. The rows, the header
+          action and the footer are all caller-owned slots — the rows here are
+          plain stand-ins.
+        </GalleryNote>
+      </GallerySection>
+
+      <GallerySection title="Builder Shell / EditorPanel">
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <EditorPanel title="Edit Card">
+            <Input label="Unit Name" placeholder="e.g. Spartan CQB" value="Spartan CQB" onChange={() => {}} />
+            <Counter label="Hit Points" value={3} onChange={() => {}} />
+            <Counter label="Armour"     value={2} onChange={() => {}} />
+            <Counter label="Points"     value={120} onChange={() => {}} />
+          </EditorPanel>
+        </div>
+
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <EditorPanel
+            title="Event Basics"
+            headerAction={
+              <button className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white" title="Close">
+                <CloseCircle className="w-4 h-4" />
+              </button>
+            }
+          >
+            <Input label="Event Name" placeholder="e.g. Season 6 League" value="Season 6 League" onChange={() => {}} />
+            <p className="font-body text-xs text-gray-400">
+              Hand-written helper copy sits under the fields — that is why each
+              form is bespoke rather than generated.
+            </p>
+          </EditorPanel>
+        </div>
+
+        <GalleryNote>
+          The right aside — a sticky heading over a scrolling body, and nothing
+          else. Every form inside it is written by the page.
+        </GalleryNote>
       </GallerySection>
 
     </>

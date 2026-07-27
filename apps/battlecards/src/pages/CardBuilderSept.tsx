@@ -11,10 +11,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, Link } from 'react-router-dom';
 import EditSubnav from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
 import { Button } from '@battleplans/ui';
@@ -243,9 +241,9 @@ export default function CardBuilderSept() {
         leftPanelOpen={cardListOpen}
         onClosePanels={closePanels}
         leftPanel={
-          <CardListPanel
-            deckName={deckName}
-            editingDeckName={editingDeckName}
+          <ListPanel
+            title={deckName}
+            editingTitle={editingDeckName}
             inputRef={deckNameInputRef}
             onStartEdit={startDeckNameEdit}
             onCommit={n => commitDeckName(n, { persist: true })}
@@ -266,7 +264,7 @@ export default function CardBuilderSept() {
             <p className="font-body text-xs text-gray-500 text-center px-2 pb-2">
               1 Sept card per deck
             </p>
-          </CardListPanel>
+          </ListPanel>
         }
         center={
           <CenterViewport

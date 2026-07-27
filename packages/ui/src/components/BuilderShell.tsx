@@ -1,34 +1,37 @@
 /**
- * BuilderShell.tsx — Outer 3-column layout for every card-builder page.
+ * BuilderShell.tsx — Outer 3-column layout for every builder page.
  *
- * Owns the chrome shared by Halo / Starcraft / Blood Bowl (and future games):
+ * Shared chrome for the editor pages that put a list on the left, a document or
+ * viewport in the middle, and a form on the right — BattleCards' card builders
+ * and BattlePack's pack editor:
  *   - Full-height column wrapper with the gray-950 page background.
  *   - Slot for the Navbar (always rendered).
  *   - Slot for an optional sub-bar directly below the navbar (EditSubnav,
  *     PlaySubnav, etc.).
  *   - A flex-row body containing optional left/right `<aside>` panels and a
  *     centre `<main>`-like region. The asides apply the responsive
- *     show/hide + ordering classes that all three current builders use.
+ *     show/hide + ordering classes that all the current builders use.
  *   - Slot at the end for modal portals.
  *
- * The shell is intentionally a slot-based component — game-specific concerns
+ * The shell is intentionally a slot-based component — page-specific concerns
  * (Navbar children, which subnav to render, what's in each panel, which
  * modals are mounted) stay with the page. The shell only owns the layout.
  *
- * USAGE (composed with the other shells + useCardBuilder):
- *   const builder = useCardBuilder({ deckId });
- *   return (
- *     <BuilderShell
- *       navbar={<AppNavbar>{...}</AppNavbar>}
- *       topBar={<EditSubnav className="lg:hidden" {...} />}
- *       leftPanel={<CardListPanel {...}>{cardListBody}</CardListPanel>}
- *       leftPanelOpen={builder.cardListOpen}
- *       center={<CenterViewport logo={<img .../>} {...}>{carousel}</CenterViewport>}
- *       rightPanel={<EditorPanel title="Edit Card">{editorBody}</EditorPanel>}
- *       rightPanelOpen={builder.editorOpen}
- *       modals={<>{photoModal}{deleteConfirmModal}{...}</>}
- *     />
- *   );
+ * The centre is a plain slot rather than a component, because the two consumers
+ * share nothing there: BattleCards mounts its own <CenterViewport> (a logo strip
+ * over a card carousel), BattlePack mounts a scrolling document.
+ *
+ * USAGE:
+ *   <BuilderShell
+ *     navbar={<AppNavbar>{...}</AppNavbar>}
+ *     topBar={<EditSubnav className="lg:hidden" {...} />}
+ *     leftPanel={<ListPanel {...}>{listBody}</ListPanel>}
+ *     leftPanelOpen={listOpen}
+ *     center={<CenterViewport logo={<img .../>} {...}>{carousel}</CenterViewport>}
+ *     rightPanel={<EditorPanel title="Edit Card">{editorBody}</EditorPanel>}
+ *     rightPanelOpen={editorOpen}
+ *     modals={<>{photoModal}{deleteConfirmModal}{...}</>}
+ *   />
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -40,12 +43,12 @@ export interface BuilderShellProps {
   /** Optional sub-bar below the navbar (EditSubnav, PlaySubnav, etc.). */
   topBar?: ReactNode;
 
-  /** Content of the left aside (typically a <CardListPanel>). Omit to hide. */
+  /** Content of the left aside (typically a <ListPanel>). Omit to hide. */
   leftPanel?: ReactNode;
   /** Mobile slide-in state for the left aside. Ignored at lg+ where the aside is always visible. */
   leftPanelOpen?: boolean;
 
-  /** Centre region content (typically a <CenterViewport>). */
+  /** Centre region content (e.g. BattleCards' <CenterViewport>, BattlePack's document). */
   center: ReactNode;
 
   /** Content of the right aside (typically an <EditorPanel>). Omit to hide. */

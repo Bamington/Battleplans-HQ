@@ -24,10 +24,8 @@ import Markdown from 'react-markdown';
 import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
 import { type UnitStatus } from '../components/UnitListEntry';
@@ -1541,9 +1539,9 @@ const CardBuilderHaloFlashpoint = () => {
         // for the activation/rules grouping. Edit-only chrome (header
         // action, add/done footer) is gated internally so play mode just
         // shows the read-only list.
-        <CardListPanel
-          deckName={deckName}
-          editingDeckName={editingDeckName}
+        <ListPanel
+          title={deckName}
+          editingTitle={editingDeckName}
           inputRef={deckNameInputRef}
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
@@ -1644,7 +1642,7 @@ const CardBuilderHaloFlashpoint = () => {
               onDrop={handleDrop}
               onDragEnd={handleDragEnd}
             />
-        </CardListPanel>
+        </ListPanel>
       }
       center={
         appMode === 'play' && playTab === 'rules' ? (

@@ -28,6 +28,7 @@ import {
   type GalleryNavItem,
 } from '@battleplans/ui';
 import { Button, Counter, Input, Text, MarkdownBody } from '@battleplans/ui';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { AddCircle, FileText, Pen2, Shield, Star, UserRounded, Widget2, Gallery, Bookmark, ListCheck, Play, Filter } from '@battleplans/ui';
 
 // ── Local component imports ──────────────────────────────────────────────────
@@ -61,9 +62,6 @@ import UploadPhotoModal from '../components/UploadPhotoModal';
 import GamePickerItem from '../components/GamePickerItem';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
 import TokenMenu from '../components/TokenMenu';
 import TokenOverlay from '../components/TokenOverlay';
@@ -282,9 +280,11 @@ const ZoomControlsGalleryDemo = () => {
 
 // ── BuilderShellDemo ──────────────────────────────────────────────────────────
 
-/** Inline preview of <BuilderShell> + <CardListPanel> + <EditorPanel> +
- *  <CenterViewport> composed together. Stateful so the deck-name rename
- *  and mobile panel toggles are demonstrable. */
+/** Inline preview of <CenterViewport> in its real setting — the shared
+ *  <BuilderShell> + <ListPanel> + <EditorPanel>, with BattleCards' own centre
+ *  column and unit-list rows. The shell pieces have their own demos in the
+ *  shared gallery; this one exists to show the local centre column in context.
+ *  Stateful so the deck-name rename and mobile panel toggles are demonstrable. */
 const BuilderShellDemo = () => {
   const [cardListOpen, setCardListOpen] = React.useState(false);
   const [editorOpen,   setEditorOpen]   = React.useState(false);
@@ -317,9 +317,9 @@ const BuilderShellDemo = () => {
         }
         leftPanelOpen={cardListOpen}
         leftPanel={
-          <CardListPanel
-            deckName={deckName}
-            editingDeckName={editingName}
+          <ListPanel
+            title={deckName}
+            editingTitle={editingName}
             inputRef={inputRef}
             onStartEdit={startEdit}
             onCommit={commit}
@@ -333,7 +333,7 @@ const BuilderShellDemo = () => {
             <UnitListEntry status="complete" unitName="Spartan CQB"     active />
             <UnitListEntry status="complete" unitName="ODST Demolition"        />
             <UnitListEntry status="blank"                                      />
-          </CardListPanel>
+          </ListPanel>
         }
         center={
           <CenterViewport logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}>
@@ -401,7 +401,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-sc-supply-tiers',       label: 'SC Supply Tiers',       icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-sc-add-keyword',        label: 'SC Add Keyword',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-print-card-grid',       label: 'Print Card Grid',       icon: <Bookmark className="w-5 h-5" /> },
-  { href: '#nav-builder-shell',         label: 'Builder Shell',         icon: <Widget2 className="w-5 h-5" /> },
+  { href: '#nav-center-viewport',       label: 'Center Viewport',       icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-card-forms',            label: 'Card Forms',            icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-addon-forms',           label: 'Addon Forms',           icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
@@ -1985,78 +1985,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      <GallerySection id="nav-builder-shell" title="Builder Shell / Composed">
-        <BuilderShellDemo />
-      </GallerySection>
-
-      <GallerySection title="Builder Shell / CardListPanel">
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <CardListPanel
-            deckName="UNSC Strike Team"
-            editingDeckName={false}
-            inputRef={{ current: null }}
-            onStartEdit={() => {}}
-            onCommit={() => {}}
-            onCancelEdit={() => {}}
-            footer={
-              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
-                Add Unit
-              </Button>
-            }
-          >
-            <UnitListEntry status="complete" unitName="Spartan CQB" active />
-            <UnitListEntry status="complete" unitName="ODST Demolition" />
-            <UnitListEntry status="complete" unitName="Marine Squad" />
-            <UnitListEntry status="blank" />
-          </CardListPanel>
-        </div>
-
-        {/* With a header action slot (e.g. edit-mode toggle) */}
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <CardListPanel
-            deckName="Banished Vanguard"
-            editingDeckName={false}
-            inputRef={{ current: null }}
-            onStartEdit={() => {}}
-            onCommit={() => {}}
-            onCancelEdit={() => {}}
-            headerAction={
-              <button className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white" title="Edit deck">
-                <Pen2 className="w-4 h-4" />
-              </button>
-            }
-            footer={
-              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
-                Add Unit
-              </Button>
-            }
-          >
-            <UnitListEntry status="complete" unitName="Elite Honor Guard" />
-            <UnitListEntry status="complete" unitName="Brute Chieftain" active />
-            <UnitListEntry status="complete" unitName="Jackal Sniper" />
-          </CardListPanel>
-        </div>
-      </GallerySection>
-
-      <GallerySection title="Builder Shell / EditorPanel">
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <EditorPanel title="Edit Card">
-            <Input label="Unit Name" placeholder="e.g. Spartan CQB" value="Spartan CQB" onChange={() => {}} />
-            <Counter label="Hit Points" value={3} onChange={() => {}} />
-            <Counter label="Armour"     value={2} onChange={() => {}} />
-            <Counter label="Points"     value={120} onChange={() => {}} />
-          </EditorPanel>
-        </div>
-
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <EditorPanel title="Edit Rule">
-            <Input label="Rule Title" placeholder="e.g. Assault" value="Energy Shield" onChange={() => {}} />
-            <p className="font-body text-xs text-gray-400">Description and rich-text body would go here in a real builder.</p>
-          </EditorPanel>
-        </div>
-      </GallerySection>
-
-      <GallerySection title="Builder Shell / CenterViewport">
+      <GallerySection id="nav-center-viewport" title="Center Viewport">
         <div className="w-full max-w-2xl h-[420px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col bg-gray-950">
           <CenterViewport
             logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}
@@ -2078,6 +2007,13 @@ const ComponentGallery = () => {
             </div>
           </CenterViewport>
         </div>
+      </GallerySection>
+
+      {/* The centre column in its real setting. <BuilderShell>, <ListPanel> and
+          <EditorPanel> are shared — their own demos are in the shared gallery
+          above — so this section is about what BattleCards puts between them. */}
+      <GallerySection title="Center Viewport / In the builder shell">
+        <BuilderShellDemo />
       </GallerySection>
 
       <GallerySection id="nav-card-forms" title="Card Forms / Halo Flashpoint">

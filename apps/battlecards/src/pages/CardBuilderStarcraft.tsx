@@ -31,10 +31,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EditSubnav  from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
 import CenterViewport from '../components/CenterViewport';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Button } from '@battleplans/ui';
 import { Input } from '@battleplans/ui';
@@ -635,9 +633,9 @@ const CardBuilderStarcraft = () => {
       leftPanelOpen={cardListOpen}
       onClosePanels={closePanels}
       leftPanel={
-        <CardListPanel
-          deckName={deckName}
-          editingDeckName={editingDeckName}
+        <ListPanel
+          title={deckName}
+          editingTitle={editingDeckName}
           inputRef={deckNameInputRef}
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
@@ -697,7 +695,7 @@ const CardBuilderStarcraft = () => {
           ))}
           {/* Deck-scoped rule cards (Halo-style) — modal coming next round.
               List entries will render here once the rule data model lands. */}
-        </CardListPanel>
+        </ListPanel>
       }
       center={
         <CenterViewport
