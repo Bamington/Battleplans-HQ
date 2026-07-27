@@ -30,6 +30,7 @@ import {
   SharedGallerySections,
   SHARED_GALLERY_NAV,
   Calendar,
+  FileText,
   Gallery,
   ListCheck,
   MapPin,
@@ -44,7 +45,9 @@ import BattlepackListItem from '../components/BattlepackListItem';
 import {
   PackHero, DocumentSection, EmptySection, KeyInfoCard, ScheduleTable,
 } from '../components/PackDocument';
+import EventBasicsForm from '../components/forms/EventBasicsForm';
 import { CATEGORY_REGISTRY } from '../registry/categories';
+import type { GameOption, LocationOption, Pack } from '../lib/packs';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -54,6 +57,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-category-list-item',  label: 'Category List Item',   icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-battlepack-list-item', label: 'Battlepack List Item', icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-pack-document',       label: 'Pack Document',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-event-basics-form',   label: 'Event Basics Form',    icon: <FileText className="w-5 h-5" /> },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -76,6 +80,60 @@ const CategoryListDemo = () => {
           onRemove={c.requirement === 'mandatory' ? undefined : () => {}}
         />
       ))}
+    </div>
+  );
+};
+
+/**
+ * The Event Basics panel, driven by local state instead of Supabase so it is
+ * fully truthful without a session — every save-on-blur writes to the stub pack
+ * below and the panel re-renders from it, exactly as the real editor does.
+ */
+const EventBasicsFormDemo = () => {
+  const [pack, setPack] = useState<Pack>({
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    starts_on: null, ends_on: null, description: null, owner_id: 'u1',
+    status: 'draft', slug: null, created_at: '', updated_at: '',
+  });
+  const [log, setLog] = useState<string[]>([]);
+
+  const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', icon: null, image: null }];
+  const venues: LocationOption[] = [
+    { id: 'v1', name: 'Gaming Arena',      address: '2/86 Cottrell Street, Werribee, VIC' },
+    { id: 'v2', name: 'Battleground North', address: '14 High Street, Preston, VIC' },
+  ];
+
+  return (
+    <div className="w-full flex flex-col gap-3 lg:flex-row">
+      <div className="w-full lg:w-64 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+        <EventBasicsForm
+          pack={pack}
+          rows={{}}
+          schedule={[]}
+          games={games}
+          venues={venues}
+          categoryKey="event-basics"
+          onChange={patch => {
+            setPack(prev => ({ ...prev, ...patch }) as Pack);
+            setLog(prev => [JSON.stringify(patch), ...prev].slice(0, 5));
+          }}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <GalleryNote>
+          Saving is on blur — there is no submit button, because the editor is a
+          place you return to rather than a form you complete. Type in a field
+          and click away to see what it writes. An empty name is reverted rather
+          than saved: it is the category's one required field, and blanking it
+          would empty the left nav, the document heading and the home row at
+          once. Game is deliberately read-only — it is fixed at creation, which
+          is what lets game-specific categories resolve exactly once.
+        </GalleryNote>
+        <pre className="mt-3 font-mono text-xs text-gray-400 whitespace-pre-wrap">
+          {log.length ? log.map(l => `→ ${l}`).join('\n') : '→ (no changes yet)'}
+        </pre>
+      </div>
     </div>
   );
 };
@@ -200,6 +258,10 @@ const ComponentGallery = () => {
           own no state and register nothing, because the nav is the sole source
           of truth for what is selected.
         </GalleryNote>
+      </GallerySection>
+
+      <GallerySection id="nav-event-basics-form" title="Event Basics Form">
+        <EventBasicsFormDemo />
       </GallerySection>
 
     </GalleryShell>

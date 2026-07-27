@@ -59,6 +59,9 @@ export default function PackEditor() {
   const [venues,   setVenues]   = useState<LocationOption[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  // Separate from `error`: a failed save should surface in the panel, not
+  // replace the whole editor with an error screen.
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [activeKey,  setActiveKey]  = useState<string | null>(null);
   const [activeTab,  setActiveTab]  = useState<CategoryTab>('format');
@@ -98,7 +101,7 @@ export default function PackEditor() {
     if (!activeKey && categories.length) setActiveKey(categories[0].key);
   }, [categories, activeKey]);
 
-  const ctx: CategoryContext | null = pack ? { pack, rows, schedule } : null;
+  const ctx: CategoryContext | null = pack ? { pack, rows, schedule, games, venues } : null;
   const game  = games.find(g => g.id === pack?.game_id) ?? null;
   const venue = venues.find(v => v.id === pack?.location_id) ?? null;
 
@@ -120,13 +123,31 @@ export default function PackEditor() {
     });
   }, []);
 
+  /**
+   * The single write path for `core`-storage categories.
+   *
+   * Optimistic: the panel and the document both read from `pack`, so waiting
+   * for the round trip would leave a field visibly stale after every blur. A
+   * failed save reverts and says so, rather than leaving the screen showing
+   * something the database does not hold.
+   */
+  const savePackFields = useCallback(async (patch: Record<string, unknown>) => {
+    setPack(prev => (prev ? { ...prev, ...patch } as Pack : prev));
+    setSaveError(null);
+    try {
+      await updatePack(packId, patch as Partial<Pack>);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Could not save that change.');
+      const fresh = await getPack(packId).catch(() => null);
+      if (fresh) setPack(fresh);
+    }
+  }, [packId]);
+
   async function renamePack(next: string) {
     const name = next.trim();
     setEditingName(false);
     if (!pack || !name || name === pack.name) return;
-    setPack({ ...pack, name });
-    try { await updatePack(pack.id, { name }); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not rename the pack.'); }
+    await savePackFields({ name });
   }
 
   async function removeCategory(key: string) {
@@ -176,10 +197,7 @@ export default function PackEditor() {
         const starts = formatDate(pack.starts_on);
         const ends   = formatDate(pack.ends_on);
         body = starts
-          ? <KeyInfoCard rows={[
-              ...(venue ? [{ icon: <MapPin className="w-4 h-4" />, text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}` }] : []),
-              { icon: <Calendar className="w-4 h-4" />, text: ends ? `${starts} – ${ends}` : starts },
-            ]} />
+          ? <KeyInfoCard rows={[{ icon: <Calendar className="w-4 h-4" />, text: ends ? `${starts} – ${ends}` : starts }]} />
           : <EmptySection hint="No dates set yet." />;
       } else if (c.key === 'rounds-breaks') {
         body = schedule.length
@@ -191,9 +209,21 @@ export default function PackEditor() {
             }))} />
           : <EmptySection hint="No rounds or breaks yet." />;
       } else if (c.key === 'event-basics') {
-        body = pack.description
-          ? <p className="whitespace-pre-wrap">{pack.description}</p>
-          : <EmptySection hint="No description yet." />;
+        // Venue lives here rather than under Event Timeline because it is an
+        // Event Basics field — the dates are the timeline's business.
+        body = (
+          <>
+            {pack.description
+              ? <p className="whitespace-pre-wrap">{pack.description}</p>
+              : <EmptySection hint="No description yet." />}
+            {venue && (
+              <KeyInfoCard rows={[{
+                icon: <MapPin className="w-4 h-4" />,
+                text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}`,
+              }]} />
+            )}
+          </>
+        );
       } else {
         const content = rows[c.key]?.content as { body?: string } | null | undefined;
         body = content?.body
@@ -329,11 +359,13 @@ export default function PackEditor() {
       rightPanelOpen={rightOpen}
       rightPanel={
         <EditorPanel title={activeDefinition?.label ?? 'Editor'}>
+          {saveError && <Callout flavour="bad" onDismiss={() => setSaveError(null)}>{saveError}</Callout>}
+
           {activeDefinition && ctx ? (
             <activeDefinition.Form
               {...ctx}
               categoryKey={activeDefinition.key}
-              onChange={() => {}}
+              onChange={savePackFields}
             />
           ) : (
             <p className="font-body text-sm text-gray-500">Pick a category on the left.</p>

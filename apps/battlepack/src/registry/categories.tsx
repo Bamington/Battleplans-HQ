@@ -42,8 +42,9 @@ import {
   Bookmark, Calendar, Clipboard, FileText, InfoCircle, ListCheck,
   Notebook, QuestionCircle, Star, UserPlusRounded,
 } from '@battleplans/ui';
-import type { Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 import PlaceholderForm from '../components/forms/PlaceholderForm';
+import EventBasicsForm from '../components/forms/EventBasicsForm';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,14 @@ export interface CategoryContext {
   rows: Record<string, PackCategoryRow>;
   /** Rounds & Breaks, already ordered. */
   schedule: ScheduleItem[];
+  /**
+   * The lookups the editor has already loaded. They live on the context rather
+   * than being fetched per form because more than one category needs them —
+   * Event Basics picks the venue, Key Info renders its address — and a fetch
+   * inside each form would mean the same two queries several times over.
+   */
+  games: GameOption[];
+  venues: LocationOption[];
 }
 
 export interface CategoryFormProps extends CategoryContext {
@@ -153,7 +162,7 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     storage: 'core',
     order: 10,
     icon: <FileText className="w-6 h-6" />,
-    Form: PlaceholderForm,
+    Form: EventBasicsForm,
     // The name is the only genuinely required field. The game is set at
     // creation and cannot be absent; location and description are optional.
     isComplete: ({ pack }) => pack.name.trim().length > 0,
