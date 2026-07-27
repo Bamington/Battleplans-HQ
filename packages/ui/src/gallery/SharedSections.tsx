@@ -851,6 +851,57 @@ const HandleLinkGalleryDemo = () => (
   </ProfileModalProvider>
 );
 
+// ── ControlledTabsGalleryDemo ────────────────────────────────────────────────
+
+/** Tabs in controlled mode — the buttons above the bar select tabs too, which
+ *  is the case uncontrolled tabs cannot serve. BattlePack needs it because its
+ *  left-hand category nav is the sole source of truth for which section shows,
+ *  and clicking a category has to switch the centre tab. */
+const ControlledTabsGalleryDemo = () => {
+  const [tab, setTab] = useState('format');
+
+  const TABS = [
+    { id: 'format',       label: 'Event Format' },
+    { id: 'registration', label: 'Registration' },
+    { id: 'faq',          label: 'FAQ' },
+  ];
+
+  return (
+    <div className="w-full max-w-lg flex flex-col gap-3">
+      <div className="flex gap-2">
+        {TABS.map(t => (
+          <Button
+            key={t.id}
+            size="sm"
+            variant={tab === t.id ? 'filled' : 'outline'}
+            onClick={() => setTab(t.id)}
+          >
+            Select {t.label}
+          </Button>
+        ))}
+      </div>
+
+      <Tabs
+        variant="fullWidth"
+        activeTab={tab}
+        onTabChange={setTab}
+        tabs={TABS.map(t => ({
+          id: t.id,
+          label: t.label,
+          content: <Text variant="paragraph">This is the {t.label} panel.</Text>,
+        }))}
+      />
+
+      <GalleryNote>
+        Pass <code>activeTab</code> and <code>onTabChange</code> together and the
+        component stops owning the selection. The buttons above and the tab bar
+        itself both drive the same state, so they cannot disagree. Omit both
+        props and it keeps its own state exactly as before.
+      </GalleryNote>
+    </div>
+  );
+};
+
 // ── BuilderShellGalleryDemo ──────────────────────────────────────────────────
 
 /** A builder list row. The panel body is a caller-owned slot — BattleCards puts
@@ -2517,6 +2568,15 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
             ]}
           />
         </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TABS — Controlled
+          Driven from outside the tab bar, for when something else also
+          selects tabs.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Tabs / Controlled">
+        <ControlledTabsGalleryDemo />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════

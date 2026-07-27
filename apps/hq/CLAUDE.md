@@ -4,11 +4,11 @@ These rules apply to every command in this project.
 
 ## What this app is
 
-HQ is the shell, not a fourth product. It mounts the other apps' route subtrees
-— `battleplanRoutes()`, `battlecardsRoutes()`, `battlebenchRoutes()` — so all
-three ship as one native binary, and it owns one copy of the public routes
-(`/login`, `/auth/*`) for all of them. It shows one app at a time, so `/app`
-means whichever app is currently mounted.
+HQ is the shell, not a fifth product. It mounts the other apps' route subtrees
+— `battleplanRoutes()`, `battlecardsRoutes()`, `battlebenchRoutes()`,
+`battlepackRoutes()` — so they all ship as one native binary, and it owns one
+copy of the public routes (`/login`, `/auth/*`) for all of them. It shows one
+app at a time, so `/app` means whichever app is currently mounted.
 
 Consequences worth remembering:
 - **Screens belong to their own app, not here.** Adding a page means editing that
@@ -17,8 +17,9 @@ Consequences worth remembering:
 - **Each app's `/gallery` stays out of `appRoutes()`** and so is not reachable
   through HQ. That is deliberate — it is a dev tool, and the public routes live
   here once.
-- `APP_ROUTES` keys are `AppSlug` values. `battlepack` is `null` until that app
-  exists; the switcher renders it as "coming soon" and never routes to it.
+- `APP_ROUTES` keys are `AppSlug` values, and every slug now has a subtree. A
+  `null` entry is how a reserved-but-unwritten app renders as "coming soon" in
+  the switcher without ever being routed to.
 
 ## Deploying to Production
 

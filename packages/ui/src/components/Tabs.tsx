@@ -45,8 +45,21 @@ export interface TabsProps {
   tabs: TabItem[];
   /** Visual style of the tab bar */
   variant?: TabsVariant;
-  /** ID of the tab that is active on first render */
+  /** ID of the tab that is active on first render. Ignored when `activeTab` is set. */
   defaultTab?: string;
+  /**
+   * Controlled mode: the id of the active tab. Pass this together with
+   * `onTabChange` when something outside the tab bar also selects tabs — in
+   * BattlePack the left-hand category nav is the sole source of truth for
+   * which section is showing, and clicking a category has to switch the centre
+   * tab. Uncontrolled tabs cannot be driven from outside, so they would end up
+   * disagreeing with the nav.
+   *
+   * Omit both and the component keeps its own state, as before.
+   */
+  activeTab?: string;
+  /** Fires with the tab id when a tab is clicked. Required for controlled mode. */
+  onTabChange?: (tabId: string) => void;
   /**
    * Extra Tailwind classes on the tab panel.
    * Use to suppress the panel border when Tabs is placed inside a Card:
@@ -103,15 +116,28 @@ const DISABLED_TAB_CLASSES =
 
 const Tabs = ({
   tabs,
-  variant       = 'default',
+  variant        = 'default',
   defaultTab,
+  activeTab: controlledTab,
+  onTabChange,
   panelClassName = '',
-  className     = '',
+  className      = '',
 }: TabsProps) => {
 
   // Default to first non-disabled tab if no defaultTab is specified
   const firstEnabled = tabs.find((t) => !t.disabled)?.id ?? tabs[0]?.id;
-  const [activeTab, setActiveTab] = useState<string>(defaultTab ?? firstEnabled);
+  const [uncontrolledTab, setUncontrolledTab] = useState<string>(defaultTab ?? firstEnabled);
+
+  // Controlled when a tab id is supplied, uncontrolled otherwise. The internal
+  // state is still updated in controlled mode so that dropping the prop later
+  // does not snap the panel back to whatever was active before.
+  const isControlled = controlledTab !== undefined;
+  const activeTab    = isControlled ? controlledTab : uncontrolledTab;
+
+  const selectTab = (tabId: string) => {
+    if (!isControlled) setUncontrolledTab(tabId);
+    onTabChange?.(tabId);
+  };
 
   const activeContent = tabs.find((t) => t.id === activeTab)?.content;
 
@@ -139,7 +165,7 @@ const Tabs = ({
               aria-controls={`tabpanel-${tab.id}`}
               id={`tab-${tab.id}`}
               disabled={isDisabled}
-              onClick={() => !isDisabled && setActiveTab(tab.id)}
+              onClick={() => !isDisabled && selectTab(tab.id)}
               className={`font-body ${buttonClasses}`}
             >
               {tab.icon && (

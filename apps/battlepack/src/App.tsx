@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
+import PackEditor from './pages/PackEditor.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
 
 /**
@@ -31,6 +32,7 @@ export function appRoutes() {
       </ProtectedRoute>
     }>
       <Route path="/app" element={<HomePage />} />
+      <Route path="/app/:packId/edit" element={<PackEditor />} />
     </Route>
   );
 }
