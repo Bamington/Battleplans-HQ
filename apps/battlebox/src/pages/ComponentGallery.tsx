@@ -1,5 +1,5 @@
 /**
- * ComponentGallery.tsx — BattleBox Component Gallery
+ * ComponentGallery.tsx — BattleBench Component Gallery (apps/battlebox)
  *
  * A living reference for every UI component in the app.
  * This page is a development tool only — not a screen users will see.
@@ -77,7 +77,7 @@ import GAME_ICON from '../../../../packages/ui/src/assets/games/icons/blood-bowl
 
 // ── Demo data ────────────────────────────────────────────────────────────────
 
-const PHOTO_A ='https://images.unsplash.com/photo-1608889175123-8ee362201f81?w=600';
+const PHOTO_A = 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?w=600';
 const PHOTO_B = 'https://images.unsplash.com/photo-1611996575749-79a3a250f79e?w=600';
 
 const DEMO_BOX: CollectionBox = {
@@ -263,10 +263,10 @@ const ComponentGallery = () => {
   const [editRecipeOpen,    setEditRecipeOpen]    = useState(false);
 
   return (
-    <GalleryShell appName="BattleBox" nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]} backTo="/app">
+    <GalleryShell appName="BattleBench" nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]} backTo="/app">
 
       {/* Every @battleplans/ui component — see packages/ui/src/gallery/SharedSections.tsx */}
-      <SharedGallerySections />
+      <SharedGallerySections appName="BattleBench" />
 
       {/* ════════════════════════════════════════════════════════════════
           Everything below is a BattleBox-only component.

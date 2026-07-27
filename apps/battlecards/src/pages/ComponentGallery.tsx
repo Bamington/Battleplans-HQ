@@ -451,7 +451,7 @@ const ComponentGallery = () => {
     <GalleryShell appName="BattleCards" nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]}>
 
       {/* Every @battleplans/ui component — see packages/ui/src/gallery/SharedSections.tsx */}
-      <SharedGallerySections />
+      <SharedGallerySections appName="BattleCards" />
 
       {/* ════════════════════════════════════════════════════════════════
           Everything below is a BattleCards-only component.

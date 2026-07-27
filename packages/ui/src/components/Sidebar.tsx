@@ -39,6 +39,11 @@ interface SidebarProps {
   /** Extra Tailwind classes on the <aside> element */
   className?: string;
   /**
+   * Text in the header slot. Defaults to 'BattleCards' — this component is
+   * shared, so anything mounting it outside BattleCards should say so.
+   */
+  title?: React.ReactNode;
+  /**
    * Nav items to render inside the sidebar.
    * Pass <SidebarItem> elements; when omitted a placeholder is shown.
    */
@@ -50,6 +55,7 @@ const Sidebar = ({
   onClose,
   width = 'w-64',
   className = '',
+  title = 'BattleCards',
   children,
 }: SidebarProps) => {
   return (
@@ -98,7 +104,7 @@ const Sidebar = ({
 
           {/* Header content goes here */}
           <span className="font-heading text-base text-gray-900 dark:text-white">
-            BattleCards
+            {title}
           </span>
 
           {/* Close button — visible on mobile only */}

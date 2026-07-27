@@ -172,7 +172,7 @@ const ComponentGallery = () => {
     <GalleryShell appName="BattlePlan" nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]} backTo="/app">
 
       {/* Every @battleplans/ui component — see packages/ui/src/gallery/SharedSections.tsx */}
-      <SharedGallerySections />
+      <SharedGallerySections appName="BattlePlan" />
 
       {/* ════════════════════════════════════════════════════════════════
           Everything below is a BattlePlan-only component.

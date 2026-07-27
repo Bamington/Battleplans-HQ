@@ -108,7 +108,7 @@ const GalleryShell = ({ appName, nav, backTo = '/', children }: GalleryShellProp
           On desktop it is always visible; on mobile it slides in when
           sidebarOpen=true (toggled by the hamburger button below).
       ────────────────────────────────────────────────────────────────── */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} title={appName}>
         {nav.map(item => (
           <SidebarItem
             key={item.href}

@@ -517,6 +517,12 @@ const PaginationGalleryDemo = () => {
  * - The icon's import name below
  *
  * Used only in the gallery — not a reusable app component.
+ *
+ * The entries below are written as bare <Home /> etc. with no className. Every
+ * icon renders an <svg> with a viewBox and no intrinsic width/height, so an
+ * unsized one collapses to 0x0 and the whole grid reads as labels with nothing
+ * above them. Rather than repeat a size on ~200 call sites, the cell sizes any
+ * svg it is handed.
  */
 interface IconEntry {
   name: string;
@@ -524,6 +530,9 @@ interface IconEntry {
   /** Pass null if no solid variant exists for this icon */
   solid: React.ReactNode | null;
 }
+
+/** Sizes whatever svg it wraps — see the note above. */
+const ICON_SLOT = '[&>svg]:w-6 [&>svg]:h-6';
 
 const IconGrid = ({ icons }: { icons: IconEntry[] }) => (
   <div className="w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -535,9 +544,12 @@ const IconGrid = ({ icons }: { icons: IconEntry[] }) => (
         {/* Outline + Solid side by side */}
         <div className="flex items-center gap-3 text-gray-900 dark:text-white">
           {/* Outline variant */}
-          <div title="outline">{outline}</div>
+          <div title="outline" className={ICON_SLOT}>{outline}</div>
           {/* Solid variant — greyed out dash if unavailable */}
-          <div title={solid ? 'solid' : 'no solid variant'} className={solid ? '' : 'text-gray-300 dark:text-gray-700'}>
+          <div
+            title={solid ? 'solid' : 'no solid variant'}
+            className={`${ICON_SLOT} ${solid ? '' : 'text-gray-300 dark:text-gray-700'}`.trim()}
+          >
             {solid ?? '—'}
           </div>
         </div>
@@ -892,11 +904,20 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-impersonation-banner', label: 'Impersonation Banner', icon: <Eye className="w-5 h-5" /> },
 ];
 
+export interface SharedGallerySectionsProps {
+  /**
+   * The app rendering this gallery. A few components take an app name as a prop
+   * (AppFooter, Sidebar) — showing a hardcoded "BattleCards" inside BattlePlan's
+   * gallery just reads as a bug, so pass the host app's name through.
+   */
+  appName?: string;
+}
+
 /**
  * Every demo for the components in @battleplans/ui. Render this inside a
  * <GalleryShell> before the app's own sections.
  */
-const SharedGallerySections = () => {
+const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySectionsProps) => {
   // Drives the ColumnHeader demo's view toggle.
   const [columnHeaderView, setColumnHeaderView] = useState('list');
   const [counterDefault, setCounterDefault] = useState(1);
@@ -912,7 +933,7 @@ const SharedGallerySections = () => {
     <>
       <GallerySection id="nav-app-footer" title="App Footer / Default">
         <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950">
-          <AppFooter appName="Battlecards" version="0.16.0" buildDate="06/07/2026" />
+          <AppFooter appName={appName} version="0.16.0" buildDate="06/07/2026" />
         </div>
         <p className="font-body text-xs text-gray-400 italic mt-2">
           Resize below 768px (md) to see it stack onto two lines.
@@ -930,6 +951,7 @@ const SharedGallerySections = () => {
             <Sidebar
               isOpen={true}
               width="w-full"
+              title={appName}
               className="relative h-full border-r-0"
             />
           </div>
@@ -2903,11 +2925,18 @@ const SharedGallerySections = () => {
           navigates — paging vs scrolling vs bespoke.
       ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-columns" title="Columns / Paginated, Scroll & Shell">
+        {/* Each column is given a definite height and told to fill it. ColumnShell
+            is `shrink-0` with no height of its own — in the app it stretches
+            inside the home screen's flex row — so without `h-full` here it sizes
+            to its content, spills out of the preview box, and (for the paginated
+            one) makes useAutoPageSize measure a collapsed list and settle on a
+            single row per page. */}
         <div className="w-full grid gap-6 lg:grid-cols-3 items-start">
 
           {/* PaginatedColumn — fills the space, pages with <Pagination> */}
           <div className="h-[420px]">
             <PaginatedColumn
+              className="h-full"
               icon={<Shield className="w-12 h-12 text-primary-500" />}
               title="Paginated Column"
               description="Fills the visible space and pages. Best for uniform rows."
@@ -2922,6 +2951,7 @@ const SharedGallerySections = () => {
           {/* ScrollColumn — scrolls, with infinite-scroll wiring available */}
           <div className="h-[420px]">
             <ScrollColumn
+              className="h-full"
               icon={<ListCheck className="w-12 h-12 text-primary-500" />}
               title="Scroll Column"
               description="Scrolls instead of paging. Best for variable-height content."
@@ -2933,7 +2963,7 @@ const SharedGallerySections = () => {
 
           {/* ColumnShell — the bare frame, for a bespoke body */}
           <div className="h-[420px]">
-            <ColumnShell>
+            <ColumnShell className="h-full">
               <ColumnHeader
                 icon={<Widget2 className="w-12 h-12 text-primary-500" />}
                 title="Column Shell"
@@ -2953,6 +2983,7 @@ const SharedGallerySections = () => {
           {/* Empty + loading states */}
           <div className="h-[300px]">
             <PaginatedColumn
+              className="h-full"
               icon={<Shield className="w-12 h-12 text-gray-400" />}
               title="Empty state"
               items={[]}
@@ -2964,6 +2995,7 @@ const SharedGallerySections = () => {
           </div>
           <div className="h-[300px]">
             <ScrollColumn
+              className="h-full"
               icon={<Shield className="w-12 h-12 text-gray-400" />}
               title="Loading state"
               items={[]}
@@ -2989,8 +3021,11 @@ const SharedGallerySections = () => {
           friends dialogs, this one fetches its own data.
       ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-friends-column" title="Friends Column">
+        {/* h-full for the same reason as the columns above — signed in with a few
+            requests and friends this list is taller than the box, and without it
+            the column spills over the caption below. */}
         <div className="w-full max-w-md h-[420px]">
-          <FriendsColumn />
+          <FriendsColumn className="h-full" />
         </div>
         <GalleryNote>
           This column owns its data (useFriends), so it only fills in when the

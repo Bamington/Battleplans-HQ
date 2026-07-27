@@ -72,6 +72,7 @@ export { default as VR } from './components/VR'
 export { default as GalleryShell, GallerySection, GalleryNote } from './gallery/GalleryShell'
 export type { GalleryNavItem, GalleryShellProps } from './gallery/GalleryShell'
 export { default as SharedGallerySections, SHARED_GALLERY_NAV } from './gallery/SharedSections'
+export type { SharedGallerySectionsProps } from './gallery/SharedSections'
 
 // Icons — regular
 export { default as AddCircle } from './icons/AddCircle'
