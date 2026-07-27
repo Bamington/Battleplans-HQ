@@ -17,6 +17,7 @@
   "dependencies": {
     "@battleplans/battlebox": "workspace:*",
     "@battleplans/battlecards": "workspace:*",
+    "@battleplans/battlepack": "workspace:*",
     "@battleplans/battleplan": "workspace:*",
     "@battleplans/ui": "workspace:*",
     "@capacitor/android": "^8.2.0",

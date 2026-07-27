@@ -2,24 +2,38 @@
 
 These rules apply to every command in this project.
 
-## Status: not built yet
+## Status: scaffolded, one screen
 
-This app is reserved, not written. `apps/battlepack/` holds a `package.json` and
-nothing else — no `src/`, no `tsconfig.json`, no `vite.config.ts`. `pnpm build`
-fails here, and because Turbo aborts the whole run on a failure, build the other
-apps with `--filter` rather than a bare `turbo build`.
+The app is wired up and builds, but has almost nothing in it. `/app` is a
+placeholder home screen; the pack editor, the schema and the category registry
+are still to come. See the design doc for the phase order.
 
-The slug is already wired through the platform, so keep to it when the app is
-built: `battlepack` in `AppSlug` ([currentApp.ts](../../packages/ui/src/lib/currentApp.ts))
-and `UpdateApp` ([useUpdates.ts](../../packages/ui/src/hooks/useUpdates.ts)), the
-bundle id `com.bamington.battlepack` in [supabase.ts](../../packages/ui/src/lib/supabase.ts),
-and an entry in HQ's `APP_ROUTES` ([App.tsx](../hq/src/App.tsx)) that is
-currently `null` — the app switcher shows BattlePack as "coming soon" and never
-routes to it. Swap that null for the route subtree when there is one.
+What is already decided and should be kept to:
 
-When scaffolding it, copy a sibling app rather than starting fresh: BattleBox is
-the newest and closest. That carries the Vite config, the Tailwind setup and the
-`@battleplans/ui` wiring.
+- **The game is fixed when a pack is created** and cannot be changed afterwards,
+  because the game-specific mandatory categories resolve exactly once, at
+  creation.
+- **The editor lives at `/app/<packId>/edit`** — keyed by row id, so it is
+  stable, works for drafts with no slug, and survives the slug being set.
+- **A published pack's public page lives at the root — `battlepack.app/<slug>`.**
+  That namespace is shared with this app's own routes, so every path added to
+  `App.tsx` is permanently reserved against slugs. Currently reserved: `app`,
+  `login`, `auth`, `gallery`. Think before adding another.
+- **The accent is emerald.** Set in [index.css](src/index.css), and duplicated in
+  HQ's [index.css](../hq/src/index.css) under `[data-app='battlepack']` — there
+  is no way to import an `@theme` block into a scoped selector, so both copies
+  have to change together.
+
+The slug is wired through the platform: `battlepack` in `AppSlug`
+([currentApp.ts](../../packages/ui/src/lib/currentApp.ts)) and `UpdateApp`
+([useUpdates.ts](../../packages/ui/src/hooks/useUpdates.ts)), the bundle id
+`com.bamington.battlepack` in [supabase.ts](../../packages/ui/src/lib/supabase.ts),
+and the route subtree in HQ's `APP_ROUTES` ([App.tsx](../hq/src/App.tsx)).
+
+It is still admin-only: the `platform_apps` row has no `platform_app_roles`
+grants, and `my_platform_apps()` short-circuits for admins, so an app with no
+grants is visible to admins alone. `url` is still `'#'` and `is_launched` is
+false — both change in the deploy phase, not before.
 
 ## Deploying to Production
 
@@ -30,9 +44,7 @@ Before every production deploy, bump the version in `package.json`:
 
 The build date and version shown in the app are injected at build time from
 `package.json` — no other files need updating. That injection is the
-`__APP_VERSION__` / `__APP_BUILD_DATE__` `define` block in `vite.config.ts`;
-copy it from a sibling app when this one is scaffolded, or the footer will not
-build.
+`__APP_VERSION__` / `__APP_BUILD_DATE__` `define` block in `vite.config.ts`.
 
 ## UI Components
 
@@ -44,11 +56,9 @@ build.
   - A component in `packages/ui/src/components/` → `packages/ui/src/gallery/SharedSections.tsx` (`SHARED_GALLERY_NAV`), which every app's gallery renders.
 - **Decide where a component lives before building it.** If two apps would both use it, it belongs in `packages/ui`, not in one app's `src/components/`.
 
-This app has no gallery yet — `src/pages/ComponentGallery.tsx` does not exist.
-Create it with the first component, following the pattern the other three share:
-mount `/gallery` as a public route (outside the protected subtree, since HQ owns
-one copy of the public routes), render `<GalleryShell>` with
-`nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]}`, and put `<SharedGallerySections
-appName="BattlePack" />` above this app's own sections. Copy
-[BattleBox's gallery](../battlebox/src/pages/ComponentGallery.tsx) as the
-starting point.
+The gallery is at [`/gallery`](src/pages/ComponentGallery.tsx) — a public route,
+outside the protected subtree, because HQ owns one copy of the public routes.
+It renders `<SharedGallerySections appName="BattlePack" />` above this app's own
+sections. `AppNavbar` is the only local component so far; the three-column editor
+chrome it will be built on (`BuilderShell` / `ListPanel` / `EditorPanel`) is
+shared, so those demos are in the shared sections.

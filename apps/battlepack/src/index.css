@@ -1,0 +1,28 @@
+/* ── Base styles (shared tokens, fonts, Tailwind) ───────────────────────── */
+@import '../../../packages/ui/src/index.css';
+
+/*
+ * BattlePack theme — emerald primary
+ *
+ * Overrides the blue primary defined in packages/ui with emerald so every
+ * component that uses primary-* tokens renders emerald here, while BattleCards
+ * (which imports packages/ui directly) keeps its blue, BattlePlan keeps its
+ * violet and BattleBench keeps its amber.
+ *
+ * Keep this block in sync with the [data-app='battlepack'] copy in
+ * apps/hq/src/index.css — there is no way to import an @theme block into a
+ * scoped selector, so HQ carries a duplicate.
+ */
+@theme {
+  --color-primary-50:  #ecfdf5;
+  --color-primary-100: #d1fae5;
+  --color-primary-200: #a7f3d0;
+  --color-primary-300: #6ee7b7;
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+  --color-primary-600: #059669;
+  --color-primary-700: #047857;
+  --color-primary-800: #065f46;
+  --color-primary-900: #064e3b;
+  --color-primary-950: #022c22;
+}
