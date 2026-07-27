@@ -74,6 +74,7 @@ import SelectableListItem from '../components/SelectableListItem';
 import Sheet from '../components/Sheet';
 import Sidebar from '../components/Sidebar';
 import StarRating from '../components/StarRating';
+import StepProgress from '../components/StepProgress';
 import Tabs from '../components/Tabs';
 import Text from '../components/Text';
 import TextLink from '../components/TextLink';
@@ -851,6 +852,42 @@ const HandleLinkGalleryDemo = () => (
   </ProfileModalProvider>
 );
 
+// ── StepProgressGalleryDemo ──────────────────────────────────────────────────
+
+/** Stateful so the bars can be watched filling, which is the whole point. */
+const StepProgressGalleryDemo = () => {
+  const STEPS = ['Event Basics', 'Schedule', 'Registration'];
+  const [step, setStep] = useState(1);
+
+  return (
+    <div className="w-full max-w-md flex flex-col gap-4">
+      <StepProgress step={step} total={STEPS.length} label={STEPS[step - 1]} />
+
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}>
+          Back
+        </Button>
+        <Button size="sm" onClick={() => setStep(s => Math.min(STEPS.length, s + 1))} disabled={step === STEPS.length}>
+          Next
+        </Button>
+      </div>
+
+      {/* Out-of-range values are clamped rather than rendering a broken bar. */}
+      <StepProgress step={7} total={4} label="Clamped to the last step" />
+      <StepProgress step={2} total={5} hideCaption />
+
+      <GalleryNote>
+        One bar per step, filled up to where you are. The caption names the step
+        as well as counting it, because a bar alone says how far along you are
+        but not what you are doing — pass <code>hideCaption</code> to drop it.
+        Colours are primary-600 and primary-900, so it re-themes with each app's
+        accent. Deliberately not a numbered stepper with circles and connecting
+        lines: those spend a lot of width naming steps you cannot jump to.
+      </GalleryNote>
+    </div>
+  );
+};
+
 // ── ControlledTabsGalleryDemo ────────────────────────────────────────────────
 
 /** Tabs in controlled mode — the buttons above the bar select tabs too, which
@@ -1062,6 +1099,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-handle-link',          label: 'Handle Link',          icon: <UserCircle className="w-5 h-5" /> },
   { href: '#nav-impersonation-banner', label: 'Impersonation Banner', icon: <Eye className="w-5 h-5" /> },
   { href: '#nav-builder-shell',        label: 'Builder Shell',        icon: <Widget2 className="w-5 h-5" /> },
+  { href: '#nav-step-progress',        label: 'Step Progress',        icon: <ArrowRight className="w-5 h-5" /> },
 ];
 
 export interface SharedGallerySectionsProps {
@@ -3256,6 +3294,14 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
       ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-builder-shell" title="Builder Shell">
         <BuilderShellGalleryDemo />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          STEP PROGRESS
+          Where you are in a multi-step flow.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-step-progress" title="Step Progress">
+        <StepProgressGalleryDemo />
       </GallerySection>
 
       <GallerySection title="Builder Shell / ListPanel">

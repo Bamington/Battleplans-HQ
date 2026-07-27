@@ -20,8 +20,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import { HR, Input, SearchSelect, MapPin, Notebook, UserRounded } from '@battleplans/ui';
+import { GAME_ICONS, HR, Input, SearchSelect, Notebook, UserRounded } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
+import { venueOptions } from '../../lib/pickerOptions';
 
 /** Section heading inside the panel, matching "Basic Details" in the design. */
 const FieldGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -44,7 +45,10 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
   useEffect(() => { setName(pack.name); }, [pack.name]);
   useEffect(() => { setDescription(pack.description ?? ''); }, [pack.description]);
 
-  const game  = games.find(g => g.id === pack.game_id) ?? null;
+  const game = games.find(g => g.id === pack.game_id) ?? null;
+  // Shared artwork map first, the database column only as a fallback — most of
+  // the catalogue has no `games.icon`.
+  const gameArt = game ? GAME_ICONS[game.slug] ?? game.icon : null;
 
   const commitName = () => {
     const next = name.trim();
@@ -77,8 +81,8 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
       <div className="flex flex-col gap-1.5">
         <span className="block font-body text-sm font-medium text-white">Game</span>
         <div className="w-full flex items-center gap-2 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2.5">
-          {game?.icon
-            ? <img src={game.icon} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+          {gameArt
+            ? <img src={gameArt} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
             : <Notebook className="w-4 h-4 text-gray-500 shrink-0" />}
           <span className="font-body text-sm text-gray-300 truncate">{game?.name ?? 'Unknown game'}</span>
         </div>
@@ -95,11 +99,9 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         emptyLabel="No venues match that."
         value={pack.location_id ?? ''}
         onChange={id => onChange({ location_id: id || null })}
-        options={venues.map(v => ({
-          value: v.id,
-          label: v.name,
-          icon: <MapPin className="w-4 h-4" />,
-        }))}
+        /* Same builder the New Event card uses, so the two pickers cannot
+           drift apart on ordering or artwork. */
+        options={venueOptions(venues)}
         helperText="Optional — not every event runs at a venue on the platform."
       />
 

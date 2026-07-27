@@ -101,7 +101,7 @@ const EventBasicsFormDemo = () => {
   });
   const [log, setLog] = useState<string[]>([]);
 
-  const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', icon: null, image: null }];
+  const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', slug: 'warhammer-40-000', icon: null, image: null }];
   const venues: LocationOption[] = [
     { id: 'v1', name: 'Gaming Arena',      address: '2/86 Cottrell Street, Werribee, VIC' },
     { id: 'v2', name: 'Battleground North', address: '14 High Street, Preston, VIC' },

@@ -60,6 +60,8 @@ export interface PackSummary extends Pack {
 export interface GameOption {
   id: string;
   name: string;
+  /** Keys the shared GAME_ICONS / GAME_BANNERS artwork maps. */
+  slug: string;
   icon: string | null;
   image: string | null;
 }
@@ -76,7 +78,7 @@ export interface GameOption {
 export async function listGames(): Promise<GameOption[]> {
   const { data, error } = await supabase
     .from('game_catalogue')
-    .select('id, name, icon, image')
+    .select('id, name, slug, icon, image')
     .order('name');
   if (error) throw error;
   return (data ?? []) as GameOption[];
@@ -131,17 +133,43 @@ export async function getPack(id: string): Promise<Pack | null> {
  * later would mean reconciling game-specific categories that may already have
  * content typed into them.
  */
-export async function createPack(name: string, gameId: string): Promise<Pack> {
+export async function createPack(fields: {
+  name: string;
+  gameId: string;
+  locationId?: string | null;
+  description?: string | null;
+}): Promise<Pack> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('You need to be signed in to create a pack.');
 
   const { data, error } = await supabase
     .from('battlepacks')
-    .insert({ name: name.trim(), game_id: gameId, owner_id: auth.user.id })
+    .insert({
+      name: fields.name.trim(),
+      game_id: fields.gameId,
+      location_id: fields.locationId || null,
+      description: fields.description?.trim() || null,
+      owner_id: auth.user.id,
+    })
     .select('*')
     .single();
   if (error) throw error;
   return data as Pack;
+}
+
+/**
+ * Games and venues this organiser reached for most recently, newest first.
+ *
+ * Derived from their own packs rather than stored as a preference: the answer
+ * is already in the data, and a separate "recently used" table would be one
+ * more thing to keep in step with reality. Someone who runs a monthly RTT for
+ * one game at one venue should not have to search for either.
+ */
+export function recentIdsFrom(packs: PackSummary[]): { games: string[]; venues: string[] } {
+  const byNewest = [...packs].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const games  = [...new Set(byNewest.map(p => p.game_id))];
+  const venues = [...new Set(byNewest.map(p => p.location_id).filter((id): id is string => !!id))];
+  return { games, venues };
 }
 
 export async function updatePack(id: string, patch: Partial<Pack>): Promise<void> {
