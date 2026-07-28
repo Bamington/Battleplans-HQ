@@ -41,7 +41,7 @@ export interface PublishPanelProps {
   checkSlug?: (candidate: string) => Promise<boolean>;
 }
 
-type Availability = 'idle' | 'checking' | 'free' | 'taken' | 'invalid';
+type Availability = 'idle' | 'checking' | 'free' | 'taken' | 'invalid' | 'error';
 
 /** Where a published pack will live, once the public view exists. */
 const SITE = 'battlepack.app';
@@ -66,15 +66,37 @@ const PublishPanel = ({
   useEffect(() => { if (pack.slug) setSlug(pack.slug); }, [pack.slug]);
 
   // Debounced availability. Advisory — see the note at the top of this file.
+  //
+  // Shape is checked here rather than left to the round trip, because the RPC
+  // answers a single boolean: a malformed slug, a reserved app route and a slug
+  // somebody else already holds all come back the same `false`. Catching the
+  // malformed case locally is the only way to say WHY it was refused — and the
+  // same regex the database trigger uses, so the two cannot disagree.
   useEffect(() => {
-    if (locked || !slug.trim()) { setAvail('idle'); return; }
+    if (locked) { setAvail('idle'); return; }
+
+    const candidate = slug.trim();
+    if (!candidate) { setAvail('idle'); return; }
+
+    if (!/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/.test(candidate)) {
+      setAvail('invalid');
+      return;
+    }
+
     setAvail('checking');
+
+    // `stale` guards the response, not just the timer. Clearing the timeout only
+    // stops a request that has not been sent — a request already in flight still
+    // resolves, and without this its answer lands on whatever the organiser has
+    // typed since. That is how a malformed slug ended up reported as taken.
+    let stale = false;
     const timer = setTimeout(() => {
-      checkSlug(slug)
-        .then(free => setAvail(free ? 'free' : 'taken'))
-        .catch(() => setAvail('invalid'));
+      checkSlug(candidate)
+        .then(free => { if (!stale) setAvail(free ? 'free' : 'taken'); })
+        .catch(()   => { if (!stale) setAvail('error'); });
     }, 400);
-    return () => clearTimeout(timer);
+
+    return () => { stale = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, locked]);
 
@@ -158,13 +180,17 @@ const PublishPanel = ({
           onChange={e => setSlug(e.target.value)}
           disabled={locked}
           placeholder="season-6-league"
-          state={avail === 'taken' || avail === 'invalid' ? 'error' : 'default'}
+          state={['taken', 'invalid', 'error'].includes(avail) ? 'error' : 'default'}
           helperText={
             locked
               ? 'Locked. A published URL never moves, and is never reused by another pack.'
               : avail === 'checking' ? 'Checking…'
-              : avail === 'taken'    ? 'That URL is already taken.'
-              : avail === 'invalid'  ? 'Letters, numbers and hyphens only.'
+              // Deliberately not "already taken": the check cannot tell a slug
+              // somebody holds from one the app reserves for its own routes, and
+              // guessing would tell the organiser something untrue.
+              : avail === 'taken'    ? 'That URL is not available — try another.'
+              : avail === 'invalid'  ? 'Letters, numbers and hyphens only, starting and ending with a letter or number.'
+              : avail === 'error'    ? 'Could not check that URL. Try again in a moment.'
               : avail === 'free'     ? 'Available.'
               : 'Set this before publishing — it cannot be changed afterwards.'
           }

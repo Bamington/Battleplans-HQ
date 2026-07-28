@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppFooter, Button, Input, ScrollColumn, Select,
-  AddCircle, Magnifer, Shield,
+  AddCircle, GAME_ICONS, Magnifer, Shield,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import BattlepackListItem from '../components/BattlepackListItem';
@@ -121,7 +121,9 @@ export default function HomePage() {
               <BattlepackListItem
                 name={p.name}
                 gameName={p.game_name}
-                gameIcon={p.game_icon}
+                /* Shared artwork map first — games.icon is empty for most of
+                   the catalogue, so reading it alone left every row blank. */
+                gameIcon={(p.game_slug && GAME_ICONS[p.game_slug]) || p.game_icon}
                 startsOn={p.starts_on}
                 endsOn={p.ends_on}
                 status={p.status}

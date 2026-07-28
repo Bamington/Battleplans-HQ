@@ -400,7 +400,9 @@ export default function PackEditor() {
               menu={<DocumentMenuIcon />}
             />
 
-            <div className="px-5 pb-5">
+            {/* pt-5 on top of the hero's pb-6 — the gallery demo had this and
+                the editor did not, so the two disagreed by 20px. */}
+            <div className="px-5 pt-5 pb-5">
               <Tabs
                 variant="segmented"
                 activeTab={activeTab}

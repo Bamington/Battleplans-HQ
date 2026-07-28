@@ -52,6 +52,9 @@ export interface ScheduleItem {
 /** A pack plus the bits the home screen shows alongside it. */
 export interface PackSummary extends Pack {
   game_name: string | null;
+  /** The game's slug, which keys the shared artwork maps. */
+  game_slug: string | null;
+  /** `games.icon`, which is empty for most of the catalogue — a fallback only. */
   game_icon: string | null;
 }
 
@@ -104,14 +107,21 @@ export async function listLocations(): Promise<LocationOption[]> {
 export async function listPacks(): Promise<PackSummary[]> {
   const { data, error } = await supabase
     .from('battlepacks')
-    .select('*, games(name, icon)')
+    .select('*, games(name, slug, icon)')
     .order('starts_on', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
   if (error) throw error;
 
   return (data ?? []).map(row => {
-    const { games, ...pack } = row as Pack & { games: { name: string; icon: string | null } | null };
-    return { ...pack, game_name: games?.name ?? null, game_icon: games?.icon ?? null };
+    const { games, ...pack } = row as Pack & {
+      games: { name: string; slug: string; icon: string | null } | null;
+    };
+    return {
+      ...pack,
+      game_name: games?.name ?? null,
+      game_slug: games?.slug ?? null,
+      game_icon: games?.icon ?? null,
+    };
   });
 }
 
