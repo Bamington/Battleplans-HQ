@@ -32,10 +32,16 @@ import {
   Callout,
   Calendar,
   FileText,
+  GAME_BANNERS,
+  GAME_ICONS,
   Gallery,
   ListCheck,
   MapPin,
+  InfoCircle,
   MenuDots,
+  Notebook,
+  Play,
+  Tabs,
   Widget2,
   type GalleryNavItem,
 } from '@battleplans/ui';
@@ -313,10 +319,32 @@ const ComponentGallery = () => {
       </GallerySection>
 
       <GallerySection id="nav-pack-document" title="Pack Document">
-        <div className="w-full max-w-2xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
-          <PackHero name="July RTT" gameName="Warhammer 40,000" subtitle="2000 Points" />
+        {/* gray-800 on gray-700 with a shadow — the card sits forward of the
+            gray-950 page behind it, not level with it. */}
+        <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
+          <PackHero
+            name="July RTT"
+            gameName="Warhammer 40,000"
+            gameIcon={GAME_ICONS['warhammer-40-000']}
+            gameImage={GAME_BANNERS['warhammer-40-000']}
+            gameLogo={GAME_BANNERS['warhammer-40-000']}
+            subtitle="2000 Points"
+            menu={<MenuDots className="w-4 h-4" />}
+          />
 
-          <div className="px-4 pb-4 flex flex-col gap-2">
+          <div className="px-5 pt-5">
+            <Tabs
+              variant="segmented"
+              tabs={[
+                { id: 'format',       label: 'Event Format', icon: <InfoCircle className="w-4 h-4" />, content: <></> },
+                { id: 'registration', label: 'Registration',  icon: <MapPin className="w-4 h-4" />,     content: <></> },
+                { id: 'faq',          label: 'FAQ',           icon: <Notebook className="w-4 h-4" />,   content: <></> },
+              ]}
+              panelClassName="border-0 rounded-none p-0"
+            />
+          </div>
+
+          <div className="px-5 pb-5 flex flex-col gap-5">
             <DocumentSection categoryKey="demo-basics" title="Event Basics" active>
               <p>
                 Join us at The Gaming Arena for another community-run tournament.
@@ -336,10 +364,10 @@ const ComponentGallery = () => {
             <DocumentSection categoryKey="demo-schedule" title="Rounds & Breaks">
               <ScheduleTable
                 rows={[
-                  { ordinal: 0, kind: 'break', label: 'Registration', time: '10:00 AM - 12:00 PM' },
-                  { ordinal: 1, kind: 'round', label: 'Round 1',      time: '12:00 PM - 2:00 PM' },
-                  { ordinal: 2, kind: 'break', label: 'Break',        time: '2:00 PM - 2:30 PM' },
-                  { ordinal: 3, kind: 'round', label: 'Round 2',      time: '2:30 PM - 4:30 PM' },
+                  { ordinal: 0, kind: 'break', label: 'Registration', time: '10:00 AM - 12:00 PM', icon: <Notebook className="w-4 h-4" /> },
+                  { ordinal: 1, kind: 'round', label: 'Round 1',      time: '12:00 PM - 2:00 PM', icon: <Play className="w-4 h-4" /> },
+                  { ordinal: 2, kind: 'break', label: 'Break',        time: '2:00 PM - 2:30 PM', icon: <ListCheck className="w-4 h-4" /> },
+                  { ordinal: 3, kind: 'round', label: 'Round 2',      time: '2:30 PM - 4:30 PM', icon: <Play className="w-4 h-4" /> },
                 ]}
               />
             </DocumentSection>

@@ -64,6 +64,7 @@ import Modal from '../components/Modal';
 import ModeToggle from '../components/ModeToggle';
 import type { Mode } from '../components/ModeToggle';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import Notebook from '../icons/Notebook';
 import Pagination from '../components/Pagination';
 import { HandleLink, ProfileModalProvider } from '../components/ProfileModalProvider';
 import RichTextEditor from '../components/RichTextEditor';
@@ -2606,6 +2607,32 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
             ]}
           />
         </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TABS — Segmented
+          The joined button group from the design system, themed on primary.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Tabs / Segmented">
+        <div className="w-full max-w-lg">
+          <Tabs
+            variant="segmented"
+            tabs={[
+              { id: 'format',       label: 'Event Format', icon: <InfoCircle className="w-4 h-4" />,      content: <Text variant="paragraph">Event Format panel.</Text> },
+              { id: 'registration', label: 'Registration',  icon: <UserPlusRounded className="w-4 h-4" />, content: <Text variant="paragraph">Registration panel.</Text> },
+              { id: 'faq',          label: 'FAQ',           icon: <Notebook className="w-4 h-4" />,        content: <Text variant="paragraph">FAQ panel.</Text> },
+            ]}
+          />
+        </div>
+        <GalleryNote>
+          The selected tab is a solid primary button and the rest are outlined,
+          sharing edges with no gap between them. Unlike the other variants this
+          one is themed from <code>primary-*</code> rather than blue and grey, so
+          it takes on each app's accent — which is what the design system's
+          Button Group does. The rounded corners live on the container, so the
+          first and last buttons pick them up without either needing to know
+          where it sits in the row.
+        </GalleryNote>
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════

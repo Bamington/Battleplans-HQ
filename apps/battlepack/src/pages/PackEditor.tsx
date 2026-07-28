@@ -25,7 +25,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR,
-  AddCircle, Calendar, MapPin, Pen2,
+  GAME_BANNERS, GAME_ICONS,
+  AddCircle, Calendar, ListCheck, MapPin, Pen2, Play,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
@@ -46,6 +47,23 @@ const formatDate = (iso?: string | null) => {
   if (!iso) return null;
   const [y, m, d] = iso.split('-');
   return y && m && d ? `${d}/${m}/${y}` : null;
+};
+
+/** `time` columns arrive as HH:MM:SS; the document shows "10:00 AM - 12:00 PM". */
+const formatTime = (t?: string | null) => {
+  if (!t) return null;
+  const [hRaw, m] = t.split(':');
+  const h = Number(hRaw);
+  if (Number.isNaN(h)) return null;
+  const suffix = h < 12 ? 'AM' : 'PM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${m} ${suffix}`;
+};
+
+const formatTimeRange = (from?: string | null, to?: string | null) => {
+  const a = formatTime(from);
+  const b = formatTime(to);
+  return a && b ? `${a} - ${b}` : a ?? b;
 };
 
 export default function PackEditor() {
@@ -118,6 +136,16 @@ export default function PackEditor() {
   const ctx: CategoryContext | null = pack ? { pack, rows, schedule, games, venues } : null;
   const game  = games.find(g => g.id === pack?.game_id) ?? null;
   const venue = venues.find(v => v.id === pack?.location_id) ?? null;
+
+  /**
+   * Game artwork comes from the shared maps keyed by slug, with the database
+   * columns only as a fallback. `games.icon` and `games.image` are empty for
+   * most of the catalogue, so reading them alone left the hero with no icon.
+   */
+  const gameArt = {
+    icon:   game ? GAME_ICONS[game.slug]   ?? game.icon  : null,
+    banner: game ? GAME_BANNERS[game.slug] ?? game.image : null,
+  };
 
   /**
    * The one place selection changes. Switching tab before scrolling matters:
@@ -219,7 +247,10 @@ export default function PackEditor() {
               ordinal: s.ordinal,
               kind: s.kind,
               label: s.label ?? (s.kind === 'round' ? `Round ${s.ordinal}` : 'Break'),
-              time: s.starts_at && s.ends_at ? `${s.starts_at} - ${s.ends_at}` : s.starts_at,
+              time: formatTimeRange(s.starts_at, s.ends_at),
+              icon: s.kind === 'round'
+                ? <Play className="w-4 h-4" />
+                : <ListCheck className="w-4 h-4" />,
             }))} />
           : <EmptySection hint="No rounds or breaks yet." />;
       } else if (c.key === 'event-basics') {
@@ -337,21 +368,24 @@ export default function PackEditor() {
 
       center={
         <main className="flex-1 min-w-0 overflow-y-auto lg:order-2 p-4">
-          <div className="mx-auto w-full max-w-4xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <div className="mx-auto w-full max-w-4xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
             <PackHero
               name={pack.name}
               gameName={game?.name}
-              gameIcon={game?.icon}
-              gameImage={game?.image}
+              /* Shared artwork maps first — games.icon / games.image are empty
+                 for most of the catalogue, which is why the icon was missing. */
+              gameIcon={gameArt.icon}
+              gameImage={gameArt.banner}
+              gameLogo={gameArt.banner}
               menu={<DocumentMenuIcon />}
             />
 
-            <div className="px-4 pb-6">
+            <div className="px-5 pb-5">
               <Tabs
-                variant="fullWidth"
+                variant="segmented"
                 activeTab={activeTab}
                 onTabChange={id => setActiveTab(id as CategoryTab)}
-                panelClassName="border-0 rounded-none p-0 pt-4"
+                panelClassName="border-0 rounded-none p-0 pt-5"
                 tabs={CATEGORY_TABS.map(t => ({
                   id: t.id,
                   label: t.label,

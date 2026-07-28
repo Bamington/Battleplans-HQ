@@ -24,8 +24,15 @@ import React, { useState } from 'react';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
-/** Visual style of the tab bar */
-export type TabsVariant = 'default' | 'underline' | 'pills' | 'fullWidth';
+/**
+ * Visual style of the tab bar.
+ *
+ * `segmented` is the joined, full-width button group from the design system —
+ * the selected tab is a solid primary button and the rest are outlined, sharing
+ * edges with no gap. Unlike the other variants it is themed from `primary-*`
+ * rather than blue/grey, so it takes on each app's accent.
+ */
+export type TabsVariant = 'default' | 'underline' | 'pills' | 'fullWidth' | 'segmented';
 
 export interface TabItem {
   /** Unique identifier for this tab */
@@ -78,6 +85,9 @@ const listClasses: Record<TabsVariant, string> = {
   underline: 'flex flex-wrap -mb-px text-sm font-medium text-center border-b border-gray-200 dark:border-gray-700',
   pills:     'flex flex-wrap gap-2 text-sm font-medium text-center',
   fullWidth: 'flex w-full divide-x divide-gray-200 dark:divide-gray-700 rounded-lg shadow-xs text-sm font-medium text-center overflow-hidden',
+  // The rounded corners live on the container so the first and last buttons
+  // pick them up without either needing to know where it sits in the row.
+  segmented: 'flex w-full h-10 rounded-lg overflow-hidden text-sm font-medium text-center',
 };
 
 /** Active tab button classes per variant */
@@ -86,6 +96,7 @@ const activeTabClasses: Record<TabsVariant, string> = {
   underline: 'inline-flex items-center gap-2 p-4 border-b-2 border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500',
   pills:     'inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white bg-blue-600',
   fullWidth: 'inline-flex flex-1 items-center justify-center gap-2 p-4 text-blue-600 bg-gray-100 dark:bg-gray-800 dark:text-blue-500',
+  segmented: 'inline-flex flex-1 items-center justify-center gap-2 px-3 py-2 bg-primary-600 text-white',
 };
 
 /** Inactive tab button classes per variant */
@@ -106,6 +117,9 @@ const inactiveTabClasses: Record<TabsVariant, string> = {
     'inline-flex flex-1 items-center justify-center gap-2 p-4 text-gray-500 ' +
     'hover:text-gray-600 hover:bg-gray-50 ' +
     'dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300',
+  segmented:
+    'inline-flex flex-1 items-center justify-center gap-2 px-3 py-2 ' +
+    'border border-primary-500 text-primary-500 hover:bg-primary-950 transition-colors',
 };
 
 /** Disabled tab button classes (same for all variants) */
