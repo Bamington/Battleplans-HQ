@@ -292,9 +292,10 @@ export default function PackEditor() {
           : <EmptySection hint="No rounds or breaks yet." />;
       } else if (c.key === 'event-basics') {
         // The venue moved into Key Info, where the design shows it. This is
-        // just the blurb now, which is why the document calls it About.
+        // just the blurb now, which is why the document calls it About — and it
+        // is markdown like every other prose field, so it renders as markdown.
         body = pack.description
-          ? <p className="whitespace-pre-wrap">{pack.description}</p>
+          ? <MarkdownBody className="text-base leading-6 text-gray-300">{pack.description}</MarkdownBody>
           : <EmptySection hint="No description yet." />;
       } else {
         // `section` categories hold markdown, so the document renders it as

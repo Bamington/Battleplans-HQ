@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Modal, Input, SearchSelect, Button, Callout, StepProgress, PickerTile,
+  Modal, Input, SearchSelect, Button, Callout, StepProgress, PickerTile, RichTextEditor,
   ArrowRight, ArrowLeft, Calendar, CloseCircle,
 } from '@battleplans/ui';
 import {
@@ -186,17 +186,17 @@ const NewPackModal = ({ open, onClose, onCreated }: NewPackModalProps) => {
               options={venueOpts}
             />
 
+            {/* The same field as Event Basics, so it is the same editor and the
+                same markdown. Nothing is written until the flow finishes, so no
+                debounce is needed here — it is plain local state. */}
             <div className="flex flex-col gap-1">
-              <label className="block font-body text-sm font-medium text-neutral-100" htmlFor="new-pack-description">
+              <span className="block font-body text-sm font-medium text-neutral-100">
                 Brief Description
-              </label>
-              <textarea
-                id="new-pack-description"
-                rows={5}
-                placeholder={'e.g. "After an epic RTT last month, we\'re back for another clash! Show your strategic acumen and dominate the battlefield to claim victory."'}
+              </span>
+              <RichTextEditor
                 value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white placeholder-neutral-500 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onChange={setDescription}
+                placeholder={'e.g. "After an epic RTT last month, we\'re back for another clash! Show your strategic acumen and dominate the battlefield to claim victory."'}
               />
               <p className="font-body text-sm text-neutral-400">
                 Use this to add flavour to your event. You don't need to mention rules
