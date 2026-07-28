@@ -39,11 +39,10 @@
 
 import type { ComponentType, ReactNode } from 'react';
 import {
-  Bookmark, Calendar, Clipboard, FileText, InfoCircle, ListCheck,
+  Bookmark, Clipboard, FileText, InfoCircle, ListCheck,
   Notebook, QuestionCircle, Star, UserPlusRounded,
 } from '@battleplans/ui';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
-import PlaceholderForm from '../components/forms/PlaceholderForm';
 import SectionForm from '../components/forms/SectionForm';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
@@ -213,19 +212,6 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     isComplete: ({ pack }) => pack.name.trim().length > 0,
   },
   {
-    key: 'event-timeline',
-    label: 'Event Timeline',
-    tab: 'format',
-    requirement: 'default',
-    gameId: null,
-    storage: 'core',
-    order: 40,
-    icon: <Calendar className="w-6 h-6" />,
-    // An end date is not required: most events are one day.
-    isComplete: ({ pack }) => pack.starts_on != null,
-    Form: PlaceholderForm,
-  },
-  {
     key: 'rounds-breaks',
     label: 'Schedule',
     tab: 'format',
@@ -272,7 +258,7 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   {
     key: 'registration',
     label: 'Registration',
-    tab: 'format',
+    tab: 'registration',
     requirement: 'optional',
     gameId: null,
     storage: 'section',
@@ -288,7 +274,7 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   {
     key: 'tickets',
     label: 'Tickets',
-    tab: 'format',
+    tab: 'registration',
     requirement: 'optional',
     gameId: null,
     storage: 'section',

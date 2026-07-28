@@ -92,6 +92,31 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         </p>
       </div>
 
+      {/* The dates live here because Event Basics is the only `core` form, and
+          removing the Event Timeline category would otherwise leave them set
+          once at creation and never editable again. Key Info is where the
+          document shows them. */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <Input
+            label="Start Date"
+            type="date"
+            value={pack.starts_on ?? ''}
+            onChange={e => onChange({ starts_on: e.target.value || null })}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <Input
+            label="End Date"
+            type="date"
+            value={pack.ends_on ?? ''}
+            min={pack.starts_on ?? undefined}
+            onChange={e => onChange({ ends_on: e.target.value || null })}
+            helperText="Leave blank for a single day."
+          />
+        </div>
+      </div>
+
       <SearchSelect
         label="Location"
         placeholder="Choose a location"
