@@ -273,6 +273,78 @@ export async function deleteScheduleItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export interface RoundDefaults {
+  /** How many playing rounds the day has. */
+  rounds: number;
+  /** Minutes per round. */
+  roundMinutes: number;
+  /** Minutes of break between one round and the next. */
+  breakMinutes: number;
+  /** When the first round starts, as HH:MM. */
+  startsAt: string;
+}
+
+/** Minutes since midnight → HH:MM:SS, wrapping if a day runs past midnight. */
+function toTime(minutes: number): string {
+  const m = ((minutes % 1440) + 1440) % 1440;
+  const hh = String(Math.floor(m / 60)).padStart(2, '0');
+  const mm = String(m % 60).padStart(2, '0');
+  return `${hh}:${mm}:00`;
+}
+
+/**
+ * Turn the round defaults into an actual day: rounds with breaks between them.
+ *
+ * Breaks go BETWEEN rounds, so N rounds produce N-1 breaks — a trailing break
+ * after the last round would be the end of the event, not a gap in it.
+ *
+ * Returned rather than written so the caller can show the day before committing
+ * to it, and so this can be unit-checked without a database.
+ */
+export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' | 'pack_id'>[] {
+  const { rounds, roundMinutes, breakMinutes, startsAt } = defaults;
+  const [h, m] = startsAt.split(':').map(Number);
+  let cursor = (h || 0) * 60 + (m || 0);
+
+  const items: Omit<ScheduleItem, 'id' | 'pack_id'>[] = [];
+
+  for (let i = 0; i < rounds; i++) {
+    items.push({
+      ordinal: items.length,
+      kind: 'round',
+      label: `Round ${i + 1}`,
+      starts_at: toTime(cursor),
+      ends_at: toTime(cursor + roundMinutes),
+    });
+    cursor += roundMinutes;
+
+    if (i < rounds - 1 && breakMinutes > 0) {
+      items.push({
+        ordinal: items.length,
+        kind: 'break',
+        label: 'Break',
+        starts_at: toTime(cursor),
+        ends_at: toTime(cursor + breakMinutes),
+      });
+      cursor += breakMinutes;
+    }
+  }
+
+  return items;
+}
+
+/** Write a generated day to a pack. Used by the create flow's round defaults. */
+export async function insertSchedule(
+  packId: string,
+  items: Omit<ScheduleItem, 'id' | 'pack_id'>[],
+): Promise<void> {
+  if (items.length === 0) return;
+  const { error } = await supabase
+    .from('battlepack_schedule_items')
+    .insert(items.map(i => ({ ...i, pack_id: packId })));
+  if (error) throw error;
+}
+
 /**
  * Renumber the whole day in one go.
  *

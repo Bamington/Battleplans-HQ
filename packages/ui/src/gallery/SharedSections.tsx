@@ -66,6 +66,7 @@ import type { Mode } from '../components/ModeToggle';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import Notebook from '../icons/Notebook';
 import Pagination from '../components/Pagination';
+import PickerTile from '../components/PickerTile';
 import { HandleLink, ProfileModalProvider } from '../components/ProfileModalProvider';
 import RichTextEditor from '../components/RichTextEditor';
 import SearchSelect from '../components/SearchSelect';
@@ -853,6 +854,50 @@ const HandleLinkGalleryDemo = () => (
   </ProfileModalProvider>
 );
 
+// ── PickerTileGalleryDemo ────────────────────────────────────────────────────
+
+/** Stateful, so selection actually moves — and one tile is disabled, which is
+ *  the state worth checking since it has to stay readable while being inert. */
+const PickerTileGalleryDemo = () => {
+  const [choice, setChoice] = useState('one-day');
+
+  const TILES = [
+    { id: 'one-day',   title: 'One-Day Tournament',   description: 'Event starts and finishes on the same day.', enabled: true },
+    { id: 'multi-day', title: 'Multi-Day Tournament', description: 'Multiple Rounds over Multiple Days.',        enabled: true },
+    { id: 'league',    title: 'League',               description: 'Rounds happen across many days.',            enabled: false },
+  ];
+
+  return (
+    <div className="w-full max-w-2xl flex flex-col gap-3">
+      <div role="radiogroup" aria-label="Timeline" className="flex items-stretch gap-1.5">
+        {TILES.map(t => (
+          <PickerTile
+            key={t.id}
+            title={t.title}
+            description={t.description}
+            selected={choice === t.id}
+            disabled={!t.enabled}
+            disabledHint="Not available yet"
+            onSelect={() => setChoice(t.id)}
+          />
+        ))}
+      </div>
+
+      <GalleryNote>
+        A row of mutually exclusive choices where the explanation is the thing
+        that decides the answer — "One-Day Tournament" says far less on its own
+        than it does beside "Event starts and finishes on the same day", which is
+        why this exists instead of a <code>&lt;Select&gt;</code>. Each tile is a
+        radio rather than a button, so the row is one choice and arrow-key
+        navigation comes free; wrap it in a <code>role="radiogroup"</code> with a
+        name. Selected is primary-950 on primary-700, so it takes each app's
+        accent. The third tile is disabled — dimmed and inert, but still legible,
+        because a choice you cannot make yet is still worth knowing about.
+      </GalleryNote>
+    </div>
+  );
+};
+
 // ── StepProgressGalleryDemo ──────────────────────────────────────────────────
 
 /** Stateful so the bars can be watched filling, which is the whole point. */
@@ -1101,6 +1146,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-impersonation-banner', label: 'Impersonation Banner', icon: <Eye className="w-5 h-5" /> },
   { href: '#nav-builder-shell',        label: 'Builder Shell',        icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-step-progress',        label: 'Step Progress',        icon: <ArrowRight className="w-5 h-5" /> },
+  { href: '#nav-picker-tile',          label: 'Picker Tile',          icon: <CheckCircle className="w-5 h-5" /> },
 ];
 
 export interface SharedGallerySectionsProps {
@@ -3329,6 +3375,14 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
       ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-step-progress" title="Step Progress">
         <StepProgressGalleryDemo />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          PICKER TILE
+          A row of exclusive choices, each explaining what it means.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-picker-tile" title="Picker Tile">
+        <PickerTileGalleryDemo />
       </GallerySection>
 
       <GallerySection title="Builder Shell / ListPanel">

@@ -344,7 +344,7 @@ const ComponentGallery = () => {
             />
           </div>
 
-          <div className="px-5 pb-5 flex flex-col gap-5">
+          <div className="px-5 pb-5 flex flex-col gap-10">
             <DocumentSection categoryKey="demo-basics" title="Event Basics" active>
               <p>
                 Join us at The Gaming Arena for another community-run tournament.
