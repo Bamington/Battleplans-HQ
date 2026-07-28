@@ -29,12 +29,15 @@ import {
   GalleryNote,
   SharedGallerySections,
   SHARED_GALLERY_NAV,
+  AddCircle,
+  Button,
   Callout,
   Calendar,
   FileText,
   GAME_BANNERS,
   GAME_ICONS,
   Gallery,
+  MarkdownBody,
   ListCheck,
   MapPin,
   InfoCircle,
@@ -47,6 +50,7 @@ import {
 } from '@battleplans/ui';
 
 import AppNavbar from '../components/AppNavbar';
+import AddCategoryModal from '../components/AddCategoryModal';
 import CategoryListItem from '../components/CategoryListItem';
 import BattlepackListItem from '../components/BattlepackListItem';
 import {
@@ -54,9 +58,11 @@ import {
 } from '../components/PackDocument';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
+import SectionForm from '../components/forms/SectionForm';
+import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
-import { CATEGORY_REGISTRY } from '../registry/categories';
-import type { GameOption, LocationOption, Pack, ScheduleItem } from '../lib/packs';
+import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
+import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -68,6 +74,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-pack-document',       label: 'Pack Document',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-event-basics-form',   label: 'Event Basics Form',    icon: <FileText className="w-5 h-5" /> },
   { href: '#nav-rounds-breaks-form',  label: 'Rounds & Breaks Form', icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-add-category',        label: 'Add Category',         icon: <AddCircle className="w-5 h-5" /> },
+  { href: '#nav-section-form',        label: 'Section Form',         icon: <FileText className="w-5 h-5" /> },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -244,6 +252,167 @@ const RoundsBreaksFormDemo = () => {
   );
 };
 
+/**
+ * The Add Category picker over an in-memory row set, so adding and hiding are
+ * both exercisable without a session. Hide a category, then reopen the picker:
+ * it comes back flagged as still holding content, which is the one thing this
+ * picker exists to show.
+ */
+const AddCategoryModalDemo = () => {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<Record<string, PackCategoryRow>>({
+    // Hidden earlier, with prose still on it.
+    faq: { pack_id: 'demo', category_key: 'faq', hidden: true, sort_order: null, content: { body: 'Can I proxy?' } },
+    // Hidden earlier, never written to.
+    tickets: { pack_id: 'demo', category_key: 'tickets', hidden: true, sort_order: null, content: null },
+  });
+
+  const visible = visibleCategories('g1', rows);
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" leftIcon={<AddCircle className="w-4 h-4" />} onClick={() => setOpen(true)}>
+          Add Category
+        </Button>
+        <span className="font-body text-xs text-gray-500">
+          Showing: {visible.map(c => c.label).join(', ')}
+        </span>
+      </div>
+
+      <AddCategoryModal
+        open={open}
+        onClose={() => setOpen(false)}
+        gameId="g1"
+        rows={rows}
+        onAdd={async key => {
+          setRows(prev => ({
+            ...prev,
+            [key]: { ...(prev[key] ?? { pack_id: 'demo', category_key: key, sort_order: null, content: null }), hidden: false },
+          }));
+        }}
+      />
+
+      <div className="flex flex-wrap gap-1.5">
+        {visible.filter(c => c.requirement !== 'mandatory').map(c => (
+          <Button
+            key={c.key}
+            size="sm"
+            variant="ghost"
+            color="secondary"
+            onClick={() => setRows(prev => ({
+              ...prev,
+              [c.key]: { ...(prev[c.key] ?? { pack_id: 'demo', category_key: c.key, sort_order: null, content: null }), hidden: true },
+            }))}
+          >
+            Hide {c.label}
+          </Button>
+        ))}
+      </div>
+
+      <GalleryNote>
+        Only categories the pack could still show appear, filtered by its game.
+        FAQ starts hidden with prose still on it, so it is flagged{' '}
+        <strong>Has saved content</strong> — hiding a category keeps what was
+        written, and without that flag re-adding one would silently resurface
+        text the organiser had forgotten. Tickets starts hidden and empty, so it
+        carries no flag. Hide a category with the buttons above and reopen the
+        picker to watch it reappear.
+      </GalleryNote>
+    </div>
+  );
+};
+
+/**
+ * A section category end to end: the markdown editor on the left, and the same
+ * content as the document renders it on the right. Writes go to local state, so
+ * the debounce and the switch-away flush are both watchable.
+ */
+const SectionFormDemo = () => {
+  const pack: Pack = {
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    starts_on: null, ends_on: null, description: null, owner_id: 'u1',
+    status: 'draft', slug: null, created_at: '', updated_at: '',
+  };
+
+  const [which, setWhich] = useState('faq');
+  const [rows, setRows]   = useState<Record<string, PackCategoryRow>>({
+    faq: {
+      pack_id: 'demo', category_key: 'faq', hidden: false, sort_order: null,
+      content: { body: '**Can I proxy?**\n\nYes, as long as it is clearly the right size.' },
+    },
+  });
+  const [writes, setWrites] = useState(0);
+
+  const save: SaveSection = async (_packId, key, content) => {
+    setWrites(n => n + 1);
+    setRows(prev => ({
+      ...prev,
+      [key]: { pack_id: 'demo', category_key: key, hidden: false, sort_order: null, content },
+    }));
+  };
+
+  const stored = (rows[which]?.content as { body?: string } | null | undefined)?.body ?? '';
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {['faq', 'prizes', 'tickets'].map(key => (
+          <Button
+            key={key}
+            size="sm"
+            variant={which === key ? 'filled' : 'outline'}
+            color="secondary"
+            onClick={() => setWhich(key)}
+          >
+            {CATEGORY_REGISTRY.find(c => c.key === key)?.label}
+          </Button>
+        ))}
+        <span className="font-body text-xs text-gray-500">writes: {writes}</span>
+      </div>
+
+      <div className="w-full flex flex-col gap-3 lg:flex-row">
+        <div className="w-full lg:w-80 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+          {/* Keyed on the category so switching remounts, which is exactly what
+              the real editor does and what the unmount flush has to survive. */}
+          <SectionForm
+            key={which}
+            pack={pack}
+            rows={rows}
+            schedule={[]}
+            games={[]}
+            venues={[]}
+            categoryKey={which}
+            reload={async () => {}}
+            onChange={() => {}}
+            save={save}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="font-body text-xs uppercase tracking-[1.2px] text-gray-500 mb-2">
+            As the document renders it
+          </p>
+          {stored
+            ? <MarkdownBody className="text-base leading-6 text-gray-300">{stored}</MarkdownBody>
+            : <p className="font-body text-sm text-gray-500 italic">Nothing here yet.</p>}
+        </div>
+      </div>
+
+      <GalleryNote>
+        Every section category shares this one form and differs only in the
+        guidance the registry hands it — switch between the three above to see
+        the hint and placeholder change. Saving is debounced a second after the
+        last keystroke rather than on blur, because a rich text editor loses
+        focus for ordinary reasons like reaching for the bold button. Switching
+        category unmounts the form, so a pending write is flushed on the way out:
+        type something and immediately click another category, and the write
+        counter still moves.
+      </GalleryNote>
+    </div>
+  );
+};
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
@@ -394,6 +563,14 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-rounds-breaks-form" title="Rounds & Breaks Form">
         <RoundsBreaksFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-add-category" title="Add Category">
+        <AddCategoryModalDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-section-form" title="Section Form">
+        <SectionFormDemo />
       </GallerySection>
 
     </GalleryShell>

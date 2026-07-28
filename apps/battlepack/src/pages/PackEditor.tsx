@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR,
+  BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR, MarkdownBody,
   GAME_BANNERS, GAME_ICONS,
   AddCircle, Calendar, ListCheck, MapPin, Pen2, Play,
 } from '@battleplans/ui';
@@ -39,8 +39,10 @@ import {
 } from '../registry/categories';
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
-  getPack, getCategoryRows, getSchedule, updatePack, hideCategory, listGames, listLocations,
+  getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
+  listGames, listLocations,
 } from '../lib/packs';
+import AddCategoryModal from '../components/AddCategoryModal';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 
 const formatDate = (iso?: string | null) => {
@@ -85,6 +87,7 @@ export default function PackEditor() {
   const [activeTab,  setActiveTab]  = useState<CategoryTab>('format');
   const [leftOpen,   setLeftOpen]   = useState(false);
   const [rightOpen,  setRightOpen]  = useState(false);
+  const [addingCategory, setAddingCategory] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -232,8 +235,6 @@ export default function PackEditor() {
   // ── Document ───────────────────────────────────────────────────────────────
   const sectionsFor = (tab: CategoryTab) =>
     categories.filter(c => c.tab === tab).map(c => {
-      const complete = c.isComplete(ctx);
-
       let body;
       if (c.key === 'event-timeline') {
         const starts = formatDate(pack.starts_on);
@@ -270,10 +271,12 @@ export default function PackEditor() {
           </>
         );
       } else {
+        // `section` categories hold markdown, so the document renders it as
+        // markdown — that is what gives the design's bulleted lists.
         const content = rows[c.key]?.content as { body?: string } | null | undefined;
         body = content?.body
-          ? <p className="whitespace-pre-wrap">{content.body}</p>
-          : <EmptySection hint={complete ? '' : `Nothing in ${c.label} yet.`} />;
+          ? <MarkdownBody className="text-base leading-6 text-gray-300">{content.body}</MarkdownBody>
+          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
       }
 
       return (
@@ -342,9 +345,7 @@ export default function PackEditor() {
                 variant="outline"
                 leftIcon={<AddCircle className="w-4 h-4" />}
                 className="w-full"
-                /* The Add Category picker lands with the FAQ category, which is
-                   what proves the section-jsonb write path. */
-                disabled
+                onClick={() => setAddingCategory(true)}
               >
                 Add Category
               </Button>
@@ -425,6 +426,22 @@ export default function PackEditor() {
       }
 
       onClosePanels={() => { setLeftOpen(false); setRightOpen(false); }}
+
+      modals={
+        <AddCategoryModal
+          open={addingCategory}
+          onClose={() => setAddingCategory(false)}
+          gameId={pack.game_id}
+          rows={rows}
+          onAdd={async key => {
+            await showCategory(pack.id, key);
+            await reload();
+            // Land on what was just added, rather than leaving the organiser to
+            // find it in the list themselves.
+            selectCategory(key);
+          }}
+        />
+      }
     />
   );
 }

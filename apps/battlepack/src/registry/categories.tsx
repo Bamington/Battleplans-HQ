@@ -44,6 +44,7 @@ import {
 } from '@battleplans/ui';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 import PlaceholderForm from '../components/forms/PlaceholderForm';
+import SectionForm from '../components/forms/SectionForm';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
 
@@ -140,6 +141,16 @@ export interface CategoryDefinition {
   /** Right-panel form. */
   Form: ComponentType<CategoryFormProps>;
   /**
+   * Hand-written guidance shown above the form, and the editor's placeholder.
+   *
+   * These are the reason the registry is TypeScript and not a table: several
+   * categories share one form component and differ only in what they tell the
+   * organiser to write. A generic renderer would have to fetch this from
+   * somewhere, and there would be nowhere sensible to put it.
+   */
+  formHint?: string;
+  placeholder?: string;
+  /**
    * Owns the rule for whether every REQUIRED FIELD in this category is filled.
    * Drives the COMPLETE badge in the left nav and gates publishing.
    */
@@ -218,7 +229,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 40,
     icon: <InfoCircle className="w-6 h-6" />,
     isComplete: sectionFilled('key-info', 'body'),
-    Form: PlaceholderForm,
+    Form: SectionForm,
+    formHint: "The handful of facts an attendee checks before committing — where, when, what format.",
+    placeholder: "e.g. 2000 points, Matched Play. Bring three copies of your list.",
   },
   {
     key: 'what-to-bring',
@@ -230,7 +243,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 50,
     icon: <Clipboard className="w-6 h-6" />,
     isComplete: sectionFilled('what-to-bring', 'body'),
-    Form: PlaceholderForm,
+    Form: SectionForm,
+    formHint: "What a player has to turn up with. Dice, tape, tokens, printed lists — the things people forget.",
+    placeholder: "e.g. Dice, measuring tape, and something to score with.",
   },
   {
     key: 'registration',
@@ -242,7 +257,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 60,
     icon: <UserPlusRounded className="w-6 h-6" />,
     isComplete: sectionFilled('registration', 'body'),
-    Form: PlaceholderForm,
+    Form: SectionForm,
+    formHint: "How to sign up, and by when. Link out if registration happens somewhere else.",
+    placeholder: "e.g. Register on Best Coast Pairings at the link below.",
   },
   {
     key: 'tickets',
@@ -254,7 +271,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 70,
     icon: <Bookmark className="w-6 h-6" />,
     isComplete: sectionFilled('tickets', 'body'),
-    Form: PlaceholderForm,
+    Form: SectionForm,
+    formHint: "Price, where to buy, and any refund or transfer rules.",
+    placeholder: "e.g. Tickets are 40 dollars on the venue website.",
   },
   {
     key: 'prizes',
@@ -266,7 +285,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 80,
     icon: <Star className="w-6 h-6" />,
     isComplete: sectionFilled('prizes', 'body'),
-    Form: PlaceholderForm,
+    Form: SectionForm,
+    formHint: "What is on offer and how it is decided. Say if it depends on ticket sales.",
+    placeholder: "e.g. Best General, Best Painted, and a wooden spoon.",
   },
   {
     key: 'faq',
@@ -278,7 +299,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 90,
     icon: <QuestionCircle className="w-6 h-6" />,
     isComplete: sectionFilled('faq', 'body'),
-    Form: PlaceholderForm,
+    Form: SectionForm,
+    formHint: "The questions you answer over and over in the group chat. Write them here once.",
+    placeholder: "e.g. Can I proxy? Yes, as long as it is clearly the right size.",
   },
 ];
 
