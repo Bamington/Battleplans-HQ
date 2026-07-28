@@ -245,11 +245,12 @@ export interface ScheduleRow {
  * carries the KIND rather than alternating by position — so the playing parts
  * of the day stand forward and the gaps recede however they are ordered.
  *
- * Rounds sit on gray-800. Breaks use #0E1421, which is deliberately NOT from
- * the palette: gray-900 was not quite a step down from gray-800, and gray-950
- * was a hole in the table rather than a quieter row. Nothing in between exists,
- * so this table gets its one specific value. The container keeps its own border
- * so it still reads as a table against the card, which is also gray-800.
+ * Rounds sit on gray-800 and breaks on gray-900 — one step down the palette,
+ * and the same pairing the Key Info card already makes a few sections up, so
+ * the two blocks recede by the same amount rather than each inventing a shade.
+ * Anything darker turned the break into a hole in the table instead of a
+ * quieter row. The container keeps its own border so it still reads as a table
+ * against the card, which is also gray-800.
  *
  * Round labels are white, not the accent. Green is what every button and link
  * in the app uses, and a green row invites a click that does nothing here.
@@ -261,7 +262,7 @@ export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
       return (
         <div
           key={row.ordinal}
-          className={`w-full flex items-center gap-2 px-4 py-3 ${isRound ? 'bg-gray-800' : 'bg-[#0E1421]'}`}
+          className={`w-full flex items-center gap-2 px-4 py-3 ${isRound ? 'bg-gray-800' : 'bg-gray-900'}`}
         >
           {row.icon && (
             <span className={`shrink-0 ${isRound ? 'text-gray-300' : 'text-gray-500'}`}>{row.icon}</span>

@@ -402,7 +402,7 @@ export default function PackEditor() {
               {faqs.map((item, i) => (
                 <details
                   key={i}
-                  className="group border-b border-gray-700 last:border-b-0 bg-gray-800 open:bg-[#0E1421]"
+                  className="group border-b border-gray-700 last:border-b-0 bg-gray-800 open:bg-gray-900"
                 >
                   <summary
                     className="flex items-start gap-2 px-4 py-3 cursor-pointer list-none
@@ -632,21 +632,29 @@ export default function PackEditor() {
             {/* pt-5 on top of the hero's pb-6 — the gallery demo had this and
                 the editor did not, so the two disagreed by 20px. */}
             <div className="px-5 pt-5 pb-5">
-              <Tabs
-                variant="segmented"
-                activeTab={shownTab}
-                onTabChange={id => setActiveTab(id as CategoryTab)}
-                panelClassName="border-0 rounded-none p-0 pt-5"
-                tabs={tabs.map(t => ({
-                  id: t.id,
-                  label: t.label,
-                  icon: t.icon,
-                  // gap-10: sections are long-form prose and tables, so they
-                  // need more air between them than a list would.
-                  // No empty case — a tab is only here because it has sections.
-                  content: <div className="flex flex-col gap-10">{sectionsFor(t.id)}</div>,
-                }))}
-              />
+              {/* gap-10 on the sections: they are long-form prose and tables, so
+                  they need more air between them than a list would.
+                  No empty case — a tab is only here because it has sections. */}
+              {tabs.length > 1 ? (
+                <Tabs
+                  variant="segmented"
+                  activeTab={shownTab}
+                  onTabChange={id => setActiveTab(id as CategoryTab)}
+                  panelClassName="border-0 rounded-none p-0 pt-5"
+                  tabs={tabs.map(t => ({
+                    id: t.id,
+                    label: t.label,
+                    icon: t.icon,
+                    content: <div className="flex flex-col gap-10">{sectionsFor(t.id)}</div>,
+                  }))}
+                />
+              ) : (
+                // One tab is not a choice. A lone full-width segmented button
+                // looks like a control and does nothing when pressed, so the
+                // sections stand on their own — the container's pt-5 leaves the
+                // same gap under the hero that the bar did.
+                <div className="flex flex-col gap-10">{sectionsFor(shownTab)}</div>
+              )}
             </div>
           </div>
         </main>
