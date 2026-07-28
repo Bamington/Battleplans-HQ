@@ -384,6 +384,38 @@ export async function isSlugAvailable(candidate: string): Promise<boolean> {
 }
 
 /**
+ * Publish a pack, claiming its slug the first time.
+ *
+ * The slug is only sent when the pack does not already have one. It is
+ * immutable in the database once set, so re-publishing something that was
+ * withdrawn must not try to write it again — the trigger would reject the
+ * update even if the value were identical in spirit, and there is nothing to
+ * gain from asking.
+ *
+ * Whether the pack is complete enough to publish is decided by the registry,
+ * not here: the database has no idea what a required field is.
+ */
+export async function publishPack(pack: Pack, slug?: string): Promise<void> {
+  const patch: Partial<Pack> = { status: 'published' };
+  if (!pack.slug) {
+    if (!slug?.trim()) throw new Error('A pack needs a URL before it can be published.');
+    patch.slug = slug.trim();
+  }
+  await updatePack(pack.id, patch);
+}
+
+/**
+ * Withdraw a published pack.
+ *
+ * The slug stays with it. An unpublished pack's URL serves a tombstone rather
+ * than a 404, and it can never be claimed by anything else — that is what makes
+ * unpublishing safe to undo.
+ */
+export async function unpublishPack(packId: string): Promise<void> {
+  await updatePack(packId, { status: 'unpublished' });
+}
+
+/**
  * Suggest slugs from the event name.
  *
  * Deliberately simple. The one cheap improvement worth having is a second

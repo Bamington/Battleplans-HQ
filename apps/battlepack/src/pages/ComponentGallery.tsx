@@ -42,6 +42,7 @@ import {
   MapPin,
   InfoCircle,
   MenuDots,
+  Rocket,
   Notebook,
   Play,
   Tabs,
@@ -51,6 +52,7 @@ import {
 
 import AppNavbar from '../components/AppNavbar';
 import AddCategoryModal from '../components/AddCategoryModal';
+import PublishPanel from '../components/PublishPanel';
 import CategoryListItem from '../components/CategoryListItem';
 import BattlepackListItem from '../components/BattlepackListItem';
 import {
@@ -76,6 +78,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-rounds-breaks-form',  label: 'Rounds & Breaks Form', icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-add-category',        label: 'Add Category',         icon: <AddCircle className="w-5 h-5" /> },
   { href: '#nav-section-form',        label: 'Section Form',         icon: <FileText className="w-5 h-5" /> },
+  { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -413,6 +416,75 @@ const SectionFormDemo = () => {
   );
 };
 
+/**
+ * The publish step over a stub pack, with the availability check answered from
+ * a fixed set of taken slugs. Toggle the outstanding categories to watch the
+ * gate open and close.
+ */
+const PublishPanelDemo = () => {
+  const TAKEN = ['july-rtt', 'season-6-league'];
+
+  const [pack, setPack] = useState<Pack>({
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
+    starts_on: '2026-06-13', ends_on: null, description: null, owner_id: 'u1',
+    status: 'draft', slug: null, created_at: '', updated_at: '',
+  });
+  const [blocked, setBlocked] = useState(true);
+
+  const outstanding = blocked
+    ? CATEGORY_REGISTRY.filter(c => ['event-timeline', 'key-info'].includes(c.key))
+    : [];
+
+  return (
+    <div className="w-full flex flex-col gap-3 lg:flex-row">
+      <div className="w-full lg:w-80 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+        <PublishPanel
+          pack={pack}
+          venueName="Gaming Arena"
+          outstanding={outstanding}
+          onSelectCategory={() => {}}
+          checkSlug={async candidate => !TAKEN.includes(candidate.trim().toLowerCase())}
+          onPublish={async slug => setPack(p => ({ ...p, status: 'published', slug }))}
+          onUnpublish={async () => setPack(p => ({ ...p, status: 'unpublished' }))}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0 flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" color="secondary" onClick={() => setBlocked(b => !b)}>
+            {blocked ? 'Mark everything complete' : 'Leave two categories unfinished'}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            color="secondary"
+            onClick={() => setPack(p => ({ ...p, status: 'draft', slug: null }))}
+          >
+            Reset to draft
+          </Button>
+        </div>
+
+        <pre className="font-mono text-xs text-gray-400 whitespace-pre-wrap">
+          {`status: ${pack.status}\nslug:   ${pack.slug ?? '(none)'}`}
+        </pre>
+
+        <GalleryNote>
+          Two gates: every category complete, and a URL nobody has taken.
+          <code>july-rtt</code> and <code>season-6-league</code> are taken in this
+          demo, so the name's own suggestion is refused — try{' '}
+          <code>july-rtt-2026</code>. Publish, and the field locks: a published URL
+          never moves and is never reused, not by another pack and not after this
+          one is deleted, which is why the organiser gets to see and edit it before
+          committing. Unpublishing keeps the slug — the URL then says the event is
+          not currently available rather than that it never existed. Nothing here
+          claims the event is live, because V1 has no public page: publishing
+          reserves the URL and nothing more.
+        </GalleryNote>
+      </div>
+    </div>
+  );
+};
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
@@ -571,6 +643,10 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-section-form" title="Section Form">
         <SectionFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-publish-panel" title="Publish Panel">
+        <PublishPanelDemo />
       </GallerySection>
 
     </GalleryShell>

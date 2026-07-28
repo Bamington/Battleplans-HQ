@@ -26,7 +26,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR, MarkdownBody,
   GAME_BANNERS, GAME_ICONS,
-  AddCircle, Calendar, ListCheck, MapPin, Pen2, Play,
+  AddCircle, Calendar, ListCheck, MapPin, Pen2, Play, Rocket,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
@@ -40,10 +40,18 @@ import {
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
-  listGames, listLocations,
+  listGames, listLocations, publishPack, unpublishPack,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
+import PublishPanel from '../components/PublishPanel';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+
+/**
+ * The left nav's Publish row. Deliberately not a registry key — Publish has no
+ * document section and no storage, so making it a category would mean teaching
+ * the registry about something that is neither.
+ */
+const PUBLISH_KEY = '__publish__';
 
 const formatDate = (iso?: string | null) => {
   if (!iso) return null;
@@ -364,6 +372,17 @@ export default function PackEditor() {
               onRemove={c.requirement === 'mandatory' ? undefined : () => removeCategory(c.key)}
             />
           ))}
+
+          {/* Publish sits at the end of the same list, but it is not a category:
+              it has no document section and no storage. Selecting it swaps the
+              right panel and leaves the document where it was. */}
+          <CategoryListItem
+            icon={<Rocket className="w-6 h-6" />}
+            label="Publish"
+            complete={pack.status === 'published'}
+            active={activeKey === PUBLISH_KEY}
+            onSelect={() => { setActiveKey(PUBLISH_KEY); setLeftOpen(false); }}
+          />
         </ListPanel>
       }
 
@@ -409,10 +428,19 @@ export default function PackEditor() {
 
       rightPanelOpen={rightOpen}
       rightPanel={
-        <EditorPanel title={activeDefinition?.label ?? 'Editor'}>
+        <EditorPanel title={activeKey === PUBLISH_KEY ? 'Publish' : activeDefinition?.label ?? 'Editor'}>
           {saveError && <Callout flavour="bad" onDismiss={() => setSaveError(null)}>{saveError}</Callout>}
 
-          {activeDefinition && ctx ? (
+          {activeKey === PUBLISH_KEY ? (
+            <PublishPanel
+              pack={pack}
+              venueName={venue?.name}
+              outstanding={outstanding}
+              onSelectCategory={selectCategory}
+              onPublish={async slug => { await publishPack(pack, slug); await reload(); }}
+              onUnpublish={async () => { await unpublishPack(pack.id); await reload(); }}
+            />
+          ) : activeDefinition && ctx ? (
             <activeDefinition.Form
               {...ctx}
               categoryKey={activeDefinition.key}
