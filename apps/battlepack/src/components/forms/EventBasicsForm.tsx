@@ -47,6 +47,14 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
   const [name, setName] = useState(pack.name);
   useEffect(() => { setName(pack.name); }, [pack.name]);
 
+  const [format, setFormat] = useState(pack.format ?? '');
+  useEffect(() => { setFormat(pack.format ?? ''); }, [pack.format]);
+
+  const commitFormat = () => {
+    const next = format.trim();
+    if (next !== (pack.format ?? '')) onChange({ format: next || null });
+  };
+
   // The description is markdown from a rich text editor, so it commits on a
   // debounce rather than on blur, exactly as the section categories do.
   const {
@@ -100,10 +108,9 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         </p>
       </div>
 
-      {/* The dates live here because Event Basics is the only `core` form, and
-          removing the Event Timeline category would otherwise leave them set
-          once at creation and never editable again. Key Info is where the
-          document shows them. */}
+      {/* Dates, start time and format all live here because Event Basics is the
+          only `core` form. Key Info is not a category — it is a panel showing
+          these values back, so this is the one place they are entered. */}
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <Input
@@ -124,6 +131,23 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
           />
         </div>
       </div>
+
+      <Input
+        label="Start Time"
+        type="time"
+        value={(pack.starts_at ?? '').slice(0, 5)}
+        onChange={e => onChange({ starts_at: e.target.value || null })}
+        helperText="When the day begins. Every round's time is worked out from this."
+      />
+
+      <Input
+        label="Format"
+        placeholder="e.g. 2000 Points, Matched Play"
+        value={pack.format ?? ''}
+        onChange={e => setFormat(e.target.value)}
+        onBlur={commitFormat}
+        helperText="Shown in Key Info alongside the venue and the date."
+      />
 
       <SearchSelect
         label="Location"

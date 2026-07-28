@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR, MarkdownBody,
+  BuilderShell, ListPanel, EditorPanel, Tabs, Button, ButtonPair, Callout, HR, MarkdownBody, Modal,
   GAME_BANNERS, GAME_ICONS,
   StoreSelector,
   AddCircle, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket,
@@ -41,7 +41,7 @@ import {
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
-  listGames, listMyLocations, publishPack, unpublishPack,
+  listGames, listMyLocations, publishPack, unpublishPack, timeSchedule,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import PublishPanel from '../components/PublishPanel';
@@ -97,6 +97,10 @@ export default function PackEditor() {
   const [leftOpen,   setLeftOpen]   = useState(false);
   const [rightOpen,  setRightOpen]  = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
+  // The pencil puts the left panel into edit mode, which is the only time the
+  // bins appear. Destructive controls should be asked for, not always present.
+  const [editingList, setEditingList] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -204,6 +208,20 @@ export default function PackEditor() {
     await savePackFields({ name });
   }
 
+  /**
+   * Whether removing this category would throw work away.
+   *
+   * An untouched category costs nothing to remove and asking about it is noise;
+   * one with prose or a schedule in it is a different question. The content is
+   * kept either way — hiding never deletes — but "you can get it back" is not
+   * obvious enough to skip the warning.
+   */
+  function hasContent(key: string): boolean {
+    if (key === 'rounds-breaks') return schedule.length > 0;
+    const content = rows[key]?.content as { body?: string; url?: string } | null | undefined;
+    return Boolean(content?.body?.trim() || content?.url?.trim());
+  }
+
   async function removeCategory(key: string) {
     if (!pack) return;
     await hideCategory(pack.id, key);
@@ -212,6 +230,12 @@ export default function PackEditor() {
       [key]: { ...(prev[key] ?? { pack_id: pack.id, category_key: key, sort_order: null, content: null }), hidden: true },
     }));
     if (activeKey === key) setActiveKey(null);
+  }
+
+  /** Remove outright, or ask first if there is something to lose. */
+  function requestRemove(key: string) {
+    if (hasContent(key)) setConfirmRemove(key);
+    else void removeCategory(key);
   }
 
   // ── Guards ─────────────────────────────────────────────────────────────────
@@ -243,49 +267,45 @@ export default function PackEditor() {
 
   // ── Document ───────────────────────────────────────────────────────────────
 
+  /**
+   * Key Info is NOT a category. It is a read-back of values the pack already
+   * holds — the venue, the dates and time, the format — so it has no form, no
+   * storage and no entry in the nav. Everything in it is entered in Event
+   * Basics; asking for any of it twice would be asking for two answers.
+   */
+  const keyInfoRows = () => {
+    const starts = formatDate(pack.starts_on);
+    const ends   = formatDate(pack.ends_on);
+    const time   = pack.starts_at ? formatTime(pack.starts_at) : null;
+
+    const when = starts
+      ? [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null].filter(Boolean).join(' ')
+      : null;
+
+    return [
+      ...(venue ? [{
+        icon: <MapPin className="w-4 h-4" />,
+        text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}`,
+      }] : []),
+      ...(when ? [{ icon: <Calendar className="w-4 h-4" />, text: when }] : []),
+      ...(pack.format ? [{ icon: <InfoCircle className="w-4 h-4" />, text: pack.format }] : []),
+    ];
+  };
+
   /** What one category contributes to the document. */
   const bodyFor = (c: typeof categories[number]) => {
       let body;
-      if (c.key === 'key-info') {
-        // The container the design puts under this heading. The venue and the
-        // dates are derived — the pack already knows them, and making the
-        // organiser retype them here would be a second place to get them wrong —
-        // and anything they add themselves follows underneath.
-        const starts = formatDate(pack.starts_on);
-        const ends   = formatDate(pack.ends_on);
-        const authored = (rows['key-info']?.content as { body?: string } | null | undefined)?.body;
-
-        const infoRows = [
-          ...(venue ? [{
-            icon: <MapPin className="w-4 h-4" />,
-            text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}`,
-          }] : []),
-          ...(starts ? [{
-            icon: <Calendar className="w-4 h-4" />,
-            text: ends ? `${starts} – ${ends}` : starts,
-          }] : []),
-          ...(authored ? [{
-            icon: <InfoCircle className="w-4 h-4" />,
-            text: <MarkdownBody className="text-base leading-6 text-gray-50">{authored}</MarkdownBody>,
-          }] : []),
-        ];
-
-        body = infoRows.length
-          ? <KeyInfoCard rows={infoRows} />
-          : <EmptySection hint="No venue, dates or format details yet." />;
-      } else if (c.key === 'event-timeline') {
-        const starts = formatDate(pack.starts_on);
-        const ends   = formatDate(pack.ends_on);
-        body = starts
-          ? <KeyInfoCard rows={[{ icon: <Calendar className="w-4 h-4" />, text: ends ? `${starts} – ${ends}` : starts }]} />
-          : <EmptySection hint="No dates set yet." />;
-      } else if (c.key === 'rounds-breaks') {
+      if (c.key === 'rounds-breaks') {
+        // Times are worked out here rather than read from the row — an item
+        // stores how long it lasts and nothing else, so a reorder cannot leave
+        // the clock disagreeing with the order.
+        const timed = timeSchedule(schedule, pack.starts_at);
         body = schedule.length
-          ? <ScheduleTable rows={schedule.map(s => ({
+          ? <ScheduleTable rows={schedule.map((s, i) => ({
               ordinal: s.ordinal,
               kind: s.kind,
               label: s.label ?? (s.kind === 'round' ? `Round ${s.ordinal}` : 'Break'),
-              time: formatTimeRange(s.starts_at, s.ends_at),
+              time: timed[i] ? formatTimeRange(timed[i].startsAt, timed[i].endsAt) : `${s.duration_minutes} min`,
               icon: s.kind === 'round'
                 ? <Play className="w-4 h-4" />
                 : <ListCheck className="w-4 h-4" />,
@@ -355,6 +375,25 @@ export default function PackEditor() {
         </div>
       ));
 
+      // About pairs with the derived Key Info panel rather than with another
+      // category — Key Info is a read-back, not something the organiser fills
+      // in, so it has no registry entry to pair against.
+      if (group.length === 1 && group[0].key === 'event-basics') {
+        const info = keyInfoRows();
+        return (
+          <DocumentRow key="about+key-info">
+            <div className="flex-1 min-w-0">{sections}</div>
+            <div className="flex-1 min-w-0">
+              <DocumentSection categoryKey="key-info" title="Key Info">
+                {info.length
+                  ? <KeyInfoCard rows={info} />
+                  : <EmptySection hint="Set the venue, dates and format in Event Basics." />}
+              </DocumentSection>
+            </div>
+          </DocumentRow>
+        );
+      }
+
       // A lone section needs no row wrapper, and giving it one would have
       // DocumentRow measuring a pair that does not exist.
       if (group.length === 1) return <div key={group[0].key}>{sections}</div>;
@@ -404,12 +443,15 @@ export default function PackEditor() {
           headerAction={
             <button
               type="button"
-              onClick={() => {
-                setEditingName(true);
-                requestAnimationFrame(() => nameInputRef.current?.select());
-              }}
-              title="Rename pack"
-              className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white cursor-pointer"
+              onClick={() => setEditingList(v => !v)}
+              title={editingList ? 'Done editing' : 'Edit categories'}
+              aria-pressed={editingList}
+              className={[
+                'p-1 rounded cursor-pointer transition-colors',
+                editingList
+                  ? 'bg-primary-950 text-primary-400'
+                  : 'hover:bg-gray-700 text-gray-400 hover:text-white',
+              ].join(' ')}
             >
               <Pen2 className="w-4 h-4" />
             </button>
@@ -444,8 +486,9 @@ export default function PackEditor() {
               complete={c.isComplete(ctx)}
               active={c.key === activeKey}
               onSelect={() => selectCategory(c.key)}
-              /* Mandatory categories cannot be removed — no handler, no ×. */
-              onRemove={c.requirement === 'mandatory' ? undefined : () => removeCategory(c.key)}
+              editing={editingList}
+              /* Mandatory categories cannot be removed — no handler, no bin. */
+              onRemove={c.requirement === 'mandatory' ? undefined : () => requestRemove(c.key)}
             />
           ))}
 
@@ -534,6 +577,32 @@ export default function PackEditor() {
       onClosePanels={() => { setLeftOpen(false); setRightOpen(false); }}
 
       modals={
+        <>
+        {/* Only shown when there is work to lose — an untouched category is
+            removed outright, because asking about nothing is noise. */}
+        <Modal open={confirmRemove !== null} onClose={() => setConfirmRemove(null)} className="max-w-sm">
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">
+              Remove {confirmRemove ? CATEGORY_BY_KEY[confirmRemove]?.label : 'this category'}?
+            </h2>
+            <p className="font-body text-sm text-gray-300">
+              It has content in it. Removing takes it out of the pack but keeps what
+              you wrote — add it back and the text returns.
+            </p>
+            <ButtonPair>
+              <Button
+                color="danger"
+                onClick={() => { const key = confirmRemove; setConfirmRemove(null); if (key) void removeCategory(key); }}
+              >
+                Remove
+              </Button>
+              <Button variant="outline" color="secondary" onClick={() => setConfirmRemove(null)}>
+                Keep it
+              </Button>
+            </ButtonPair>
+          </div>
+        </Modal>
+
         <AddCategoryModal
           open={addingCategory}
           onClose={() => setAddingCategory(false)}
@@ -547,6 +616,7 @@ export default function PackEditor() {
             selectCategory(key);
           }}
         />
+        </>
       }
     />
   );

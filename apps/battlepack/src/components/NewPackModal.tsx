@@ -25,7 +25,7 @@ import {
 } from '@battleplans/ui';
 import {
   buildSchedule, createPack, insertSchedule, listGames, listPacks,
-  recentIdsFrom, updatePack,
+  recentIdsFrom, updatePack, minutesToTime,
 } from '../lib/packs';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
 import type { GameOption, LocationOption } from '../lib/packs';
@@ -97,13 +97,20 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const venueOpts = useMemo(() => venueOptions(stores, recent.venues), [stores, recent.venues]);
 
   const preview = useMemo(
-    () => buildSchedule({ rounds, roundMinutes, breakMinutes, startsAt: startTime }),
-    [rounds, roundMinutes, breakMinutes, startTime],
+    () => buildSchedule({ rounds, roundMinutes, breakMinutes }),
+    [rounds, roundMinutes, breakMinutes],
   );
 
   // Location is required: a pack belongs to the store running it, and only
   // that store's admins can edit it, so one without a venue would be a pack
   // nobody could reach.
+  // Where the generated day ends, for the preview line.
+  const finishTime = (() => {
+    const [h, mm] = startTime.split(':').map(Number);
+    const total = (h || 0) * 60 + (mm || 0) + preview.reduce((sum, i) => sum + i.duration_minutes, 0);
+    return minutesToTime(total).slice(0, 5);
+  })();
+
   const step1Valid = name.trim().length > 0 && gameId !== '' && locationId !== '';
 
   /**
@@ -120,7 +127,12 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     try {
       const pack = await createPack({ name, gameId, locationId, description });
 
-      if (startDate) await updatePack(pack.id, { starts_on: startDate });
+      if (startDate || startTime) {
+        await updatePack(pack.id, {
+          ...(startDate ? { starts_on: startDate } : {}),
+          ...(startTime ? { starts_at: startTime } : {}),
+        });
+      }
       if (withSchedule && preview.length > 0) {
         await insertSchedule(pack.id, preview).catch(() => {
           // Non-fatal: the pack is made, and Rounds & Breaks can be filled in.
@@ -303,7 +315,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
               <p className="font-body text-sm text-neutral-400">
                 {preview.length === 0
                   ? 'No rounds will be added — you can build the day yourself in the editor.'
-                  : `Creates ${rounds} round${rounds === 1 ? '' : 's'} from ${startTime}, finishing at ${preview[preview.length - 1].ends_at?.slice(0, 5)}.`}
+                  : `Creates ${rounds} round${rounds === 1 ? '' : 's'} from ${startTime}, finishing at ${finishTime}.`}
               </p>
             </div>
           </div>

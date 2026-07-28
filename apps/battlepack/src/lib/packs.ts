@@ -23,6 +23,10 @@ export interface Pack {
   location_id: string | null;
   starts_on: string | null;
   ends_on: string | null;
+  /** What time the day begins. Anchors every schedule item's clock time. */
+  starts_at: string | null;
+  /** Free text for Key Info, e.g. "2000 Points, Matched Play". */
+  format: string | null;
   description: string | null;
   owner_id: string;
   status: PackStatus;
@@ -45,8 +49,40 @@ export interface ScheduleItem {
   ordinal: number;
   kind: 'round' | 'break';
   label: string | null;
-  starts_at: string | null;
-  ends_at: string | null;
+  /** How long it lasts. When it happens is derived, never stored. */
+  duration_minutes: number;
+}
+
+/** A schedule item with the clock times worked out. */
+export interface TimedScheduleItem extends ScheduleItem {
+  startsAt: string;
+  endsAt: string;
+}
+
+/**
+ * Lay the day out from the pack's start time and each item's length.
+ *
+ * Derived on read rather than stored, so a reorder or a deletion cannot leave
+ * the times saying one thing and the order another. Without a start time there
+ * is nothing to anchor to, and the caller shows durations alone.
+ */
+export function minutesToTime(minutes: number): string {
+  const m = ((minutes % 1440) + 1440) % 1440;
+  const hh = String(Math.floor(m / 60)).padStart(2, '0');
+  const mm = String(m % 60).padStart(2, '0');
+  return `${hh}:${mm}:00`;
+}
+
+export function timeSchedule(items: ScheduleItem[], dayStart: string | null): TimedScheduleItem[] {
+  if (!dayStart) return [];
+  const [h, m] = dayStart.split(':').map(Number);
+  let cursor = (h || 0) * 60 + (m || 0);
+
+  return items.map(item => {
+    const startsAt = minutesToTime(cursor);
+    cursor += item.duration_minutes;
+    return { ...item, startsAt, endsAt: minutesToTime(cursor) };
+  });
 }
 
 /** A pack plus the bits the home screen shows alongside it. */
@@ -273,10 +309,17 @@ export async function addScheduleItem(
   kind: ScheduleItem['kind'],
   ordinal: number,
   label?: string,
+  durationMinutes?: number,
 ): Promise<ScheduleItem> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
-    .insert({ pack_id: packId, kind, ordinal, label: label ?? null })
+    .insert({
+      pack_id: packId,
+      kind,
+      ordinal,
+      label: label ?? null,
+      duration_minutes: durationMinutes ?? (kind === 'round' ? 120 : 10),
+    })
     .select('*')
     .single();
   if (error) throw error;
@@ -285,7 +328,7 @@ export async function addScheduleItem(
 
 export async function updateScheduleItem(
   id: string,
-  patch: Partial<Pick<ScheduleItem, 'label' | 'starts_at' | 'ends_at' | 'kind'>>,
+  patch: Partial<Pick<ScheduleItem, 'label' | 'duration_minutes' | 'kind'>>,
 ): Promise<void> {
   const { error } = await supabase.from('battlepack_schedule_items').update(patch).eq('id', id);
   if (error) throw error;
@@ -303,16 +346,6 @@ export interface RoundDefaults {
   roundMinutes: number;
   /** Minutes of break between one round and the next. */
   breakMinutes: number;
-  /** When the first round starts, as HH:MM. */
-  startsAt: string;
-}
-
-/** Minutes since midnight → HH:MM:SS, wrapping if a day runs past midnight. */
-function toTime(minutes: number): string {
-  const m = ((minutes % 1440) + 1440) % 1440;
-  const hh = String(Math.floor(m / 60)).padStart(2, '0');
-  const mm = String(m % 60).padStart(2, '0');
-  return `${hh}:${mm}:00`;
 }
 
 /**
@@ -321,14 +354,14 @@ function toTime(minutes: number): string {
  * Breaks go BETWEEN rounds, so N rounds produce N-1 breaks — a trailing break
  * after the last round would be the end of the event, not a gap in it.
  *
+ * No clock times here: an item knows how long it lasts, and where it lands
+ * follows from the pack's start time and everything before it.
+ *
  * Returned rather than written so the caller can show the day before committing
- * to it, and so this can be unit-checked without a database.
+ * to it, and so this can be checked without a database.
  */
 export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' | 'pack_id'>[] {
-  const { rounds, roundMinutes, breakMinutes, startsAt } = defaults;
-  const [h, m] = startsAt.split(':').map(Number);
-  let cursor = (h || 0) * 60 + (m || 0);
-
+  const { rounds, roundMinutes, breakMinutes } = defaults;
   const items: Omit<ScheduleItem, 'id' | 'pack_id'>[] = [];
 
   for (let i = 0; i < rounds; i++) {
@@ -336,20 +369,16 @@ export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' 
       ordinal: items.length,
       kind: 'round',
       label: `Round ${i + 1}`,
-      starts_at: toTime(cursor),
-      ends_at: toTime(cursor + roundMinutes),
+      duration_minutes: roundMinutes,
     });
-    cursor += roundMinutes;
 
     if (i < rounds - 1 && breakMinutes > 0) {
       items.push({
         ordinal: items.length,
         kind: 'break',
         label: 'Break',
-        starts_at: toTime(cursor),
-        ends_at: toTime(cursor + breakMinutes),
+        duration_minutes: breakMinutes,
       });
-      cursor += breakMinutes;
     }
   }
 

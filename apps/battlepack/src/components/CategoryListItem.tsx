@@ -27,7 +27,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { CheckCircle, DangerCircle, CloseCircle } from '@battleplans/ui';
+import { CheckCircle, DangerCircle, TrashBinMinimalistic } from '@battleplans/ui';
 
 export interface CategoryListItemProps {
   /** 24px category icon from the registry. */
@@ -41,9 +41,14 @@ export interface CategoryListItemProps {
   /**
    * Mandatory categories cannot be removed from a pack — that is the whole
    * point of the tier, and it is what stops a half-filled category being hidden
-   * out of the publish check. Omit `onRemove` for those and no × is rendered.
+   * out of the publish check. Omit `onRemove` for those and no bin is rendered.
    */
   onRemove?: () => void;
+  /**
+   * Whether the panel is in edit mode. Removing is destructive and far rarer
+   * than selecting, so the bin is not on screen at all until asked for.
+   */
+  editing?: boolean;
   onSelect?: () => void;
 }
 
@@ -52,6 +57,7 @@ const CategoryListItem = ({
   label,
   complete = false,
   active = false,
+  editing = false,
   onRemove,
   onSelect,
 }: CategoryListItemProps) => {
@@ -95,17 +101,15 @@ const CategoryListItem = ({
         </span>
       </button>
 
-      {onRemove && (
+      {onRemove && editing && (
         <button
           type="button"
           onClick={onRemove}
           title={`Remove ${label}`}
           aria-label={`Remove ${label}`}
-          /* Only revealed on hover/focus: removing is rare next to selecting,
-             and a permanent × on every row reads as the primary action. */
-          className="shrink-0 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
+          className="shrink-0 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
         >
-          <CloseCircle className="w-4 h-4" />
+          <TrashBinMinimalistic className="w-4 h-4" />
         </button>
       )}
     </div>

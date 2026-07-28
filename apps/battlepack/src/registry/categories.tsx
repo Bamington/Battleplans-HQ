@@ -205,7 +205,6 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     order: 10,
     icon: <FileText className="w-6 h-6" />,
     documentLabel: 'About',
-    row: 'overview',
     Form: EventBasicsForm,
     // The name is the only genuinely required field. The game is set at
     // creation and cannot be absent; location and description are optional.
@@ -225,21 +224,6 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     // battlepack_categories and not on a content row this category doesn't own.
     isComplete: ({ schedule }) => schedule.length > 0,
     Form: RoundsBreaksForm,
-  },
-  {
-    key: 'key-info',
-    label: 'Key Info',
-    tab: 'format',
-    requirement: 'default',
-    gameId: null,
-    storage: 'section',
-    order: 20,
-    icon: <InfoCircle className="w-6 h-6" />,
-    row: 'overview',
-    isComplete: sectionFilled('key-info', 'body'),
-    Form: SectionForm,
-    formHint: "The handful of facts an attendee checks before committing — where, when, what format.",
-    placeholder: "e.g. 2000 points, Matched Play. Bring three copies of your list.",
   },
   {
     key: 'what-to-bring',

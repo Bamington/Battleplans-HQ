@@ -64,6 +64,7 @@ import SectionForm from '../components/forms/SectionForm';
 import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
+import { timeSchedule } from '../lib/packs';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
@@ -114,7 +115,7 @@ const CategoryListDemo = () => {
 const EventBasicsFormDemo = () => {
   const [pack, setPack] = useState<Pack>({
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
-    starts_on: null, ends_on: null, description: null, owner_id: 'u1',
+    starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, created_at: '', updated_at: '',
   });
   const [log, setLog] = useState<string[]>([]);
@@ -170,15 +171,15 @@ const EventBasicsFormDemo = () => {
 const RoundsBreaksFormDemo = () => {
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
-    starts_on: null, ends_on: null, description: null, owner_id: 'u1',
+    starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, created_at: '', updated_at: '',
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
-    { id: 'a', pack_id: 'demo', ordinal: 0, kind: 'break', label: 'Registration', starts_at: '10:00:00', ends_at: '10:30:00' },
-    { id: 'b', pack_id: 'demo', ordinal: 1, kind: 'round', label: 'Round 1',      starts_at: '10:30:00', ends_at: '12:30:00' },
-    { id: 'c', pack_id: 'demo', ordinal: 2, kind: 'break', label: 'Lunch',        starts_at: '12:30:00', ends_at: '13:15:00' },
-    { id: 'd', pack_id: 'demo', ordinal: 3, kind: 'round', label: 'Round 2',      starts_at: '13:15:00', ends_at: '15:15:00' },
+    { id: 'a', pack_id: 'demo', ordinal: 0, kind: 'break', label: 'Registration', duration_minutes: 30 },
+    { id: 'b', pack_id: 'demo', ordinal: 1, kind: 'round', label: 'Round 1',      duration_minutes: 30 },
+    { id: 'c', pack_id: 'demo', ordinal: 2, kind: 'break', label: 'Lunch',        duration_minutes: 30 },
+    { id: 'd', pack_id: 'demo', ordinal: 3, kind: 'round', label: 'Round 2',      duration_minutes: 30 },
   ]);
   const [nextId, setNextId] = useState(1);
   const [problem, setProblem] = useState<string | null>(null);
@@ -194,7 +195,7 @@ const RoundsBreaksFormDemo = () => {
     add: async (_packId, kind, ordinal, label) => {
       const id = `new-${nextId}`;
       setNextId(n => n + 1);
-      setItems(prev => [...prev, { id, pack_id: 'demo', ordinal, kind, label, starts_at: null, ends_at: null }]);
+      setItems(prev => [...prev, { id, pack_id: 'demo', ordinal, kind, label, duration_minutes: kind === 'round' ? 120 : 10 }]);
     },
     update: async (id, patch) => {
       setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
@@ -230,12 +231,14 @@ const RoundsBreaksFormDemo = () => {
           <p className="font-body text-xs uppercase tracking-[1.2px] text-gray-500 mb-2">
             As the document renders it
           </p>
+          {/* Times worked out from the pack's start and each length, exactly as
+              the document does it — nothing here reads a stored time. */}
           <ScheduleTable
-            rows={items.map(i => ({
+            rows={timeSchedule(items, pack.starts_at).map(i => ({
               ordinal: i.ordinal,
               kind: i.kind,
               label: i.label ?? (i.kind === 'round' ? 'Round' : 'Break'),
-              time: i.starts_at && i.ends_at ? `${i.starts_at.slice(0, 5)} - ${i.ends_at.slice(0, 5)}` : i.starts_at?.slice(0, 5),
+              time: `${i.startsAt.slice(0, 5)} - ${i.endsAt.slice(0, 5)}`,
             }))}
           />
         </div>
@@ -335,7 +338,7 @@ const AddCategoryModalDemo = () => {
 const SectionFormDemo = () => {
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
-    starts_on: null, ends_on: null, description: null, owner_id: 'u1',
+    starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, created_at: '', updated_at: '',
   };
 
@@ -427,7 +430,7 @@ const PublishPanelDemo = () => {
 
   const [pack, setPack] = useState<Pack>({
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
-    starts_on: '2026-06-13', ends_on: null, description: null, owner_id: 'u1',
+    starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, created_at: '', updated_at: '',
   });
   const [blocked, setBlocked] = useState(true);
