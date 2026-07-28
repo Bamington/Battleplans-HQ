@@ -44,6 +44,8 @@ import {
   listGames, listMyLocations, publishPack, unpublishPack, timeSchedule,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
+import { readChecklist } from '../components/forms/ChecklistSectionForm';
+import { readFaq } from '../components/forms/FaqSectionForm';
 import PublishPanel from '../components/PublishPanel';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 
@@ -318,9 +320,56 @@ export default function PackEditor() {
         body = pack.description
           ? <MarkdownBody className="text-base leading-6 text-gray-300">{pack.description}</MarkdownBody>
           : <EmptySection hint="No description yet." />;
+      } else if (c.key === 'what-to-bring') {
+        // A bulleted list where an item with a link is clickable end to end —
+        // the URL is a field, not something pasted mid-sentence, so the whole
+        // phrase can carry it.
+        const list = readChecklist(rows[c.key]?.content);
+        body = list.length
+          ? (
+            <ul className="list-disc ps-5 space-y-1">
+              {list.map((item, i) => (
+                <li key={i}>
+                  {item.url
+                    ? (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-primary-400 hover:underline"
+                      >
+                        {item.text}
+                      </a>
+                    )
+                    : item.text}
+                </li>
+              ))}
+            </ul>
+          )
+          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
+      } else if (c.key === 'faq') {
+        const faqs = readFaq(rows[c.key]?.content);
+        body = faqs.length
+          ? (
+            <div className="flex flex-col gap-4">
+              {faqs.map((item, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  {/* The question carries the weight; the answer sits under it
+                      in the body colour so a long list still scans. */}
+                  <MarkdownBody className="text-base leading-6 font-semibold text-white">
+                    {item.question}
+                  </MarkdownBody>
+                  <MarkdownBody className="text-base leading-6 text-gray-300">
+                    {item.answer}
+                  </MarkdownBody>
+                </div>
+              ))}
+            </div>
+          )
+          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
       } else {
-        // `section` categories hold markdown, so the document renders it as
-        // markdown — that is what gives the design's bulleted lists.
+        // The remaining `section` categories hold markdown, so the document
+        // renders it as markdown.
         const content = rows[c.key]?.content as { body?: string; url?: string } | null | undefined;
         body = content?.body || content?.url
           ? (

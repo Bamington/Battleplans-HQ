@@ -44,6 +44,8 @@ import {
 } from '@battleplans/ui';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 import SectionForm from '../components/forms/SectionForm';
+import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
+import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
 
@@ -234,8 +236,8 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     storage: 'section',
     order: 30,
     icon: <Clipboard className="w-6 h-6" />,
-    isComplete: sectionFilled('what-to-bring', 'body'),
-    Form: SectionForm,
+    isComplete: ctx => readChecklist(ctx.rows['what-to-bring']?.content).some(i => i.text.trim()),
+    Form: ChecklistSectionForm,
     formHint: "What a player has to turn up with. Dice, tape, tokens, printed lists — the things people forget.",
     placeholder: "e.g. Dice, measuring tape, and something to score with.",
   },
@@ -294,8 +296,8 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     storage: 'section',
     order: 90,
     icon: <QuestionCircle className="w-6 h-6" />,
-    isComplete: sectionFilled('faq', 'body'),
-    Form: SectionForm,
+    isComplete: ctx => readFaq(ctx.rows['faq']?.content).some(i => i.question.trim()),
+    Form: FaqSectionForm,
     formHint: "The questions you answer over and over in the group chat. Write them here once.",
     placeholder: "e.g. Can I proxy? Yes, as long as it is clearly the right size.",
   },
