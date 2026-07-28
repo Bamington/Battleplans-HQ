@@ -85,9 +85,8 @@ const listClasses: Record<TabsVariant, string> = {
   underline: 'flex flex-wrap -mb-px text-sm font-medium text-center border-b border-gray-200 dark:border-gray-700',
   pills:     'flex flex-wrap gap-2 text-sm font-medium text-center',
   fullWidth: 'flex w-full divide-x divide-gray-200 dark:divide-gray-700 rounded-lg shadow-xs text-sm font-medium text-center overflow-hidden',
-  // The rounded corners live on the container so the first and last buttons
-  // pick them up without either needing to know where it sits in the row.
-  segmented: 'flex w-full h-10 rounded-lg overflow-hidden text-sm font-medium text-center',
+  // No rounding or clipping here — see the note on the button classes below.
+  segmented: 'flex w-full h-10 text-sm font-medium text-center',
 };
 
 /** Active tab button classes per variant */
@@ -126,6 +125,22 @@ const inactiveTabClasses: Record<TabsVariant, string> = {
 const DISABLED_TAB_CLASSES =
   'inline-flex items-center gap-2 p-4 text-gray-400 dark:text-gray-500 cursor-not-allowed';
 
+/**
+ * Rounding for the two ends of a segmented row.
+ *
+ * This lives on the buttons rather than on the container because the container
+ * would have to clip to round them, and clipping shaves the outlined buttons'
+ * 1px border off at the corners — the stroke stops short of where the curve is.
+ * Rounding the element the border is drawn on keeps the two in step.
+ */
+function segmentedEdge(index: number, count: number): string {
+  if (count === 1) return 'rounded-lg';
+  if (index === 0) return 'rounded-l-lg';
+  if (index === count - 1) return 'rounded-r-lg';
+  // Middle buttons overlap their neighbour's border so the shared edge stays 1px.
+  return '-ml-px';
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const Tabs = ({
@@ -160,15 +175,19 @@ const Tabs = ({
 
       {/* Tab list */}
       <div role="tablist" className={listClasses[variant]}>
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive   = tab.id === activeTab;
           const isDisabled = tab.disabled ?? false;
 
-          const buttonClasses = isDisabled
+          const baseClasses = isDisabled
             ? DISABLED_TAB_CLASSES
             : isActive
               ? activeTabClasses[variant]
               : inactiveTabClasses[variant];
+
+          const buttonClasses = variant === 'segmented'
+            ? `${baseClasses} ${segmentedEdge(index, tabs.length)}`
+            : baseClasses;
 
           return (
             <button

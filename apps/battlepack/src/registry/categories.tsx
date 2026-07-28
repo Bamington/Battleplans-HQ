@@ -151,6 +151,25 @@ export interface CategoryDefinition {
   formHint?: string;
   placeholder?: string;
   /**
+   * Heading the DOCUMENT uses, when it differs from the left nav's.
+   *
+   * "Event Basics" names the form you fill in; "About" names the paragraph it
+   * produces. The nav is a list of jobs and the document is a thing people
+   * read, so they do not always want the same word.
+   */
+  documentLabel?: string;
+  /**
+   * Sections sharing a row id sit side by side, stacking below md.
+   *
+   * Pairing is a property of the document's layout, not of either category, so
+   * it lives here rather than one of them knowing about the other. A row with
+   * only one visible member simply renders full width — which is what happens
+   * the moment the organiser removes its partner.
+   */
+  row?: string;
+  /** Show a URL field alongside the prose, stored as `content.url`. */
+  hasUrl?: boolean;
+  /**
    * Owns the rule for whether every REQUIRED FIELD in this category is filled.
    * Drives the COMPLETE badge in the left nav and gates publishing.
    */
@@ -186,6 +205,8 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     storage: 'core',
     order: 10,
     icon: <FileText className="w-6 h-6" />,
+    documentLabel: 'About',
+    row: 'overview',
     Form: EventBasicsForm,
     // The name is the only genuinely required field. The game is set at
     // creation and cannot be absent; location and description are optional.
@@ -198,7 +219,7 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     requirement: 'default',
     gameId: null,
     storage: 'core',
-    order: 20,
+    order: 40,
     icon: <Calendar className="w-6 h-6" />,
     // An end date is not required: most events are one day.
     isComplete: ({ pack }) => pack.starts_on != null,
@@ -206,12 +227,12 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   },
   {
     key: 'rounds-breaks',
-    label: 'Rounds & Breaks',
+    label: 'Schedule',
     tab: 'format',
     requirement: 'default',
     gameId: null,
     storage: 'schedule',
-    order: 30,
+    order: 50,
     icon: <ListCheck className="w-6 h-6" />,
     // Default rather than mandatory because a narrative or campaign event may
     // genuinely have no rounds — which is exactly why visibility has to live on
@@ -226,8 +247,9 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     requirement: 'default',
     gameId: null,
     storage: 'section',
-    order: 40,
+    order: 20,
     icon: <InfoCircle className="w-6 h-6" />,
+    row: 'overview',
     isComplete: sectionFilled('key-info', 'body'),
     Form: SectionForm,
     formHint: "The handful of facts an attendee checks before committing — where, when, what format.",
@@ -235,12 +257,12 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   },
   {
     key: 'what-to-bring',
-    label: "What You'll Need",
+    label: "What you'll need to play",
     tab: 'format',
     requirement: 'optional',
     gameId: null,
     storage: 'section',
-    order: 50,
+    order: 30,
     icon: <Clipboard className="w-6 h-6" />,
     isComplete: sectionFilled('what-to-bring', 'body'),
     Form: SectionForm,
@@ -250,12 +272,14 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   {
     key: 'registration',
     label: 'Registration',
-    tab: 'registration',
-    requirement: 'default',
+    tab: 'format',
+    requirement: 'optional',
     gameId: null,
     storage: 'section',
-    order: 60,
+    order: 70,
     icon: <UserPlusRounded className="w-6 h-6" />,
+    row: 'signup',
+    hasUrl: true,
     isComplete: sectionFilled('registration', 'body'),
     Form: SectionForm,
     formHint: "How to sign up, and by when. Link out if registration happens somewhere else.",
@@ -264,12 +288,14 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   {
     key: 'tickets',
     label: 'Tickets',
-    tab: 'registration',
+    tab: 'format',
     requirement: 'optional',
     gameId: null,
     storage: 'section',
-    order: 70,
+    order: 60,
     icon: <Bookmark className="w-6 h-6" />,
+    row: 'signup',
+    hasUrl: true,
     isComplete: sectionFilled('tickets', 'body'),
     Form: SectionForm,
     formHint: "Price, where to buy, and any refund or transfer rules.",

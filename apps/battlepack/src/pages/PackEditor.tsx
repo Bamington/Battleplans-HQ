@@ -26,7 +26,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR, MarkdownBody,
   GAME_BANNERS, GAME_ICONS,
-  AddCircle, Calendar, ListCheck, MapPin, Pen2, Play, Rocket,
+  AddCircle, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
@@ -241,10 +241,38 @@ export default function PackEditor() {
   const activeDefinition = activeKey ? CATEGORY_BY_KEY[activeKey] : undefined;
 
   // ── Document ───────────────────────────────────────────────────────────────
-  const sectionsFor = (tab: CategoryTab) =>
-    categories.filter(c => c.tab === tab).map(c => {
+
+  /** What one category contributes to the document. */
+  const bodyFor = (c: typeof categories[number]) => {
       let body;
-      if (c.key === 'event-timeline') {
+      if (c.key === 'key-info') {
+        // The container the design puts under this heading. The venue and the
+        // dates are derived — the pack already knows them, and making the
+        // organiser retype them here would be a second place to get them wrong —
+        // and anything they add themselves follows underneath.
+        const starts = formatDate(pack.starts_on);
+        const ends   = formatDate(pack.ends_on);
+        const authored = (rows['key-info']?.content as { body?: string } | null | undefined)?.body;
+
+        const infoRows = [
+          ...(venue ? [{
+            icon: <MapPin className="w-4 h-4" />,
+            text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}`,
+          }] : []),
+          ...(starts ? [{
+            icon: <Calendar className="w-4 h-4" />,
+            text: ends ? `${starts} – ${ends}` : starts,
+          }] : []),
+          ...(authored ? [{
+            icon: <InfoCircle className="w-4 h-4" />,
+            text: <MarkdownBody className="text-base leading-6 text-gray-50">{authored}</MarkdownBody>,
+          }] : []),
+        ];
+
+        body = infoRows.length
+          ? <KeyInfoCard rows={infoRows} />
+          : <EmptySection hint="No venue, dates or format details yet." />;
+      } else if (c.key === 'event-timeline') {
         const starts = formatDate(pack.starts_on);
         const ends   = formatDate(pack.ends_on);
         body = starts
@@ -263,36 +291,74 @@ export default function PackEditor() {
             }))} />
           : <EmptySection hint="No rounds or breaks yet." />;
       } else if (c.key === 'event-basics') {
-        // Venue lives here rather than under Event Timeline because it is an
-        // Event Basics field — the dates are the timeline's business.
-        body = (
-          <>
-            {pack.description
-              ? <p className="whitespace-pre-wrap">{pack.description}</p>
-              : <EmptySection hint="No description yet." />}
-            {venue && (
-              <KeyInfoCard rows={[{
-                icon: <MapPin className="w-4 h-4" />,
-                text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}`,
-              }]} />
-            )}
-          </>
-        );
+        // The venue moved into Key Info, where the design shows it. This is
+        // just the blurb now, which is why the document calls it About.
+        body = pack.description
+          ? <p className="whitespace-pre-wrap">{pack.description}</p>
+          : <EmptySection hint="No description yet." />;
       } else {
         // `section` categories hold markdown, so the document renders it as
         // markdown — that is what gives the design's bulleted lists.
-        const content = rows[c.key]?.content as { body?: string } | null | undefined;
-        body = content?.body
-          ? <MarkdownBody className="text-base leading-6 text-gray-300">{content.body}</MarkdownBody>
+        const content = rows[c.key]?.content as { body?: string; url?: string } | null | undefined;
+        body = content?.body || content?.url
+          ? (
+            <>
+              {content.body && (
+                <MarkdownBody className="text-base leading-6 text-gray-300">{content.body}</MarkdownBody>
+              )}
+              {content.url && (
+                <a
+                  href={content.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 font-body text-base text-primary-400 hover:underline break-all"
+                >
+                  {content.url}
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </a>
+              )}
+            </>
+          )
           : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
       }
+      return body;
+  };
 
-      return (
-        <DocumentSection key={c.key} categoryKey={c.key} title={c.label} active={c.key === activeKey}>
-          {body}
-        </DocumentSection>
-      );
-    });
+  /**
+   * The tab's sections, with paired ones sharing a row.
+   *
+   * Grouping is done on the VISIBLE categories, so removing one half of a pair
+   * leaves the other full width rather than half a row with a hole beside it.
+   */
+  const sectionsFor = (tab: CategoryTab) => {
+    const inTab = categories.filter(c => c.tab === tab);
+
+    const groups: (typeof categories)[] = [];
+    for (const c of inTab) {
+      const previous = groups[groups.length - 1];
+      if (c.row && previous?.[0].row === c.row) previous.push(c);
+      else groups.push([c]);
+    }
+
+    return groups.map(group => (
+      <div
+        key={group.map(c => c.key).join('+')}
+        className={group.length > 1 ? 'flex flex-col md:flex-row gap-10 md:gap-6' : ''}
+      >
+        {group.map(c => (
+          <div key={c.key} className={group.length > 1 ? 'flex-1 min-w-0' : ''}>
+            <DocumentSection
+              categoryKey={c.key}
+              title={c.documentLabel ?? c.label}
+              active={c.key === activeKey}
+            >
+              {bodyFor(c)}
+            </DocumentSection>
+          </div>
+        ))}
+      </div>
+    ));
+  };
 
   return (
     <BuilderShell

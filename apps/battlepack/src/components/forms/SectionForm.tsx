@@ -24,7 +24,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { HR, RichTextEditor } from '@battleplans/ui';
+import { HR, Input, RichTextEditor } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { CATEGORY_BY_KEY } from '../../registry/categories';
 import { saveCategoryContent } from '../../lib/packs';
@@ -41,27 +41,36 @@ const SectionForm = ({
   pack, rows, categoryKey, reload, save: saveFn = saveCategoryContent,
 }: CategoryFormProps & { save?: SaveSection }) => {
   const definition = CATEGORY_BY_KEY[categoryKey];
-  const stored = (rows[categoryKey]?.content as { body?: string } | null | undefined)?.body ?? '';
+  const content = rows[categoryKey]?.content as { body?: string; url?: string } | null | undefined;
+  const stored    = content?.body ?? '';
+  const storedUrl = content?.url ?? '';
 
   const [body, setBody]   = useState(stored);
+  const [url,  setUrl]    = useState(storedUrl);
   const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
 
   // Refs so the unmount flush sees the latest value without re-subscribing.
-  const latest = useRef(body);
-  const dirty  = useRef(false);
+  const latest    = useRef(body);
+  const latestUrl = useRef(url);
+  const dirty     = useRef(false);
 
   // Re-sync when the editor switches to a different category, or the row is
   // refetched. Guarded on `dirty` so a reload mid-edit cannot clobber typing.
   useEffect(() => {
     if (dirty.current) return;
     setBody(stored);
-    latest.current = stored;
-  }, [stored, categoryKey]);
+    setUrl(storedUrl);
+    latest.current    = stored;
+    latestUrl.current = storedUrl;
+  }, [stored, storedUrl, categoryKey]);
 
-  async function save(next: string) {
+  const toContent = (b: string, u: string) =>
+    (b.trim() || u.trim()) ? { body: b, url: u.trim() || undefined } : null;
+
+  async function save(next: string, nextUrl: string) {
     setState('saving');
     try {
-      await saveFn(pack.id, categoryKey, next.trim() ? { body: next } : null);
+      await saveFn(pack.id, categoryKey, toContent(next, nextUrl));
       dirty.current = false;
       setState('idle');
       await reload();
@@ -76,19 +85,25 @@ const SectionForm = ({
     setBody(next);
   };
 
+  const onUrlChange = (next: string) => {
+    dirty.current = true;
+    latestUrl.current = next;
+    setUrl(next);
+  };
+
   // Debounced write.
   useEffect(() => {
     if (!dirty.current) return;
-    const timer = setTimeout(() => { void save(latest.current); }, SAVE_DELAY_MS);
+    const timer = setTimeout(() => { void save(latest.current, latestUrl.current); }, SAVE_DELAY_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [body]);
+  }, [body, url]);
 
   // Flush on the way out — switching category unmounts this before the debounce
   // would have fired, and losing a sentence to that would be indefensible.
   useEffect(() => () => {
     if (dirty.current) void saveFn(
-      pack.id, categoryKey, latest.current.trim() ? { body: latest.current } : null,
+      pack.id, categoryKey, toContent(latest.current, latestUrl.current),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -114,6 +129,21 @@ const SectionForm = ({
         onChange={onChange}
         placeholder={definition?.placeholder ?? 'Write this section…'}
       />
+
+      {/* Tickets and Registration both send people somewhere else, so the link
+          is its own field rather than something to remember to paste into the
+          prose — the document can then render it as a proper link. */}
+      {definition?.hasUrl && (
+        <Input
+          label="Link"
+          type="url"
+          inputMode="url"
+          placeholder="https://…"
+          helperText="Optional. Shown under this section as a link."
+          value={url}
+          onChange={e => onUrlChange(e.target.value)}
+        />
+      )}
     </div>
   );
 };
