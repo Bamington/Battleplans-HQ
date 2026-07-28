@@ -53,7 +53,9 @@ export const PackHero = ({ name, gameName, gameIcon, gameImage, gameLogo, subtit
       </div>
     )}
 
-    <div className="relative px-5 pt-5 flex flex-col items-center gap-1">
+    {/* pb-6 keeps the game line clear of whatever follows — in the editor that
+        is the tab selector, which sat right against it otherwise. */}
+    <div className="relative px-5 pt-5 pb-6 flex flex-col items-center gap-1">
       {menu && <div className="absolute right-5 top-5 text-gray-400 opacity-50">{menu}</div>}
 
       <h1 className="font-heading text-5xl leading-[56px] text-white text-center">{name}</h1>

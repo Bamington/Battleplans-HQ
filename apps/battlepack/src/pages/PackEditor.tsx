@@ -390,8 +390,10 @@ export default function PackEditor() {
                   id: t.id,
                   label: t.label,
                   icon: t.icon,
+                  // gap-10: sections are long-form prose and tables, so they
+                  // need more air between them than a list would.
                   content: (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-10">
                       {sectionsFor(t.id).length
                         ? sectionsFor(t.id)
                         : <EmptySection hint="No categories under this tab yet." />}
