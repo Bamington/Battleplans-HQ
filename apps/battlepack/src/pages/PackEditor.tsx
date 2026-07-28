@@ -32,7 +32,7 @@ import {
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
 import {
-  PackHero, DocumentSection, EmptySection, KeyInfoCard, ScheduleTable,
+  PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, ScheduleTable,
   DocumentMenuIcon, sectionId,
 } from '../components/PackDocument';
 import {
@@ -342,24 +342,25 @@ export default function PackEditor() {
       else groups.push([c]);
     }
 
-    return groups.map(group => (
-      <div
-        key={group.map(c => c.key).join('+')}
-        className={group.length > 1 ? 'flex flex-col md:flex-row gap-10 md:gap-6' : ''}
-      >
-        {group.map(c => (
-          <div key={c.key} className={group.length > 1 ? 'flex-1 min-w-0' : ''}>
-            <DocumentSection
-              categoryKey={c.key}
-              title={c.documentLabel ?? c.label}
-              active={c.key === activeKey}
-            >
-              {bodyFor(c)}
-            </DocumentSection>
-          </div>
-        ))}
-      </div>
-    ));
+    return groups.map(group => {
+      const sections = group.map(c => (
+        <div key={c.key} className={group.length > 1 ? 'flex-1 min-w-0' : ''}>
+          <DocumentSection
+            categoryKey={c.key}
+            title={c.documentLabel ?? c.label}
+            active={c.key === activeKey}
+          >
+            {bodyFor(c)}
+          </DocumentSection>
+        </div>
+      ));
+
+      // A lone section needs no row wrapper, and giving it one would have
+      // DocumentRow measuring a pair that does not exist.
+      if (group.length === 1) return <div key={group[0].key}>{sections}</div>;
+
+      return <DocumentRow key={group.map(c => c.key).join('+')}>{sections}</DocumentRow>;
+    });
   };
 
   return (

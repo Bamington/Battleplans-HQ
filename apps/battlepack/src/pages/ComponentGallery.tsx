@@ -56,7 +56,7 @@ import PublishPanel from '../components/PublishPanel';
 import CategoryListItem from '../components/CategoryListItem';
 import BattlepackListItem from '../components/BattlepackListItem';
 import {
-  PackHero, DocumentSection, EmptySection, KeyInfoCard, ScheduleTable,
+  PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, ScheduleTable,
 } from '../components/PackDocument';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
@@ -73,6 +73,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-navbar',              label: 'Navbar',               icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-category-list-item',  label: 'Category List Item',   icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-battlepack-list-item', label: 'Battlepack List Item', icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-document-row',        label: 'Paired Rows',          icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-pack-document',       label: 'Pack Document',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-event-basics-form',   label: 'Event Basics Form',    icon: <FileText className="w-5 h-5" /> },
   { href: '#nav-rounds-breaks-form',  label: 'Rounds & Breaks Form', icon: <ListCheck className="w-5 h-5" /> },
@@ -485,6 +486,61 @@ const PublishPanelDemo = () => {
   );
 };
 
+/**
+ * Two paired sections whose balance can be changed on the spot, so the rule
+ * that abandons the pair is watchable rather than described.
+ */
+const DocumentRowDemo = () => {
+  const SHORT = 'Join us at The Gaming Arena for a one-day tournament.';
+  const LONG  = Array.from({ length: 8 }, (_, i) =>
+    `Paragraph ${i + 1}. This is the sort of length an organiser actually writes when they are excited about their event, and it is exactly what leaves a column of nothing beside a three-row Key Info card.`,
+  ).join('\n\n');
+
+  const [long, setLong] = useState(false);
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <Button size="sm" variant="outline" color="secondary" onClick={() => setLong(v => !v)}>
+        {long ? 'Shorten the About section' : 'Lengthen the About section'}
+      </Button>
+
+      <div className="w-full bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <DocumentRow>
+          <div className="flex-1 min-w-0">
+            <DocumentSection categoryKey="demo-row-about" title="About">
+              <MarkdownBody className="text-base leading-6 text-gray-300">
+                {long ? LONG : SHORT}
+              </MarkdownBody>
+            </DocumentSection>
+          </div>
+          <div className="flex-1 min-w-0">
+            <DocumentSection categoryKey="demo-row-key" title="Key Info">
+              <KeyInfoCard
+                rows={[
+                  { icon: <MapPin className="w-4 h-4" />,   text: '2/86 Cottrell Street, Werribee, VIC' },
+                  { icon: <Calendar className="w-4 h-4" />, text: 'Saturday, 13/06/26' },
+                ]}
+              />
+            </DocumentSection>
+          </div>
+        </DocumentRow>
+      </div>
+
+      <GalleryNote>
+        Side by side reads well when the halves are comparable, and badly when
+        one is six lines taller than the other — that is a column of nothing, not
+        breathing room. Past that threshold the row gives up on the pair and both
+        take the full width. The awkward part is not measuring but not
+        oscillating: stacking makes the tall side wider and so shorter, which
+        would satisfy the opposite condition forever. The decision is therefore
+        only ever taken from a paired measurement, and the row returns to paired
+        before re-measuring. Resize the window to watch it re-decide; it ignores
+        its own height changes on purpose.
+      </GalleryNote>
+    </div>
+  );
+};
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
@@ -557,6 +613,10 @@ const ComponentGallery = () => {
           been withdrawn — an unpublished pack keeps its URL, which serves a
           tombstone rather than a 404.
         </GalleryNote>
+      </GallerySection>
+
+      <GallerySection id="nav-document-row" title="Pack Document / Paired Rows">
+        <DocumentRowDemo />
       </GallerySection>
 
       <GallerySection id="nav-pack-document" title="Pack Document">

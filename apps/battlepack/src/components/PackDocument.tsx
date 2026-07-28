@@ -14,6 +14,7 @@
  * re-scrolls).
  */
 
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { HR, MenuDots, Text } from '@battleplans/ui';
 
@@ -71,6 +72,102 @@ export const PackHero = ({ name, gameName, gameIcon, gameImage, gameLogo, subtit
     </div>
   </header>
 );
+
+// ── Row ──────────────────────────────────────────────────────────────────────
+
+/**
+ * How much taller one half may be before the pair is abandoned, in pixels.
+ * Roughly six lines of body copy — enough that the short side is clearly
+ * leaving a hole rather than just being a little uneven.
+ */
+const IMBALANCE_LIMIT_PX = 160;
+
+export interface DocumentRowProps {
+  /** One section, or two that want to sit side by side. */
+  children: ReactNode;
+}
+
+/**
+ * A row of one or two sections, which gives up on the pair when the two are
+ * wildly different heights.
+ *
+ * Side by side reads well when the halves are comparable. A long About beside a
+ * three-row Key Info leaves a column of nothing, and the pack looks broken
+ * rather than airy — so past a threshold the row stacks and both take the full
+ * width instead.
+ *
+ * THE HARD PART IS NOT MEASURING, IT IS NOT OSCILLATING. Stacking makes the tall
+ * side wider and therefore shorter, which would satisfy the un-stack condition,
+ * which would make it tall again. So the decision is only ever taken from a
+ * PAIRED measurement: any time the inputs change the row returns to paired,
+ * measures once, and then decides. It never measures its own stacked state.
+ *
+ * The two things that count as inputs are the row's WIDTH — height is ignored,
+ * precisely because stacking changes it — and the content, watched for text and
+ * child changes but not attribute changes, since the stack toggle is itself a
+ * className change and would otherwise re-trigger the very cycle it ended.
+ */
+export const DocumentRow = ({ children }: DocumentRowProps) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [stacked, setStacked] = useState(false);
+  // Bumped when something that could change the balance changes.
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    let lastWidth = el.getBoundingClientRect().width;
+    const resize = new ResizeObserver(entries => {
+      const width = entries[0].contentRect.width;
+      // Width only. Reacting to height would close the loop this exists to keep open.
+      if (Math.abs(width - lastWidth) < 1) return;
+      lastWidth = width;
+      setRevision(r => r + 1);
+    });
+    resize.observe(el);
+
+    // Text and children, never attributes — the stack toggle is a class change.
+    const mutate = new MutationObserver(() => setRevision(r => r + 1));
+    mutate.observe(el, { childList: true, characterData: true, subtree: true });
+
+    return () => { resize.disconnect(); mutate.disconnect(); };
+  }, []);
+
+  // Step one: whatever changed, go back to paired so the next measurement is
+  // taken from a layout we are willing to trust.
+  useLayoutEffect(() => { setStacked(false); }, [revision]);
+
+  // Step two: measure that paired layout, once, and decide.
+  useLayoutEffect(() => {
+    if (stacked) return;
+    const el = ref.current;
+    if (!el) return;
+
+    const halves = Array.from(el.children) as HTMLElement[];
+    if (halves.length < 2) return;
+
+    // Below md the CSS has already stacked them, and their heights say nothing
+    // about how a pair would look. Same offsetTop means genuinely side by side.
+    const sideBySide = halves.every(h => Math.abs(h.offsetTop - halves[0].offsetTop) < 2);
+    if (!sideBySide) return;
+
+    // The halves are flex children, so they stretch to the row and BOTH report
+    // its full height — measuring them says every pair is perfectly balanced.
+    // The section inside each one is what actually has a height of its own.
+    const heights = halves.map(h => (h.firstElementChild as HTMLElement | null)?.offsetHeight ?? h.offsetHeight);
+    if (Math.max(...heights) - Math.min(...heights) > IMBALANCE_LIMIT_PX) setStacked(true);
+  }, [stacked, revision]);
+
+  return (
+    <div
+      ref={ref}
+      className={stacked ? 'flex flex-col gap-10' : 'flex flex-col md:flex-row gap-10 md:gap-6'}
+    >
+      {children}
+    </div>
+  );
+};
 
 // ── Section ──────────────────────────────────────────────────────────────────
 
