@@ -15,8 +15,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AppFooter, Button, Input, ScrollColumn, Select,
-  AddCircle, GAME_ICONS, Magnifer, Shield,
+  AppFooter, Button, Input, ScrollColumn, Select, StoreSelector, useAdminLocations,
+  supabase, AddCircle, GAME_ICONS, Magnifer, Shield,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import BattlepackListItem from '../components/BattlepackListItem';
@@ -48,6 +48,22 @@ export default function HomePage() {
   const [search,  setSearch]  = useState('');
   const [creating, setCreating] = useState(false);
 
+  // Store-admin status lives in locations.admins rather than on the profile, so
+  // it has to be looked up against the signed-in user.
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  const { locations: myStores } = useAdminLocations(userId);
+
+  // Which store they are acting as. It defaults to their first once known —
+  // there is no personal view here, because every pack belongs to a store.
+  const [storeId, setStoreId] = useState('');
+  useEffect(() => {
+    if (!storeId && myStores.length) setStoreId(myStores[0].id);
+  }, [myStores, storeId]);
+
   useEffect(() => {
     listPacks()
       .then(setPacks)
@@ -68,8 +84,10 @@ export default function HomePage() {
         if (!end) return filter === 'upcoming';
         return filter === 'upcoming' ? end >= now : end < now;
       })
+      // Scoped to the store being acted as, the way BattlePlan's store view is.
+      .filter(p => !storeId || p.location_id === storeId)
       .filter(p => !q || p.name.toLowerCase().includes(q) || (p.game_name ?? '').toLowerCase().includes(q));
-  }, [packs, filter, search]);
+  }, [packs, filter, search, storeId]);
 
   return (
     // Same frame as the other apps' home screens: a fixed-height page that owns
@@ -82,7 +100,18 @@ export default function HomePage() {
     // this frame was duplicated from, and following it would leave a blue-tinted
     // page behind an untinted column.
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
-      <AppNavbar fixed={false} />
+      <AppNavbar fixed={false}>
+        {/* Which store they are acting as. A single-store admin gets a label
+            rather than a picker — there is nothing to choose between. */}
+        {myStores.length > 0 && (
+          <StoreSelector
+            locations={myStores}
+            selectedId={storeId}
+            onSelect={setStoreId}
+            headerLabel="Acting as"
+          />
+        )}
+      </AppNavbar>
 
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         {/* Below lg the columns scroll horizontally and snap, so a second column
@@ -99,7 +128,7 @@ export default function HomePage() {
             empty={
               error ??
               (packs.length === 0
-                ? 'No packs yet. Start one with the button below.'
+                ? 'No packs at this store yet. Start one with the button below.'
                 : 'Nothing matches that filter.')
             }
             beforeList={
@@ -149,6 +178,8 @@ export default function HomePage() {
       <NewPackModal
         open={creating}
         onClose={() => setCreating(false)}
+        stores={myStores}
+        defaultStoreId={storeId}
         onCreated={id => navigate(`/app/${id}/edit`)}
       />
     </div>

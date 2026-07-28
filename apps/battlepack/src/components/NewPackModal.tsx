@@ -24,7 +24,7 @@ import {
   ArrowRight, ArrowLeft, Calendar, CloseCircle,
 } from '@battleplans/ui';
 import {
-  buildSchedule, createPack, insertSchedule, listGames, listLocations, listPacks,
+  buildSchedule, createPack, insertSchedule, listGames, listPacks,
   recentIdsFrom, updatePack,
 } from '../lib/packs';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
@@ -33,6 +33,10 @@ import type { GameOption, LocationOption } from '../lib/packs';
 export interface NewPackModalProps {
   open: boolean;
   onClose: () => void;
+  /** The venues this user administers — the only ones a pack may belong to. */
+  stores: LocationOption[];
+  /** The store being acted as, pre-selected so the common case is one less pick. */
+  defaultStoreId?: string;
   /** Fires with the new pack's id once it exists. */
   onCreated: (packId: string) => void;
 }
@@ -49,11 +53,10 @@ const TIMELINES = [
   { id: 'league',    title: 'League',               description: 'Rounds happen across many days.',            enabled: false },
 ];
 
-const NewPackModal = ({ open, onClose, onCreated }: NewPackModalProps) => {
+const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewPackModalProps) => {
   const [step, setStep] = useState(1);
 
   const [games,  setGames]  = useState<GameOption[]>([]);
-  const [venues, setVenues] = useState<LocationOption[]>([]);
   const [recent, setRecent] = useState<{ games: string[]; venues: string[] }>({ games: [], venues: [] });
 
   // Step 1
@@ -77,25 +80,31 @@ const NewPackModal = ({ open, onClose, onCreated }: NewPackModalProps) => {
   useEffect(() => {
     if (!open) return;
     setStep(1);
-    setName(''); setGameId(''); setLocationId(''); setDescription('');
+    setName(''); setGameId(''); setDescription('');
+    // Pre-select the store being acted as, or the only one they have.
+    setLocationId(defaultStoreId || (stores.length === 1 ? stores[0].id : ''));
     setTimeline('one-day'); setStartDate(''); setStartTime('10:00');
     setRounds(3); setRoundMinutes(120); setBreakMinutes(10);
     setError(null);
 
-    Promise.all([listGames(), listLocations(), listPacks()])
-      .then(([g, l, packs]) => { setGames(g); setVenues(l); setRecent(recentIdsFrom(packs)); })
-      .catch(e => setError(e instanceof Error ? e.message : 'Could not load games and venues.'));
+    Promise.all([listGames(), listPacks()])
+      .then(([g, packs]) => { setGames(g); setRecent(recentIdsFrom(packs)); })
+      .catch(e => setError(e instanceof Error ? e.message : 'Could not load games.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const gameOpts  = useMemo(() => gameOptions(games, recent.games),    [games, recent.games]);
-  const venueOpts = useMemo(() => venueOptions(venues, recent.venues), [venues, recent.venues]);
+  const venueOpts = useMemo(() => venueOptions(stores, recent.venues), [stores, recent.venues]);
 
   const preview = useMemo(
     () => buildSchedule({ rounds, roundMinutes, breakMinutes, startsAt: startTime }),
     [rounds, roundMinutes, breakMinutes, startTime],
   );
 
-  const step1Valid = name.trim().length > 0 && gameId !== '';
+  // Location is required: a pack belongs to the store running it, and only
+  // that store's admins can edit it, so one without a venue would be a pack
+  // nobody could reach.
+  const step1Valid = name.trim().length > 0 && gameId !== '' && locationId !== '';
 
   /**
    * Create the pack, and the generated day unless it was skipped.
@@ -178,12 +187,16 @@ const NewPackModal = ({ open, onClose, onCreated }: NewPackModalProps) => {
 
             <SearchSelect
               label="Location"
+              required
               placeholder="Choose a location"
               searchPlaceholder="Search venues…"
               emptyLabel="No venues match that."
               value={locationId}
               onChange={setLocationId}
+              /* Only stores this user administers — anything else would be an
+                 option the database refuses. */
               options={venueOpts}
+              helperText="Only the stores you administer. Every admin of this store will be able to edit the pack."
             />
 
             {/* The same field as Event Basics, so it is the same editor and the

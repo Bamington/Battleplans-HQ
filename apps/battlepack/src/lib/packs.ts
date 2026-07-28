@@ -91,12 +91,25 @@ export interface LocationOption {
   id: string;
   name: string;
   address: string | null;
+  icon?: string | null;
 }
 
-export async function listLocations(): Promise<LocationOption[]> {
+/**
+ * The venues the signed-in user administers — never the whole catalogue.
+ *
+ * A pack belongs to the store running it, and only that store's admins can
+ * create or edit one, so offering any other venue would be offering something
+ * the database will refuse. The row-level policy is the real gate; this just
+ * stops the picker suggesting a dead end.
+ */
+export async function listMyLocations(): Promise<LocationOption[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+
   const { data, error } = await supabase
     .from('locations')
-    .select('id, name, address')
+    .select('id, name, address, icon')
+    .contains('admins', [auth.user.id])
     .order('name');
   if (error) throw error;
   return (data ?? []) as LocationOption[];

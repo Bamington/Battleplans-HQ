@@ -26,6 +26,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, Callout, HR, MarkdownBody,
   GAME_BANNERS, GAME_ICONS,
+  StoreSelector,
   AddCircle, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -40,7 +41,7 @@ import {
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
-  listGames, listLocations, publishPack, unpublishPack,
+  listGames, listMyLocations, publishPack, unpublishPack,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import PublishPanel from '../components/PublishPanel';
@@ -106,7 +107,7 @@ export default function PackEditor() {
       try {
         const [p, r, s, g, l] = await Promise.all([
           getPack(packId), getCategoryRows(packId), getSchedule(packId),
-          listGames(), listLocations(),
+          listGames(), listMyLocations(),
         ]);
         if (cancelled) return;
         if (!p) { setError('That pack does not exist, or you cannot open it.'); return; }
@@ -363,7 +364,14 @@ export default function PackEditor() {
 
   return (
     <BuilderShell
-      navbar={<AppNavbar fixed={false} />}
+      navbar={
+        <AppNavbar fixed={false}>
+          {/* The pack's own store, not a picker — a pack cannot be moved
+              between venues, since that would hand it to a different set of
+              admins. */}
+          {venue && <StoreSelector locations={[venue]} selectedId={venue.id} onSelect={() => {}} />}
+        </AppNavbar>
+      }
       topBar={
         <div className="lg:hidden shrink-0 px-3 py-2 flex gap-2 bg-gray-900 border-b border-gray-700">
           <Button size="sm" variant="outline" onClick={() => { setLeftOpen(o => !o); setRightOpen(false); }}>
