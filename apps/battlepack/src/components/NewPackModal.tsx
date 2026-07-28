@@ -63,6 +63,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [name,        setName]        = useState('');
   const [gameId,      setGameId]      = useState('');
   const [locationId,  setLocationId]  = useState('');
+  const [format,      setFormat]      = useState('');
   const [description, setDescription] = useState('');
 
   // Step 2 — defaults are the design's, and are what most one-day events run.
@@ -80,7 +81,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   useEffect(() => {
     if (!open) return;
     setStep(1);
-    setName(''); setGameId(''); setDescription('');
+    setName(''); setGameId(''); setDescription(''); setFormat('');
     // Pre-select the store being acted as, or the only one they have.
     setLocationId(defaultStoreId || (stores.length === 1 ? stores[0].id : ''));
     setTimeline('one-day'); setStartDate(''); setStartTime('10:00');
@@ -125,7 +126,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     setSaving(true);
     setError(null);
     try {
-      const pack = await createPack({ name, gameId, locationId, description });
+      const pack = await createPack({ name, gameId, locationId, description, format });
 
       if (startDate || startTime) {
         await updatePack(pack.id, {
@@ -209,6 +210,17 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                  option the database refuses. */
               options={venueOpts}
               helperText="Only the stores you administer. Every admin of this store will be able to edit the pack."
+            />
+
+            {/* Sits with the other facts rather than after the blurb: it is the
+                same kind of answer as the game and the venue, and Key Info shows
+                all three together. */}
+            <Input
+              label="Format"
+              placeholder="e.g. 2000 Points, Matched Play"
+              helperText="Shown beside the game, and in Key Info."
+              value={format}
+              onChange={e => setFormat(e.target.value)}
             />
 
             {/* The same field as Event Basics, so it is the same editor and the

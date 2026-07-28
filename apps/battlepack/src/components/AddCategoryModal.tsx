@@ -12,12 +12,13 @@
  * forgotten writing. So a category that still holds content says so, and this
  * is the only place that difference is visible.
  *
- * Composed from Sheet, Badge and Button: a bottom sheet on a phone and a
- * centred dialog on a desktop, which is what the picker wants on both.
+ * Framed like the create flow — Modal, p-5, gap-4, Tanker heading, ghost/danger
+ * Cancel — so the two dialogs in this app do not need two sets of habits. The
+ * tiles inside are the picker's own.
  */
 
 import { useState } from 'react';
-import { Sheet, Badge, Button, Callout } from '@battleplans/ui';
+import { Modal, Badge, Button, Callout, CloseCircle } from '@battleplans/ui';
 import { addableCategories } from '../registry/categories';
 import type { CategoryDefinition } from '../registry/categories';
 import type { PackCategoryRow } from '../lib/packs';
@@ -58,10 +59,14 @@ const AddCategoryModal = ({ open, onClose, gameId, rows, onAdd }: AddCategoryMod
   }
 
   return (
-    <Sheet open={open} onClose={onClose} className="max-w-md">
-      <div className="flex flex-col gap-3">
+    // Same chrome as the create flow: a Modal at max-w-md, p-5, gap-4, a Tanker
+    // heading, and a ghost/danger Cancel in the CTA cluster. Two dialogs in one
+    // app should not need two sets of habits.
+    <Modal open={open} onClose={busy ? () => {} : onClose} className="max-w-md">
+      <div className="flex flex-col gap-4 p-5">
+
         <div className="flex flex-col gap-1">
-          <h2 className="font-heading text-xl text-white">Add a Category</h2>
+          <h2 className="font-heading text-xl leading-7 text-white">Add a Category</h2>
           <p className="font-body text-sm text-gray-400">
             Every category is a section of the pack, an entry in the list on the
             left, and a form on the right.
@@ -71,10 +76,11 @@ const AddCategoryModal = ({ open, onClose, gameId, rows, onAdd }: AddCategoryMod
         {error && <Callout flavour="bad" onDismiss={() => setError(null)}>{error}</Callout>}
 
         {options.length === 0 ? (
-          <p className="font-body text-sm text-gray-500 py-2">
+          <p className="font-body text-sm text-gray-500">
             This pack already shows every category available for its game.
           </p>
         ) : (
+          /* The tiles themselves are unchanged — only the frame around them. */
           <div className="flex flex-col gap-1.5">
             {options.map(({ category, hasContent }) => (
               <button
@@ -109,11 +115,19 @@ const AddCategoryModal = ({ open, onClose, gameId, rows, onAdd }: AddCategoryMod
           </div>
         )}
 
-        <Button variant="outline" color="secondary" className="w-full" onClick={onClose} disabled={busy !== null}>
-          Done
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            color="danger"
+            leftIcon={<CloseCircle className="w-4 h-4" />}
+            onClick={onClose}
+            disabled={busy !== null}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
-    </Sheet>
+    </Modal>
   );
 };
 

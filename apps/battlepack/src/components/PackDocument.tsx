@@ -218,7 +218,7 @@ export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
   <div className="w-full flex flex-col rounded-xl overflow-hidden">
     {rows.map((row, i) => (
       <div key={i} className="w-full flex items-center gap-2 bg-gray-900 px-4 py-3">
-        <span className="shrink-0 text-gray-50">{row.icon}</span>
+        <span className="shrink-0 text-primary-500">{row.icon}</span>
         <p className="flex-1 min-w-0 font-body font-medium text-base leading-6 text-gray-50">
           {row.text}
         </p>
@@ -241,21 +241,31 @@ export interface ScheduleRow {
 /**
  * Rounds & Breaks as the document renders it.
  *
- * Rows are flush inside one rounded, clipped container. The background carries
- * the kind rather than alternating by position — rounds sit on gray-900 and
- * breaks drop back to gray-950 — so the playing parts of the day stand
- * forward and the gaps recede, however they happen to be ordered.
+ * Rows are flush inside one rounded, clipped container, and the background
+ * carries the KIND rather than alternating by position — so the playing parts
+ * of the day stand forward and the gaps recede however they are ordered.
+ *
+ * Rounds sit on gray-800 and breaks drop one step to gray-900. The earlier
+ * pairing was gray-900 against gray-950, which is nominally also one step but
+ * is a much bigger jump in practice — #111827 to #030712 reads as a hole in the
+ * table rather than a quieter row. The container keeps its own border so the
+ * table still reads as a table against the card, which is also gray-800.
+ *
+ * Round labels are white, not the accent. Green is what every button and link
+ * in the app uses, and a green row invites a click that does nothing here.
  */
 export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
-  <div className="w-full flex flex-col rounded-xl overflow-hidden">
+  <div className="w-full flex flex-col rounded-xl overflow-hidden border border-gray-700">
     {rows.map(row => {
       const isRound = row.kind === 'round';
       return (
         <div
           key={row.ordinal}
-          className={`w-full flex items-center gap-2 px-4 py-3 ${isRound ? 'bg-gray-900' : 'bg-gray-950'}`}
+          className={`w-full flex items-center gap-2 px-4 py-3 ${isRound ? 'bg-gray-800' : 'bg-gray-900'}`}
         >
-          {row.icon && <span className="shrink-0 text-gray-50">{row.icon}</span>}
+          {row.icon && (
+            <span className={`shrink-0 ${isRound ? 'text-gray-300' : 'text-gray-500'}`}>{row.icon}</span>
+          )}
 
           <span className="shrink-0 w-6 text-center font-body font-bold text-base leading-6 text-gray-500 tabular-nums">
             {String(row.ordinal).padStart(2, '0')}
@@ -263,14 +273,18 @@ export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
 
           <span
             className={`flex-1 min-w-0 font-body text-base leading-6 truncate ${
-              isRound ? 'font-medium text-primary-500' : 'font-bold text-gray-600'
+              isRound ? 'font-medium text-white' : 'font-bold text-gray-400'
             }`}
           >
             {row.label}
           </span>
 
           {row.time && (
-            <span className="shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] text-neutral-50 text-right">
+            <span
+              className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] text-right ${
+                isRound ? 'text-neutral-50' : 'text-gray-400'
+              }`}
+            >
               {row.time}
             </span>
           )}

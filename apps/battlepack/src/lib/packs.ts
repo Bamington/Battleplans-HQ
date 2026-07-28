@@ -197,6 +197,7 @@ export async function createPack(fields: {
   gameId: string;
   locationId?: string | null;
   description?: string | null;
+  format?: string | null;
 }): Promise<Pack> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('You need to be signed in to create a pack.');
@@ -208,6 +209,7 @@ export async function createPack(fields: {
       game_id: fields.gameId,
       location_id: fields.locationId || null,
       description: fields.description?.trim() || null,
+      format: fields.format?.trim() || null,
       owner_id: auth.user.id,
     })
     .select('*')

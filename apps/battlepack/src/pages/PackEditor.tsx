@@ -516,6 +516,9 @@ export default function PackEditor() {
               gameIcon={gameArt.icon}
               gameImage={gameArt.banner}
               gameLogo={gameArt.banner}
+              /* The format reads as a second fact about the event, so it sits
+                 beside the game in the same muted style rather than competing. */
+              subtitle={pack.format}
               menu={<DocumentMenuIcon />}
             />
 
