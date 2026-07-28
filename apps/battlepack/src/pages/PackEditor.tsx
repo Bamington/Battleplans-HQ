@@ -146,6 +146,33 @@ export default function PackEditor() {
     [pack, rows],
   );
 
+  /**
+   * Only the tabs that have something under them.
+   *
+   * Tickets, Registration and the FAQ are all optional, so a pack that has not
+   * taken them leaves its tab pointing at nothing — and a tab you can press
+   * that answers "no categories yet" is a worse result than no tab at all.
+   *
+   * Asking the question per TAB rather than per category is what gives
+   * Registration its either-or for free: it survives on Tickets or on
+   * Registration, and goes when both have gone.
+   */
+  const tabs = useMemo(
+    () => CATEGORY_TABS.filter(t => categories.some(c => c.tab === t.id)),
+    [categories],
+  );
+
+  /**
+   * Removing the last category under the tab you are on would leave the panel
+   * asking for a tab that is no longer rendered, which comes out blank — so the
+   * shown tab falls back to the first one still standing.
+   *
+   * Derived rather than corrected in an effect: `activeTab` is read nowhere but
+   * here, and adding a category runs through `selectCategory`, which sets the
+   * tab itself. There is nothing for a stale value to spoil.
+   */
+  const shownTab = tabs.some(t => t.id === activeTab) ? activeTab : tabs[0]?.id ?? 'format';
+
   // Select the first category once the registry has resolved for this pack.
   useEffect(() => {
     if (!activeKey && categories.length) setActiveKey(categories[0].key);
@@ -220,6 +247,18 @@ export default function PackEditor() {
    */
   function hasContent(key: string): boolean {
     if (key === 'rounds-breaks') return schedule.length > 0;
+
+    // The two categories that keep a list rather than prose are asked through
+    // the same readers their forms use, so "is there anything in here" has one
+    // answer per shape. Checking `content.body` alone silently under-reports
+    // them — a full FAQ looked untouched and was removed without a word.
+    if (key === 'faq') {
+      return readFaq(rows[key]?.content).some(i => i.question.trim() || i.answer.trim());
+    }
+    if (key === 'what-to-bring') {
+      return readChecklist(rows[key]?.content).some(i => i.text.trim() || i.url?.trim());
+    }
+
     const content = rows[key]?.content as { body?: string; url?: string } | null | undefined;
     return Boolean(content?.body?.trim() || content?.url?.trim());
   }
@@ -595,22 +634,17 @@ export default function PackEditor() {
             <div className="px-5 pt-5 pb-5">
               <Tabs
                 variant="segmented"
-                activeTab={activeTab}
+                activeTab={shownTab}
                 onTabChange={id => setActiveTab(id as CategoryTab)}
                 panelClassName="border-0 rounded-none p-0 pt-5"
-                tabs={CATEGORY_TABS.map(t => ({
+                tabs={tabs.map(t => ({
                   id: t.id,
                   label: t.label,
                   icon: t.icon,
                   // gap-10: sections are long-form prose and tables, so they
                   // need more air between them than a list would.
-                  content: (
-                    <div className="flex flex-col gap-10">
-                      {sectionsFor(t.id).length
-                        ? sectionsFor(t.id)
-                        : <EmptySection hint="No categories under this tab yet." />}
-                    </div>
-                  ),
+                  // No empty case — a tab is only here because it has sections.
+                  content: <div className="flex flex-col gap-10">{sectionsFor(t.id)}</div>,
                 }))}
               />
             </div>
