@@ -92,8 +92,11 @@ const ChecklistSectionForm = ({
         </p>
       )}
 
+      {/* No card per row. A checklist item is one short line, and boxing each
+          one made a five-item list look heavier than the About editor beside
+          it — which is a plain field, and is what this should read like. */}
       {items.map((item, index) => (
-        <div key={index} className="flex flex-col gap-2 p-2 bg-gray-800/60 border border-gray-700 rounded-lg">
+        <div key={index} className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <span className="shrink-0 text-gray-500 font-body text-sm">•</span>
             <div className="flex-1 min-w-0">
@@ -134,14 +137,18 @@ const ChecklistSectionForm = ({
             </div>
           </div>
 
-          <Input
-            size="sm"
-            type="url"
-            inputMode="url"
-            placeholder="https://… (optional)"
-            value={item.url ?? ''}
-            onChange={e => update(index, { url: e.target.value })}
-          />
+          {/* Indented under its own bullet so the pairing is obvious without a
+              border doing the work. */}
+          <div className="ps-4">
+            <Input
+              size="sm"
+              type="url"
+              inputMode="url"
+              placeholder="https://… (optional)"
+              value={item.url ?? ''}
+              onChange={e => update(index, { url: e.target.value })}
+            />
+          </div>
         </div>
       ))}
 

@@ -27,7 +27,7 @@ import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, ButtonPair, Callout, HR, MarkdownBody, Modal,
   GAME_BANNERS, GAME_ICONS,
   StoreSelector,
-  AddCircle, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket,
+  AddCircle, AltArrowDown, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
@@ -349,20 +349,39 @@ export default function PackEditor() {
           : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
       } else if (c.key === 'faq') {
         const faqs = readFaq(rows[c.key]?.content);
+        // An accordion: an FAQ is scanned for the one question you have, so the
+        // questions want to be a short list you read down, not a wall with the
+        // answers between them.
+        //
+        // Native <details> rather than a state-driven component: it is keyboard
+        // operable and announced as a disclosure without any ARIA of our own,
+        // there is no "which one is open" to hold or get wrong, and find-in-page
+        // still reaches an answer that is closed.
         body = faqs.length
           ? (
-            <div className="flex flex-col gap-4">
+            <div className="w-full flex flex-col rounded-xl overflow-hidden border border-gray-700">
               {faqs.map((item, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  {/* The question carries the weight; the answer sits under it
-                      in the body colour so a long list still scans. */}
-                  <MarkdownBody className="text-base leading-6 font-semibold text-white">
-                    {item.question}
-                  </MarkdownBody>
-                  <MarkdownBody className="text-base leading-6 text-gray-300">
-                    {item.answer}
-                  </MarkdownBody>
-                </div>
+                <details
+                  key={i}
+                  className="group border-b border-gray-700 last:border-b-0 bg-gray-800 open:bg-[#0E1421]"
+                >
+                  <summary
+                    className="flex items-start gap-2 px-4 py-3 cursor-pointer list-none
+                               marker:content-none hover:bg-gray-700/40 transition-colors"
+                  >
+                    {/* Points the way it is about to go. */}
+                    <AltArrowDown className="w-4 h-4 mt-1 shrink-0 text-primary-500 transition-transform group-open:rotate-180" />
+                    <MarkdownBody className="flex-1 min-w-0 text-base leading-6 font-medium text-white">
+                      {item.question}
+                    </MarkdownBody>
+                  </summary>
+
+                  <div className="px-4 pb-3 ps-10">
+                    <MarkdownBody className="text-base leading-6 text-gray-300">
+                      {item.answer}
+                    </MarkdownBody>
+                  </div>
+                </details>
               ))}
             </div>
           )
