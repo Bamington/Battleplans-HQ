@@ -2,11 +2,18 @@
 
 These rules apply to every command in this project.
 
-## Status: scaffolded, one screen
+## Status: the editor works, the public page does not
 
-The app is wired up and builds, but has almost nothing in it. `/app` is a
-placeholder home screen; the pack editor, the schema and the category registry
-are still to come. See the design doc for the phase order.
+`/app` lists a store's packs and `/app/<packId>/edit` is the real three-column
+editor — category nav, the pack as a document, and a form per category. The
+schema is applied and the registry is populated.
+
+Two things the design doc calls for are still missing, and both are visible
+from the app:
+
+- **The public page at `battlepack.app/<slug>` does not exist.** Publishing
+  reserves the slug and it resolves to nothing.
+- **The create flow's progress bar says 1/3 and 2/3.** There is no third step.
 
 What is already decided and should be kept to:
 
@@ -30,10 +37,17 @@ The slug is wired through the platform: `battlepack` in `AppSlug`
 `com.bamington.battlepack` in [supabase.ts](../../packages/ui/src/lib/supabase.ts),
 and the route subtree in HQ's `APP_ROUTES` ([App.tsx](../hq/src/App.tsx)).
 
-It is still admin-only: the `platform_apps` row has no `platform_app_roles`
-grants, and `my_platform_apps()` short-circuits for admins, so an app with no
-grants is visible to admins alone. `url` is still `'#'` and `is_launched` is
-false — both change in the deploy phase, not before.
+Access is admins plus store admins. `20260728000000_battlepack_store_admins.sql`
+added `store_admin` as a PSEUDO-ROLE in `platform_app_roles` — a grant
+`my_platform_apps()` resolves against `locations.admins` rather than against
+`user_profiles.role` — and granted it to `battlepack`. Every admin of a store
+can edit every pack at that store, and losing the store loses the packs: the
+owner column grants nothing on its own.
+
+`url` is still `'#'` and `is_launched` is false. **Leave both alone until the
+production deploy.** One Supabase project sits behind production and every
+preview, so pointing `url` at a preview URL repoints the app switcher for every
+user in production. Reach a preview by its own URL instead.
 
 ## Deploying to Production
 
@@ -59,6 +73,9 @@ The build date and version shown in the app are injected at build time from
 The gallery is at [`/gallery`](src/pages/ComponentGallery.tsx) — a public route,
 outside the protected subtree, because HQ owns one copy of the public routes.
 It renders `<SharedGallerySections appName="BattlePack" />` above this app's own
-sections. `AppNavbar` is the only local component so far; the three-column editor
-chrome it will be built on (`BuilderShell` / `ListPanel` / `EditorPanel`) is
-shared, so those demos are in the shared sections.
+sections. The three-column editor chrome (`BuilderShell` / `ListPanel` /
+`EditorPanel`) is shared, so those demos live in the shared sections.
+
+`LOCAL_NAV` is behind the components. `NewPackModal`, `ChecklistSectionForm`
+and `FaqSectionForm` have no demo — add them before adding anything else, so
+the debt stops growing.
