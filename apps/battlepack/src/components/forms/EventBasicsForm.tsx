@@ -27,11 +27,12 @@ import { useEffect, useState } from 'react';
 import {
   BannerPicker, GAME_ICONS, HR, Input, RichTextEditor, SearchSelect, Notebook, UserRounded,
 } from '@battleplans/ui';
+import type { PendingBanner } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import { bannerUrl, uploadPackBanner } from '../../lib/packs';
-import { BANNER_ASPECT } from '../PackDocument';
+import { BANNER_MIN_ASPECT } from '../PackDocument';
 
 /** Section heading inside the panel, matching "Basic Details" in the design. */
 const FieldGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -79,15 +80,20 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
   const [bannerBusy,  setBannerBusy]  = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
 
-  async function handleBanner(blob: Blob | null) {
+  async function handleBanner(next: PendingBanner | null) {
     setBannerError(null);
-    // Removing writes nothing to storage — the column is cleared and the old
+    // Removing writes nothing to storage — the columns are cleared and the old
     // object is left alone, per the surgical-deletes rule in packs.ts.
-    if (blob === null) { onChange({ banner_path: null }); return; }
+    if (next === null) { onChange({ banner_path: null, banner_aspect: null }); return; }
 
     setBannerBusy(true);
     try {
-      onChange({ banner_path: await uploadPackBanner(pack.id, blob) });
+      // Path and ratio go in one patch: a path with the previous banner's ratio
+      // would have the hero reserve the wrong height.
+      onChange({
+        banner_path:   await uploadPackBanner(pack.id, next.blob),
+        banner_aspect: next.aspect,
+      });
     } catch (e) {
       setBannerError(e instanceof Error ? e.message : 'Could not upload that banner.');
     } finally {
@@ -212,7 +218,8 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         <BannerPicker
           label="Event Banner"
           currentUrl={bannerUrl(pack.banner_path)}
-          aspect={BANNER_ASPECT}
+          currentAspect={pack.banner_aspect}
+          minAspect={BANNER_MIN_ASPECT}
           disabled={bannerBusy}
           onChange={handleBanner}
         />

@@ -626,6 +626,7 @@ export default function PackEditor() {
               /* The organiser's own artwork wins the hero when they have
                  uploaded one; otherwise the game's banner stands in. */
               bannerImage={bannerUrl(pack.banner_path)}
+              bannerAspect={pack.banner_aspect}
               /* The format reads as a second fact about the event, so it sits
                  beside the game in the same muted style rather than competing. */
               subtitle={pack.format}

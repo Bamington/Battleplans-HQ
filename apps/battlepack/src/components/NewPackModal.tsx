@@ -23,11 +23,12 @@ import {
   Modal, Input, SearchSelect, Button, Callout, StepProgress, PickerTile, RichTextEditor,
   BannerPicker, ArrowRight, ArrowLeft, Calendar, CloseCircle,
 } from '@battleplans/ui';
+import type { PendingBanner } from '@battleplans/ui';
 import {
   buildSchedule, createPack, insertSchedule, listGames, listPacks,
   recentIdsFrom, updatePack, minutesToTime, savePackBanner,
 } from '../lib/packs';
-import { BANNER_ASPECT } from './PackDocument';
+import { BANNER_MIN_ASPECT } from './PackDocument';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
 import type { GameOption, LocationOption } from '../lib/packs';
 
@@ -68,7 +69,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [description, setDescription] = useState('');
   // undefined until the organiser crops one. Held rather than uploaded — see
   // the note at the picker.
-  const [banner, setBanner] = useState<Blob | null | undefined>(undefined);
+  const [banner, setBanner] = useState<PendingBanner | null | undefined>(undefined);
 
   // Step 2 — defaults are the design's, and are what most one-day events run.
   const [timeline,     setTimeline]     = useState('one-day');
@@ -264,7 +265,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                 leaving an orphaned object behind. */}
             <BannerPicker
               label="Event Banner"
-              aspect={BANNER_ASPECT}
+              minAspect={BANNER_MIN_ASPECT}
               hint="Optional. Shown across the top of your pack, in place of the game's artwork."
               onChange={setBanner}
             />

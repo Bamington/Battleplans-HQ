@@ -38,6 +38,7 @@ import AppFooter from '../components/AppFooter';
 import Avatar, { AvatarGroup } from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import BannerPicker from '../components/BannerPicker';
+import type { PendingBanner } from '../components/BannerPicker';
 import Badge from '../components/Badge';
 import Banner from '../components/Banner';
 import BuilderShell from '../components/BuilderShell';
@@ -1175,7 +1176,7 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
   // AvatarPicker demo: undefined = untouched, Blob = cropped, null = removed.
   const [pickedAvatar,   setPickedAvatar]   = useState<Blob | null | undefined>(undefined);
   // BannerPicker demo: same three-state contract as the avatar one.
-  const [pickedBanner,   setPickedBanner]   = useState<Blob | null | undefined>(undefined);
+  const [pickedBanner,   setPickedBanner]   = useState<PendingBanner | null | undefined>(undefined);
   const [modalOpen,      setModalOpen]      = useState(false);
 
   return (
@@ -1897,40 +1898,48 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
       </GallerySection>
 
       <GallerySection id="nav-banner-picker" title="BannerPicker">
+        <GalleryNote>
+          A banner keeps its own shape. `minAspect` is the TALLEST it may be
+          (width ÷ height, so 3:2 is 1.5) — anything that wide or wider is taken
+          whole with no crop step, and only a taller image opens the cropper.
+          Upload a wide picture and a square one to see both paths.
+        </GalleryNote>
         <div className="flex flex-col gap-6">
 
           <div>
             <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              Empty at 3:1 — the frame already shows the shape the image has to be
+              Empty — the frame shows the tallest a banner may be, 3:2
             </p>
             <BannerPicker
               label="Event banner"
-              aspect={3}
+              minAspect={3 / 2}
               hint="Wide artwork for the top of the pack. JPEG, PNG or WebP."
-              onChange={blob => setPickedBanner(blob)}
+              onChange={setPickedBanner}
             />
           </div>
 
           <div>
             <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              With an existing banner — gains a Remove action
+              With a saved 3:1 banner — the frame takes its real shape, and a
+              Remove action appears
             </p>
             <BannerPicker
               label="Event banner"
               currentUrl={heroImage}
-              aspect={3}
-              onChange={blob => setPickedBanner(blob)}
+              currentAspect={3}
+              minAspect={3 / 2}
+              onChange={setPickedBanner}
             />
           </div>
 
           <div>
             <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              A different ratio — 16:9, to show `aspect` drives both frame and crop
+              A stricter limit — 16:9, so anything taller than that gets cropped
             </p>
             <BannerPicker
               label="Cover image"
-              aspect={16 / 9}
-              onChange={blob => setPickedBanner(blob)}
+              minAspect={16 / 9}
+              onChange={setPickedBanner}
             />
           </div>
 
@@ -1938,7 +1947,7 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
             <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
               Disabled (parent form is saving)
             </p>
-            <BannerPicker currentUrl={heroImage} onChange={() => {}} disabled />
+            <BannerPicker currentUrl={heroImage} currentAspect={3} onChange={() => {}} disabled />
           </div>
 
           <Text variant="paragraph" size="sm">
@@ -1946,7 +1955,7 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
               ? 'untouched'
               : pickedBanner === null
                 ? 'removed'
-                : `${Math.round(pickedBanner.size / 1024)} KB JPEG`}
+                : `${Math.round(pickedBanner.blob.size / 1024)} KB JPEG at ${pickedBanner.aspect.toFixed(2)}:1`}
           </Text>
 
         </div>

@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '@battleplans/ui';
+import type { PendingBanner } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,12 @@ export interface Pack {
    * bannerUrl() at read time. Null means fall back to the game's artwork.
    */
   banner_path: string | null;
+  /**
+   * Width ÷ height of the banner, so the hero can reserve its height before the
+   * image loads. Null for banners uploaded before ratios were kept, which were
+   * all cropped to 3:1.
+   */
+  banner_aspect: number | null;
   owner_id: string;
   status: PackStatus;
   slug: string | null;
@@ -292,23 +299,32 @@ export async function uploadPackBanner(packId: string, blob: Blob): Promise<stri
  * Apply a pending banner change from a picker to a pack.
  *
  * The three states mirror BannerPicker's contract exactly:
- *   undefined → untouched, write nothing
- *   Blob      → upload and point the pack at the new object
- *   null      → clear the column and fall back to the game artwork
+ *   undefined      → untouched, write nothing
+ *   PendingBanner  → upload and point the pack at the new object
+ *   null           → clear the columns and fall back to the game artwork
  *
- * Clearing only nulls the column; the object stays in the bucket. Removing a
+ * Path and ratio are always written together. A path with a stale ratio is
+ * worse than no banner: the hero reserves the wrong height and everything below
+ * it lands in the wrong place.
+ *
+ * Clearing only nulls the columns; the object stays in the bucket. Removing a
  * banner is not the same as proving nothing else refers to that file, and the
  * cost of an orphan is a few hundred KB against the cost of deleting something
  * still in use.
  */
 export async function savePackBanner(
   packId: string,
-  pending: Blob | null | undefined,
-): Promise<string | null | undefined> {
-  if (pending === undefined) return undefined;
-  const path = pending === null ? null : await uploadPackBanner(packId, pending);
-  await updatePack(packId, { banner_path: path });
-  return path;
+  pending: PendingBanner | null | undefined,
+): Promise<void> {
+  if (pending === undefined) return;
+  if (pending === null) {
+    await updatePack(packId, { banner_path: null, banner_aspect: null });
+    return;
+  }
+  await updatePack(packId, {
+    banner_path:   await uploadPackBanner(packId, pending.blob),
+    banner_aspect: pending.aspect,
+  });
 }
 
 // ── Categories ───────────────────────────────────────────────────────────────
