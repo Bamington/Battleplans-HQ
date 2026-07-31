@@ -350,6 +350,43 @@ export async function savePackBanner(
   });
 }
 
+// ── Link previews ────────────────────────────────────────────────────────────
+
+export interface LinkPreviewData {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  site_name: string | null;
+  ok: boolean;
+}
+
+/**
+ * What is on the other end of a link.
+ *
+ * Goes through the `link-preview` Edge Function because a browser cannot read
+ * another origin's HTML — that is exactly what CORS prevents. The function
+ * fetches, parses the Open Graph tags and caches the answer, so the second
+ * viewer of a pack costs nothing.
+ *
+ * Returns null rather than throwing. A preview is decoration: if it cannot be
+ * had, the link itself still works, and a failed lookup should never be able to
+ * take a section of the document down with it.
+ */
+export async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
+  if (!url?.trim()) return null;
+  try {
+    const { data, error } = await supabase.functions.invoke('link-preview', {
+      body: { url: url.trim() },
+    });
+    if (error) return null;
+    const preview = data as LinkPreviewData;
+    return preview?.ok ? preview : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Categories ───────────────────────────────────────────────────────────────
 
 /**

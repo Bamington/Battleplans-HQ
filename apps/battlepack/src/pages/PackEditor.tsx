@@ -28,7 +28,7 @@ import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, ButtonPair, Callout, HR, MarkdownBody, Modal,
   GAME_BANNERS, GAME_ICONS,
   StoreSelector,
-  AddCircle, AltArrowDown, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket, Trophy,
+  AddCircle, AltArrowDown, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket, Trophy,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
@@ -50,6 +50,7 @@ import { readFaq } from '../components/forms/FaqSectionForm';
 import { readScheduleNotes } from '../components/forms/RoundsBreaksForm';
 import { readTitledList } from '../components/forms/TitledListForm';
 import PublishPanel from '../components/PublishPanel';
+import LinkPreview from '../components/LinkPreview';
 import type {
   GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleKind,
 } from '../lib/packs';
@@ -505,17 +506,10 @@ export default function PackEditor() {
               {content.body && (
                 <MarkdownBody className="text-base leading-6 text-gray-300">{content.body}</MarkdownBody>
               )}
-              {content.url && (
-                <a
-                  href={content.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 font-body text-base text-primary-400 hover:underline break-all"
-                >
-                  {content.url}
-                  <ArrowRight className="w-4 h-4 shrink-0" />
-                </a>
-              )}
+              {/* A card showing what is on the other end, rather than the raw
+                  address. Falls back to a plain link on its own when the page
+                  gives up nothing — see LinkPreview. */}
+              {content.url && <LinkPreview url={content.url} />}
             </>
           )
           : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
