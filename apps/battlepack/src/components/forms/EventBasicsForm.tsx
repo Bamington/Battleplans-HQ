@@ -142,26 +142,29 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
       {/* Dates, start time and format all live here because Event Basics is the
           only `core` form. Key Info is not a category — it is a panel showing
           these values back, so this is the one place they are entered. */}
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <Input
-            label="Start Date"
-            type="date"
-            value={pack.starts_on ?? ''}
-            onChange={e => onChange({ starts_on: e.target.value || null })}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <Input
-            label="End Date"
-            type="date"
-            value={pack.ends_on ?? ''}
-            min={pack.starts_on ?? undefined}
-            onChange={e => onChange({ ends_on: e.target.value || null })}
-            helperText="Leave blank for a single day."
-          />
-        </div>
-      </div>
+      {/* Stacked rather than side by side — full-width date inputs give the
+          native picker room, and two half-width ones were the tightest thing
+          in the panel. */}
+      <Input
+        label="Start Date"
+        type="date"
+        value={pack.starts_on ?? ''}
+        onChange={e => onChange({ starts_on: e.target.value || null })}
+      />
+
+      {/* A one-day event has no end date, so it is not offered. An empty field
+          under "leave blank for a single day" asks the organiser to answer a
+          question the flow has already answered — and invites them to fill it
+          in wrongly. Shown for the other two, which by definition span dates. */}
+      {pack.timeline !== 'one-day' && (
+        <Input
+          label="End Date"
+          type="date"
+          value={pack.ends_on ?? ''}
+          min={pack.starts_on ?? undefined}
+          onChange={e => onChange({ ends_on: e.target.value || null })}
+        />
+      )}
 
       <Input
         label="Start Time"

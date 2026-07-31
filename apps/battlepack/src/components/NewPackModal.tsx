@@ -30,7 +30,7 @@ import {
 } from '../lib/packs';
 import { BANNER_MIN_ASPECT } from './PackDocument';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
-import type { GameOption, LocationOption } from '../lib/packs';
+import type { GameOption, LocationOption, PackTimeline } from '../lib/packs';
 
 export interface NewPackModalProps {
   open: boolean;
@@ -49,7 +49,7 @@ export interface NewPackModalProps {
  * not per-day, so they are shown (the choice is real and worth signalling) but
  * cannot be picked.
  */
-const TIMELINES = [
+const TIMELINES: { id: PackTimeline; title: string; description: string; enabled: boolean }[] = [
   { id: 'one-day',   title: 'One-Day Tournament',   description: 'Event starts and finishes on the same day.', enabled: true },
   { id: 'multi-day', title: 'Multi-Day Tournament', description: 'Multiple Rounds over Multiple Days.',        enabled: false },
   { id: 'league',    title: 'League',               description: 'Rounds happen across many days.',            enabled: false },
@@ -72,7 +72,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [banner, setBanner] = useState<PendingBanner | null | undefined>(undefined);
 
   // Step 2 — defaults are the design's, and are what most one-day events run.
-  const [timeline,     setTimeline]     = useState('one-day');
+  const [timeline,     setTimeline]     = useState<PackTimeline>('one-day');
   const [startDate,    setStartDate]    = useState('');
   const [startTime,    setStartTime]    = useState('10:00');
   const [rounds,       setRounds]       = useState(3);
@@ -138,7 +138,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     setSaving(true);
     setError(null);
     try {
-      const pack = await createPack({ name, gameId, locationId, description, format });
+      const pack = await createPack({ name, gameId, locationId, description, format, timeline });
 
       if (startDate || startTime) {
         await updatePack(pack.id, {

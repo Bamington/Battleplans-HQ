@@ -17,6 +17,9 @@ import type { PendingBanner } from '@battleplans/ui';
 
 export type PackStatus = 'draft' | 'published' | 'unpublished';
 
+/** The shape of the event, chosen once at creation. */
+export type PackTimeline = 'one-day' | 'multi-day' | 'league';
+
 export interface Pack {
   id: string;
   name: string;
@@ -40,6 +43,12 @@ export interface Pack {
    * all cropped to 3:1.
    */
   banner_aspect: number | null;
+  /**
+   * Chosen at creation and never null. Decides whether an end date is asked
+   * for — a one-day event has none. Only 'one-day' is selectable until the
+   * schedule can span dates.
+   */
+  timeline: PackTimeline;
   owner_id: string;
   status: PackStatus;
   slug: string | null;
@@ -210,6 +219,8 @@ export async function createPack(fields: {
   locationId?: string | null;
   description?: string | null;
   format?: string | null;
+  /** Omitted means the column's default, 'one-day'. */
+  timeline?: PackTimeline;
 }): Promise<Pack> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('You need to be signed in to create a pack.');
@@ -222,6 +233,7 @@ export async function createPack(fields: {
       location_id: fields.locationId || null,
       description: fields.description?.trim() || null,
       format: fields.format?.trim() || null,
+      ...(fields.timeline ? { timeline: fields.timeline } : {}),
       owner_id: auth.user.id,
     })
     .select('*')

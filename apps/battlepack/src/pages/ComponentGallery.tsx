@@ -65,7 +65,9 @@ import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
 import { timeSchedule } from '../lib/packs';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem,
+} from '../lib/packs';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -117,7 +119,8 @@ const EventBasicsFormDemo = () => {
   const [pack, setPack] = useState<Pack>({
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, banner_path: null, banner_aspect: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, banner_aspect: null,
+    timeline: 'one-day', created_at: '', updated_at: '',
   });
   const [log, setLog] = useState<string[]>([]);
 
@@ -155,6 +158,30 @@ const EventBasicsFormDemo = () => {
           once. Game is deliberately read-only — it is fixed at creation, which
           is what lets game-specific categories resolve exactly once.
         </GalleryNote>
+
+        {/* The end date is not a field you can toggle in the panel — it depends
+            on what the pack IS. This switches the stub so both states are
+            visible without creating two packs. */}
+        <div className="mt-3 flex items-center gap-2">
+          <span className="font-body text-xs text-gray-400">Stub timeline:</span>
+          {(['one-day', 'multi-day'] as PackTimeline[]).map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setPack(prev => ({ ...prev, timeline: t }))}
+              className={`px-2 py-1 rounded text-xs font-body cursor-pointer border ${
+                pack.timeline === t
+                  ? 'border-primary-500 text-primary-500'
+                  : 'border-gray-700 text-gray-400 hover:text-white'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+          <span className="font-body text-xs text-gray-500">
+            — one-day hides End Date
+          </span>
+        </div>
         <pre className="mt-3 font-mono text-xs text-gray-400 whitespace-pre-wrap">
           {log.length ? log.map(l => `→ ${l}`).join('\n') : '→ (no changes yet)'}
         </pre>
@@ -173,7 +200,8 @@ const RoundsBreaksFormDemo = () => {
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, banner_path: null, banner_aspect: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, banner_aspect: null,
+    timeline: 'one-day', created_at: '', updated_at: '',
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
@@ -340,7 +368,8 @@ const SectionFormDemo = () => {
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, banner_path: null, banner_aspect: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, banner_aspect: null,
+    timeline: 'one-day', created_at: '', updated_at: '',
   };
 
   const [which, setWhich] = useState('faq');
@@ -432,7 +461,8 @@ const PublishPanelDemo = () => {
   const [pack, setPack] = useState<Pack>({
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
     starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, banner_path: null, banner_aspect: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, banner_aspect: null,
+    timeline: 'one-day', created_at: '', updated_at: '',
   });
   const [blocked, setBlocked] = useState(true);
 
