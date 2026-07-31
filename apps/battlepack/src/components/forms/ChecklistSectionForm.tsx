@@ -18,8 +18,8 @@
  */
 
 import {
-  Button, PanelSection, Input,
-  AddCircle, AltArrowDown, AltArrowUp, TrashBinMinimalistic,
+  Button, PanelSection, Input, EditableListItem,
+  AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { CATEGORY_BY_KEY } from '../../registry/categories';
@@ -86,64 +86,36 @@ const ChecklistSectionForm = ({
         </p>
       )}
 
-      {/* No card per row. A checklist item is one short line, and boxing each
-          one made a five-item list look heavier than the About editor beside
-          it — which is a plain field, and is what this should read like. */}
+      {/* The text field is the header, so the box's controls sit on the same
+          line as the thing they act on rather than above it — a checklist item
+          is one short phrase, and a header row of its own would double the
+          height of every row to say nothing. */}
       {items.map((item, index) => (
-        <div key={index} className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 text-gray-500 font-body text-sm">•</span>
-            <div className="flex-1 min-w-0">
-              <Input
-                size="sm"
-                placeholder={definition?.placeholder ?? 'Dice and a tape measure'}
-                value={item.text}
-                onChange={e => update(index, { text: e.target.value })}
-              />
-            </div>
-            <div className="flex shrink-0">
-              <button
-                type="button"
-                onClick={() => move(index, -1)}
-                disabled={index === 0}
-                aria-label="Move up"
-                className="p-1 rounded text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <AltArrowUp className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(index, 1)}
-                disabled={index === items.length - 1}
-                aria-label="Move down"
-                className="p-1 rounded text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <AltArrowDown className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setItems(items.filter((_, i) => i !== index))}
-                aria-label={`Remove item ${index + 1}`}
-                className="p-1 rounded text-gray-400 hover:text-red-400 cursor-pointer"
-              >
-                <TrashBinMinimalistic className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Indented under its own bullet so the pairing is obvious without a
-              border doing the work. */}
-          <div className="ps-4">
+        <EditableListItem
+          key={index}
+          index={index}
+          count={items.length}
+          removeLabel={`Remove item ${index + 1}`}
+          onMove={delta => move(index, delta)}
+          onRemove={() => setItems(items.filter((_, i) => i !== index))}
+          header={
             <Input
               size="sm"
-              type="url"
-              inputMode="url"
-              placeholder="https://… (optional)"
-              value={item.url ?? ''}
-              onChange={e => update(index, { url: e.target.value })}
+              placeholder={definition?.placeholder ?? 'Dice and a tape measure'}
+              value={item.text}
+              onChange={e => update(index, { text: e.target.value })}
             />
-          </div>
-        </div>
+          }
+        >
+          <Input
+            size="sm"
+            type="url"
+            inputMode="url"
+            placeholder="https://… (optional)"
+            value={item.url ?? ''}
+            onChange={e => update(index, { url: e.target.value })}
+          />
+        </EditableListItem>
       ))}
 
       <Button

@@ -23,8 +23,8 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Button, PanelSection, Input, Select, Callout,
-  AddCircle, AltArrowDown, AltArrowUp, TrashBinMinimalistic,
+  Button, PanelSection, EditableListItem, Input, Select, Callout,
+  AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import type { ScheduleItem } from '../../lib/packs';
@@ -141,50 +141,29 @@ const RoundsBreaksForm = ({
       )}
 
       {items.map((item, index) => (
-        <div key={item.id} className="flex flex-col gap-2 p-2 bg-gray-800/60 border border-gray-700 rounded-lg">
-          <div className="flex items-center gap-2">
-            <span className="font-body font-bold text-xs text-gray-500 tabular-nums w-6 shrink-0">
-              {String(index).padStart(2, '0')}
-            </span>
-
-            <div className="flex-1 min-w-0">
-              <Select
-                value={item.kind}
-                onChange={e => patch(item, { kind: e.target.value as ScheduleItem['kind'] })}
-                options={KIND_OPTIONS}
-              />
+        <EditableListItem
+          key={item.id}
+          index={index}
+          count={items.length}
+          disabled={busy}
+          removeLabel={`Remove ${item.label ?? 'item'}`}
+          onMove={delta => move(index, delta)}
+          onRemove={() => remove(item)}
+          header={
+            <div className="flex items-center gap-2">
+              <span className="font-body font-bold text-xs text-gray-500 tabular-nums w-6 shrink-0">
+                {String(index).padStart(2, '0')}
+              </span>
+              <div className="flex-1 min-w-0">
+                <Select
+                  value={item.kind}
+                  onChange={e => patch(item, { kind: e.target.value as ScheduleItem['kind'] })}
+                  options={KIND_OPTIONS}
+                />
+              </div>
             </div>
-
-            <div className="flex shrink-0">
-              <button
-                type="button"
-                onClick={() => move(index, -1)}
-                disabled={index === 0 || busy}
-                aria-label="Move up"
-                className="p-1 rounded text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <AltArrowUp className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(index, 1)}
-                disabled={index === items.length - 1 || busy}
-                aria-label="Move down"
-                className="p-1 rounded text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <AltArrowDown className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(item)}
-                disabled={busy}
-                aria-label={`Remove ${item.label ?? 'item'}`}
-                className="p-1 rounded text-gray-400 hover:text-red-400 disabled:opacity-30 cursor-pointer"
-              >
-                <TrashBinMinimalistic className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          }
+        >
 
           <Input
             size="sm"
@@ -217,7 +196,7 @@ const RoundsBreaksForm = ({
               </span>
             )}
           </div>
-        </div>
+        </EditableListItem>
       ))}
 
       {/* Stacked: the labels are long enough that side by side truncates them

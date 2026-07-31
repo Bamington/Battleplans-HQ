@@ -15,8 +15,8 @@
  */
 
 import {
-  Button, PanelSection, RichTextEditor,
-  AddCircle, AltArrowDown, AltArrowUp, TrashBinMinimalistic,
+  Button, PanelSection, RichTextEditor, EditableListItem,
+  AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { CATEGORY_BY_KEY } from '../../registry/categories';
@@ -84,41 +84,19 @@ const FaqSectionForm = ({
       )}
 
       {items.map((item, index) => (
-        <div key={index} className="flex flex-col gap-2 p-2 bg-gray-800/60 border border-gray-700 rounded-lg">
-          <div className="flex items-center justify-between gap-2">
+        <EditableListItem
+          key={index}
+          index={index}
+          count={items.length}
+          header={
             <span className="font-body text-xs font-bold uppercase tracking-[1.2px] text-gray-500">
               Question {index + 1}
             </span>
-            <div className="flex shrink-0">
-              <button
-                type="button"
-                onClick={() => move(index, -1)}
-                disabled={index === 0}
-                aria-label="Move up"
-                className="p-1 rounded text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <AltArrowUp className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(index, 1)}
-                disabled={index === items.length - 1}
-                aria-label="Move down"
-                className="p-1 rounded text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <AltArrowDown className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setItems(items.filter((_, i) => i !== index))}
-                aria-label={`Remove question ${index + 1}`}
-                className="p-1 rounded text-gray-400 hover:text-red-400 cursor-pointer"
-              >
-                <TrashBinMinimalistic className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
+          }
+          removeLabel={`Remove question ${index + 1}`}
+          onMove={delta => move(index, delta)}
+          onRemove={() => setItems(items.filter((_, i) => i !== index))}
+        >
           <RichTextEditor
             value={item.question}
             onChange={question => update(index, { question })}
@@ -130,7 +108,7 @@ const FaqSectionForm = ({
             onChange={answer => update(index, { answer })}
             placeholder="Yes, as long as it is clearly the right size and base."
           />
-        </div>
+        </EditableListItem>
       ))}
 
       <Button

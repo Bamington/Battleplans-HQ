@@ -39,6 +39,7 @@ import Avatar, { AvatarGroup } from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import BannerPicker from '../components/BannerPicker';
 import PanelSection from '../components/PanelSection';
+import EditableListItem from '../components/EditableListItem';
 import type { PendingBanner } from '../components/BannerPicker';
 import Badge from '../components/Badge';
 import Banner from '../components/Banner';
@@ -1116,6 +1117,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-avatars',              label: 'Avatars',              icon: <UserRounded className="w-5 h-5" /> },
   { href: '#nav-friends-modals',       label: 'Friends Modals',       icon: <UserPlusRounded className="w-5 h-5" /> },
   { href: '#nav-avatar-picker',        label: 'Avatar Picker',        icon: <UserCircle className="w-5 h-5" /> },
+  { href: '#nav-editable-list-item',   label: 'Editable List Item',   icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-panel-section',        label: 'Panel Section',        icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-banner-picker',        label: 'Banner Picker',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-cards',                label: 'Cards',                icon: <Bookmark className="w-5 h-5" /> },
@@ -1896,6 +1898,49 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
                 : `${Math.round(pickedAvatar.size / 1024)} KB JPEG`}
           </Text>
 
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-editable-list-item" title="EditableListItem">
+        <GalleryNote>
+          One row of an editable list. `header` is a slot rather than a
+          numbering scheme, because the lists disagree about what belongs
+          there — the schedule wants an ordinal and a kind picker, an FAQ wants
+          "QUESTION 2", a checklist wants its text field so the controls sit on
+          the same line as the thing they act on. Reorder is arrows rather than
+          dragging: keyboard operable, and no gesture library on touch. The
+          arrows disable themselves at the ends of the list.
+        </GalleryNote>
+        <div className="w-80 bg-gray-900 rounded-xl border border-gray-700 p-3 flex flex-col gap-2">
+          {['Dice and a tape measure', 'The Core Rules', 'Three objective markers'].map((text, i, all) => (
+            <EditableListItem
+              key={i}
+              index={i}
+              count={all.length}
+              removeLabel={`Remove item ${i + 1}`}
+              onMove={() => {}}
+              onRemove={() => {}}
+              header={<Input size="sm" defaultValue={text} />}
+            >
+              <Input size="sm" placeholder="https://… (optional)" />
+            </EditableListItem>
+          ))}
+
+          <EditableListItem
+            index={0}
+            count={1}
+            header={
+              <span className="font-body text-xs font-bold uppercase tracking-[1.2px] text-gray-500">
+                Question 1
+              </span>
+            }
+            onMove={() => {}}
+            onRemove={() => {}}
+          >
+            <Input size="sm" defaultValue="Can I proxy models?" />
+          </EditableListItem>
+
+          <EditableListItem index={0} count={1} disabled header={<Input size="sm" defaultValue="Disabled row" />} onMove={() => {}} onRemove={() => {}} />
         </div>
       </GallerySection>
 
