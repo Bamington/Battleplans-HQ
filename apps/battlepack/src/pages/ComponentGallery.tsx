@@ -40,6 +40,7 @@ import {
   MarkdownBody,
   ListCheck,
   Trophy,
+  Star,
   AltArrowDown,
   MapPin,
   InfoCircle,
@@ -65,6 +66,7 @@ import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
 import SectionForm from '../components/forms/SectionForm';
 import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
 import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
+import TitledListForm, { readTitledList } from '../components/forms/TitledListForm';
 import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
@@ -89,6 +91,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-section-form',        label: 'Section Form',         icon: <FileText className="w-5 h-5" /> },
   { href: '#nav-checklist-form',      label: 'Checklist Form',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-faq-form',            label: 'FAQ Form',             icon: <Notebook className="w-5 h-5" /> },
+  { href: '#nav-titled-list-form',    label: 'Prizes / Resources',   icon: <Star className="w-5 h-5" /> },
   { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
 ];
 
@@ -633,6 +636,113 @@ const FaqSectionFormDemo = () => {
 };
 
 /**
+ * Prizes and Resources over an in-memory store, side by side with the document.
+ *
+ * The same component serves both — the only difference is the registry's
+ * `hasUrl`, which is why Resources grows a link field and Prizes does not.
+ * Switch between them to see one form answer to two categories.
+ */
+const TitledListFormDemo = () => {
+  const [which, setWhich] = useState('prizes');
+  const [rows, setRows]   = useState<Record<string, PackCategoryRow>>({
+    prizes: {
+      pack_id: 'demo', category_key: 'prizes', hidden: false, sort_order: null,
+      content: { items: [
+        { title: 'Best General', description: 'Most tournament points across the day.' },
+        { title: 'Best Painted', description: 'Voted by the players, so bring your best.' },
+      ] },
+    },
+    resources: {
+      pack_id: 'demo', category_key: 'resources', hidden: false, sort_order: null,
+      content: { items: [
+        { title: 'Mission Pack', description: 'The six missions, in order.', url: 'https://example.com/missions' },
+      ] },
+    },
+  });
+  const [writes, setWrites] = useState(0);
+
+  const save: SaveSection = async (_packId, key, content) => {
+    setWrites(n => n + 1);
+    setRows(prev => ({
+      ...prev,
+      [key]: { pack_id: 'demo', category_key: key, hidden: false, sort_order: null, content },
+    }));
+  };
+
+  const entries = readTitledList(rows[which]?.content);
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {['prizes', 'resources'].map(key => (
+          <Button
+            key={key}
+            size="sm"
+            variant={which === key ? 'filled' : 'outline'}
+            color="secondary"
+            onClick={() => setWhich(key)}
+          >
+            {CATEGORY_REGISTRY.find(c => c.key === key)?.label}
+          </Button>
+        ))}
+        <span className="font-body text-xs text-gray-500">writes: {writes}</span>
+      </div>
+
+      <div className="w-full flex flex-col gap-3 lg:flex-row">
+        <div className="w-full lg:w-80 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+          <TitledListForm
+            key={which}
+            pack={DEMO_PACK}
+            rows={rows}
+            schedule={[]}
+            games={[]}
+            venues={[]}
+            categoryKey={which}
+            reload={async () => {}}
+            onChange={() => {}}
+            save={save}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="font-body text-xs uppercase tracking-[1.2px] text-gray-500 mb-2">
+            As the document renders it
+          </p>
+          {entries.length ? (
+            <div className="w-full flex flex-col gap-3">
+              {entries.map((entry, i) => (
+                <div key={i} className="flex flex-col gap-0.5">
+                  <p className="font-body font-bold text-base leading-6 text-white">
+                    {entry.url
+                      ? <a href={entry.url} target="_blank" rel="noreferrer noopener" className="text-primary-400 hover:underline">{entry.title}</a>
+                      : entry.title}
+                  </p>
+                  {entry.description && (
+                    <MarkdownBody className="text-base leading-6 text-gray-300">{entry.description}</MarkdownBody>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-body text-sm text-gray-500 italic">Nothing here yet.</p>
+          )}
+        </div>
+      </div>
+
+      <GalleryNote>
+        Prizes used to be one markdown field, which made "Best General, Best
+        Painted, and a wooden spoon" a paragraph the document could not lay out
+        or count. Three prizes are three things. A resource's TITLE carries its
+        link, so the clickable thing is the name rather than a bare address —
+        the same reasoning as the checklist. Switching category remounts the
+        form, so a pending write is flushed on the way out: type and immediately
+        switch, and the counter still moves.
+      </GalleryNote>
+    </div>
+  );
+};
+
+/**
  * The publish step over a stub pack, with the availability check answered from
  * a fixed set of taken slugs. Toggle the outstanding categories to watch the
  * gate open and close.
@@ -947,6 +1057,10 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-faq-form" title="FAQ Form">
         <FaqSectionFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-titled-list-form" title="Prizes / Resources Form">
+        <TitledListFormDemo />
       </GallerySection>
 
       <GallerySection id="nav-publish-panel" title="Publish Panel">

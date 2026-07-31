@@ -39,13 +39,14 @@
 
 import type { ComponentType, ReactNode } from 'react';
 import {
-  Bookmark, Clipboard, FileText, InfoCircle, ListCheck,
+  Bookmark, Clipboard, FileText, Folder, InfoCircle, ListCheck,
   Notebook, QuestionCircle, Star, UserPlusRounded,
 } from '@battleplans/ui';
 import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 import SectionForm from '../components/forms/SectionForm';
 import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
 import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
+import TitledListForm, { readTitledList, titledListFilled } from '../components/forms/TitledListForm';
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
 
@@ -151,6 +152,14 @@ export interface CategoryDefinition {
    */
   formHint?: string;
   placeholder?: string;
+  /**
+   * What one entry is called, for a list category — "prize", "resource".
+   *
+   * Drives the Add button and the remove button's screen-reader label, so a
+   * list says "Add Prize" rather than the generic "Add Item" that would have
+   * every list category sounding like the same one.
+   */
+  itemNoun?: string;
   /**
    * Heading the DOCUMENT uses, when it differs from the left nav's.
    *
@@ -282,10 +291,27 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     storage: 'section',
     order: 80,
     icon: <Star className="w-6 h-6" />,
-    isComplete: sectionFilled('prizes', 'body'),
-    Form: SectionForm,
+    isComplete: ctx => titledListFilled(readTitledList(ctx.rows['prizes']?.content)),
+    Form: TitledListForm,
+    itemNoun: 'prize',
     formHint: "What is on offer and how it is decided. Say if it depends on ticket sales.",
-    placeholder: "e.g. Best General, Best Painted, and a wooden spoon.",
+    placeholder: "e.g. Best General",
+  },
+  {
+    key: 'resources',
+    label: 'Resources',
+    tab: 'format',
+    requirement: 'optional',
+    gameId: null,
+    storage: 'section',
+    order: 85,
+    icon: <Folder className="w-6 h-6" />,
+    isComplete: ctx => titledListFilled(readTitledList(ctx.rows['resources']?.content)),
+    Form: TitledListForm,
+    hasUrl: true,
+    itemNoun: 'resource',
+    formHint: "Anything a player should read beforehand — the mission pack, an FAQ, a scoring sheet.",
+    placeholder: "e.g. Mission Pack",
   },
   {
     key: 'faq',

@@ -48,6 +48,7 @@ import AddCategoryModal from '../components/AddCategoryModal';
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
 import { readScheduleNotes } from '../components/forms/RoundsBreaksForm';
+import { readTitledList } from '../components/forms/TitledListForm';
 import PublishPanel from '../components/PublishPanel';
 import type {
   GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleKind,
@@ -411,6 +412,48 @@ export default function PackEditor() {
                 </li>
               ))}
             </ul>
+          )
+          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
+      } else if (c.key === 'prizes' || c.key === 'resources') {
+        // A titled entry per row. The title carries the weight and the
+        // description sits under it, so the section can be scanned by title
+        // alone — which is how anyone reads a prize list.
+        const entries = readTitledList(rows[c.key]?.content);
+        body = entries.length
+          ? (
+            <div className="w-full flex flex-col gap-3">
+              {entries.map((entry, i) => (
+                <div key={i} className="flex flex-col gap-0.5">
+                  {/* Skipped when empty rather than rendered blank. Prizes
+                      written before this was a list read back as one untitled
+                      entry, and an empty bold line above them would be a gap
+                      the organiser never put there. */}
+                  {entry.title && (
+                    <p className="font-body font-bold text-base leading-6 text-white">
+                      {/* A resource's title is the link, so the clickable thing
+                          is the name rather than a bare address. */}
+                      {entry.url
+                        ? (
+                          <a
+                            href={entry.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-primary-400 hover:underline"
+                          >
+                            {entry.title}
+                          </a>
+                        )
+                        : entry.title}
+                    </p>
+                  )}
+                  {entry.description && (
+                    <MarkdownBody className="text-base leading-6 text-gray-300">
+                      {entry.description}
+                    </MarkdownBody>
+                  )}
+                </div>
+              ))}
+            </div>
           )
           : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
       } else if (c.key === 'faq') {
