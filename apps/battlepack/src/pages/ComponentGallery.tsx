@@ -39,6 +39,7 @@ import {
   Gallery,
   MarkdownBody,
   ListCheck,
+  Trophy,
   AltArrowDown,
   MapPin,
   InfoCircle,
@@ -903,6 +904,7 @@ const ComponentGallery = () => {
                   { ordinal: 1, kind: 'round', label: 'Round 1',      time: '12:00 PM - 2:00 PM', icon: <Play className="w-4 h-4" /> },
                   { ordinal: 2, kind: 'break', label: 'Break',        time: '2:00 PM - 2:30 PM', icon: <ListCheck className="w-4 h-4" /> },
                   { ordinal: 3, kind: 'round', label: 'Round 2',      time: '2:30 PM - 4:30 PM', icon: <Play className="w-4 h-4" /> },
+                  { ordinal: 4, kind: 'event', label: 'Prizegiving',  time: '4:30 PM - 5:00 PM', icon: <Trophy className="w-4 h-4" /> },
                 ]}
               />
             </DocumentSection>

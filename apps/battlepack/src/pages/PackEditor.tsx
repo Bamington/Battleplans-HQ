@@ -22,12 +22,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   BuilderShell, ListPanel, EditorPanel, Tabs, Button, ButtonPair, Callout, HR, MarkdownBody, Modal,
   GAME_BANNERS, GAME_ICONS,
   StoreSelector,
-  AddCircle, AltArrowDown, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket,
+  AddCircle, AltArrowDown, ArrowRight, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket, Trophy,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
@@ -46,8 +47,11 @@ import {
 import AddCategoryModal from '../components/AddCategoryModal';
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
+import { readScheduleNotes } from '../components/forms/RoundsBreaksForm';
 import PublishPanel from '../components/PublishPanel';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleKind,
+} from '../lib/packs';
 
 /**
  * The left nav's Publish row. Deliberately not a registry key — Publish has no
@@ -55,6 +59,18 @@ import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } 
  * the registry about something that is neither.
  */
 const PUBLISH_KEY = '__publish__';
+
+/**
+ * What a schedule row shows when the organiser has not named it.
+ *
+ * Only rounds get a number: they are the one kind that comes in a numbered
+ * sequence, and "Break 2" would number the gaps as though anybody counted them.
+ */
+const SCHEDULE_FALLBACK: Record<ScheduleKind, { label: (ordinal: number) => string; icon: ReactNode }> = {
+  round: { label: n => `Round ${n}`, icon: <Play className="w-4 h-4" /> },
+  break: { label: () => 'Break',     icon: <ListCheck className="w-4 h-4" /> },
+  event: { label: () => 'Event',     icon: <Trophy className="w-4 h-4" /> },
+};
 
 const formatDate = (iso?: string | null) => {
   if (!iso) return null;
@@ -341,17 +357,28 @@ export default function PackEditor() {
         // stores how long it lasts and nothing else, so a reorder cannot leave
         // the clock disagreeing with the order.
         const timed = timeSchedule(schedule, pack.starts_at);
-        body = schedule.length
+        const notes = readScheduleNotes(rows[c.key]?.content);
+        const table = schedule.length
           ? <ScheduleTable rows={schedule.map((s, i) => ({
               ordinal: s.ordinal,
               kind: s.kind,
-              label: s.label ?? (s.kind === 'round' ? `Round ${s.ordinal}` : 'Break'),
+              label: s.label ?? SCHEDULE_FALLBACK[s.kind]?.label(s.ordinal) ?? 'Break',
               time: timed[i] ? formatTimeRange(timed[i].startsAt, timed[i].endsAt) : `${s.duration_minutes} min`,
-              icon: s.kind === 'round'
-                ? <Play className="w-4 h-4" />
-                : <ListCheck className="w-4 h-4" />,
+              icon: SCHEDULE_FALLBACK[s.kind]?.icon ?? <ListCheck className="w-4 h-4" />,
             }))} />
           : <EmptySection hint="No rounds or breaks yet." />;
+
+        // Notes sit between the heading and the table — anything that applies to
+        // the whole day is read before the day itself, not discovered under it.
+        // Rendered only when written; an empty one adds a gap and nothing else.
+        body = notes
+          ? (
+            <div className="flex flex-col gap-3">
+              <MarkdownBody className="text-base leading-6 text-gray-300">{notes}</MarkdownBody>
+              {table}
+            </div>
+          )
+          : table;
       } else if (c.key === 'event-basics') {
         // The venue moved into Key Info, where the design shows it. This is
         // just the blurb now, which is why the document calls it About — and it

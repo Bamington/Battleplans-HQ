@@ -17,6 +17,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { HR, MenuDots, Text } from '@battleplans/ui';
+import type { ScheduleKind } from '../lib/packs';
 
 /** DOM id for a category's section, shared by the nav and the scroll target. */
 export const sectionId = (key: string) => `pack-section-${key}`;
@@ -283,12 +284,54 @@ export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
 
 export interface ScheduleRow {
   ordinal: number;
-  kind: 'round' | 'break';
+  kind: ScheduleKind;
   label: string;
   time?: string | null;
   /** 16px leading icon. The design varies it per item, not just per kind. */
   icon?: ReactNode;
 }
+
+/**
+ * How each kind of row is painted.
+ *
+ * One table keyed by kind rather than a chain of ternaries: there are three
+ * kinds and five things that vary per kind, and fifteen inline conditionals is
+ * how a row ends up half-styled as one thing and half as another.
+ *
+ * Rounds are play, and sit forward on gray-800 with a white label. Breaks
+ * recede to gray-900 — one step down the palette, the same pairing the Key Info
+ * card makes a few sections up, so the two blocks recede by the same amount.
+ * Anything darker turned a break into a hole in the table rather than a quieter
+ * row.
+ *
+ * Events are amber, and are the one row allowed to use colour. Prizegiving is
+ * the thing people scan the timetable FOR, and it was previously typed in as a
+ * break — dead time, in a row styled to be ignored. Amber rather than the
+ * accent because green is what every button and link in this app uses, and a
+ * green row invites a click that does nothing here.
+ */
+const ROW_STYLE: Record<ScheduleKind, {
+  bg: string; icon: string; label: string; time: string;
+}> = {
+  round: {
+    bg:    'bg-gray-800',
+    icon:  'text-gray-300',
+    label: 'font-medium text-white',
+    time:  'text-neutral-50',
+  },
+  break: {
+    bg:    'bg-gray-900',
+    icon:  'text-gray-500',
+    label: 'font-bold text-gray-400',
+    time:  'text-gray-400',
+  },
+  event: {
+    bg:    'bg-amber-950/40',
+    icon:  'text-amber-400',
+    label: 'font-bold text-amber-200',
+    time:  'text-amber-300',
+  },
+};
 
 /**
  * Rounds & Breaks as the document renders it.
@@ -310,33 +353,25 @@ export interface ScheduleRow {
 export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
   <div className="w-full flex flex-col rounded-xl overflow-hidden border border-gray-700">
     {rows.map(row => {
-      const isRound = row.kind === 'round';
+      const style = ROW_STYLE[row.kind] ?? ROW_STYLE.break;
       return (
         <div
           key={row.ordinal}
-          className={`w-full flex items-center gap-2 px-4 py-3 ${isRound ? 'bg-gray-800' : 'bg-gray-900'}`}
+          className={`w-full flex items-center gap-2 px-4 py-3 ${style.bg}`}
         >
-          {row.icon && (
-            <span className={`shrink-0 ${isRound ? 'text-gray-300' : 'text-gray-500'}`}>{row.icon}</span>
-          )}
+          {row.icon && <span className={`shrink-0 ${style.icon}`}>{row.icon}</span>}
 
           <span className="shrink-0 w-6 text-center font-body font-bold text-base leading-6 text-gray-500 tabular-nums">
             {String(row.ordinal).padStart(2, '0')}
           </span>
 
-          <span
-            className={`flex-1 min-w-0 font-body text-base leading-6 truncate ${
-              isRound ? 'font-medium text-white' : 'font-bold text-gray-400'
-            }`}
-          >
+          <span className={`flex-1 min-w-0 font-body text-base leading-6 truncate ${style.label}`}>
             {row.label}
           </span>
 
           {row.time && (
             <span
-              className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] text-right ${
-                isRound ? 'text-neutral-50' : 'text-gray-400'
-              }`}
+              className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] text-right ${style.time}`}
             >
               {row.time}
             </span>

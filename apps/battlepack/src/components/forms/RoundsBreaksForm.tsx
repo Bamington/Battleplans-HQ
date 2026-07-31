@@ -23,18 +23,22 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Button, PanelSection, EditableListItem, Input, Select, Callout,
+  Button, PanelSection, EditableListItem, Input, Select, Callout, RichTextEditor,
   AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import type { ScheduleItem } from '../../lib/packs';
+import { useDebouncedSave } from '../../hooks/useDebouncedSave';
+import type { SaveSection } from './SectionForm';
 import {
   addScheduleItem, deleteScheduleItem, reorderSchedule, updateScheduleItem, timeSchedule,
+  saveCategoryContent,
 } from '../../lib/packs';
 
 const KIND_OPTIONS = [
   { value: 'round', label: 'Round' },
   { value: 'break', label: 'Break' },
+  { value: 'event', label: 'Event' },
 ];
 
 /**
@@ -58,17 +62,44 @@ const LIVE_OPS: ScheduleOps = {
 /** What a new row is called, so the organiser rarely has to type a label. */
 function defaultLabel(kind: ScheduleItem['kind'], existing: ScheduleItem[]): string {
   if (kind === 'break') return 'Break';
+  if (kind === 'event') return 'Event';
   return `Round ${existing.filter(i => i.kind === 'round').length + 1}`;
 }
 
+/**
+ * Read the schedule's prose out of the category row.
+ *
+ * The rows live in their own table, which has columns for durations and labels
+ * and nowhere to put a paragraph. The category's jsonb is already there and
+ * otherwise unused for this key, so the notes go in it — no migration, and the
+ * deviations table takes content for any category.
+ */
+export function readScheduleNotes(content: unknown): string {
+  const value = content as { notes?: string } | null | undefined;
+  return value?.notes ?? '';
+}
+
 const RoundsBreaksForm = ({
-  pack, schedule, reload, ops = LIVE_OPS,
-}: CategoryFormProps & { ops?: ScheduleOps }) => {
+  pack, schedule, rows, categoryKey, reload, ops = LIVE_OPS,
+  save: saveFn = saveCategoryContent,
+}: CategoryFormProps & { ops?: ScheduleOps; save?: SaveSection }) => {
   const [items, setItems] = useState<ScheduleItem[]>(schedule);
   const [error, setError] = useState<string | null>(null);
   const [busy,  setBusy]  = useState(false);
 
   useEffect(() => { setItems(schedule); }, [schedule]);
+
+  // Prose, so it commits on a debounce rather than on blur — a rich text editor
+  // loses focus for ordinary reasons like reaching for the bold button.
+  const {
+    value: notes,
+    setValue: setNotes,
+    state: notesState,
+  } = useDebouncedSave(readScheduleNotes(rows[categoryKey]?.content), async next => {
+    const body = next.trim();
+    await saveFn(pack.id, categoryKey, body ? { notes: body } : null);
+    await reload();
+  });
 
   /**
    * What a new round should last: whatever the last one lasts, which is the
@@ -123,9 +154,24 @@ const RoundsBreaksForm = ({
   };
 
   return (
-    <PanelSection title="The Day">
+    <PanelSection
+      title="The Day"
+      action={notesState === 'saving' ? 'Saving…' : notesState === 'error' ? 'Not saved' : ''}
+    >
 
       {error && <Callout flavour="bad" onDismiss={() => setError(null)}>{error}</Callout>}
+
+      {/* Above the rows, because that is where it lands in the document and the
+          panel should not disagree with what it is editing. Optional: most days
+          need no preamble, and an empty one renders nothing. */}
+      <div className="flex flex-col gap-1.5">
+        <span className="block font-body text-sm font-medium text-white">Schedule Notes</span>
+        <RichTextEditor
+          value={notes}
+          onChange={setNotes}
+          placeholder="e.g. Rounds start on the hour — please be at your table five minutes early."
+        />
+      </div>
 
       {!pack.starts_at && items.length > 0 && (
         <Callout flavour="warning">
@@ -167,7 +213,11 @@ const RoundsBreaksForm = ({
 
           <Input
             size="sm"
-            placeholder={item.kind === 'round' ? 'Round 1' : 'Lunch'}
+            placeholder={
+              item.kind === 'round' ? 'Round 1'
+                : item.kind === 'event' ? 'Prizegiving'
+                : 'Lunch'
+            }
             defaultValue={item.label ?? ''}
             onBlur={e => {
               const label = e.target.value.trim();
@@ -222,6 +272,17 @@ const RoundsBreaksForm = ({
           onClick={() => add('break')}
         >
           Add Break
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          color="secondary"
+          className="w-full"
+          leftIcon={<AddCircle className="w-4 h-4" />}
+          disabled={busy}
+          onClick={() => add('event')}
+        >
+          Add Event
         </Button>
       </div>
     </PanelSection>

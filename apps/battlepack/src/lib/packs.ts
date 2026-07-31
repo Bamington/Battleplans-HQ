@@ -20,6 +20,17 @@ export type PackStatus = 'draft' | 'published' | 'unpublished';
 /** The shape of the event, chosen once at creation. */
 export type PackTimeline = 'one-day' | 'multi-day' | 'league';
 
+/**
+ * What a schedule row is.
+ *
+ * Rounds are play and breaks are the gaps between. An `event` is neither: it is
+ * something worth flagging on the timetable in its own right — prizegiving, a
+ * demo, a painting competition. Those were being typed in as breaks, which is
+ * true only in the narrow sense that no game is happening, and reads as dead
+ * time in a row styled to recede.
+ */
+export type ScheduleKind = 'round' | 'break' | 'event';
+
 export interface Pack {
   id: string;
   name: string;
@@ -68,7 +79,7 @@ export interface ScheduleItem {
   id: string;
   pack_id: string;
   ordinal: number;
-  kind: 'round' | 'break';
+  kind: ScheduleKind;
   label: string | null;
   /** How long it lasts. When it happens is derived, never stored. */
   duration_minutes: number;
