@@ -46,6 +46,8 @@ export { DropdownItem, DropdownHeader, DropdownDivider } from './components/Drop
 export { default as EditorPanel } from './components/EditorPanel'
 export type { EditorPanelProps } from './components/EditorPanel'
 export { default as HR } from './components/HR'
+export { default as PanelSection } from './components/PanelSection'
+export type { PanelSectionProps } from './components/PanelSection'
 export { default as Input } from './components/Input'
 export { default as List } from './components/List'
 export { default as ListPanel } from './components/ListPanel'

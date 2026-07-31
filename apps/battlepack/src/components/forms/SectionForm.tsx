@@ -20,7 +20,7 @@
  * blur is the wrong commit point for a rich text editor.
  */
 
-import { HR, Input, RichTextEditor } from '@battleplans/ui';
+import { PanelSection, Input, RichTextEditor } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { CATEGORY_BY_KEY } from '../../registry/categories';
 import { saveCategoryContent } from '../../lib/packs';
@@ -54,16 +54,10 @@ const SectionForm = ({
   });
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-body text-base font-bold text-white">{definition?.label ?? 'Section'}</h3>
-          <span className="font-body text-xs text-gray-500">
-            {state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved' : ''}
-          </span>
-        </div>
-        <HR />
-      </div>
+    <PanelSection
+      title={definition?.label ?? 'Section'}
+      action={state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved' : ''}
+    >
 
       {definition?.formHint && (
         <p className="font-body text-xs text-gray-400">{definition.formHint}</p>
@@ -89,7 +83,7 @@ const SectionForm = ({
           onChange={e => setValue({ ...value, url: e.target.value })}
         />
       )}
-    </div>
+    </PanelSection>
   );
 };
 

@@ -38,6 +38,7 @@ import AppFooter from '../components/AppFooter';
 import Avatar, { AvatarGroup } from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
 import BannerPicker from '../components/BannerPicker';
+import PanelSection from '../components/PanelSection';
 import type { PendingBanner } from '../components/BannerPicker';
 import Badge from '../components/Badge';
 import Banner from '../components/Banner';
@@ -1115,6 +1116,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-avatars',              label: 'Avatars',              icon: <UserRounded className="w-5 h-5" /> },
   { href: '#nav-friends-modals',       label: 'Friends Modals',       icon: <UserPlusRounded className="w-5 h-5" /> },
   { href: '#nav-avatar-picker',        label: 'Avatar Picker',        icon: <UserCircle className="w-5 h-5" /> },
+  { href: '#nav-panel-section',        label: 'Panel Section',        icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-banner-picker',        label: 'Banner Picker',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-cards',                label: 'Cards',                icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-dropdowns',            label: 'Dropdowns',            icon: <AltArrowDown className="w-5 h-5" /> },
@@ -1894,6 +1896,33 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
                 : `${Math.round(pickedAvatar.size / 1024)} KB JPEG`}
           </Text>
 
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-panel-section" title="PanelSection">
+        <GalleryNote>
+          The second level of an editor panel's heading hierarchy. EditorPanel
+          owns the first — its title sits above a divider running the full width
+          of the panel. This one lives inside the body, so its divider is inset
+          by the body padding, and that difference in width is the entire signal
+          for "group within the panel" rather than "the panel".
+        </GalleryNote>
+        <div className="w-80 bg-gray-900 rounded-xl border border-gray-700 p-3 flex flex-col gap-6">
+          <PanelSection title="Basic Details">
+            <Input label="Event Name" placeholder="July RTT" />
+          </PanelSection>
+
+          <PanelSection title="Prizes" action="Saving…">
+            <Text variant="paragraph" size="sm">
+              A string action gets the house hint styling.
+            </Text>
+          </PanelSection>
+
+          <PanelSection title="Status" action={<Badge color="success">Published</Badge>} />
+          <Text variant="paragraph" size="sm">
+            No children — a bare heading with siblings after it. A node action is
+            rendered untouched, so the badge keeps its own colours.
+          </Text>
         </div>
       </GallerySection>
 

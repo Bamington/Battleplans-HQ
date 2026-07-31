@@ -21,7 +21,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Badge, Button, Callout, CheckCircle, DangerCircle, HR, Input, Rocket,
+  Badge, Button, Callout, CheckCircle, DangerCircle, PanelSection, Input, Rocket,
 } from '@battleplans/ui';
 import { isSlugAvailable, suggestSlugs } from '../lib/packs';
 import type { Pack } from '../lib/packs';
@@ -116,15 +116,14 @@ const PublishPanel = ({
     <div className="flex flex-col gap-4">
 
       {/* ── Where it stands ── */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="font-body text-base font-bold text-white">Status</h3>
+      <PanelSection
+        title="Status"
+        action={
           <Badge color={pack.status === 'published' ? 'success' : pack.status === 'unpublished' ? 'warning' : 'gray'}>
             {pack.status === 'published' ? 'Published' : pack.status === 'unpublished' ? 'Withdrawn' : 'Draft'}
           </Badge>
-        </div>
-        <HR />
-      </div>
+        }
+      />
 
       {error && <Callout flavour="bad" onDismiss={() => setError(null)}>{error}</Callout>}
 
@@ -168,10 +167,7 @@ const PublishPanel = ({
       </div>
 
       {/* ── The URL ── */}
-      <div className="flex flex-col gap-1">
-        <h3 className="font-body text-base font-bold text-white">Public URL</h3>
-        <HR />
-      </div>
+      <PanelSection title="Public URL" />
 
       <div className="flex flex-col gap-2">
         <Input

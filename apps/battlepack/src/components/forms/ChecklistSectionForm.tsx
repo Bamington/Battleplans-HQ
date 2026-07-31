@@ -18,7 +18,7 @@
  */
 
 import {
-  Button, HR, Input,
+  Button, PanelSection, Input,
   AddCircle, AltArrowDown, AltArrowUp, TrashBinMinimalistic,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
@@ -71,16 +71,10 @@ const ChecklistSectionForm = ({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-body text-base font-bold text-white">{definition?.label ?? 'Checklist'}</h3>
-          <span className="font-body text-xs text-gray-500">
-            {state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved' : ''}
-          </span>
-        </div>
-        <HR />
-      </div>
+    <PanelSection
+      title={definition?.label ?? 'Checklist'}
+      action={state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved' : ''}
+    >
 
       {definition?.formHint && (
         <p className="font-body text-xs text-gray-400">{definition.formHint}</p>
@@ -161,7 +155,7 @@ const ChecklistSectionForm = ({
       >
         Add Item
       </Button>
-    </div>
+    </PanelSection>
   );
 };
 

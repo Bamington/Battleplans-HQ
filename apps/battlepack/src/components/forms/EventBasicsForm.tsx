@@ -25,7 +25,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  BannerPicker, GAME_ICONS, HR, Input, RichTextEditor, SearchSelect, Notebook, UserRounded,
+  BannerPicker, GAME_ICONS, PanelSection, Input, RichTextEditor, SearchSelect, Notebook, UserRounded,
 } from '@battleplans/ui';
 import type { PendingBanner } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
@@ -33,17 +33,6 @@ import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import { bannerUrl, uploadPackBanner } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
-
-/** Section heading inside the panel, matching "Basic Details" in the design. */
-const FieldGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-3">
-    <div className="flex flex-col gap-1">
-      <h3 className="font-body text-base font-bold text-white">{title}</h3>
-      <HR />
-    </div>
-    {children}
-  </div>
-);
 
 const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) => {
   // Local copy so typing is not fighting a round trip on every keystroke.
@@ -112,7 +101,7 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
 
 
   return (
-    <FieldGroup title="Basic Details">
+    <PanelSection title="Basic Details">
       <Input
         label="Event Name"
         required
@@ -229,7 +218,7 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         {bannerBusy && <p className="font-body text-xs text-gray-500">Uploading…</p>}
         {bannerError && <p className="font-body text-sm text-red-400">{bannerError}</p>}
       </div>
-    </FieldGroup>
+    </PanelSection>
   );
 };
 

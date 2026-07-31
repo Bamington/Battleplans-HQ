@@ -23,7 +23,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Button, HR, Input, Select, Callout,
+  Button, PanelSection, Input, Select, Callout,
   AddCircle, AltArrowDown, AltArrowUp, TrashBinMinimalistic,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
@@ -123,11 +123,7 @@ const RoundsBreaksForm = ({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h3 className="font-body text-base font-bold text-white">The Day</h3>
-        <HR />
-      </div>
+    <PanelSection title="The Day">
 
       {error && <Callout flavour="bad" onDismiss={() => setError(null)}>{error}</Callout>}
 
@@ -249,7 +245,7 @@ const RoundsBreaksForm = ({
           Add Break
         </Button>
       </div>
-    </div>
+    </PanelSection>
   );
 };
 
