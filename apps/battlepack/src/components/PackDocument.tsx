@@ -209,12 +209,20 @@ export const DocumentSection = ({ categoryKey, title, active, children }: Docume
   <section
     id={sectionId(categoryKey)}
     /* scroll-mt keeps the heading clear of the chrome when the nav scrolls to
-       it, rather than jamming it against the top edge. */
-    className={`scroll-mt-6 rounded-lg transition-colors ${active ? 'bg-gray-900/40 -mx-2 px-2 py-1' : ''}`}
+       it, rather than jamming it against the top edge.
+
+       Selection is a dashed accent outline rather than a filled panel — the
+       blueprint reading, marking out the area being worked on instead of
+       shading it in. The border is always present and merely transparent when
+       inactive, so selecting a section cannot shift the layout by 2px. */
+    className={`scroll-mt-6 rounded-lg transition-colors -mx-2 px-2 py-1 border border-dashed ${
+      active ? 'border-primary-500' : 'border-transparent'
+    }`}
   >
     {/* Tanker 24/32 in gray-300, sentence case — not the uppercase treatment
-        the left nav and panel headers use. */}
-    <h2 className="font-heading text-2xl leading-8 text-gray-300">{title}</h2>
+        the left nav and panel headers use. mb-1 is the 4px the headings were
+        missing; without it the first line of body sat right under the cap. */}
+    <h2 className="font-heading text-2xl leading-8 text-gray-300 mb-1">{title}</h2>
     <div className="font-body text-base leading-6 text-gray-300 space-y-1.5">
       {children}
     </div>

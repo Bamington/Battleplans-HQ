@@ -162,7 +162,6 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         type="time"
         value={(pack.starts_at ?? '').slice(0, 5)}
         onChange={e => onChange({ starts_at: e.target.value || null })}
-        helperText="When the day begins. Every round's time is worked out from this."
       />
 
       <Input
@@ -171,7 +170,6 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         value={pack.format ?? ''}
         onChange={e => setFormat(e.target.value)}
         onBlur={commitFormat}
-        helperText="Shown in Key Info alongside the venue and the date."
       />
 
       <SearchSelect
@@ -184,7 +182,6 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         /* Same builder the New Event card uses, so the two pickers cannot
            drift apart on ordering or artwork. */
         options={venueOptions(venues)}
-        helperText="Optional — not every event runs at a venue on the platform."
       />
 
       {/* Markdown, like every other prose field. Debounced rather than saved on
@@ -217,7 +214,6 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
           currentUrl={bannerUrl(pack.banner_path)}
           aspect={BANNER_ASPECT}
           disabled={bannerBusy}
-          hint="Optional. Replaces the game's artwork at the top of the pack."
           onChange={handleBanner}
         />
         {bannerBusy && <p className="font-body text-xs text-gray-500">Uploading…</p>}

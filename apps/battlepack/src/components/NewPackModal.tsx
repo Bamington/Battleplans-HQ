@@ -75,8 +75,15 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [startDate,    setStartDate]    = useState('');
   const [startTime,    setStartTime]    = useState('10:00');
   const [rounds,       setRounds]       = useState(3);
-  const [roundMinutes, setRoundMinutes] = useState(120);
+  // Held as hours and minutes because that is how they are asked for. The two
+  // are the source of truth and the stored duration is derived — going the
+  // other way (deriving the fields from a minutes total) makes clearing the
+  // minutes box while typing snap the hours around.
+  const [roundHours,   setRoundHours]   = useState(2);
+  const [roundMins,    setRoundMins]    = useState(0);
   const [breakMinutes, setBreakMinutes] = useState(10);
+
+  const roundMinutes = roundHours * 60 + roundMins;
 
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
@@ -89,7 +96,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     // Pre-select the store being acted as, or the only one they have.
     setLocationId(defaultStoreId || (stores.length === 1 ? stores[0].id : ''));
     setTimeline('one-day'); setStartDate(''); setStartTime('10:00');
-    setRounds(3); setRoundMinutes(120); setBreakMinutes(10);
+    setRounds(3); setRoundHours(2); setRoundMins(0); setBreakMinutes(10);
     setError(null);
 
     Promise.all([listGames(), listPacks()])
@@ -321,17 +328,6 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                 </div>
                 <div className="flex-1 min-w-0">
                   <Input
-                    label="Round Length"
-                    type="number"
-                    min={0}
-                    step={5}
-                    value={roundMinutes}
-                    onChange={e => setRoundMinutes(Math.max(0, Number(e.target.value) || 0))}
-                    helperText="Minutes"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Input
                     label="Time Between"
                     type="number"
                     min={0}
@@ -340,6 +336,41 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                     onChange={e => setBreakMinutes(Math.max(0, Number(e.target.value) || 0))}
                     helperText="Minutes"
                   />
+                </div>
+              </div>
+
+              {/* Two inputs rather than one box of minutes: a round is hours
+                  long, and "120" is a number you have to convert in your head
+                  before you can check it. Its own row because four fields
+                  across a max-w-xl modal leaves each about 130px. */}
+              <div className="flex flex-col gap-1.5">
+                <span className="block font-body text-sm font-medium text-neutral-100">
+                  Round Length
+                </span>
+                <div className="flex items-start gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={24}
+                      aria-label="Round length, hours"
+                      value={roundHours}
+                      onChange={e => setRoundHours(Math.max(0, Math.min(24, Number(e.target.value) || 0)))}
+                      helperText="Hours"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={59}
+                      step={5}
+                      aria-label="Round length, minutes"
+                      value={roundMins}
+                      onChange={e => setRoundMins(Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
+                      helperText="Minutes"
+                    />
+                  </div>
                 </div>
               </div>
 
