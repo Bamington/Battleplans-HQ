@@ -24,10 +24,14 @@
  */
 
 import { useEffect, useState } from 'react';
-import { GAME_ICONS, HR, Input, RichTextEditor, SearchSelect, Notebook, UserRounded } from '@battleplans/ui';
+import {
+  BannerPicker, GAME_ICONS, HR, Input, RichTextEditor, SearchSelect, Notebook, UserRounded,
+} from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
+import { bannerUrl, uploadPackBanner } from '../../lib/packs';
+import { BANNER_ASPECT } from '../PackDocument';
 
 /** Section heading inside the panel, matching "Basic Details" in the design. */
 const FieldGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -69,6 +73,27 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
   // Shared artwork map first, the database column only as a fallback — most of
   // the catalogue has no `games.icon`.
   const gameArt = game ? GAME_ICONS[game.slug] ?? game.icon : null;
+
+  // The upload is the one thing in this form that can fail slowly and visibly,
+  // so it gets its own busy and error state rather than borrowing the row's.
+  const [bannerBusy,  setBannerBusy]  = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+
+  async function handleBanner(blob: Blob | null) {
+    setBannerError(null);
+    // Removing writes nothing to storage — the column is cleared and the old
+    // object is left alone, per the surgical-deletes rule in packs.ts.
+    if (blob === null) { onChange({ banner_path: null }); return; }
+
+    setBannerBusy(true);
+    try {
+      onChange({ banner_path: await uploadPackBanner(pack.id, blob) });
+    } catch (e) {
+      setBannerError(e instanceof Error ? e.message : 'Could not upload that banner.');
+    } finally {
+      setBannerBusy(false);
+    }
+  }
 
   const commitName = () => {
     const next = name.trim();
@@ -180,6 +205,23 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
           Use this to add flavour to your event. You don't need to mention rules or
           format details here — those get their own categories.
         </p>
+      </div>
+
+      {/* Unlike the create flow, the pack row already exists here, so the file
+          can go straight to storage — the bucket policy keys on the pack id in
+          the path, and there is one. Only the resulting path goes through
+          onChange, so the write and its error handling stay in one place. */}
+      <div className="flex flex-col gap-1.5">
+        <BannerPicker
+          label="Event Banner"
+          currentUrl={bannerUrl(pack.banner_path)}
+          aspect={BANNER_ASPECT}
+          disabled={bannerBusy}
+          hint="Optional. Replaces the game's artwork at the top of the pack."
+          onChange={handleBanner}
+        />
+        {bannerBusy && <p className="font-body text-xs text-gray-500">Uploading…</p>}
+        {bannerError && <p className="font-body text-sm text-red-400">{bannerError}</p>}
       </div>
     </FieldGroup>
   );

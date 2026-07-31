@@ -28,6 +28,11 @@ export interface Pack {
   /** Free text for Key Info, e.g. "2000 Points, Matched Play". */
   format: string | null;
   description: string | null;
+  /**
+   * Object key in the `pack-banners` bucket, not a URL — resolve with
+   * bannerUrl() at read time. Null means fall back to the game's artwork.
+   */
+  banner_path: string | null;
   owner_id: string;
   status: PackStatus;
   slug: string | null;
@@ -241,6 +246,69 @@ export async function updatePack(id: string, patch: Partial<Pack>): Promise<void
 export async function deletePack(id: string): Promise<void> {
   const { error } = await supabase.from('battlepacks').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ── Banner ───────────────────────────────────────────────────────────────────
+//
+// `banner_path` holds a bucket object key, not a full URL — the same convention
+// as avatars / model_images / battle_images — so the public URL is resolved at
+// read time and a project move needs no data migration.
+
+const BANNER_BUCKET = 'pack-banners';
+
+/**
+ * Resolve a stored `banner_path` to a public URL. Null for a missing path, so
+ * callers can fall through to the game's artwork.
+ */
+export function bannerUrl(path?: string | null): string | null {
+  if (!path) return null;
+  return supabase.storage.from(BANNER_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Upload a cropped banner and return its object key.
+ *
+ * The key is always '{pack_id}/…' because the bucket policy resolves that first
+ * segment through can_edit_battlepack() — which is why the pack row has to exist
+ * before this is called, and why the create flow uploads after the insert rather
+ * than before it.
+ *
+ * A fresh filename every time rather than overwriting: it sidesteps CDN caching
+ * of a stale image, and the previous object is left alone rather than
+ * blind-deleted, per the project's surgical-deletes rule.
+ */
+export async function uploadPackBanner(packId: string, blob: Blob): Promise<string> {
+  const path = `${packId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+
+  const { error } = await supabase.storage
+    .from(BANNER_BUCKET)
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+
+  if (error) throw error;
+  return path;
+}
+
+/**
+ * Apply a pending banner change from a picker to a pack.
+ *
+ * The three states mirror BannerPicker's contract exactly:
+ *   undefined → untouched, write nothing
+ *   Blob      → upload and point the pack at the new object
+ *   null      → clear the column and fall back to the game artwork
+ *
+ * Clearing only nulls the column; the object stays in the bucket. Removing a
+ * banner is not the same as proving nothing else refers to that file, and the
+ * cost of an orphan is a few hundred KB against the cost of deleting something
+ * still in use.
+ */
+export async function savePackBanner(
+  packId: string,
+  pending: Blob | null | undefined,
+): Promise<string | null | undefined> {
+  if (pending === undefined) return undefined;
+  const path = pending === null ? null : await uploadPackBanner(packId, pending);
+  await updatePack(packId, { banner_path: path });
+  return path;
 }
 
 // ── Categories ───────────────────────────────────────────────────────────────

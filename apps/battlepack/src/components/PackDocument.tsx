@@ -23,6 +23,14 @@ export const sectionId = (key: string) => `pack-section-${key}`;
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Width ÷ height of the hero banner, and the ratio BannerPicker crops to.
+ *
+ * The two have to agree — the picker promises "what you framed is what you
+ * get", and it can only keep that promise if this is the shape it framed for.
+ */
+export const BANNER_ASPECT = 3;
+
 export interface PackHeroProps {
   name: string;
   gameName?: string | null;
@@ -31,20 +39,36 @@ export interface PackHeroProps {
   gameImage?: string | null;
   /** The game's logo, centred over the banner. */
   gameLogo?: string | null;
+  /**
+   * The organiser's own artwork. When set it takes the hero outright: no
+   * darkening overlay and no game logo, because a poster made for this event
+   * carries its own title and branding and does not want ours on top of it.
+   */
+  bannerImage?: string | null;
   /** Free-form line under the title, e.g. "2000 Points". */
   subtitle?: ReactNode;
   menu?: ReactNode;
 }
 
-export const PackHero = ({ name, gameName, gameIcon, gameImage, gameLogo, subtitle, menu }: PackHeroProps) => (
+export const PackHero = ({
+  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, subtitle, menu,
+}: PackHeroProps) => {
+  const custom = !!bannerImage;
+  const image  = bannerImage || gameImage;
+
+  return (
   <header className="w-full">
-    {/* Banner: the game's artwork darkened by half, with its logo centred on
-        top. The overlay is what keeps a bright banner from swallowing the logo. */}
-    {gameImage && (
-      <div className="relative w-full h-[218px] overflow-hidden bg-gray-900">
-        <img src={gameImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/50" />
-        {gameLogo && (
+    {/* Game artwork is generic — the same picture for every event of that game —
+        so it is darkened and carries the game's logo. A custom banner is
+        specific to this event and is shown exactly as it was cropped. */}
+    {image && (
+      <div
+        className="relative w-full overflow-hidden bg-gray-900"
+        style={{ aspectRatio: String(BANNER_ASPECT) }}
+      >
+        <img src={image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        {!custom && <div className="absolute inset-0 bg-black/50" />}
+        {!custom && gameLogo && (
           <img
             src={gameLogo}
             alt={gameName ?? ''}
@@ -71,7 +95,8 @@ export const PackHero = ({ name, gameName, gameIcon, gameImage, gameLogo, subtit
       </div>
     </div>
   </header>
-);
+  );
+};
 
 // ── Row ──────────────────────────────────────────────────────────────────────
 

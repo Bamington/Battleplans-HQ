@@ -21,12 +21,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Modal, Input, SearchSelect, Button, Callout, StepProgress, PickerTile, RichTextEditor,
-  ArrowRight, ArrowLeft, Calendar, CloseCircle,
+  BannerPicker, ArrowRight, ArrowLeft, Calendar, CloseCircle,
 } from '@battleplans/ui';
 import {
   buildSchedule, createPack, insertSchedule, listGames, listPacks,
-  recentIdsFrom, updatePack, minutesToTime,
+  recentIdsFrom, updatePack, minutesToTime, savePackBanner,
 } from '../lib/packs';
+import { BANNER_ASPECT } from './PackDocument';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
 import type { GameOption, LocationOption } from '../lib/packs';
 
@@ -65,6 +66,9 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [locationId,  setLocationId]  = useState('');
   const [format,      setFormat]      = useState('');
   const [description, setDescription] = useState('');
+  // undefined until the organiser crops one. Held rather than uploaded — see
+  // the note at the picker.
+  const [banner, setBanner] = useState<Blob | null | undefined>(undefined);
 
   // Step 2 — defaults are the design's, and are what most one-day events run.
   const [timeline,     setTimeline]     = useState('one-day');
@@ -81,7 +85,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   useEffect(() => {
     if (!open) return;
     setStep(1);
-    setName(''); setGameId(''); setDescription(''); setFormat('');
+    setName(''); setGameId(''); setDescription(''); setFormat(''); setBanner(undefined);
     // Pre-select the store being acted as, or the only one they have.
     setLocationId(defaultStoreId || (stores.length === 1 ? stores[0].id : ''));
     setTimeline('one-day'); setStartDate(''); setStartTime('10:00');
@@ -138,6 +142,12 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
         await insertSchedule(pack.id, preview).catch(() => {
           // Non-fatal: the pack is made, and Rounds & Breaks can be filled in.
         });
+      }
+      // Same bargain as the schedule: the upload can only run now that there is
+      // a pack id for the storage path, and losing the pack because an image
+      // failed would be the worse outcome. Re-uploadable from Event Basics.
+      if (banner) {
+        await savePackBanner(pack.id, banner).catch(() => {});
       }
 
       onCreated(pack.id);
@@ -240,6 +250,17 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                 or format details here, as we'll add that later.
               </p>
             </div>
+
+            {/* Cropped now, uploaded at the end. The bucket path is keyed on the
+                pack id and there is no pack yet, so the Blob waits in state with
+                everything else — which is also what keeps a cancelled flow from
+                leaving an orphaned object behind. */}
+            <BannerPicker
+              label="Event Banner"
+              aspect={BANNER_ASPECT}
+              hint="Optional. Shown across the top of your pack, in place of the game's artwork."
+              onChange={setBanner}
+            />
           </div>
         ) : (
           <div className="flex flex-col gap-5">

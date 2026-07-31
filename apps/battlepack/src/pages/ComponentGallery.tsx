@@ -75,6 +75,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-category-list-item',  label: 'Category List Item',   icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-battlepack-list-item', label: 'Battlepack List Item', icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-document-row',        label: 'Paired Rows',          icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-pack-hero-banner',    label: 'Pack Hero / Banner',   icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-pack-document',       label: 'Pack Document',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-event-basics-form',   label: 'Event Basics Form',    icon: <FileText className="w-5 h-5" /> },
   { href: '#nav-rounds-breaks-form',  label: 'Rounds & Breaks Form', icon: <ListCheck className="w-5 h-5" /> },
@@ -116,7 +117,7 @@ const EventBasicsFormDemo = () => {
   const [pack, setPack] = useState<Pack>({
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, created_at: '', updated_at: '',
   });
   const [log, setLog] = useState<string[]>([]);
 
@@ -172,7 +173,7 @@ const RoundsBreaksFormDemo = () => {
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, created_at: '', updated_at: '',
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
@@ -339,7 +340,7 @@ const SectionFormDemo = () => {
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, created_at: '', updated_at: '',
   };
 
   const [which, setWhich] = useState('faq');
@@ -431,7 +432,7 @@ const PublishPanelDemo = () => {
   const [pack, setPack] = useState<Pack>({
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
     starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
-    status: 'draft', slug: null, created_at: '', updated_at: '',
+    status: 'draft', slug: null, banner_path: null, created_at: '', updated_at: '',
   });
   const [blocked, setBlocked] = useState(true);
 
@@ -622,6 +623,26 @@ const ComponentGallery = () => {
         <DocumentRowDemo />
       </GallerySection>
 
+      <GallerySection id="nav-pack-hero-banner" title="Pack Hero / Custom Banner">
+        <GalleryNote>
+          The organiser's own artwork takes the hero outright — no darkening
+          overlay and no game logo, because a poster made for this event already
+          carries its own title. Both states are 3:1, the ratio BannerPicker
+          crops to.
+        </GalleryNote>
+        <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
+          <PackHero
+            name="Battle for the Amethyst City!"
+            gameName="Age of Sigmar"
+            gameIcon={GAME_ICONS['age-of-sigmar']}
+            gameImage={GAME_BANNERS['warhammer-40-000']}
+            gameLogo={GAME_BANNERS['warhammer-40-000']}
+            bannerImage={GAME_BANNERS['age-of-sigmar']}
+            subtitle="1500 Points"
+          />
+        </div>
+      </GallerySection>
+
       <GallerySection id="nav-pack-document" title="Pack Document">
         {/* gray-800 on gray-700 with a shadow — the card sits forward of the
             gray-950 page behind it, not level with it. */}
@@ -633,7 +654,6 @@ const ComponentGallery = () => {
             gameImage={GAME_BANNERS['warhammer-40-000']}
             gameLogo={GAME_BANNERS['warhammer-40-000']}
             subtitle="2000 Points"
-            menu={<MenuDots className="w-4 h-4" />}
           />
 
           <div className="px-5 pt-5">

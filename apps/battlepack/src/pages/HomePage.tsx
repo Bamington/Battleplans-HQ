@@ -15,13 +15,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AppFooter, Button, Input, ScrollColumn, Select, StoreSelector, useAdminLocations,
-  supabase, AddCircle, GAME_ICONS, Magnifer, Shield,
+  AppFooter, Button, ButtonPair, Dropdown, DropdownItem, Input, Modal, ScrollColumn,
+  Select, StoreSelector, useAdminLocations,
+  supabase, AddCircle, GAME_ICONS, Magnifer, MenuDots, Shield, TrashBinMinimalistic,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import BattlepackListItem from '../components/BattlepackListItem';
 import NewPackModal from '../components/NewPackModal';
-import { listPacks } from '../lib/packs';
+import { deletePack, listPacks } from '../lib/packs';
 import type { PackSummary } from '../lib/packs';
 
 declare const __APP_VERSION__: string;
@@ -47,6 +48,11 @@ export default function HomePage() {
   const [filter,  setFilter]  = useState<Filter>('upcoming');
   const [search,  setSearch]  = useState('');
   const [creating, setCreating] = useState(false);
+  // The pack the kebab's Delete is asking about, or null. Holding the row
+  // rather than the id is what lets the dialog name the event it is about to
+  // destroy — "Delete this pack?" is exactly the prompt people click through.
+  const [pendingDelete, setPendingDelete] = useState<PackSummary | null>(null);
+  const [deleting,      setDeleting]      = useState(false);
 
   // Store-admin status lives in locations.admins rather than on the profile, so
   // it has to be looked up against the signed-in user.
@@ -70,6 +76,27 @@ export default function HomePage() {
       .catch(e => setError(e instanceof Error ? e.message : 'Could not load your packs.'))
       .finally(() => setLoading(false));
   }, []);
+
+  /**
+   * Delete the pack, then drop it from the list rather than refetching.
+   *
+   * The row is gone either way; a refetch would only re-prove it at the cost of
+   * a round trip and a flash of the whole column reloading.
+   */
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deletePack(pendingDelete.id);
+      setPacks(prev => prev.filter(p => p.id !== pendingDelete.id));
+      setPendingDelete(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete that pack.');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const visible = useMemo(() => {
     const now = today();
@@ -157,6 +184,29 @@ export default function HomePage() {
                 endsOn={p.ends_on}
                 status={p.status}
                 onOpen={() => navigate(`/app/${p.id}/edit`)}
+                menu={
+                  <Dropdown
+                    align="right"
+                    menuClassName="w-40"
+                    trigger={
+                      <button
+                        type="button"
+                        aria-label={`Actions for ${p.name}`}
+                        className="p-1 rounded text-gray-400 hover:text-white cursor-pointer"
+                      >
+                        <MenuDots className="w-4 h-4" />
+                      </button>
+                    }
+                  >
+                    <DropdownItem
+                      icon={<TrashBinMinimalistic className="w-4 h-4" />}
+                      className="text-red-400"
+                      onClick={() => setPendingDelete(p)}
+                    >
+                      Delete
+                    </DropdownItem>
+                  </Dropdown>
+                }
               />
             )}
             footer={
@@ -182,6 +232,44 @@ export default function HomePage() {
         defaultStoreId={storeId}
         onCreated={id => navigate(`/app/${id}/edit`)}
       />
+
+      {/* Always asked, unlike removing a category — that hides content it can
+          give back, and this does not. Deleting takes the rounds, every section
+          and the published URL with it. */}
+      <Modal
+        open={pendingDelete !== null}
+        onClose={() => (deleting ? undefined : setPendingDelete(null))}
+        className="max-w-sm"
+      >
+        <div className="flex flex-col gap-4 p-5">
+          <h2 className="font-heading text-xl text-white">
+            Delete {pendingDelete?.name ?? 'this pack'}?
+          </h2>
+          <p className="font-body text-sm text-gray-300">
+            This removes the event and everything in it — the schedule, every
+            section, and the whole document. It cannot be undone.
+          </p>
+          {pendingDelete?.status === 'published' && (
+            <p className="font-body text-sm text-gray-300">
+              It is published, so its public link will stop working. That address
+              is retired for good and cannot be given to another pack.
+            </p>
+          )}
+          <ButtonPair>
+            <Button color="danger" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+            <Button
+              variant="outline"
+              color="secondary"
+              onClick={() => setPendingDelete(null)}
+              disabled={deleting}
+            >
+              Keep it
+            </Button>
+          </ButtonPair>
+        </div>
+      </Modal>
     </div>
   );
 }

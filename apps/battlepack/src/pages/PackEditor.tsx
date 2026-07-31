@@ -33,7 +33,7 @@ import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
 import {
   PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, ScheduleTable,
-  DocumentMenuIcon, sectionId,
+  sectionId,
 } from '../components/PackDocument';
 import {
   CATEGORY_TABS, CATEGORY_BY_KEY, visibleCategories, incompleteCategories,
@@ -41,7 +41,7 @@ import {
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
-  listGames, listMyLocations, publishPack, unpublishPack, timeSchedule,
+  listGames, listMyLocations, publishPack, unpublishPack, timeSchedule, bannerUrl,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
@@ -623,10 +623,12 @@ export default function PackEditor() {
               gameIcon={gameArt.icon}
               gameImage={gameArt.banner}
               gameLogo={gameArt.banner}
+              /* The organiser's own artwork wins the hero when they have
+                 uploaded one; otherwise the game's banner stands in. */
+              bannerImage={bannerUrl(pack.banner_path)}
               /* The format reads as a second fact about the event, so it sits
                  beside the game in the same muted style rather than competing. */
               subtitle={pack.format}
-              menu={<DocumentMenuIcon />}
             />
 
             {/* pt-5 on top of the hero's pb-6 — the gallery demo had this and

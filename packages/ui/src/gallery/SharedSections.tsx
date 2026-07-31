@@ -37,6 +37,7 @@ import AddFriendModal from '../components/AddFriendModal';
 import AppFooter from '../components/AppFooter';
 import Avatar, { AvatarGroup } from '../components/Avatar';
 import AvatarPicker from '../components/AvatarPicker';
+import BannerPicker from '../components/BannerPicker';
 import Badge from '../components/Badge';
 import Banner from '../components/Banner';
 import BuilderShell from '../components/BuilderShell';
@@ -1113,6 +1114,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-avatars',              label: 'Avatars',              icon: <UserRounded className="w-5 h-5" /> },
   { href: '#nav-friends-modals',       label: 'Friends Modals',       icon: <UserPlusRounded className="w-5 h-5" /> },
   { href: '#nav-avatar-picker',        label: 'Avatar Picker',        icon: <UserCircle className="w-5 h-5" /> },
+  { href: '#nav-banner-picker',        label: 'Banner Picker',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-cards',                label: 'Cards',                icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-dropdowns',            label: 'Dropdowns',            icon: <AltArrowDown className="w-5 h-5" /> },
   { href: '#nav-inputs',               label: 'Inputs',               icon: <Inbox className="w-5 h-5" /> },
@@ -1172,6 +1174,8 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
   const [multiSelected2, setMultiSelected2] = useState<string[]>([]);
   // AvatarPicker demo: undefined = untouched, Blob = cropped, null = removed.
   const [pickedAvatar,   setPickedAvatar]   = useState<Blob | null | undefined>(undefined);
+  // BannerPicker demo: same three-state contract as the avatar one.
+  const [pickedBanner,   setPickedBanner]   = useState<Blob | null | undefined>(undefined);
   const [modalOpen,      setModalOpen]      = useState(false);
 
   return (
@@ -1887,6 +1891,62 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
               : pickedAvatar === null
                 ? 'removed'
                 : `${Math.round(pickedAvatar.size / 1024)} KB JPEG`}
+          </Text>
+
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-banner-picker" title="BannerPicker">
+        <div className="flex flex-col gap-6">
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              Empty at 3:1 — the frame already shows the shape the image has to be
+            </p>
+            <BannerPicker
+              label="Event banner"
+              aspect={3}
+              hint="Wide artwork for the top of the pack. JPEG, PNG or WebP."
+              onChange={blob => setPickedBanner(blob)}
+            />
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              With an existing banner — gains a Remove action
+            </p>
+            <BannerPicker
+              label="Event banner"
+              currentUrl={heroImage}
+              aspect={3}
+              onChange={blob => setPickedBanner(blob)}
+            />
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              A different ratio — 16:9, to show `aspect` drives both frame and crop
+            </p>
+            <BannerPicker
+              label="Cover image"
+              aspect={16 / 9}
+              onChange={blob => setPickedBanner(blob)}
+            />
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
+              Disabled (parent form is saving)
+            </p>
+            <BannerPicker currentUrl={heroImage} onChange={() => {}} disabled />
+          </div>
+
+          <Text variant="paragraph" size="sm">
+            Last onChange: {pickedBanner === undefined
+              ? 'untouched'
+              : pickedBanner === null
+                ? 'removed'
+                : `${Math.round(pickedBanner.size / 1024)} KB JPEG`}
           </Text>
 
         </div>
