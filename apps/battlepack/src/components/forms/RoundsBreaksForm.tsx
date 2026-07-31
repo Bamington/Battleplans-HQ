@@ -125,7 +125,7 @@ const RoundsBreaksForm = ({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h3 className="font-body text-sm font-bold text-white">The Day</h3>
+        <h3 className="font-body text-base font-bold text-white">The Day</h3>
         <HR />
       </div>
 

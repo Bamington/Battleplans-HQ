@@ -31,8 +31,12 @@ export interface EditorPanelProps {
 const EditorPanel = ({ title, headerAction, children }: EditorPanelProps) => {
   return (
     <>
+      {/* The divider is on the padded header itself, so it runs the full width
+          of the panel. Second-level dividers live inside the body's px-3 and
+          are therefore inset — that difference is what separates "this is the
+          panel" from "this is a group within it". */}
       <div className="px-4 py-4 border-b border-gray-700 shrink-0 flex items-center gap-2">
-        <h2 className="flex-1 min-w-0 font-heading text-sm font-bold text-white uppercase tracking-wide truncate">
+        <h2 className="flex-1 min-w-0 font-heading text-lg leading-6 text-white uppercase tracking-wide truncate">
           {title}
         </h2>
         {headerAction != null && (

@@ -118,7 +118,7 @@ const PublishPanel = ({
       {/* ── Where it stands ── */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-body text-sm font-bold text-white">Status</h3>
+          <h3 className="font-body text-base font-bold text-white">Status</h3>
           <Badge color={pack.status === 'published' ? 'success' : pack.status === 'unpublished' ? 'warning' : 'gray'}>
             {pack.status === 'published' ? 'Published' : pack.status === 'unpublished' ? 'Withdrawn' : 'Draft'}
           </Badge>
@@ -169,7 +169,7 @@ const PublishPanel = ({
 
       {/* ── The URL ── */}
       <div className="flex flex-col gap-1">
-        <h3 className="font-body text-sm font-bold text-white">Public URL</h3>
+        <h3 className="font-body text-base font-bold text-white">Public URL</h3>
         <HR />
       </div>
 

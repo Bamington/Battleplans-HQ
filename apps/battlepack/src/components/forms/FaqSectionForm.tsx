@@ -71,7 +71,7 @@ const FaqSectionForm = ({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-body text-sm font-bold text-white">{definition?.label ?? 'FAQ'}</h3>
+          <h3 className="font-body text-base font-bold text-white">{definition?.label ?? 'FAQ'}</h3>
           <span className="font-body text-xs text-gray-500">
             {state === 'saving' ? 'Saving…' : state === 'error' ? 'Not saved' : ''}
           </span>

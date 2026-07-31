@@ -38,7 +38,7 @@ import { BANNER_MIN_ASPECT } from '../PackDocument';
 const FieldGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-3">
     <div className="flex flex-col gap-1">
-      <h3 className="font-body text-sm font-bold text-white">{title}</h3>
+      <h3 className="font-body text-base font-bold text-white">{title}</h3>
       <HR />
     </div>
     {children}
