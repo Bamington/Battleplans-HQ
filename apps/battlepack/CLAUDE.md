@@ -76,6 +76,12 @@ It renders `<SharedGallerySections appName="BattlePack" />` above this app's own
 sections. The three-column editor chrome (`BuilderShell` / `ListPanel` /
 `EditorPanel`) is shared, so those demos live in the shared sections.
 
-`LOCAL_NAV` is behind the components. `NewPackModal`, `ChecklistSectionForm`
-and `FaqSectionForm` have no demo — add them before adding anything else, so
-the debt stops growing.
+`NewPackModal` is the one local component with no demo. It is also the hardest
+to fake, being a two-step flow that writes on finish — the honest version needs
+injectable writes the way `SectionForm` takes `save`.
+
+The list-editor demos each render the EDITOR and the document's own rendering
+side by side, over an in-memory store. Keep that shape: it is what makes the
+storage shape legible — that a checklist keeps text and URL apart so the whole
+phrase can be a link, and that an FAQ keeps pairs so the document can collapse
+them. A demo of the editor alone would show none of it.

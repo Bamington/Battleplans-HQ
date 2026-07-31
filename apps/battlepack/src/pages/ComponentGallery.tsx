@@ -39,6 +39,7 @@ import {
   Gallery,
   MarkdownBody,
   ListCheck,
+  AltArrowDown,
   MapPin,
   InfoCircle,
   MenuDots,
@@ -61,6 +62,8 @@ import {
 import EventBasicsForm from '../components/forms/EventBasicsForm';
 import RoundsBreaksForm from '../components/forms/RoundsBreaksForm';
 import SectionForm from '../components/forms/SectionForm';
+import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
+import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
 import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
@@ -83,6 +86,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-rounds-breaks-form',  label: 'Rounds & Breaks Form', icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-add-category',        label: 'Add Category',         icon: <AddCircle className="w-5 h-5" /> },
   { href: '#nav-section-form',        label: 'Section Form',         icon: <FileText className="w-5 h-5" /> },
+  { href: '#nav-checklist-form',      label: 'Checklist Form',       icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-faq-form',            label: 'FAQ Form',             icon: <Notebook className="w-5 h-5" /> },
   { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
 ];
 
@@ -450,6 +455,182 @@ const SectionFormDemo = () => {
   );
 };
 
+/** The stub every list-editor demo below writes against. */
+const DEMO_PACK: Pack = {
+  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+  starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
+  status: 'draft', slug: null, banner_path: null, banner_aspect: null,
+  timeline: 'one-day', created_at: '', updated_at: '',
+};
+
+/**
+ * "What you'll need to play" over an in-memory store, with the document's own
+ * rendering beside it.
+ *
+ * The pairing is the point: the editor keeps text and URL apart precisely so
+ * the document can make the WHOLE phrase clickable rather than leaving a bare
+ * address mid-sentence. Add a URL to a row and watch the bullet become a link.
+ */
+const ChecklistSectionFormDemo = () => {
+  const [rows, setRows] = useState<Record<string, PackCategoryRow>>({
+    'what-to-bring': {
+      pack_id: 'demo', category_key: 'what-to-bring', hidden: false, sort_order: null,
+      content: { items: [
+        { text: 'All the models for your 2000 point army.' },
+        { text: 'The Core Rules or the 40k App', url: 'https://www.warhammer-community.com' },
+      ] },
+    },
+  });
+  const [writes, setWrites] = useState(0);
+
+  const save: SaveSection = async (_packId, key, content) => {
+    setWrites(n => n + 1);
+    setRows(prev => ({
+      ...prev,
+      [key]: { pack_id: 'demo', category_key: key, hidden: false, sort_order: null, content },
+    }));
+  };
+
+  const items = readChecklist(rows['what-to-bring']?.content);
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <span className="font-body text-xs text-gray-500">writes: {writes}</span>
+
+      <div className="w-full flex flex-col gap-3 lg:flex-row">
+        <div className="w-full lg:w-80 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+          <ChecklistSectionForm
+            pack={DEMO_PACK}
+            rows={rows}
+            schedule={[]}
+            games={[]}
+            venues={[]}
+            categoryKey="what-to-bring"
+            reload={async () => {}}
+            onChange={() => {}}
+            save={save}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="font-body text-xs uppercase tracking-[1.2px] text-gray-500 mb-2">
+            As the document renders it
+          </p>
+          {items.length ? (
+            <ul className="list-disc ps-5 space-y-1 font-body text-base leading-6 text-gray-300">
+              {items.map((item, i) => (
+                <li key={i}>
+                  {item.url
+                    ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="text-primary-400 hover:underline">{item.text}</a>
+                    : item.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-body text-sm text-gray-500 italic">Nothing here yet.</p>
+          )}
+        </div>
+      </div>
+
+      <GalleryNote>
+        Each row is an EditableListItem whose header is the text field itself,
+        so the reorder and delete controls sit on the same line as the phrase
+        they act on — a checklist item is one line, and a header row of its own
+        would double the height of every row to say nothing. The URL is a
+        separate field rather than something pasted into the text, which is what
+        lets the document make the whole phrase a link. Rows with neither text
+        nor URL are dropped on save, so an empty bullet can never be published.
+      </GalleryNote>
+    </div>
+  );
+};
+
+/**
+ * The FAQ editor over an in-memory store, with the accordion the document
+ * renders beside it.
+ *
+ * Questions and answers are kept as PAIRS rather than one prose blob: that is
+ * what lets the document collapse them at all.
+ */
+const FaqSectionFormDemo = () => {
+  const [rows, setRows] = useState<Record<string, PackCategoryRow>>({
+    faq: {
+      pack_id: 'demo', category_key: 'faq', hidden: false, sort_order: null,
+      content: { items: [
+        { question: 'Can I proxy models?', answer: 'Yes, within reason — it must be clearly the right size and base.' },
+        { question: 'Is there parking?', answer: 'Plenty, and it is free after 10am.' },
+      ] },
+    },
+  });
+  const [writes, setWrites] = useState(0);
+
+  const save: SaveSection = async (_packId, key, content) => {
+    setWrites(n => n + 1);
+    setRows(prev => ({
+      ...prev,
+      [key]: { pack_id: 'demo', category_key: key, hidden: false, sort_order: null, content },
+    }));
+  };
+
+  const items = readFaq(rows.faq?.content);
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <span className="font-body text-xs text-gray-500">writes: {writes}</span>
+
+      <div className="w-full flex flex-col gap-3 lg:flex-row">
+        <div className="w-full lg:w-80 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+          <FaqSectionForm
+            pack={DEMO_PACK}
+            rows={rows}
+            schedule={[]}
+            games={[]}
+            venues={[]}
+            categoryKey="faq"
+            reload={async () => {}}
+            onChange={() => {}}
+            save={save}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="font-body text-xs uppercase tracking-[1.2px] text-gray-500 mb-2">
+            As the document renders it
+          </p>
+          {items.length ? (
+            <div className="w-full flex flex-col rounded-xl overflow-hidden border border-gray-700">
+              {items.map((item, i) => (
+                <details key={i} className="group border-b border-gray-700 last:border-b-0 bg-gray-800 open:bg-gray-900">
+                  <summary className="flex items-start gap-2 px-4 py-3 cursor-pointer list-none marker:content-none hover:bg-gray-700/40 transition-colors">
+                    <AltArrowDown className="w-4 h-4 mt-1 shrink-0 text-primary-500 transition-transform group-open:rotate-180" />
+                    <MarkdownBody className="flex-1 min-w-0 text-base leading-6 font-medium text-white">
+                      {item.question}
+                    </MarkdownBody>
+                  </summary>
+                  <div className="px-4 pb-3 ps-10">
+                    <MarkdownBody className="text-base leading-6 text-gray-300">{item.answer}</MarkdownBody>
+                  </div>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <p className="font-body text-sm text-gray-500 italic">Nothing here yet.</p>
+          )}
+        </div>
+      </div>
+
+      <GalleryNote>
+        An FAQ is scanned for the one question you have rather than read
+        through, so the document collapses it — click a question on the right.
+        Keeping the two halves apart in storage is what makes that possible at
+        all; one prose field would leave the document with no idea which part is
+        which. Both halves are rich text, because an answer routinely wants a
+        list or a link and a question sometimes wants to stress a word.
+      </GalleryNote>
+    </div>
+  );
+};
+
 /**
  * The publish step over a stub pack, with the availability check answered from
  * a fixed set of taken slugs. Toggle the outstanding categories to watch the
@@ -756,6 +937,14 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-section-form" title="Section Form">
         <SectionFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-checklist-form" title="Checklist Form">
+        <ChecklistSectionFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-faq-form" title="FAQ Form">
+        <FaqSectionFormDemo />
       </GallerySection>
 
       <GallerySection id="nav-publish-panel" title="Publish Panel">
