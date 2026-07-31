@@ -65,7 +65,13 @@ function isAllowedOrigin(origin: string): boolean {
 function corsHeaders(origin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin && isAllowedOrigin(origin) ? origin : 'null',
-    'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
+    // x-client-info and x-supabase-api-version are added by supabase-js on
+    // every call, so omitting them fails the PREFLIGHT and the request never
+    // leaves the browser — with a generic "failed to send" that says nothing
+    // about headers. curl does not enforce CORS, so this only ever shows up
+    // from a real page.
+    'Access-Control-Allow-Headers':
+      'authorization, content-type, apikey, x-client-info, x-supabase-api-version',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
   };
