@@ -168,6 +168,10 @@ additional_redirect_urls = [
   "http://localhost:5173/**",
   "http://localhost:5174/**",
   "http://localhost:5175/**",
+  # BattlePack's dev server. Vite walks up from 5173 as ports are taken, so the
+  # fourth and fifth apps land here.
+  "http://localhost:5176/**",
+  "http://localhost:5177/**",
   # Each apex 308-redirects to www, so www is what window.location.origin
   # actually reports and what has to be allow-listed. Apex is kept for the
   # case where someone reaches an app before the redirect.
@@ -179,6 +183,15 @@ additional_redirect_urls = [
   "https://battlebench.app/**",
   "com.bamington.battlecards://**",
 ]
+# NOT YET LISTED, and deliberately: battlepack.app and com.bamington.battlepack.
+# The app has no production domain, so adding them here would describe
+# something that does not exist. Add both when it deploys — and remember this
+# file is not what the hosted project reads.
+#
+# DO NOT RUN `supabase config push` TO SYNC THIS. There is no `config pull`, so
+# there is no way to see what the dashboard currently holds and merge into it —
+# a push replaces the hosted redirect list with this one and sets the hosted
+# site_url to the localhost value above. That is every app's login, at once.
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
