@@ -21,6 +21,7 @@
  */
 
 import React, { useState } from 'react';
+import Select from './Select';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
@@ -67,6 +68,18 @@ export interface TabsProps {
   activeTab?: string;
   /** Fires with the tab id when a tab is clicked. Required for controlled mode. */
   onTabChange?: (tabId: string) => void;
+  /**
+   * Below `md`, swap the tab bar for a dropdown.
+   *
+   * A segmented bar divides the width by the number of tabs, so on a phone
+   * three tabs get about 100px each and the labels truncate to nothing —
+   * "Registration & Schedule" is unreadable at that size. A select shows one
+   * full label and opens the platform's own picker.
+   *
+   * Opt-in: a two-tab bar is fine on a phone, and this would be a surprise for
+   * the builders already using `segmented`.
+   */
+  mobileDropdown?: boolean;
   /**
    * Extra Tailwind classes on the tab panel.
    * Use to suppress the panel border when Tabs is placed inside a Card:
@@ -149,6 +162,7 @@ const Tabs = ({
   defaultTab,
   activeTab: controlledTab,
   onTabChange,
+  mobileDropdown = false,
   panelClassName = '',
   className      = '',
 }: TabsProps) => {
@@ -173,7 +187,25 @@ const Tabs = ({
   return (
     <div className={`w-full ${className}`}>
 
-      {/* Tab list */}
+      {/* Dropdown, below md only. Rendered alongside the bar rather than
+          swapped in by a JS breakpoint check: CSS already knows the viewport,
+          and a matchMedia hook would render the wrong one for a frame. */}
+      {mobileDropdown && (
+        <div className="md:hidden">
+          <Select
+            aria-label="Section"
+            value={activeTab}
+            onChange={e => selectTab(e.target.value)}
+            options={tabs.map(t => ({ value: t.id, label: t.label, disabled: t.disabled }))}
+          />
+        </div>
+      )}
+
+      {/* Tab list. Visibility lives on a WRAPPER, not on this element: the
+          variant classes already set `display: flex`, and adding `hidden`
+          beside it resolves by stylesheet order rather than by the order the
+          classes are written — so the bar would keep showing. */}
+      <div className={mobileDropdown ? 'hidden md:block' : ''}>
       <div role="tablist" className={listClasses[variant]}>
         {tabs.map((tab, index) => {
           const isActive   = tab.id === activeTab;
@@ -210,6 +242,7 @@ const Tabs = ({
             </button>
           );
         })}
+      </div>
       </div>
 
       {/* Tab panel */}

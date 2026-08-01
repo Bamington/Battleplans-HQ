@@ -79,8 +79,13 @@ const LinkPreview = ({ url, label }: LinkPreviewProps) => {
           {preview.title}
         </p>
 
+        {/* min-h of exactly two 20px lines. line-clamp caps the maximum but
+            reserves nothing, so a one-line description left its card shorter
+            than the one beside it — visible whenever Tickets and Registration
+            sit in the same row. Both now occupy two lines whether they fill
+            them or not. */}
         {preview.description && (
-          <p className="font-body text-sm leading-5 text-gray-400 line-clamp-2">
+          <p className="font-body text-sm leading-5 text-gray-400 line-clamp-2 min-h-10">
             {preview.description}
           </p>
         )}

@@ -707,6 +707,9 @@ export default function PackEditor() {
                   variant="segmented"
                   activeTab={shownTab}
                   onTabChange={id => setActiveTab(id as CategoryTab)}
+                  /* "Registration & Schedule" gets about half a phone's width
+                     in a segmented bar and truncates to nothing. */
+                  mobileDropdown
                   panelClassName="border-0 rounded-none p-0 pt-5"
                   tabs={tabs.map(t => ({
                     id: t.id,
