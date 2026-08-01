@@ -41,6 +41,7 @@ import {
   ListCheck,
   Trophy,
   Star,
+  Bookmark,
   AltArrowDown,
   MapPin,
   InfoCircle,
@@ -56,6 +57,7 @@ import {
 import AppNavbar from '../components/AppNavbar';
 import AddCategoryModal from '../components/AddCategoryModal';
 import PublishPanel from '../components/PublishPanel';
+import LinkPreview from '../components/LinkPreview';
 import CategoryListItem from '../components/CategoryListItem';
 import BattlepackListItem from '../components/BattlepackListItem';
 import {
@@ -92,6 +94,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-checklist-form',      label: 'Checklist Form',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-faq-form',            label: 'FAQ Form',             icon: <Notebook className="w-5 h-5" /> },
   { href: '#nav-titled-list-form',    label: 'Prizes / Resources',   icon: <Star className="w-5 h-5" /> },
+  { href: '#nav-link-preview',        label: 'Link Preview',         icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
 ];
 
@@ -1061,6 +1064,24 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-titled-list-form" title="Prizes / Resources Form">
         <TitledListFormDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-link-preview" title="Link Preview">
+        <GalleryNote>
+          What a Tickets or Registration URL renders as. The card asks the
+          link-preview Edge Function for the page's Open Graph tags; the
+          artwork fills its column edge to edge and takes its height from the
+          text beside it, with the favicon and domain identifying the site the
+          way a browser tab does. Anything that gives up no tags falls back to a
+          plain link — the last one below is a URL with nothing behind it, and
+          that is what it should look like.
+        </GalleryNote>
+        <div className="w-full max-w-2xl flex flex-col gap-3">
+          <LinkPreview url="https://ko-fi.com/s/1276798936" />
+          <LinkPreview url="https://www.eventbrite.com.au/" />
+          <LinkPreview url="https://example.com" />
+          <LinkPreview url="https://this-domain-does-not-resolve-battlepack.invalid/tickets" />
+        </div>
       </GallerySection>
 
       <GallerySection id="nav-publish-panel" title="Publish Panel">

@@ -16,7 +16,6 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Gallery } from '@battleplans/ui';
 import { fetchLinkPreview } from '../lib/packs';
 import type { LinkPreviewData } from '../lib/packs';
 
@@ -33,10 +32,18 @@ function hostOf(url: string): string {
 
 const LinkPreview = ({ url, label }: LinkPreviewProps) => {
   const [preview, setPreview] = useState<LinkPreviewData | null>(null);
+  // A dead image URL is common — hotlinked artwork rots, CDNs move. Hiding the
+  // element rather than leaving a torn-icon placeholder in the card, and
+  // tracked in state rather than mutated in the DOM so a re-render cannot
+  // resurrect it.
+  const [imageBroken, setImageBroken] = useState(false);
+  const [iconBroken,  setIconBroken]  = useState(false);
 
   useEffect(() => {
     let stale = false;
     setPreview(null);
+    setImageBroken(false);
+    setIconBroken(false);
     fetchLinkPreview(url).then(p => { if (!stale) setPreview(p); });
     return () => { stale = true; };
   }, [url]);
@@ -62,39 +69,59 @@ const LinkPreview = ({ url, label }: LinkPreviewProps) => {
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      className="w-full flex rounded-xl overflow-hidden border border-gray-700 bg-gray-900
-                 hover:border-gray-500 transition-colors"
+      className="w-full flex items-stretch rounded-xl overflow-hidden border border-gray-700
+                 bg-gray-900 hover:border-gray-500 transition-colors"
     >
-      {/* Fixed square rather than the image's own shape: a row of previews with
-          different artwork should not have ragged heights. */}
-      <div className="shrink-0 w-24 h-24 bg-gray-950 flex items-center justify-center overflow-hidden">
-        {preview.image_url
-          ? (
-            <img
-              src={preview.image_url}
-              alt=""
-              className="w-full h-full object-cover"
-              /* A broken image URL is common and must not leave a torn icon in
-                 the middle of the card. */
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-          )
-          : <Gallery className="w-6 h-6 text-gray-700" />}
-      </div>
-
-      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 px-4 py-3">
+      {/* Text first in the DOM as well as on screen — it is what the link is
+          about, and it is what a screen reader should reach first. */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 px-4 py-3">
         <p className="font-body font-bold text-base leading-6 text-white line-clamp-1">
           {preview.title}
         </p>
+
         {preview.description && (
           <p className="font-body text-sm leading-5 text-gray-400 line-clamp-2">
             {preview.description}
           </p>
         )}
-        <p className="font-body text-xs leading-4 text-gray-500 truncate">
-          {preview.site_name || host}
-        </p>
+
+        {/* Favicon and domain, the way a browser tab identifies a site. A
+            domain alone is a string to read; the mark is recognised. */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {preview.favicon_url && !iconBroken && (
+            <img
+              src={preview.favicon_url}
+              alt=""
+              className="w-4 h-4 rounded-sm shrink-0 object-contain"
+              onError={() => setIconBroken(true)}
+            />
+          )}
+          <span className="font-body text-xs leading-4 text-gray-500 truncate">
+            {host}
+          </span>
+        </div>
       </div>
+
+      {/* Fills its column edge to edge and takes its height from the text
+          beside it, so the artwork is cropped rather than letterboxed and the
+          card has no dead space. Dropped entirely when there is no image —
+          a placeholder tile would be a box of nothing a third of the card wide. */}
+      {preview.image_url && !imageBroken && (
+        <div className="shrink-0 w-[28%] max-w-[200px] self-stretch relative bg-gray-950">
+          {/* ABSOLUTE, so the artwork contributes nothing to layout. Left in
+              flow with h-full it silently drove the row instead: a percentage
+              height against an auto-height parent is ignored, so a square image
+              made the card as tall as it was wide — 190px for two lines of
+              text. The height comes from the text; the image fills whatever
+              that turns out to be. */}
+          <img
+            src={preview.image_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={() => setImageBroken(true)}
+          />
+        </div>
+      )}
     </a>
   );
 };

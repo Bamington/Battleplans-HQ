@@ -273,7 +273,28 @@ export async function updatePack(id: string, patch: Partial<Pack>): Promise<void
   if (error) throw error;
 }
 
+/**
+ * Delete a pack, and its banner with it.
+ *
+ * THE ORDER MATTERS AND IS NOT REVERSIBLE. The bucket policy authorises writes
+ * through can_edit_battlepack(pack_id), so once the row is gone that returns
+ * false for everyone and the object can never be removed through the API again.
+ * It has to go first, while there is still a pack to be an admin of.
+ *
+ * This is a surgical delete — one exact key, read from the row we are about to
+ * remove — not a prefix sweep of the folder. And it is best-effort: a pack that
+ * survives its own deletion because an image would not delete is the worse
+ * outcome, so a failure here leaves an orphan and carries on.
+ */
 export async function deletePack(id: string): Promise<void> {
+  const { data: pack } = await supabase
+    .from('battlepacks')
+    .select('banner_path')
+    .eq('id', id)
+    .maybeSingle();
+
+  await deleteBannerObject(pack?.banner_path);
+
   const { error } = await supabase.from('battlepacks').delete().eq('id', id);
   if (error) throw error;
 }
@@ -340,14 +361,42 @@ export async function savePackBanner(
   pending: PendingBanner | null | undefined,
 ): Promise<void> {
   if (pending === undefined) return;
+
+  const { data: current } = await supabase
+    .from('battlepacks')
+    .select('banner_path')
+    .eq('id', packId)
+    .maybeSingle();
+  const previous = current?.banner_path ?? null;
+
   if (pending === null) {
     await updatePack(packId, { banner_path: null, banner_aspect: null });
-    return;
+  } else {
+    await updatePack(packId, {
+      banner_path:   await uploadPackBanner(packId, pending.blob),
+      banner_aspect: pending.aspect,
+    });
   }
-  await updatePack(packId, {
-    banner_path:   await uploadPackBanner(packId, pending.blob),
-    banner_aspect: pending.aspect,
-  });
+
+  // Only after the row points somewhere else. Deleting first would leave a
+  // window where the column names a file that is already gone, and a failed
+  // update would make that permanent.
+  await deleteBannerObject(previous);
+}
+
+/**
+ * Remove one banner object by its exact key.
+ *
+ * Exact, never a prefix sweep of the pack's folder — a coarse filter is how you
+ * delete the banner somebody uploaded thirty seconds ago in another tab.
+ * Best-effort by design: a leftover object costs a few hundred KB, and throwing
+ * here would fail an operation that has already succeeded.
+ */
+export async function deleteBannerObject(path: string | null | undefined): Promise<void> {
+  if (!path) return;
+  try {
+    await supabase.storage.from(BANNER_BUCKET).remove([path]);
+  } catch { /* orphan left behind, which is the acceptable failure */ }
 }
 
 // ── Link previews ────────────────────────────────────────────────────────────
@@ -357,6 +406,7 @@ export interface LinkPreviewData {
   title: string | null;
   description: string | null;
   image_url: string | null;
+  favicon_url: string | null;
   site_name: string | null;
   ok: boolean;
 }

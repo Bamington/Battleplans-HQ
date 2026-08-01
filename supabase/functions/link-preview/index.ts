@@ -179,11 +179,14 @@ interface Preview {
   title: string | null;
   description: string | null;
   image_url: string | null;
+  favicon_url: string | null;
   site_name: string | null;
   ok: boolean;
 }
 
-const EMPTY: Preview = { title: null, description: null, image_url: null, site_name: null, ok: false };
+const EMPTY: Preview = {
+  title: null, description: null, image_url: null, favicon_url: null, site_name: null, ok: false,
+};
 
 /** Read at most MAX_BYTES of the body as text, then stop. */
 async function readCapped(res: Response): Promise<string> {
@@ -253,10 +256,43 @@ async function safeFetch(start: URL): Promise<Response | null> {
 
 // ── Parse ────────────────────────────────────────────────────────────────────
 
+/** The named entities that actually turn up in titles and descriptions. */
+const NAMED: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
+  ndash: '–', mdash: '—', hellip: '…', middot: '·',
+  eacute: 'é', egrave: 'è', uuml: 'ü', ouml: 'ö', auml: 'ä',
+  trade: '™', copy: '©', reg: '®', deg: '°', pound: '£', euro: '€',
+};
+
+/**
+ * Turn HTML entities back into characters.
+ *
+ * NUMERIC ENTITIES ARE THE POINT. Real pages are full of `&#x27;` for an
+ * apostrophe and `&#xA;` for a newline — Ko-fi's titles are — and a decoder
+ * that only knows a handful of named ones leaves `Mini Myths&#x27;s Ko-fi Shop`
+ * sitting in the card. Both bases are handled, and unknown entities are left
+ * alone rather than mangled into something worse.
+ *
+ * Whitespace collapses to single spaces at the end. A description is rendered
+ * as one flowing block clamped to two lines, so an embedded newline buys
+ * nothing and costs a line.
+ */
 const decodeEntities = (s: string) =>
-  s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-   .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
-   .trim();
+  s
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+      const code = parseInt(hex, 16);
+      return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const code = Number(dec);
+      return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : _;
+    })
+    // Named last: decoding &amp; first would turn "&amp;#39;" into an apostrophe
+    // when the page meant to show the literal text "&#39;".
+    .replace(/&([a-z][a-z0-9]*);/gi, (whole, name) => NAMED[name.toLowerCase()] ?? whole)
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /**
  * Pull one meta tag's content.
@@ -278,6 +314,36 @@ function metaContent(html: string, keys: string[]): string | null {
     }
   }
   return null;
+}
+
+/**
+ * The site's icon.
+ *
+ * Declared icons are preferred in rough order of how likely they are to be a
+ * decent size — an apple-touch-icon is at least 120px, whereas a bare
+ * `rel="icon"` is often a 16px .ico that looks like a smudge next to text.
+ * `/favicon.ico` is the last resort because every site has that path whether or
+ * not anything is served from it, so it is a guess rather than a statement.
+ */
+function parseFavicon(html: string, finalUrl: URL): string | null {
+  const rels = [
+    'apple-touch-icon',
+    'icon',
+    'shortcut icon',
+    'apple-touch-icon-precomposed',
+  ];
+  for (const rel of rels) {
+    const re = new RegExp(`<link[^>]+rel=["'][^"']*\\b${rel}\\b[^"']*["'][^>]*>`, 'i');
+    const tag = html.match(re)?.[0];
+    const href = tag?.match(/href=["']([^"']+)["']/i)?.[1];
+    if (href) {
+      try {
+        const resolved = new URL(decodeEntities(href), finalUrl);
+        if (resolved.protocol === 'http:' || resolved.protocol === 'https:') return resolved.toString();
+      } catch { /* try the next rel */ }
+    }
+  }
+  try { return new URL('/favicon.ico', finalUrl).toString(); } catch { return null; }
 }
 
 function parsePreview(html: string, finalUrl: URL): Preview {
@@ -305,6 +371,7 @@ function parsePreview(html: string, finalUrl: URL): Preview {
     title,
     description,
     image_url: image,
+    favicon_url: parseFavicon(html, finalUrl),
     site_name: siteName,
     ok: !!title,
   };

@@ -31,7 +31,7 @@ import type { PendingBanner } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
-import { bannerUrl, uploadPackBanner } from '../../lib/packs';
+import { bannerUrl, uploadPackBanner, deleteBannerObject } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
 
 const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) => {
@@ -71,9 +71,16 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
 
   async function handleBanner(next: PendingBanner | null) {
     setBannerError(null);
-    // Removing writes nothing to storage — the columns are cleared and the old
-    // object is left alone, per the surgical-deletes rule in packs.ts.
-    if (next === null) { onChange({ banner_path: null, banner_aspect: null }); return; }
+    // Whatever the row points at now — removed or replaced, it stops being
+    // reachable, so it goes. Captured before the patch, since onChange is
+    // optimistic and pack.banner_path is about to say something else.
+    const previous = pack.banner_path;
+
+    if (next === null) {
+      onChange({ banner_path: null, banner_aspect: null });
+      await deleteBannerObject(previous);
+      return;
+    }
 
     setBannerBusy(true);
     try {
@@ -83,6 +90,8 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         banner_path:   await uploadPackBanner(pack.id, next.blob),
         banner_aspect: next.aspect,
       });
+      // Only once the new one is up and the row has been pointed at it.
+      await deleteBannerObject(previous);
     } catch (e) {
       setBannerError(e instanceof Error ? e.message : 'Could not upload that banner.');
     } finally {
