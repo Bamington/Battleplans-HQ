@@ -24,6 +24,10 @@
  * with whatever follows as ordinary siblings — which is what a panel wants when
  * a section's contents are several unrelated blocks rather than one group.
  *
+ * Children are spaced by this component's own 8px gap, so a caller passing
+ * several fields gets the design's rhythm without doing anything. Do not wrap
+ * them in another flex column with its own gap.
+ *
  * USAGE:
  *   <PanelSection title="Basic Details">
  *     <Input label="Event Name" … />
@@ -49,20 +53,31 @@ export interface PanelSectionProps {
 }
 
 const PanelSection = ({ title, action, children }: PanelSectionProps) => (
-  <div className="flex flex-col gap-3">
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2">
-        {/* 16px bold against the panel's 18px Tanker above and 14px field
-            labels below — the middle step of three. */}
-        <h3 className="font-body text-base font-bold text-white">{title}</h3>
-        {action != null && action !== '' && (
-          typeof action === 'string'
-            ? <span className="shrink-0 font-body text-xs text-gray-500">{action}</span>
-            : <span className="shrink-0">{action}</span>
-        )}
-      </div>
-      <HR />
+  /*
+   * ONE FLAT 8px RHYTHM. The design gives the heading, the rule and every
+   * field the same gap — they are siblings in one stack, not a header block
+   * with content beneath it.
+   *
+   * The heading and the rule are therefore direct children here. Wrapping them
+   * in their own tighter group is what pulled the spacing out of shape before:
+   * HR carries `my-8` for standalone use, which stacked on the flex gap and
+   * turned 8px into 36px above the rule and 44px below it.
+   */
+  <div className="flex flex-col gap-2">
+    <div className="flex items-baseline justify-between gap-2">
+      {/* 16px bold against the panel's 18px Tanker above and 14px field labels
+          below — the middle step of three. */}
+      <h3 className="font-body text-base font-bold leading-6 text-gray-100">{title}</h3>
+      {action != null && action !== '' && (
+        typeof action === 'string'
+          ? <span className="shrink-0 font-body text-xs text-gray-500">{action}</span>
+          : <span className="shrink-0">{action}</span>
+      )}
     </div>
+
+    {/* spacing="none" because this parent owns the gap. */}
+    <HR spacing="none" />
+
     {children}
   </div>
 );

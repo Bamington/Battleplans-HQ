@@ -35,8 +35,12 @@ const EditorPanel = ({ title, headerAction, children }: EditorPanelProps) => {
           of the panel. Second-level dividers live inside the body's px-3 and
           are therefore inset — that difference is what separates "this is the
           panel" from "this is a group within it". */}
-      <div className="px-4 py-4 border-b border-gray-700 shrink-0 flex items-center gap-2">
-        <h2 className="flex-1 min-w-0 font-heading text-lg leading-6 text-white uppercase tracking-wide truncate">
+      {/* 16px above, 17px below — the design's, and not a typo: Tanker sits
+          high in its box, so an even split reads bottom-heavy. */}
+      <div className="px-4 pt-4 pb-[17px] border-b border-gray-700 shrink-0 flex items-center gap-2">
+        {/* Tanker 18/18. On a 24px line the descenders push the rule down and
+            the header stops matching the design's height. */}
+        <h2 className="flex-1 min-w-0 font-heading text-lg leading-[18px] text-white uppercase tracking-wide truncate">
           {title}
         </h2>
         {headerAction != null && (
