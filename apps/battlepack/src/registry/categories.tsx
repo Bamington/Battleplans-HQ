@@ -190,7 +190,7 @@ export interface CategoryDefinition {
 
 export const CATEGORY_TABS: { id: CategoryTab; label: string; icon: ReactNode }[] = [
   { id: 'format',       label: 'Event Format', icon: <InfoCircle className="w-4 h-4" /> },
-  { id: 'registration', label: 'Registration',  icon: <UserPlusRounded className="w-4 h-4" /> },
+  { id: 'registration', label: 'Registration & Schedule', icon: <UserPlusRounded className="w-4 h-4" /> },
   { id: 'faq',          label: 'FAQ',           icon: <Notebook className="w-4 h-4" /> },
 ];
 
@@ -224,11 +224,18 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
   {
     key: 'rounds-breaks',
     label: 'Schedule',
-    tab: 'format',
+    // Sits with Registration rather than with Event Format: when the day runs
+    // is the same question as how to get into it, and the format tab is about
+    // what kind of event it is.
+    tab: 'registration',
     requirement: 'default',
     gameId: null,
     storage: 'schedule',
-    order: 50,
+    // After Tickets (60) and Registration (70), before Prizes (80). You decide
+    // whether to come before you care what time Round 3 starts, and `order` is
+    // the single sequence behind both the tab and the left nav — so moving it
+    // here moves it in both.
+    order: 75,
     icon: <ListCheck className="w-6 h-6" />,
     // Default rather than mandatory because a narrative or campaign event may
     // genuinely have no rounds — which is exactly why visibility has to live on
