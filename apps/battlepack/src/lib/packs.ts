@@ -399,6 +399,45 @@ export async function deleteBannerObject(path: string | null | undefined): Promi
   } catch { /* orphan left behind, which is the acceptable failure */ }
 }
 
+// ── Public read ──────────────────────────────────────────────────────────────
+
+/** Why a slug did not resolve, or that it did. */
+export type PublicPackState = 'published' | 'withdrawn' | 'gone' | 'unknown';
+
+export interface PublicPack {
+  state: PublicPackState;
+  /** What the organiser typed, for the canonical URL. */
+  display_slug?: string;
+  /** Only present when state is 'published'. */
+  pack?: Pack;
+  game?: GameOption | null;
+  venue?: LocationOption | null;
+  categories?: PackCategoryRow[];
+  schedule?: ScheduleItem[];
+}
+
+/**
+ * Read a published pack by its slug, as anyone — signed in or not.
+ *
+ * Goes through `battlepack_by_slug` rather than querying the tables, because
+ * anon has no grants on them and deliberately never will: the function is the
+ * single, narrow way in, and it cannot be asked for a draft or for a pack by
+ * id. See 20260727000100 and 20260802000000.
+ *
+ * Never throws. A public page that 500s because a lookup failed is worse than
+ * one that says it could not find the event.
+ */
+export async function getPublicPack(slug: string): Promise<PublicPack> {
+  if (!slug?.trim()) return { state: 'unknown' };
+  try {
+    const { data, error } = await supabase.rpc('battlepack_by_slug', { lookup: slug.trim() });
+    if (error || !data) return { state: 'unknown' };
+    return data as PublicPack;
+  } catch {
+    return { state: 'unknown' };
+  }
+}
+
 // ── Link previews ────────────────────────────────────────────────────────────
 
 export interface LinkPreviewData {

@@ -11,8 +11,6 @@ schema is applied and the registry is populated.
 Two things the design doc calls for are still missing, and both are visible
 from the app:
 
-- **The public page at `battlepack.app/<slug>` does not exist.** Publishing
-  reserves the slug and it resolves to nothing.
 - **The create flow's progress bar says 1/3 and 2/3.** There is no third step.
 
 What is already decided and should be kept to:
@@ -23,9 +21,21 @@ What is already decided and should be kept to:
 - **The editor lives at `/app/<packId>/edit`** — keyed by row id, so it is
   stable, works for drafts with no slug, and survives the slug being set.
 - **A published pack's public page lives at the root — `battlepack.app/<slug>`.**
-  That namespace is shared with this app's own routes, so every path added to
-  `App.tsx` is permanently reserved against slugs. Currently reserved: `app`,
-  `login`, `auth`, `gallery`. Think before adding another.
+  Built: [PublicPack.tsx](src/pages/PublicPack.tsx) on a catch-all `/:slug`
+  route, declared LAST in `App.tsx` so the specific routes win. That namespace
+  is shared with this app's own routes, so every path added to `App.tsx` is
+  permanently reserved against slugs. Currently reserved: `app`, `login`,
+  `auth`, `gallery`. Adding another silently makes that word unusable as a slug
+  — add it to the database trigger's reserved list too, or an organiser can
+  claim a URL that will never resolve.
+- **Anonymous readers go through `battlepack_by_slug`, never the tables.** The
+  battlepack tables have no grants for `anon` and should not get any; the
+  SECURITY DEFINER function is the single way in and only ever returns
+  published packs. See `20260727000100` for why that split exists.
+- **The document is rendered by [packBody.tsx](src/components/packBody.tsx),
+  shared between the editor's centre column and the public page.** They show the
+  same pack, so they render from the same code — a category that looks one way
+  to the organiser and another to an attendee is the bug that file prevents.
 - **The accent is emerald.** Set in [index.css](src/index.css), and duplicated in
   HQ's [index.css](../hq/src/index.css) under `[data-app='battlepack']` — there
   is no way to import an `@theme` block into a scoped selector, so both copies

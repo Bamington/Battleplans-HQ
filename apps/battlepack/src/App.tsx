@@ -5,6 +5,7 @@ import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import PackEditor from './pages/PackEditor.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
+import PublicPack from './pages/PublicPack.tsx';
 
 /**
  * The app's own screens, as a route subtree.
@@ -66,6 +67,16 @@ export default function App() {
         {/* ── Protected routes — redirect unauthenticated users to /login,
                then gate on the user's platform access level ── */}
         {appRoutes()}
+
+        {/* ── A published pack, at the root ──
+            LAST, and deliberately. This is a catch-all: every path above is
+            permanently reserved against slugs, and React Router matches the
+            more specific route first, so `app`, `login`, `auth` and `gallery`
+            keep working. Adding a new top-level route silently makes that word
+            unusable as a slug — the DB trigger rejects the reserved list, so
+            add it there too or an organiser can claim a URL that will never
+            resolve. */}
+        <Route path="/:slug" element={<PublicPack />} />
       </Routes>
     </BrowserRouter>
   );

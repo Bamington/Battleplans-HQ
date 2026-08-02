@@ -22,19 +22,17 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  BuilderShell, ListPanel, EditorPanel, Tabs, Button, ButtonPair, Callout, HR, MarkdownBody, Modal,
+  BuilderShell, ListPanel, EditorPanel, Tabs, Button, ButtonPair, Callout, HR, Modal,
   GAME_BANNERS, GAME_ICONS,
   StoreSelector,
-  AddCircle, AltArrowDown, Calendar, InfoCircle, ListCheck, MapPin, Pen2, Play, Rocket, Trophy,
+  AddCircle, Pen2, Rocket,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import CategoryListItem from '../components/CategoryListItem';
 import {
-  PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, ScheduleTable,
-  sectionId,
+  PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, sectionId,
 } from '../components/PackDocument';
 import {
   CATEGORY_TABS, CATEGORY_BY_KEY, visibleCategories, incompleteCategories,
@@ -42,18 +40,15 @@ import {
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
-  listGames, listMyLocations, publishPack, unpublishPack, timeSchedule, bannerUrl,
+  listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
+import { categoryBody, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
+// Still needed here, by hasContent() rather than by the document rendering.
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
-import { readScheduleNotes } from '../components/forms/RoundsBreaksForm';
-import { readTitledList } from '../components/forms/TitledListForm';
 import PublishPanel from '../components/PublishPanel';
-import LinkPreview from '../components/LinkPreview';
-import type {
-  GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleKind,
-} from '../lib/packs';
+import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
 
 /**
  * The left nav's Publish row. Deliberately not a registry key — Publish has no
@@ -61,41 +56,6 @@ import type {
  * the registry about something that is neither.
  */
 const PUBLISH_KEY = '__publish__';
-
-/**
- * What a schedule row shows when the organiser has not named it.
- *
- * Only rounds get a number: they are the one kind that comes in a numbered
- * sequence, and "Break 2" would number the gaps as though anybody counted them.
- */
-const SCHEDULE_FALLBACK: Record<ScheduleKind, { label: (ordinal: number) => string; icon: ReactNode }> = {
-  round: { label: n => `Round ${n}`, icon: <Play className="w-4 h-4" /> },
-  break: { label: () => 'Break',     icon: <ListCheck className="w-4 h-4" /> },
-  event: { label: () => 'Event',     icon: <Trophy className="w-4 h-4" /> },
-};
-
-const formatDate = (iso?: string | null) => {
-  if (!iso) return null;
-  const [y, m, d] = iso.split('-');
-  return y && m && d ? `${d}/${m}/${y}` : null;
-};
-
-/** `time` columns arrive as HH:MM:SS; the document shows "10:00 AM - 12:00 PM". */
-const formatTime = (t?: string | null) => {
-  if (!t) return null;
-  const [hRaw, m] = t.split(':');
-  const h = Number(hRaw);
-  if (Number.isNaN(h)) return null;
-  const suffix = h < 12 ? 'AM' : 'PM';
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${m} ${suffix}`;
-};
-
-const formatTimeRange = (from?: string | null, to?: string | null) => {
-  const a = formatTime(from);
-  const b = formatTime(to);
-  return a && b ? `${a} - ${b}` : a ?? b;
-};
 
 export default function PackEditor() {
   const { packId = '' } = useParams();
@@ -332,190 +292,12 @@ export default function PackEditor() {
    * storage and no entry in the nav. Everything in it is entered in Event
    * Basics; asking for any of it twice would be asking for two answers.
    */
-  const keyInfoRows = () => {
-    const starts = formatDate(pack.starts_on);
-    const ends   = formatDate(pack.ends_on);
-    const time   = pack.starts_at ? formatTime(pack.starts_at) : null;
+  const keyInfoRows = () => keyInfoRowsShared(pack, venue);
 
-    const when = starts
-      ? [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null].filter(Boolean).join(' ')
-      : null;
-
-    return [
-      ...(venue ? [{
-        icon: <MapPin className="w-4 h-4" />,
-        text: `${venue.name}${venue.address ? `, ${venue.address}` : ''}`,
-      }] : []),
-      ...(when ? [{ icon: <Calendar className="w-4 h-4" />, text: when }] : []),
-      ...(pack.format ? [{ icon: <InfoCircle className="w-4 h-4" />, text: pack.format }] : []),
-    ];
-  };
-
-  /** What one category contributes to the document. */
-  const bodyFor = (c: typeof categories[number]) => {
-      let body;
-      if (c.key === 'rounds-breaks') {
-        // Times are worked out here rather than read from the row — an item
-        // stores how long it lasts and nothing else, so a reorder cannot leave
-        // the clock disagreeing with the order.
-        const timed = timeSchedule(schedule, pack.starts_at);
-        const notes = readScheduleNotes(rows[c.key]?.content);
-        const table = schedule.length
-          ? <ScheduleTable rows={schedule.map((s, i) => ({
-              ordinal: s.ordinal,
-              kind: s.kind,
-              label: s.label ?? SCHEDULE_FALLBACK[s.kind]?.label(s.ordinal) ?? 'Break',
-              time: timed[i] ? formatTimeRange(timed[i].startsAt, timed[i].endsAt) : `${s.duration_minutes} min`,
-              icon: SCHEDULE_FALLBACK[s.kind]?.icon ?? <ListCheck className="w-4 h-4" />,
-            }))} />
-          : <EmptySection hint="No rounds or breaks yet." />;
-
-        // Notes sit between the heading and the table — anything that applies to
-        // the whole day is read before the day itself, not discovered under it.
-        // Rendered only when written; an empty one adds a gap and nothing else.
-        body = notes
-          ? (
-            <div className="flex flex-col gap-3">
-              <MarkdownBody className="text-base leading-6 text-gray-300">{notes}</MarkdownBody>
-              {table}
-            </div>
-          )
-          : table;
-      } else if (c.key === 'event-basics') {
-        // The venue moved into Key Info, where the design shows it. This is
-        // just the blurb now, which is why the document calls it About — and it
-        // is markdown like every other prose field, so it renders as markdown.
-        body = pack.description
-          ? <MarkdownBody className="text-base leading-6 text-gray-300">{pack.description}</MarkdownBody>
-          : <EmptySection hint="No description yet." />;
-      } else if (c.key === 'what-to-bring') {
-        // A bulleted list where an item with a link is clickable end to end —
-        // the URL is a field, not something pasted mid-sentence, so the whole
-        // phrase can carry it.
-        const list = readChecklist(rows[c.key]?.content);
-        body = list.length
-          ? (
-            <ul className="list-disc ps-5 space-y-1">
-              {list.map((item, i) => (
-                <li key={i}>
-                  {item.url
-                    ? (
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="text-primary-400 hover:underline"
-                      >
-                        {item.text}
-                      </a>
-                    )
-                    : item.text}
-                </li>
-              ))}
-            </ul>
-          )
-          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
-      } else if (c.key === 'prizes' || c.key === 'resources') {
-        // A titled entry per row. The title carries the weight and the
-        // description sits under it, so the section can be scanned by title
-        // alone — which is how anyone reads a prize list.
-        const entries = readTitledList(rows[c.key]?.content);
-        body = entries.length
-          ? (
-            <div className="w-full flex flex-col gap-3">
-              {entries.map((entry, i) => (
-                <div key={i} className="flex flex-col gap-0.5">
-                  {/* Skipped when empty rather than rendered blank. Prizes
-                      written before this was a list read back as one untitled
-                      entry, and an empty bold line above them would be a gap
-                      the organiser never put there. */}
-                  {entry.title && (
-                    <p className="font-body font-bold text-base leading-6 text-white">
-                      {/* A resource's title is the link, so the clickable thing
-                          is the name rather than a bare address. */}
-                      {entry.url
-                        ? (
-                          <a
-                            href={entry.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-primary-400 hover:underline"
-                          >
-                            {entry.title}
-                          </a>
-                        )
-                        : entry.title}
-                    </p>
-                  )}
-                  {entry.description && (
-                    <MarkdownBody className="text-base leading-6 text-gray-300">
-                      {entry.description}
-                    </MarkdownBody>
-                  )}
-                </div>
-              ))}
-            </div>
-          )
-          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
-      } else if (c.key === 'faq') {
-        const faqs = readFaq(rows[c.key]?.content);
-        // An accordion: an FAQ is scanned for the one question you have, so the
-        // questions want to be a short list you read down, not a wall with the
-        // answers between them.
-        //
-        // Native <details> rather than a state-driven component: it is keyboard
-        // operable and announced as a disclosure without any ARIA of our own,
-        // there is no "which one is open" to hold or get wrong, and find-in-page
-        // still reaches an answer that is closed.
-        body = faqs.length
-          ? (
-            <div className="w-full flex flex-col rounded-xl overflow-hidden border border-gray-700">
-              {faqs.map((item, i) => (
-                <details
-                  key={i}
-                  className="group border-b border-gray-700 last:border-b-0 bg-gray-800 open:bg-gray-900"
-                >
-                  <summary
-                    className="flex items-start gap-2 px-4 py-3 cursor-pointer list-none
-                               marker:content-none hover:bg-gray-700/40 transition-colors"
-                  >
-                    {/* Points the way it is about to go. */}
-                    <AltArrowDown className="w-4 h-4 mt-1 shrink-0 text-primary-500 transition-transform group-open:rotate-180" />
-                    <MarkdownBody className="flex-1 min-w-0 text-base leading-6 font-medium text-white">
-                      {item.question}
-                    </MarkdownBody>
-                  </summary>
-
-                  <div className="px-4 pb-3 ps-10">
-                    <MarkdownBody className="text-base leading-6 text-gray-300">
-                      {item.answer}
-                    </MarkdownBody>
-                  </div>
-                </details>
-              ))}
-            </div>
-          )
-          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
-      } else {
-        // The remaining `section` categories hold markdown, so the document
-        // renders it as markdown.
-        const content = rows[c.key]?.content as { body?: string; url?: string } | null | undefined;
-        body = content?.body || content?.url
-          ? (
-            <>
-              {content.body && (
-                <MarkdownBody className="text-base leading-6 text-gray-300">{content.body}</MarkdownBody>
-              )}
-              {/* A card showing what is on the other end, rather than the raw
-                  address. Falls back to a plain link on its own when the page
-                  gives up nothing — see LinkPreview. */}
-              {content.url && <LinkPreview url={content.url} />}
-            </>
-          )
-          : <EmptySection hint={`Nothing in ${c.label} yet.`} />;
-      }
-      return body;
-  };
+  /** What one category contributes to the document — shared with the public
+   *  page at /:slug, so the organiser and the attendee see one document. */
+  const bodyFor = (c: typeof categories[number]) =>
+    categoryBody({ category: c, pack, rows, schedule });
 
   /**
    * The tab's sections, with paired ones sharing a row.
