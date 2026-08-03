@@ -250,6 +250,87 @@ from scheduled s
 join game   g on g.key = s.game_key
 join booker b on b.n  = s.booker_n;
 
+-- ── The next three days ─────────────────────────────────────────────────────
+--
+-- The fortnightly pattern above almost never lands on the day you happen to be
+-- taking screenshots, and "Today's Bookings" is an empty column in every shot
+-- of the venue side unless something is booked right now. So: today, tomorrow
+-- and the day after, whenever this is run.
+--
+-- Anchored to current_date rather than fixed dates, because a fixture that has
+-- to be edited before every screenshot session will eventually be screenshotted
+-- stale.
+--
+-- Slots are chosen from each day's real availability rather than assumed.
+-- Evenings only run Wednesday to Friday here, so hardcoding an evening booking
+-- would put a row in the table that the app itself would have refused to make —
+-- and the whole point of shooting the real app is that nothing on screen is
+-- something it couldn't have produced.
+
+with
+-- Numbered 1..8 for this block only, so the modulo below indexes it directly.
+booker(n, id, name) as (values
+  (1, 'b0770000-0000-4000-b000-000000000001'::uuid, 'Marcus Webb'),
+  (2, 'b0770000-0000-4000-b000-000000000002'::uuid, 'Priya Nair'),
+  (3, 'b0770000-0000-4000-b000-000000000003'::uuid, 'Tom Ashworth'),
+  (4, 'b0770000-0000-4000-b000-000000000004'::uuid, 'Sofia Reyes'),
+  (5, 'b0770000-0000-4000-b000-000000000006'::uuid, 'Ellie Zhang'),
+  (6, 'b0770000-0000-4000-b000-000000000007'::uuid, 'Josh Brennan'),
+  (7, 'b0770000-0000-4000-b000-000000000008'::uuid, 'Amara Diallo'),
+  (8, 'b0770000-0000-4000-b000-000000000009'::uuid, 'Rob Sinclair')
+),
+game(n, id) as (values
+  (1, '05009dfc-a129-4d86-9b25-680feb690746'::uuid),  -- Warhammer 40,000
+  (2, '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d'::uuid),  -- Age of Sigmar
+  (3, '1a19e961-8273-46aa-9a74-f0ebd90657c5'::uuid),  -- Blood Bowl
+  (4, 'c8bd38d8-bbcf-44a0-8994-398feb11f2cd'::uuid),  -- Necromunda
+  (5, 'aa727d43-324f-4f5c-9aa6-ebe5810e0abe'::uuid),  -- Battletech
+  (6, 'a01e71b7-ce00-498c-bda2-7dce8b03d580'::uuid)   -- Marvel Crisis Protocol
+),
+-- Every slot genuinely open on each of the three days.
+open_slot as (
+  select
+    d.day,
+    ts.id as slot_id,
+    ts.name as slot_name,
+    to_char(ts.start_time, 'HH24:MI:SS') as starts,
+    to_char(ts.end_time,   'HH24:MI:SS') as ends,
+    row_number() over (order by d.day, ts.start_time) as seq
+  from generate_series(0, 2) as g(offset_days)
+  cross join lateral (select current_date + g.offset_days as day) d
+  join public.timeslots ts
+    on ts.location_id = 'b0770000-0000-4000-a000-000000000001'
+   and trim(to_char(d.day, 'Day')) = any (ts.availability)
+),
+-- One booking per open slot, plus a second on the busiest slot of each day, so
+-- the column has enough rows to look like a real day rather than a demo.
+row_to_make as (
+  select day, slot_id, slot_name, starts, ends, seq, 0 as dup from open_slot
+  union all
+  select day, slot_id, slot_name, starts, ends, seq, 1 from open_slot
+  where slot_name in ('Afternoon', 'Evening')
+)
+insert into public.bookings (
+  id, location_id, timeslot_id, game_id, date, user_id, user_name, user_email,
+  location_name, timeslot_name, timeslot_start_time, timeslot_end_time
+)
+select
+  gen_random_uuid(),
+  'b0770000-0000-4000-a000-000000000001',
+  r.slot_id,
+  gm.id,
+  r.day,
+  b.id,
+  b.name,
+  null,
+  'Burrow Games',
+  r.slot_name,
+  r.starts,
+  r.ends
+from row_to_make r
+join booker b  on b.n  = ((r.seq * 2 + r.dup) % 8) + 1
+join game   gm on gm.n = ((r.seq + r.dup * 3) % 6) + 1;
+
 alter table public.bookings enable trigger bookings_notify_created;
 alter table public.bookings enable trigger bookings_notify_cancelled;
 
