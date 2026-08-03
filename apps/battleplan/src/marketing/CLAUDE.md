@@ -52,7 +52,14 @@ follow:
   5.7:1. Don't "fix" this to match the app's white-on-violet buttons.
 - The accent is rationed. Per page it appears in: primary buttons, the active
   nav item, screenshot underglows, the Callout, and the closing CTA panel.
-  Section headings, bullets and icons are **not** accent-coloured.
+  Bullets and icons are **not** accent-coloured.
+- **Headings are the one exception, and only in transit.** `.mk-display-1` and
+  `.mk-display-2` arrive in `--mk-accent-300` and settle to
+  `--mk-text-primary` as they scroll in. The resting state of every heading is
+  still white — the purple is a moment, not a colour scheme. Card and tile
+  headings (`.mk-display-3`) don't do this: they appear in grids of three to
+  eight, and eight simultaneous colour transitions is noise rather than
+  emphasis.
 
 ## Type
 

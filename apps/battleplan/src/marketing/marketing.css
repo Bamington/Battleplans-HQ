@@ -140,13 +140,37 @@
  * for weight.
  */
 
+/*
+ * Page and section headings arrive light purple and settle to white as they
+ * scroll in. It's the one place the accent is allowed to appear at size, and
+ * it's transient — the resting state of every heading is still white.
+ *
+ * The timing is the whole trick. The reveal's opacity fade is 400ms, so a
+ * colour transition of the same length would finish while the text is still
+ * fading up and nobody would see the purple at all. This runs 900ms and starts
+ * 160ms *after* the reveal, so the heading lands purple and then cools.
+ *
+ * --mk-delay is inherited from the enclosing .mk-reveal, so a staggered group
+ * keeps its stagger instead of every heading turning at once.
+ */
+.mk-display-1,
+.mk-display-2 {
+  color: var(--mk-accent-300);
+  transition: color 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--mk-delay, 0ms) + 160ms);
+}
+
+.mk-reveal.is-visible .mk-display-1,
+.mk-reveal.is-visible .mk-display-2 {
+  color: var(--mk-text-primary);
+}
+
 .mk-display-1 {
   font-family: var(--mk-font-display);
   font-weight: 400;
   font-size: clamp(2.75rem, 1.6rem + 5.6vw, 5.75rem);
   line-height: 0.95;
   letter-spacing: -0.025em;
-  color: var(--mk-text-primary);
 }
 
 .mk-display-2 {
@@ -155,7 +179,6 @@
   font-size: clamp(2rem, 1.3rem + 3.4vw, 3.75rem);
   line-height: 1;
   letter-spacing: -0.02em;
-  color: var(--mk-text-primary);
 }
 
 .mk-display-3 {
@@ -418,6 +441,14 @@
   }
   .mk-frame:hover,
   .mk-frame-hero:hover { transform: none; }
+
+  /* Headings still cool from purple to white — again a colour change, not
+     motion — just faster, so it doesn't linger. */
+  .mk-display-1,
+  .mk-display-2 {
+    transition: color 400ms ease;
+    transition-delay: 80ms;
+  }
 }
 
 /* ── FAQ ──────────────────────────────────────────────────────────────── */
