@@ -23,10 +23,8 @@ import { Magnifer } from '@battleplans/ui';
 import Markdown from 'react-markdown';
 import { AltArrowDown } from '@battleplans/ui';
 import { Play } from '@battleplans/ui';
-import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
 import { Input } from '@battleplans/ui';
@@ -1014,9 +1012,9 @@ const CardBuilderRyg = () => {
       leftPanelOpen={cardListOpen}
       onClosePanels={closePanels}
       leftPanel={
-        <CardListPanel
-          deckName={deckName}
-          editingDeckName={editingDeckName}
+        <ListPanel
+          title={deckName}
+          editingTitle={editingDeckName}
           inputRef={deckNameInputRef}
           onStartEdit={startDeckNameEdit}
           onCommit={n => commitDeckName(n, { persist: true })}
@@ -1109,7 +1107,7 @@ const CardBuilderRyg = () => {
               );
             })()}
           </nav>
-        </CardListPanel>
+        </ListPanel>
       }
       center={
         /* Play mode + Rules tab → keyword list (RYG has no rule cards, so this

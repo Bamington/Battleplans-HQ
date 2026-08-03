@@ -1,30 +1,30 @@
-﻿/**
- * RygCard.tsx â€" Repent Ye Foolish Gods warrior card
+/**
+ * RygCard.tsx — Repent Ye Foolish Gods warrior card
  *
  * Architecture:
- *   Layer 1 â€" bg.svg            : full-card rock texture background
- *   Layer 2 â€" Dark header band  : positioned div covering the top-right area,
+ *   Layer 1 — bg.svg            : full-card rock texture background
+ *   Layer 2 — Dark header band  : positioned div covering the top-right area,
  *                                  providing the dark stone background for the
  *                                  name / stats region
- *   Layer 3 â€" Dynamic content   : warrior name, type, sept, stat values,
+ *   Layer 3 — Dynamic content   : warrior name, type, sept, stat values,
  *                                  talents, portrait, and all content sections
  *
- * Native size: 890 Ã— 1270 px (portrait). Wrap in a scaled container for display.
+ * Native size: 890 × 1270 px (portrait). Wrap in a scaled container for display.
  *
  * Layout (from Figma node 959:15634):
- *   â"Œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¬â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"
- *   â"‚  Portrait     â"‚  Dark header band                      â"‚
- *   â"‚  298 Ã— 354    â"‚  Name (LLTextur, 82px, white)          â"‚
- *   â"‚               â"‚  â"€â"€ divider â"€â"€                         â"‚
- *   â"‚               â"‚  TYPE â€¢ SEPT                           â"‚
- *   â"‚               â"‚  [OFF] [DEF] [TAC] [FATE]  stat boxes  â"‚
- *   â"œâ"€â"€â"€â"¬â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"´â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- *   â"‚[L]â"‚  Talents: comma-separated keywords                 â"‚
- *   â"œâ"€â"€â"€â"´â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- *   â"‚  SPECIAL ABILITY  (header + description)               â"‚
- *   â"‚  â"€â"€ weapon rows â"€â"€                                     â"‚
- *   â"‚  â"€â"€ armor / item rows â"€â"€                               â"‚
- *   â""â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"˜
+ *   ┌───────────────┬────────────────────────────────────────┐
+ *   │  Portrait     │  Dark header band                      │
+ *   │  298 × 354    │  Name (LLTextur, 82px, white)          │
+ *   │               │  ── divider ──                         │
+ *   │               │  TYPE • SEPT                           │
+ *   │               │  [OFF] [DEF] [TAC] [FATE]  stat boxes  │
+ *   ├───┬───────────┴────────────────────────────────────────┤
+ *   │[L]│  Talents: comma-separated keywords                 │
+ *   ├───┴────────────────────────────────────────────────────┤
+ *   │  SPECIAL ABILITY  (header + description)               │
+ *   │  ── weapon rows ──                                     │
+ *   │  ── armor / item rows ──                               │
+ *   └────────────────────────────────────────────────────────┘
  *
  * Inline editing:
  *   Pass onChange callbacks to enable editing on individual fields.
@@ -33,26 +33,26 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-// @ts-ignore â€" path contains spaces
+// @ts-ignore — path contains spaces
 import bgSvg from '../assets/games/card assets/ryg/bg.svg';
 
-// â"€â"€ Native size â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Native size ──────────────────────────────────────────────────────────────
 export const CARD_W = 890;
 export const CARD_H = 1270;
 
-// â"€â"€ Theme â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Theme ────────────────────────────────────────────────────────────────────
 // const DARK_BAND_BG   = 'rgba(10, 8, 6, 0.88)'; // reserved for future use
 const LIFE_RED       = '#890000';
 const CREAM          = '#e8e5dd';
 const BORDER_TAN     = '#87816e';
 const TEXT_DARK      = '#141414';
 
-// â"€â"€ Fonts â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Fonts ────────────────────────────────────────────────────────────────────
 const TEXTUR = { fontFamily: "'LLTextur', 'IM Fell English', serif" } as const;
 const BASKERVILLE      = { fontFamily: "'Libre Baskerville', 'Georgia', serif" } as const;
 const BASKERVILLE_BOLD = { ...BASKERVILLE, fontWeight: 700 } as const;
 
-// â"€â"€ Geometry (matches Figma node 959:15634) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Geometry (matches Figma node 959:15634) ──────────────────────────────────
 // Portrait area
 const PORTRAIT_LEFT = 0;
 const PORTRAIT_TOP  = 0;
@@ -70,11 +70,11 @@ const NAME_H    = 124;
 // Divider line
 // DIVIDER_LEFT / DIVIDER_TOP / DIVIDER_W reserved for future use
 
-// Type â€¢ Sept row
+// Type • Sept row
 const TYPESEPT_CENTER_X = 584;
 const TYPESEPT_TOP      = 147;
 
-// 4 stat boxes (Offense, Defense, Tactics, Fate) â€" top=204, h=102
+// 4 stat boxes (Offense, Defense, Tactics, Fate) — top=204, h=102
 const STAT_TOP    = 204;
 const STAT_H      = 102;
 const STAT_BOXES = [
@@ -102,7 +102,7 @@ const CONTENT_TOP  = 432;
 const CONTENT_W    = 806;
 const CONTENT_GAP  = 20;
 
-// â"€â"€ Inline editable text â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Inline editable text ─────────────────────────────────────────────────────
 
 interface EditableTextProps {
   value:       string;
@@ -176,7 +176,7 @@ function EditableText({ value, onChange, style, className, placeholder }: Editab
   );
 }
 
-// â"€â"€ Public types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Public types ─────────────────────────────────────────────────────────────
 
 export interface RygWeapon {
   id:            string;
@@ -236,7 +236,7 @@ export interface RygCardProps {
   /** URL of the user-uploaded portrait photo. */
   portrait?:           string;
 
-  // Inline editing callbacks â€" omit to make read-only
+  // Inline editing callbacks — omit to make read-only
   onChangeName?:         (v: string) => void;
   onChangeType?:         (v: string) => void;
   onChangeSept?:         (v: string) => void;
@@ -244,7 +244,7 @@ export interface RygCardProps {
   onChangeAbilityDesc?:  (v: string) => void;
 }
 
-// â"€â"€ Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function RygCard({
   warriorName, type, sept,
@@ -289,7 +289,7 @@ export default function RygCard({
         fontFamily: BASKERVILLE.fontFamily,
       }}
     >
-      {/* Layer 1 â€" background texture */}
+      {/* Layer 1 — background texture */}
       <img
         src={bgSvg}
         alt=""
@@ -297,7 +297,7 @@ export default function RygCard({
         draggable={false}
       />
 
-      {/* Layer 2 â€" portrait photo area */}
+      {/* Layer 2 — portrait photo area */}
       <div
         style={{
           position:   'absolute',
@@ -339,7 +339,7 @@ export default function RygCard({
         {warriorName || 'Warrior Name'}
       </span>
 
-      {/* Layer 3 â€" Warrior name */}
+      {/* Layer 3 — Warrior name */}
       <div
         style={{
           position:        'absolute',
@@ -371,7 +371,7 @@ export default function RygCard({
       </div>
 
 
-      {/* Layer 3 â€" Type â€¢ Sept */}
+      {/* Layer 3 — Type • Sept */}
       <div
         style={{
           position:  'absolute',
@@ -397,7 +397,7 @@ export default function RygCard({
           }}
         />
         {typeSeptParts.length === 2 && (
-          <span style={{ ...BASKERVILLE_BOLD, fontSize: 14, color: CREAM, opacity: 0.8 }}>â€¢</span>
+          <span style={{ ...BASKERVILLE_BOLD, fontSize: 14, color: CREAM, opacity: 0.8 }}>•</span>
         )}
         <EditableText
           value={sept}
@@ -413,7 +413,7 @@ export default function RygCard({
         />
       </div>
 
-      {/* Layer 3 â€" Four stat boxes (Offense, Defense, Tactics, Fate) */}
+      {/* Layer 3 — Four stat boxes (Offense, Defense, Tactics, Fate) */}
       {STAT_BOXES.map(box => (
         <div
           key={box.key}
@@ -439,7 +439,7 @@ export default function RygCard({
         </div>
       ))}
 
-      {/* Layer 3 â€" Life box (left side, red) */}
+      {/* Layer 3 — Life box (left side, red) */}
       <div
         style={{
           position:       'absolute',
@@ -463,7 +463,7 @@ export default function RygCard({
         </span>
       </div>
 
-      {/* Layer 3 â€" Talents strip */}
+      {/* Layer 3 — Talents strip */}
       <div
         style={{
           position:  'absolute',
@@ -514,7 +514,7 @@ export default function RygCard({
         )}
       </div>
 
-      {/* Layer 3 â€" Content area */}
+      {/* Layer 3 — Content area */}
       <div
         style={{
           position:      'absolute',
@@ -534,7 +534,7 @@ export default function RygCard({
             <EditableText
               value={specialAbilityDesc ?? ''}
               onChange={onChangeAbilityDesc}
-              placeholder="Describe the special abilityâ€¦"
+              placeholder="Describe the special ability…"
               style={{ ...BASKERVILLE, fontSize: 24, color: TEXT_DARK, display: 'block', lineHeight: 1.4 }}
             />
           </div>

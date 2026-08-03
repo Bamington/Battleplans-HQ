@@ -72,7 +72,15 @@ export function useStoreStats(locationId: string | null) {
           .from('bookings')
           .select(SELECT)
           .eq('location_id', locationId)
+          // A venue books many tables on the same date, so `date` alone is not a
+          // total order and paging on it can repeat or drop rows at a page
+          // boundary. That matters more here than in a list: these rows are
+          // aggregated, so a repeat inflates the stats and a drop deflates them,
+          // with nothing on screen to show it happened. No venue is near PAGE
+          // yet, so today this always comes back in one page — the id tiebreak
+          // is what keeps it correct once one isn't.
           .order('date', { ascending: true })
+          .order('id', { ascending: true })
           .range(from, from + PAGE - 1);
 
         if (err) { if (!cancelled) { setError(err.message); setLoading(false); } return; }

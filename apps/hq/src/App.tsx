@@ -12,24 +12,25 @@ import {
 import { appRoutes as battleplanRoutes } from '@battleplans/battleplan';
 import { appRoutes as battlecardsRoutes } from '@battleplans/battlecards';
 import { appRoutes as battlebenchRoutes } from '@battleplans/battlebox';
+import { appRoutes as battlepackRoutes } from '@battleplans/battlepack';
 
 import Login from '../../battleplan/src/pages/Login.tsx';
 
 /**
  * App.tsx — the BattlePlan HQ shell.
  *
- * On the web the three apps are three origins, and the platform switcher moves
+ * On the web the apps are separate origins, and the platform switcher moves
  * between them with a full page navigation. That model doesn't survive being
  * wrapped: inside a native shell the same navigation walks the user out of the
  * app and into a browser, which is what this replaces.
  *
  * HQ mounts exactly ONE app's route subtree at a time, chosen by the shared
- * currentApp store. Because only one is ever mounted, all three can keep their
+ * currentApp store. Because only one is ever mounted, they can all keep their
  * existing absolute paths — BattlePlan's /app and BattleCards' /app never
  * collide, since only one of them exists at any moment. That's what lets HQ
- * exist without rewriting hundreds of links across three apps.
+ * exist without rewriting hundreds of links across four apps.
  *
- * The public routes (/login, /auth/*) are owned here, once, for all three.
+ * The public routes (/login, /auth/*) are owned here, once, for all of them.
  */
 
 /** Each app's screens, keyed by the slug the switcher and the database use. */
@@ -37,9 +38,7 @@ const APP_ROUTES: Record<AppSlug, (() => React.ReactElement) | null> = {
   battleplan:  battleplanRoutes,
   battlecards: battlecardsRoutes,
   battlebox:   battlebenchRoutes,
-  // Listed in platform_apps but has no screens yet; the switcher shows it as
-  // "coming soon" and never routes here.
-  battlepack:  null,
+  battlepack:  battlepackRoutes,
 };
 
 /** The app HQ opens on, and what it falls back to if an unknown slug is set. */
@@ -86,7 +85,7 @@ function Shell() {
   return (
     <div data-app={slug} className="contents">
       <Routes key={slug}>
-        {/* ── Public — one copy, shared by all three apps ── */}
+        {/* ── Public — one copy, shared by every app ── */}
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback className="bg-neutral-950" />} />

@@ -1,78 +1,112 @@
 /**
- * ComponentGallery.tsx — Component Gallery Page
+ * ComponentGallery.tsx — BattleCards Component Gallery
  *
  * A living reference for every UI component in the app.
  * This page is a development tool only — not a screen users will see.
  *
- * HOW TO USE:
- * As new components are built, import them here and add a <GallerySection>
- * below. Show every meaningful variant and state so components can be
- * reviewed and tweaked in isolation from the pages that use them.
+ * HOW IT IS PUT TOGETHER:
+ * The chrome (<GalleryShell>) and every demo for a shared @battleplans/ui
+ * component (<SharedGallerySections>) live in packages/ui, so all three apps
+ * show the same thing. This file only holds the sections for components that
+ * live in apps/battlecards/src/components.
+ *
+ * ADDING A COMPONENT: when you create a component in this app, add a
+ * <GallerySection> for it below showing every meaningful variant and state, and
+ * add a matching entry to LOCAL_NAV. If the component belongs in packages/ui
+ * instead, add its demo to packages/ui/src/gallery/SharedSections.tsx.
  *
  * Navigate to this page at: http://localhost:5173/gallery
  */
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Text } from '@battleplans/ui';
-import { List } from '@battleplans/ui';
-import { TextLink } from '@battleplans/ui';
-import { HR } from '@battleplans/ui';
-import { Sidebar, SidebarItem } from '@battleplans/ui';
-import { AppFooter } from '@battleplans/ui';
-import { Button } from '@battleplans/ui';
-import { Badge } from '@battleplans/ui';
-import { Avatar, AvatarGroup, AvatarPicker } from '@battleplans/ui';
-import { Card, CardImage, CardBody } from '@battleplans/ui';
-import { Dropdown, DropdownItem, DropdownDivider, DropdownHeader } from '@battleplans/ui';
-import { Input } from '@battleplans/ui';
-import { Select } from '@battleplans/ui';
-import { Counter } from '@battleplans/ui';
+import {
+  GalleryShell,
+  GallerySection,
+  GalleryNote,
+  SharedGallerySections,
+  SHARED_GALLERY_NAV,
+  type GalleryNavItem,
+} from '@battleplans/ui';
+import { Button, Counter, Input, Text, MarkdownBody } from '@battleplans/ui';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
+import { AddCircle, FileText, Pen2, Shield, Star, UserRounded, Widget2, Gallery, Bookmark, ListCheck, Play, Filter } from '@battleplans/ui';
+
+// ── Local component imports ──────────────────────────────────────────────────
+import AppNavbar from '../components/AppNavbar';
+import ZoomControls from '../components/ZoomControls';
 import UnitListEntry from '../components/UnitListEntry';
-import { Checkbox } from '@battleplans/ui';
-import { StarRating } from '@battleplans/ui';
-import { Tabs } from '@battleplans/ui';
-import { ColumnHeader } from '@battleplans/ui';
-import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
-import heroImage from '../assets/hero.png';
+import DeckCardList from '../components/DeckCardList';
 import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import StarcraftCard from '../components/StarcraftCard';
 import StarcraftPhaseFrame from '../components/StarcraftPhaseFrame';
-import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import AddonInfoModal from '../components/AddonInfoModal';
 import Card3DWrapper from '../components/Card3DWrapper';
-import { MultiSelectDropdown } from '@battleplans/ui';
-import { VR } from '@battleplans/ui';
-import { Banner } from '@battleplans/ui';
-import { Callout } from '@battleplans/ui';
-import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-blood-bowl.png';
-import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
 import DeckListItem from '../components/DeckListItem';
 import PackListItem from '../components/PackListItem';
-import { SelectableListItem } from '@battleplans/ui';
 import AddToPackModal from '../components/AddToPackModal';
-import ZoomControls from '../components/ZoomControls';
 import AddonListItem from '../components/AddonListItem';
-import { RichTextEditor } from '@battleplans/ui';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddKeywordModal from '../components/AddKeywordModal';
-import HaloCardForm from '../components/HaloCardForm';
-import BloodBowlCardForm from '../components/BloodBowlCardForm';
-import KillTeamCardForm from '../components/KillTeamCardForm';
-import StarcraftCardForm from '../components/StarcraftCardForm';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import WeaponInfoModal from '../components/WeaponInfoModal';
 import ImportListModal from '../components/ImportListModal';
 import SaveTemplateModal from '../components/SaveTemplateModal';
 import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
 import BlogEntryPreview from '../components/BlogEntryPreview';
-import { Modal, WelcomeModalView, ProfileFields, UpdateModal, MarkdownBody, Pagination } from '@battleplans/ui';
-import { AddFriendModal, FriendProfileModal } from '@battleplans/ui';
-import type { FriendProfileState } from '@battleplans/ui';
+import UploadPhotoModal from '../components/UploadPhotoModal';
+import GamePickerItem from '../components/GamePickerItem';
+import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
+import EditSubnav from '../components/EditSubnav';
+import CenterViewport from '../components/CenterViewport';
+import TokenMenu from '../components/TokenMenu';
+import TokenOverlay from '../components/TokenOverlay';
+import PrintCardGrid from '../components/PrintCardGrid';
+import HaloCardForm from '../components/HaloCardForm';
+import BloodBowlCardForm from '../components/BloodBowlCardForm';
+import KillTeamCardForm from '../components/KillTeamCardForm';
+import StarcraftCardForm from '../components/StarcraftCardForm';
+import RygCard, { type RygWeapon, type RygArmor, type RygItem, type RygSpell } from '../components/RygCard';
+import GodCard from '../components/GodCard';
+import SeptCard from '../components/SeptCard';
+import CardCarousel from '../components/CardCarousel';
+import AttachedAddonRow from '../components/AttachedAddonRow';
+import AddRuleModal from '../components/AddRuleModal';
+import CustomTokenModal, { type CustomTokenFormValue } from '../components/CustomTokenModal';
+import TokenBadge from '../components/TokenBadge';
+import TokenBar from '../components/TokenBar';
+import StarcraftSupplyTiersModal from '../components/StarcraftSupplyTiersModal';
+import StarcraftAddKeywordModal from '../components/StarcraftAddKeywordModal';
+// Addon forms — all conform to AddonFormProps, so the harness below can mount any of them.
+import HaloWeaponForm from '../components/HaloWeaponForm';
+import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
+import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
+import StarcraftAbilityForm from '../components/StarcraftAbilityForm';
+import StarcraftWeaponForm from '../components/StarcraftWeaponForm';
+import RygDestinyForm from '../components/RygDestinyForm';
+import RygGodForm from '../components/RygGodForm';
+import RygSeptBenefitForm from '../components/RygSeptBenefitForm';
+import RygSeptForm from '../components/RygSeptForm';
+import RygSimpleAddonForm from '../components/RygSimpleAddonForm';
+import RygSpellForm from '../components/RygSpellForm';
+import RygTalentForm from '../components/RygTalentForm';
+import RygWarriorTypeForm from '../components/RygWarriorTypeForm';
+import RygWeaponForm from '../components/RygWeaponForm';
+import { paletteFromHex } from '../lib/tokenColorSets';
+import type { TokenDefinition, StarcraftSupplyTier } from '../lib/database.types';
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — path contains spaces, TS path resolver struggles but Vite handles fine
+import iconBloodBowl from '../../../../packages/ui/src/assets/games/icons/blood-bowl.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import iconHalo from '../../../../packages/ui/src/assets/games/icons/halo.png';
+import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-blood-bowl.png';
+import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
 
 /** A real release note, used to demo markdown rendering + clamping. */
 const MARKDOWN_SAMPLE = [
@@ -83,168 +117,113 @@ const MARKDOWN_SAMPLE = [
   '**Bug Fixes**',
   '- Fixed an issue where only 10 collections would show.',
 ].join('\n');
-import UploadPhotoModal from '../components/UploadPhotoModal';
-import GamePickerItem from '../components/GamePickerItem';
-import { ModeToggle, type Mode } from '@battleplans/ui';
-import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
-import EditSubnav from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
-import CardListPanel from '../components/CardListPanel';
-import DeckCardList from '../components/DeckCardList';
-import EditorPanel from '../components/EditorPanel';
-import CenterViewport from '../components/CenterViewport';
-import TokenMenu from '../components/TokenMenu';
-import TokenOverlay from '../components/TokenOverlay';
-import PrintCardGrid from '../components/PrintCardGrid';
-import AppNavbar from '../components/AppNavbar';
-import type { TokenDefinition } from '../lib/database.types';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — path contains spaces, TS path resolver struggles but Vite handles fine
-import iconBloodBowl from '../../../../packages/ui/src/assets/games/icons/blood-bowl.png';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import iconHalo from '../../../../packages/ui/src/assets/games/icons/halo.png';
 
-// ── Icon imports (Solar Linear) ───────────────────────────────────────────────
-import { Home } from '@battleplans/ui';
-import { Magnifer } from '@battleplans/ui';
-import { Bell } from '@battleplans/ui';
-import { BellBing } from '@battleplans/ui';
-import { Settings } from '@battleplans/ui';
-import { Star } from '@battleplans/ui';
-import { Bookmark } from '@battleplans/ui';
-import { Heart } from '@battleplans/ui';
-import { Rocket } from '@battleplans/ui';
-import { Shield } from '@battleplans/ui';
-import { Flag } from '@battleplans/ui';
-import { AddCircle } from '@battleplans/ui';
-import { MinusCircle } from '@battleplans/ui';
-import { CheckCircle } from '@battleplans/ui';
-import { CloseCircle } from '@battleplans/ui';
-import { InfoCircle } from '@battleplans/ui';
-import { DangerCircle } from '@battleplans/ui';
-import { QuestionCircle } from '@battleplans/ui';
-import { Pen2 } from '@battleplans/ui';
-import { TrashBinMinimalistic } from '@battleplans/ui';
-import { DownloadMinimalistic } from '@battleplans/ui';
-import { UploadMinimalistic } from '@battleplans/ui';
-import { Diskette } from '@battleplans/ui';
-import { Share } from '@battleplans/ui';
-import { Filter } from '@battleplans/ui';
-import { MenuDots } from '@battleplans/ui';
-import { Eye } from '@battleplans/ui';
-import { EyeClosed } from '@battleplans/ui';
-import { Lock } from '@battleplans/ui';
-import { LockUnlocked } from '@battleplans/ui';
-import { ArrowLeft } from '@battleplans/ui';
-import { ArrowRight } from '@battleplans/ui';
-import { ArrowUp } from '@battleplans/ui';
-import { ArrowDown } from '@battleplans/ui';
-import { AltArrowLeft } from '@battleplans/ui';
-import { AltArrowRight } from '@battleplans/ui';
-import { AltArrowUp } from '@battleplans/ui';
-import { AltArrowDown } from '@battleplans/ui';
-import { UserRounded } from '@battleplans/ui';
-import { UsersGroupRounded } from '@battleplans/ui';
-import { UserPlusRounded } from '@battleplans/ui';
-import { UserCircle } from '@battleplans/ui';
-import { Widget2 } from '@battleplans/ui';
-import { ListCheck } from '@battleplans/ui';
-import { Inbox } from '@battleplans/ui';
-import { Letter } from '@battleplans/ui';
-import { Gallery } from '@battleplans/ui';
-import { FileText } from '@battleplans/ui';
-import { Folder } from '@battleplans/ui';
-import { Clipboard } from '@battleplans/ui';
-import { Play } from '@battleplans/ui';
-import { Pause } from '@battleplans/ui';
-import { Stop } from '@battleplans/ui';
-import { Microphone } from '@battleplans/ui';
-import { Videocamera } from '@battleplans/ui';
-import { Moon } from '@battleplans/ui';
-import { Sun } from '@battleplans/ui';
+// ── Demo data for the RYG cards ──────────────────────────────────────────────
 
-// ── Icon imports (Solar Bold) ─────────────────────────────────────────────────
-import { HomeBold } from '@battleplans/ui';
-import { MagniferBold } from '@battleplans/ui';
-import { BellBold } from '@battleplans/ui';
-import { BellBingBold } from '@battleplans/ui';
-import { SettingsBold } from '@battleplans/ui';
-import { StarBold } from '@battleplans/ui';
-import { BookmarkBold } from '@battleplans/ui';
-import { HeartBold } from '@battleplans/ui';
-import { RocketBold } from '@battleplans/ui';
-import { ShieldBold } from '@battleplans/ui';
-import { FlagBold } from '@battleplans/ui';
-import { AddCircleBold } from '@battleplans/ui';
-import { MinusCircleBold } from '@battleplans/ui';
-import { CheckCircleBold } from '@battleplans/ui';
-import { CloseCircleBold } from '@battleplans/ui';
-import { InfoCircleBold } from '@battleplans/ui';
-import { DangerCircleBold } from '@battleplans/ui';
-import { QuestionCircleBold } from '@battleplans/ui';
-import { Pen2Bold } from '@battleplans/ui';
-import { TrashBinMinimalisticBold } from '@battleplans/ui';
-import { DownloadMinimalisticBold } from '@battleplans/ui';
-import { UploadMinimalisticBold } from '@battleplans/ui';
-import { DisketteBold } from '@battleplans/ui';
-import { ShareBold } from '@battleplans/ui';
-import { FilterBold } from '@battleplans/ui';
-import { MenuDotsBold } from '@battleplans/ui';
-import { EyeBold } from '@battleplans/ui';
-import { EyeClosedBold } from '@battleplans/ui';
-import { LockBold } from '@battleplans/ui';
-import { LockUnlockedBold } from '@battleplans/ui';
-import { UserRoundedBold } from '@battleplans/ui';
-import { UsersGroupRoundedBold } from '@battleplans/ui';
-import { UserPlusRoundedBold } from '@battleplans/ui';
-import { UserCircleBold } from '@battleplans/ui';
-import { Widget2Bold } from '@battleplans/ui';
-import { ListCheckBold } from '@battleplans/ui';
-import { InboxBold } from '@battleplans/ui';
-import { LetterBold } from '@battleplans/ui';
-import { GalleryBold } from '@battleplans/ui';
-import { FileTextBold } from '@battleplans/ui';
-import { FolderBold } from '@battleplans/ui';
-import { ClipboardBold } from '@battleplans/ui';
-import { PlayBold } from '@battleplans/ui';
-import { PauseBold } from '@battleplans/ui';
-import { StopBold } from '@battleplans/ui';
-import { MicrophoneBold } from '@battleplans/ui';
-import { VideocameraBold } from '@battleplans/ui';
-import { MoonBold } from '@battleplans/ui';
-import { SunBold } from '@battleplans/ui';
+const DEMO_RYG_WEAPONS: RygWeapon[] = [
+  { id: 'w1', name: 'Chain Flail',   damage: '2',   range: 1, cost: 3, keywords: 'Reach, Brutal' },
+  { id: 'w2', name: 'Censer Pistol', damage: '1+1', range: 8, cost: 4, keywords: 'Loud' },
+];
 
-// ── InteractiveStarDemo ───────────────────────────────────────────────────────
+const DEMO_RYG_ARMOR: RygArmor[] = [
+  { id: 'a1', name: 'Penitent Plate', cost: 5, description: '+2 Defense. Fate tests suffer -1.' },
+];
 
-const InteractiveStarDemo = () => {
-  const [rating, setRating] = useState(0);
+const DEMO_RYG_ITEMS: RygItem[] = [
+  { id: 'i1', name: 'Vial of Ash', cost: 1, description: 'Once per battle, ignore a single wound.' },
+];
+
+const DEMO_RYG_SPELLS: RygSpell[] = [
+  { id: 's1', name: 'Whisper of Rust', spellType: 'Hex', fateModifier: '-1', description: 'Target weapon loses 1 Damage until the end of the round.' },
+];
+
+// ── Demo data for the carousel ───────────────────────────────────────────────
+
+const CAROUSEL_ITEMS = [
+  { id: 'c1', name: 'Spartan CQB' },
+  { id: 'c2', name: 'ODST Demolition' },
+  { id: 'c3', name: 'Elite Honor Guard' },
+  { id: 'c4', name: 'Grunt Squad Leader' },
+];
+
+// ── AddonFormHarness ─────────────────────────────────────────────────────────
+
+/**
+ * Every addon form implements the same AddonFormProps contract, which is what
+ * lets AddAddonModal mount any of them as its "create" step. Rather than
+ * repeat a near-identical demo per form, this harness mounts one at a time in
+ * exactly the shape the modal would — creating (editingAddon = null), with a
+ * save that resolves to a stub id instead of writing to Supabase.
+ */
+const AddonFormHarness = ({
+  forms,
+}: {
+  forms: { label: string; Form: React.ComponentType<AddonFormProps> }[];
+}) => {
+  const [active, setActive] = useState(forms[0].label);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const Form = forms.find(f => f.label === active)!.Form;
+
   return (
-    <div className="flex items-center gap-3">
-      <StarRating rating={rating} interactive onChange={setRating} size="lg" />
-      <span className="font-body text-sm text-gray-500 dark:text-gray-400">
-        {rating > 0 ? `${rating} / 5` : 'Click to rate'}
-      </span>
-      {rating > 0 && (
-        <button
-          onClick={() => setRating(0)}
-          className="font-body text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline"
-        >
-          Reset
-        </button>
-      )}
+    <div className="w-full flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        {forms.map(f => (
+          <Button
+            key={f.label}
+            size="sm"
+            variant={f.label === active ? 'filled' : 'outline'}
+            color={f.label === active ? 'primary' : 'secondary'}
+            onClick={() => { setActive(f.label); setLastSaved(null); }}
+          >
+            {f.label}
+          </Button>
+        ))}
+      </div>
+
+      <GalleryNote>
+        Mounted the way AddAddonModal mounts it: <code>editingAddon</code> is null
+        (create mode) and <code>onSave</code> resolves to a stub id rather than
+        writing to Supabase, so Save exercises the form's own validation without
+        persisting. Forms that look up keywords or rules will still hit the
+        network for those lists.
+        {lastSaved && ` Last save returned: ${lastSaved}.`}
+      </GalleryNote>
+
+      <div className="w-full max-w-2xl rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <Form
+          editingAddon={null}
+          saving={false}
+          onCancel={() => setLastSaved('(cancelled)')}
+          onSave={async name => {
+            setLastSaved(`"${name}" → stub-addon-id`);
+            return 'stub-addon-id';
+          }}
+        />
+      </div>
     </div>
   );
 };
 
-// ── DismissibleBadgeDemo ──────────────────────────────────────────────────────
+/** The per-game addon forms. */
+const GAME_ADDON_FORMS = [
+  { label: 'Halo — Weapon',        Form: HaloWeaponForm },
+  { label: 'Kill Team — Weapon',   Form: KillTeamWeaponForm },
+  { label: 'Kill Team — Ability',  Form: KillTeamAbilityForm },
+  { label: 'StarCraft — Weapon',   Form: StarcraftWeaponForm },
+  { label: 'StarCraft — Ability',  Form: StarcraftAbilityForm },
+];
 
-const DISMISSIBLE_BADGES: { id: number; color: React.ComponentProps<typeof Badge>['color']; label: string }[] = [
-  { id: 1, color: 'primary', label: 'Frontend' },
-  { id: 2, color: 'success', label: 'Ready' },
-  { id: 3, color: 'danger',  label: 'Blocker' },
-  { id: 4, color: 'warning', label: 'Review' },
-  { id: 5, color: 'purple',  label: 'Legendary' },
+/** Repent Ye Foolish Gods has the largest family of addon forms. */
+const RYG_ADDON_FORMS = [
+  { label: 'Weapon',        Form: RygWeaponForm },
+  { label: 'Talent',        Form: RygTalentForm },
+  { label: 'Spell',         Form: RygSpellForm },
+  { label: 'Sept',          Form: RygSeptForm },
+  { label: 'Sept Benefit',  Form: RygSeptBenefitForm },
+  { label: 'God',           Form: RygGodForm },
+  { label: 'Destiny',       Form: RygDestinyForm },
+  { label: 'Warrior Type',  Form: RygWarriorTypeForm },
+  { label: 'Simple Addon',  Form: RygSimpleAddonForm },
 ];
 
 // ── AddToPackModalGalleryDemo ────────────────────────────────────────────────
@@ -278,266 +257,6 @@ const AddToPackModalGalleryDemo = () => {
   );
 };
 
-// ── FriendsModalsGalleryDemo ─────────────────────────────────────────────────
-
-/** The two presentational friends dialogs. Both take explicit props, so they
- *  demo without a session — unlike FriendsColumn, which fetches its own data
- *  and is therefore only meaningful inside a signed-in app.
- *
- *  Note the profile modal shows the real name ONLY in the "friends" state: a
- *  name is private until the request is accepted. */
-const FriendsModalsGalleryDemo = () => {
-  const [addOpen, setAddOpen] = useState(false);
-  const [profile, setProfile] = useState<null | FriendProfileState>(null);
-
-  const STATES: { label: string; state: FriendProfileState }[] = [
-    { label: 'Not connected',   state: { kind: 'none' } },
-    { label: 'Request sent',    state: { kind: 'outgoing', friendshipId: 'demo' } },
-    { label: 'Request received', state: { kind: 'incoming', friendshipId: 'demo' } },
-    { label: 'Friends',         state: { kind: 'friends', friendshipId: 'demo', username: 'Bam Harrison' } },
-  ];
-
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => setAddOpen(true)}>Add Friend modal</Button>
-      {STATES.map(s => (
-        <Button key={s.label} variant="outline" color="secondary" onClick={() => setProfile(s.state)}>
-          Profile — {s.label}
-        </Button>
-      ))}
-      <p className="font-body text-xs text-gray-400 dark:text-gray-500 w-full">
-        The Add Friend CTA enables on a valid username format only — it never checks
-        whether the user exists, which would leak who has an account. The Friends
-        state loads a friend’s top games, which appear only in a signed-in app with
-        an accepted friend.
-      </p>
-
-      <AddFriendModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onSend={async () => { setAddOpen(false); return true; }}
-      />
-
-      <FriendProfileModal
-        open={profile !== null}
-        onClose={() => setProfile(null)}
-        handle="bamington"
-        state={profile ?? { kind: 'none' }}
-        onSendRequest={() => setProfile(null)}
-        onRespond={() => setProfile(null)}
-        onWithdraw={() => setProfile(null)}
-      />
-    </div>
-  );
-};
-
-// ── WelcomeModalGalleryDemo ──────────────────────────────────────────────────
-
-/** Presentational preview of the onboarding WelcomeModalView. The real
- *  WelcomeModal self-fetches the signed-in user's profile and blocks until the
- *  required fields are saved; here we drive it with local state and mock
- *  locations, and "Continue" just closes it. Toggles between the BattleCards
- *  (name only) and BattlePlan (name + preferred location) field sets.
- *
- *  Note "Your Name" is the `username` column and "Username" is the `handle`
- *  column — the two cross over between code and interface. */
-const WelcomeModalGalleryDemo = () => {
-  const [variant,    setVariant]    = useState<null | 'cards' | 'plan'>(null);
-  const [username,   setUsername]   = useState('Chris');
-  const [locationId, setLocationId] = useState('');
-  const [error,      setError]      = useState<string | null>(null);
-  const [avatar,     setAvatar]     = useState<Blob | null | undefined>(undefined);
-  const [handle,     setHandle]     = useState('');
-
-  const MOCK_LOCATIONS = [
-    { id: 'loc-1', name: 'Battleground North' },
-    { id: 'loc-2', name: 'Battleground South' },
-  ];
-
-  function handleSave() {
-    if (!username.trim()) { setError('Please enter your name.'); return; }
-    if (variant === 'plan' && !locationId) { setError('Please select a preferred location.'); return; }
-    setError(null);
-    setVariant(null);
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => { setError(null); setVariant('cards'); }}>
-        BattleCards variant
-      </Button>
-      <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('plan'); }}>
-        BattlePlan variant
-      </Button>
-      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-        Blocking in-app; here "Continue" closes it. The picture is optional and
-        never blocks Continue.
-        {avatar instanceof Blob && ` Picked: ${Math.round(avatar.size / 1024)} KB.`}
-      </p>
-      {variant && (
-        <WelcomeModalView
-          appName={variant === 'plan' ? 'BattlePlan' : 'BattleCards'}
-          showAvatar
-          avatarInitials="CH"
-          onAvatarChange={setAvatar}
-          showUsername
-          showPreferredLocation={variant === 'plan'}
-          showBookingEmailNote={variant === 'plan'}
-          showHandle
-          handle={handle}
-          onHandleChange={setHandle}
-          username={username}
-          onUsernameChange={setUsername}
-          preferredLocationId={locationId}
-          onPreferredLocationChange={setLocationId}
-          locations={MOCK_LOCATIONS}
-          saving={false}
-          error={error}
-          onSave={handleSave}
-        />
-      )}
-    </div>
-  );
-};
-
-// ── ProfileModalGalleryDemo ──────────────────────────────────────────────────
-
-/** Presentational preview of the "Your Profile" modal (opened from the navbar
- *  avatar menu). The real ProfileModal self-fetches the signed-in user's
- *  profile; here we drive it with local state and mock locations. Toggles
- *  between the username-only view and the username + preferred-location view
- *  (the location field only appears for users who have ever picked one). */
-const ProfileModalGalleryDemo = () => {
-  const [variant,    setVariant]    = useState<null | 'username' | 'full'>(null);
-  const [username,   setUsername]   = useState('Chris');
-  const [handle,     setHandle]     = useState('chris-h');
-  const [locationId, setLocationId] = useState('loc-1');
-  const [error,      setError]      = useState<string | null>(null);
-
-  const MOCK_LOCATIONS = [
-    { id: 'loc-1', name: 'Battleground North' },
-    { id: 'loc-2', name: 'Battleground South' },
-  ];
-
-  function handleSave() {
-    if (!username.trim()) { setError('Please enter your name.'); return; }
-    if (variant === 'full' && !locationId) { setError('Please select a preferred location.'); return; }
-    setError(null);
-    setVariant(null);
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => { setError(null); setVariant('username'); }}>Name only</Button>
-      <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('full'); }}>
-        With preferred location
-      </Button>
-      {variant && (
-        <Modal open onClose={() => setVariant(null)} className="max-w-md">
-          <div className="p-5 flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">Your profile</h1>
-              <p className="font-body text-base text-gray-300 leading-6">Update your account details.</p>
-            </div>
-            <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleSave(); }}>
-              <ProfileFields
-                showUsername
-                showPreferredLocation={variant === 'full'}
-                username={username}
-                onUsernameChange={setUsername}
-                showHandle
-                handle={handle}
-                onHandleChange={setHandle}
-                preferredLocationId={locationId}
-                onPreferredLocationChange={setLocationId}
-                locations={MOCK_LOCATIONS}
-                error={error}
-              />
-              <div className="flex gap-3">
-                <Button type="button" variant="outline" color="secondary" className="flex-1" onClick={() => setVariant(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1">Save</Button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-// ── UpdateModalGalleryDemo ───────────────────────────────────────────────────
-
-/** Live UpdateModal preview — the full release note opened from the
- *  "News & Updates" panel. The body is markdown, rendered with react-markdown;
- *  the metadata line combines version, publish date and the snapshotted author. */
-const UpdateModalGalleryDemo = () => {
-  const [open, setOpen] = useState(false);
-
-  const MOCK_UPDATE = {
-    id: 'demo',
-    title: 'Collection Covers',
-    version: '1.09.0',
-    published_by_name: 'Chris Harrison',
-    published_at: '2025-09-22T12:56:41.455Z',
-    body: [
-      '**Features**',
-      '- You can now display the model images in a collection as their cover.',
-      '- Sort models alphabetically, by painted status, or by date added.',
-      '',
-      '**Bug Fixes**',
-      '- Fixed an issue where only 10 collections would show.',
-    ].join('\n'),
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => setOpen(true)}>Open Update Modal</Button>
-      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-        Markdown body (bold headings + bullets) rendered with react-markdown.
-      </p>
-      <UpdateModal open={open} onClose={() => setOpen(false)} update={MOCK_UPDATE} />
-    </div>
-  );
-};
-
-// ── PaginationGalleryDemo ────────────────────────────────────────────────────
-
-/** Pager used at the bottom of the home-screen columns. Pages are 0-based and
- *  the component renders nothing at one page. Page counts come from the space
- *  available (useAutoPageSize), so beyond 5 pages the numbered buttons become a
- *  window that slides around the current page rather than overflowing. */
-const PaginationGalleryDemo = () => {
-  const [few,  setFew]  = useState(0);
-  const [many, setMany] = useState(0);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-          Few pages (≤ 5) — every page shown. Page {few + 1} of 3
-        </p>
-        <Pagination page={few} totalPages={3} onPage={setFew} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-          Many pages (&gt; 5) — sliding window of 5. Page {many + 1} of 12
-        </p>
-        <Pagination page={many} totalPages={12} onPage={setMany} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-          Single page — renders nothing
-        </p>
-        <Pagination page={0} totalPages={1} onPage={() => {}} />
-      </div>
-    </div>
-  );
-};
-
 // ── ZoomControlsGalleryDemo ──────────────────────────────────────────────────
 
 /** Live ZoomControls preview. Outline + labels at md+, secondary icon-only
@@ -559,36 +278,13 @@ const ZoomControlsGalleryDemo = () => {
   );
 };
 
-const DismissibleBadgeDemo = () => {
-  const [visible, setVisible] = useState<number[]>(DISMISSIBLE_BADGES.map((b) => b.id));
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {DISMISSIBLE_BADGES.filter((b) => visible.includes(b.id)).map((b) => (
-        <Badge
-          key={b.id}
-          color={b.color}
-          onDismiss={() => setVisible((v) => v.filter((id) => id !== b.id))}
-        >
-          {b.label}
-        </Badge>
-      ))}
-      {visible.length < DISMISSIBLE_BADGES.length && (
-        <button
-          onClick={() => setVisible(DISMISSIBLE_BADGES.map((b) => b.id))}
-          className="font-body text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 underline"
-        >
-          Reset
-        </button>
-      )}
-    </div>
-  );
-};
-
 // ── BuilderShellDemo ──────────────────────────────────────────────────────────
 
-/** Inline preview of <BuilderShell> + <CardListPanel> + <EditorPanel> +
- *  <CenterViewport> composed together. Stateful so the deck-name rename
- *  and mobile panel toggles are demonstrable. */
+/** Inline preview of <CenterViewport> in its real setting — the shared
+ *  <BuilderShell> + <ListPanel> + <EditorPanel>, with BattleCards' own centre
+ *  column and unit-list rows. The shell pieces have their own demos in the
+ *  shared gallery; this one exists to show the local centre column in context.
+ *  Stateful so the deck-name rename and mobile panel toggles are demonstrable. */
 const BuilderShellDemo = () => {
   const [cardListOpen, setCardListOpen] = React.useState(false);
   const [editorOpen,   setEditorOpen]   = React.useState(false);
@@ -621,9 +317,9 @@ const BuilderShellDemo = () => {
         }
         leftPanelOpen={cardListOpen}
         leftPanel={
-          <CardListPanel
-            deckName={deckName}
-            editingDeckName={editingName}
+          <ListPanel
+            title={deckName}
+            editingTitle={editingName}
             inputRef={inputRef}
             onStartEdit={startEdit}
             onCommit={commit}
@@ -637,7 +333,7 @@ const BuilderShellDemo = () => {
             <UnitListEntry status="complete" unitName="Spartan CQB"     active />
             <UnitListEntry status="complete" unitName="ODST Demolition"        />
             <UnitListEntry status="blank"                                      />
-          </CardListPanel>
+          </ListPanel>
         }
         center={
           <CenterViewport logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}>
@@ -659,22 +355,61 @@ const BuilderShellDemo = () => {
   );
 };
 
-// ── Gallery wrapper ───────────────────────────────────────────────────────────
+// ── Local nav ────────────────────────────────────────────────────────────────
 
-const MULTI_OPTIONS = ['Agility', 'General', 'Mutations', 'Passing', 'Strength', 'Devious'];
+/** Sidebar entries for this app's own sections, appended after the shared ones. */
+const LOCAL_NAV: GalleryNavItem[] = [
+  { href: '#nav-navbar',                label: 'Navbar',                icon: <Widget2 className="w-5 h-5" /> },
+  { href: '#nav-zoom-controls',         label: 'Zoom Controls',         icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-unit-list-entry',       label: 'Unit List Entry',       icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-deck-card-list',        label: 'Deck Card List',        icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-bb-card',               label: 'BB Card',               icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-bb-star-card',          label: 'BB Star Card',          icon: <Star className="w-5 h-5" /> },
+  { href: '#nav-halo-card',             label: 'Halo Card',             icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-sc-card',               label: 'SC Card',               icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-sc-phase-frame',        label: 'SC Phase Frame',        icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-kill-team-card',        label: 'KT Card',               icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-kill-team-rule-card',   label: 'KT Rule Card',          icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-ryg-card',              label: 'RYG Card',              icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-god-card',              label: 'God Card',              icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-sept-card',             label: 'Sept Card',             icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-card-carousel',         label: 'Card Carousel',         icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-addon-info-modal',      label: 'Addon Info Modal',      icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-card-3d',               label: 'Card 3D Wrapper',       icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-deck-list-item',        label: 'Deck List Item',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-pack-list-item',        label: 'Pack List Item',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-add-to-pack-modal',     label: 'Add to Pack Modal',     icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-addon-list-item',       label: 'Addon List Item',       icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-attached-addon-row',    label: 'Attached Addon Row',    icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-add-addon-modal',       label: 'Add Addon Modal',       icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-add-keyword-modal',     label: 'Add Keyword Modal',     icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-add-rule-modal',        label: 'Add Rule Modal',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-keyword-info-modal',    label: 'Keyword Info Modal',    icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-weapon-info-modal',     label: 'Weapon Info Modal',     icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-blog-entry-preview',    label: 'Blog Entry Preview',    icon: <FileText className="w-5 h-5" /> },
+  { href: '#nav-upload-photo-modal',    label: 'Upload Photo Modal',    icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-game-picker-item',      label: 'Game Picker Item',      icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-import-list-modal',     label: 'Import List Modal',     icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-save-template-modal',   label: 'Save Template Modal',   icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-new-card-modal',        label: 'New Card Modal',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-play-subnav',           label: 'Play Subnav',           icon: <Play className="w-5 h-5" /> },
+  { href: '#nav-edit-subnav',           label: 'Edit Subnav',           icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-token-menu',            label: 'Token Menu',            icon: <Filter className="w-5 h-5" /> },
+  { href: '#nav-token-overlay',         label: 'Token Overlay',         icon: <Filter className="w-5 h-5" /> },
+  { href: '#nav-token-badge',           label: 'Token Badge & Bar',     icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-custom-token-modal',    label: 'Custom Token Modal',    icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-sc-supply-tiers',       label: 'SC Supply Tiers',       icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-sc-add-keyword',        label: 'SC Add Keyword',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-print-card-grid',       label: 'Print Card Grid',       icon: <Bookmark className="w-5 h-5" /> },
+  { href: '#nav-center-viewport',       label: 'Center Viewport',       icon: <Widget2 className="w-5 h-5" /> },
+  { href: '#nav-card-forms',            label: 'Card Forms',            icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-addon-forms',           label: 'Addon Forms',           icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
+];
+
+// ── Gallery page ─────────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Drives the ColumnHeader demo's view toggle.
-  const [columnHeaderView, setColumnHeaderView] = useState('list');
-  const [counterDefault, setCounterDefault] = useState(1);
-  const [counterSuccess, setCounterSuccess] = useState(3);
-  const [counterError,   setCounterError]   = useState(0);
-  const [multiSelected,  setMultiSelected]  = useState<string[]>([]);
-  const [multiSelected2, setMultiSelected2] = useState<string[]>([]);
-  // AvatarPicker demo: undefined = untouched, Blob = cropped, null = removed.
-  const [pickedAvatar,   setPickedAvatar]   = useState<Blob | null | undefined>(undefined);
-  const [modalOpen,          setModalOpen]          = useState(false);
   const [uploadPhotoOpen,    setUploadPhotoOpen]    = useState(false);
   const [addonModalOpen,     setAddonModalOpen]     = useState(false);
   const [keywordModalOpen,   setKeywordModalOpen]   = useState(false);
@@ -687,6 +422,21 @@ const ComponentGallery = () => {
   const [newCardHasTemplates,setNewCardHasTemplates]= useState(true);
   const [addonInfoWeapon,    setAddonInfoWeapon]    = useState(false);
   const [addonInfoAbility,   setAddonInfoAbility]   = useState(false);
+  const [selectedAddonId,    setSelectedAddonId]    = useState<string | null>(null);
+  const [pickedGame,         setPickedGame]         = useState<string | null>(null);
+  const [carouselActive,     setCarouselActive]     = useState(CAROUSEL_ITEMS[1].id);
+  const [tokenBarValue,      setTokenBarValue]      = useState(4);
+  const [customTokenOpen,    setCustomTokenOpen]    = useState(false);
+  const [customTokenEditing, setCustomTokenEditing] = useState<CustomTokenFormValue | null>(null);
+  const [addRuleOpen,        setAddRuleOpen]        = useState(false);
+  const [supplyTiersOpen,    setSupplyTiersOpen]    = useState(false);
+  const [scKeywordOpen,      setScKeywordOpen]      = useState(false);
+  const [scKeywordCreateOnly,setScKeywordCreateOnly]= useState(false);
+  const [supplyTiers,        setSupplyTiers]        = useState<StarcraftSupplyTier[]>([
+    { maxModels: 2, supply: 1 },
+    { maxModels: 4, supply: 2 },
+    { maxModels: 6, supply: 3 },
+  ]);
 
   const galleryTemplates: NewCardModalTemplate[] = [
     { id: 't1', name: 'Spartan Sergeant' },
@@ -696,107 +446,17 @@ const ComponentGallery = () => {
     { id: 't5', name: 'Jackal Sniper' },
     { id: 't6', name: 'Brute Chieftain' },
   ];
-  const [selectedAddonId,    setSelectedAddonId]    = useState<string | null>(null);
-  const [pickedGame,     setPickedGame]     = useState<string | null>(null);
+
   return (
-    // The gallery uses Tailwind's light/dark bg so components are previewed
-    // against the correct background colour in both modes.
-    <div className="min-h-screen bg-white dark:bg-gray-950">
+    <GalleryShell appName="BattleCards" nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]}>
 
-      {/* ── Gallery navigation sidebar ──────────────────────────────────
-          Provides anchor-link navigation to every component section.
-          On desktop it is always visible; on mobile it slides in when
-          sidebarOpen=true (toggled by the hamburger button below).
-      ────────────────────────────────────────────────────────────────── */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}>
-        <SidebarItem href="#nav-navbar"     icon={<Home className="w-5 h-5" />}              label="Navbar"      />
-        <SidebarItem href="#nav-sidebar"    icon={<ListCheck className="w-5 h-5" />}         label="Sidebar"     />
-        <SidebarItem href="#nav-icons"      icon={<Widget2 className="w-5 h-5" />}           label="Icons"       />
-        <SidebarItem href="#nav-colours"    icon={<Gallery className="w-5 h-5" />}           label="Colours"     />
-        <SidebarItem href="#nav-text"       icon={<FileText className="w-5 h-5" />}          label="Text"        />
-        <SidebarItem href="#nav-lists"      icon={<Clipboard className="w-5 h-5" />}         label="Lists"       />
-        <SidebarItem href="#nav-links"      icon={<ArrowRight className="w-5 h-5" />}        label="Links"       />
-        <SidebarItem href="#nav-hr"         icon={<MinusCircle className="w-5 h-5" />}       label="HR"          />
-        <SidebarItem href="#nav-buttons"    icon={<Rocket className="w-5 h-5" />}            label="Buttons"     />
-        <SidebarItem href="#nav-counter"    icon={<AddCircle className="w-5 h-5" />}         label="Counter"     />
-        <SidebarItem href="#nav-badges"     icon={<Shield className="w-5 h-5" />}            label="Badges"      />
-        <SidebarItem href="#nav-avatars"    icon={<UserRounded className="w-5 h-5" />}       label="Avatars"     />
-        <SidebarItem href="#nav-cards"      icon={<Bookmark className="w-5 h-5" />}          label="Cards"       />
-        <SidebarItem href="#nav-dropdowns"  icon={<AltArrowDown className="w-5 h-5" />}      label="Dropdowns"   />
-        <SidebarItem href="#nav-inputs"     icon={<Inbox className="w-5 h-5" />}             label="Inputs"      />
-        <SidebarItem href="#nav-select"     icon={<AltArrowDown className="w-5 h-5" />}      label="Select"      />
-        <SidebarItem href="#nav-checkboxes" icon={<CheckCircle className="w-5 h-5" />}       label="Checkboxes"  />
-        <SidebarItem href="#nav-stars"      icon={<Star className="w-5 h-5" />}              label="Star Rating" />
-        <SidebarItem href="#nav-tabs"       icon={<Filter className="w-5 h-5" />}            label="Tabs"        />
-        <SidebarItem href="#nav-column-header" icon={<Gallery className="w-5 h-5" />}         label="Column Header" />
-        <SidebarItem href="#nav-bb-card"      icon={<Shield className="w-5 h-5" />}            label="BB Card"     />
-        <SidebarItem href="#nav-bb-star-card" icon={<Star className="w-5 h-5" />}              label="BB Star Card" />
-        <SidebarItem href="#nav-sc-card"      icon={<Shield className="w-5 h-5" />}            label="SC Card"     />
-        <SidebarItem href="#nav-sc-phase-frame" icon={<Shield className="w-5 h-5" />}          label="SC Phase Frame" />
-        <SidebarItem href="#nav-kill-team-card" icon={<Shield className="w-5 h-5" />}          label="KT Card" />
-        <SidebarItem href="#nav-kill-team-rule-card" icon={<Shield className="w-5 h-5" />}     label="KT Rule Card" />
-        <SidebarItem href="#nav-addon-info-modal" icon={<Shield className="w-5 h-5" />}        label="Addon Info Modal" />
-        <SidebarItem href="#nav-multi-select" icon={<CheckCircle className="w-5 h-5" />}        label="Multi-Select" />
-        <SidebarItem href="#nav-vr"           icon={<MinusCircle className="w-5 h-5" />}        label="VR"           />
-        <SidebarItem href="#nav-banner"       icon={<Bell className="w-5 h-5" />}               label="Banner"       />
-        <SidebarItem href="#nav-callout"      icon={<InfoCircle className="w-5 h-5" />}         label="Callout"      />
-        <SidebarItem href="#nav-game-logos"       icon={<Gallery className="w-5 h-5" />}            label="Game Logos"       />
-        <SidebarItem href="#nav-deck-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Deck List Item"   />
-        <SidebarItem href="#nav-pack-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Pack List Item"   />
-        <SidebarItem href="#nav-selectable-list-item" icon={<Gallery className="w-5 h-5" />}         label="Selectable List Item" />
-        <SidebarItem href="#nav-add-to-pack-modal" icon={<Gallery className="w-5 h-5" />}            label="Add to Pack Modal" />
-        <SidebarItem href="#nav-blog-entry-preview" icon={<Gallery className="w-5 h-5" />}           label="Blog Entry Preview" />
-        <SidebarItem href="#nav-modal"              icon={<Gallery className="w-5 h-5" />}            label="Modal"            />
-        <SidebarItem href="#nav-welcome-modal"      icon={<Gallery className="w-5 h-5" />}            label="Welcome Modal"    />
-        <SidebarItem href="#nav-profile-modal"      icon={<Gallery className="w-5 h-5" />}            label="Profile Modal"    />
-        <SidebarItem href="#nav-update-modal"       icon={<Gallery className="w-5 h-5" />}            label="Update Modal"     />
-        <SidebarItem href="#nav-markdown-body"      icon={<Gallery className="w-5 h-5" />}            label="Markdown Body"    />
-        <SidebarItem href="#nav-pagination"         icon={<Gallery className="w-5 h-5" />}            label="Pagination"       />
-        <SidebarItem href="#nav-upload-photo-modal" icon={<Gallery className="w-5 h-5" />}            label="Upload Photo Modal" />
-        <SidebarItem href="#nav-save-template-modal" icon={<Gallery className="w-5 h-5" />}           label="Save Template Modal" />
-        <SidebarItem href="#nav-new-card-modal"     icon={<Gallery className="w-5 h-5" />}            label="New Card Modal" />
-        <SidebarItem href="#nav-game-picker-item"   icon={<Gallery className="w-5 h-5" />}            label="Game Picker Item" />
-        <SidebarItem href="#nav-builder-shell"      icon={<Widget2 className="w-5 h-5" />}            label="Builder Shell"   />
-      </Sidebar>
-
-      {/* ── Main content — offset on desktop to clear the sidebar ──────── */}
-      <div className="sm:ml-64 px-10 py-12">
-
-        {/* ── Page header ────────────────────────────────────────────── */}
-        <div className="mb-2 flex items-center gap-3">
-
-          {/* Hamburger — mobile only */}
-          <button
-            className="sm:hidden shrink-0 p-1.5 rounded-lg
-                       text-gray-500 dark:text-gray-400
-                       hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open navigation"
-          >
-            <ListCheck className="w-5 h-5" />
-          </button>
-
-          <div>
-            <h1 className="font-heading text-3xl font-bold text-gray-900 dark:text-white">
-              Component Gallery
-            </h1>
-            <p className="font-body text-sm text-gray-500 dark:text-gray-400 mt-1">
-              A reference for every UI component used in BattleCards.
-            </p>
-          </div>
-
-        </div>
-        <Link to="/" className="font-body text-xs text-blue-500 hover:underline">
-          ← Back to app
-        </Link>
-
-        <HR variant="default" />
+      {/* Every @battleplans/ui component — see packages/ui/src/gallery/SharedSections.tsx */}
+      <SharedGallerySections appName="BattleCards" />
 
       {/* ════════════════════════════════════════════════════════════════
-          NAVBAR
-          Responsive top navigation bar. Fixed in production; rendered
-          in a bounded preview container here in the gallery.
+          Everything below is a BattleCards-only component.
       ════════════════════════════════════════════════════════════════ */}
+
       <GallerySection id="nav-navbar" title="Navbar / Default">
 
         {/* Preview wrapper — simulates a page viewport at reduced size */}
@@ -816,397 +476,11 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          APP FOOTER
-          Version / build-date strip shown at the bottom of each app home.
-          Single centred line on tablet/desktop; stacks to two lines and
-          drops the "–" separator below md (768px). The breakpoint is
-          viewport-driven, so resize the window to see the mobile layout.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-app-footer" title="App Footer / Default">
-        <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950">
-          <AppFooter appName="Battlecards" version="0.16.0" buildDate="06/07/2026" />
-        </div>
-        <p className="font-body text-xs text-gray-400 italic mt-2">
-          Resize below 768px (md) to see it stack onto two lines.
-        </p>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          ZOOM CONTROLS
-          Shared card-viewer zoom buttons. Outline + labels at md+; secondary
-          icon-only below md. Used by CardCarousel and the Blood Bowl builder.
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-zoom-controls" title="Zoom Controls / Default">
         <ZoomControlsGalleryDemo />
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          SIDEBAR
-          Off-canvas drawer on mobile, persistent panel on desktop.
-          Previewed at fixed width here in the gallery.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-sidebar" title="Sidebar / Default">
-
-        {/* Preview wrapper — clips the sidebar to a fixed area */}
-        <div className="w-full rounded-xl overflow-hidden border border-gray-200
-                        dark:border-gray-700 flex" style={{ height: 320 }}>
-
-          {/* Sidebar rendered statically (always open) for gallery preview */}
-          <div className="relative shrink-0" style={{ width: 256 }}>
-            <Sidebar
-              isOpen={true}
-              width="w-full"
-              className="relative h-full border-r-0"
-            />
-          </div>
-
-          {/* Simulated page body to the right of the sidebar */}
-          <div className="flex-1 bg-gray-50 dark:bg-gray-950 flex items-center
-                          justify-center px-4">
-            <p className="font-body text-xs text-gray-400 italic">
-              Page content sits here
-            </p>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          ICONS — Solar Icon Set
-          Solar Linear (linear) + Solar Bold (bold)
-          GitHub: https://github.com/480-Design/Solar-Icon-Set
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-icons" title="Icons / Solar Linear">
-        <IconGrid icons={[
-          { name: 'Home',                   outline: <Home />,                   solid: <HomeBold /> },
-          { name: 'Magnifer',               outline: <Magnifer />,               solid: <MagniferBold /> },
-          { name: 'Bell',                   outline: <Bell />,                   solid: <BellBold /> },
-          { name: 'BellBing',               outline: <BellBing />,               solid: <BellBingBold /> },
-          { name: 'Settings',               outline: <Settings />,               solid: <SettingsBold /> },
-          { name: 'Star',                   outline: <Star />,                   solid: <StarBold /> },
-          { name: 'Bookmark',               outline: <Bookmark />,               solid: <BookmarkBold /> },
-          { name: 'Heart',                  outline: <Heart />,                  solid: <HeartBold /> },
-          { name: 'Rocket',                 outline: <Rocket />,                 solid: <RocketBold /> },
-          { name: 'Shield',                 outline: <Shield />,                 solid: <ShieldBold /> },
-          { name: 'Flag',                   outline: <Flag />,                   solid: <FlagBold /> },
-          { name: 'AddCircle',              outline: <AddCircle />,              solid: <AddCircleBold /> },
-          { name: 'MinusCircle',            outline: <MinusCircle />,            solid: <MinusCircleBold /> },
-          { name: 'CheckCircle',            outline: <CheckCircle />,            solid: <CheckCircleBold /> },
-          { name: 'CloseCircle',            outline: <CloseCircle />,            solid: <CloseCircleBold /> },
-          { name: 'InfoCircle',             outline: <InfoCircle />,             solid: <InfoCircleBold /> },
-          { name: 'DangerCircle',           outline: <DangerCircle />,           solid: <DangerCircleBold /> },
-          { name: 'QuestionCircle',         outline: <QuestionCircle />,         solid: <QuestionCircleBold /> },
-          { name: 'Pen2',                   outline: <Pen2 />,                   solid: <Pen2Bold /> },
-          { name: 'TrashBinMinimalistic',   outline: <TrashBinMinimalistic />,   solid: <TrashBinMinimalisticBold /> },
-          { name: 'DownloadMinimalistic',   outline: <DownloadMinimalistic />,   solid: <DownloadMinimalisticBold /> },
-          { name: 'UploadMinimalistic',     outline: <UploadMinimalistic />,     solid: <UploadMinimalisticBold /> },
-          { name: 'Diskette',               outline: <Diskette />,               solid: <DisketteBold /> },
-          { name: 'Share',                  outline: <Share />,                  solid: <ShareBold /> },
-          { name: 'Filter',                 outline: <Filter />,                 solid: <FilterBold /> },
-          { name: 'MenuDots',               outline: <MenuDots />,               solid: <MenuDotsBold /> },
-          { name: 'Eye',                    outline: <Eye />,                    solid: <EyeBold /> },
-          { name: 'EyeClosed',              outline: <EyeClosed />,              solid: <EyeClosedBold /> },
-          { name: 'Lock',                   outline: <Lock />,                   solid: <LockBold /> },
-          { name: 'LockUnlocked',           outline: <LockUnlocked />,           solid: <LockUnlockedBold /> },
-          { name: 'ArrowLeft',              outline: <ArrowLeft />,              solid: null },
-          { name: 'ArrowRight',             outline: <ArrowRight />,             solid: null },
-          { name: 'ArrowUp',               outline: <ArrowUp />,                solid: null },
-          { name: 'ArrowDown',              outline: <ArrowDown />,              solid: null },
-          { name: 'AltArrowLeft',           outline: <AltArrowLeft />,           solid: null },
-          { name: 'AltArrowRight',          outline: <AltArrowRight />,          solid: null },
-          { name: 'AltArrowUp',             outline: <AltArrowUp />,             solid: null },
-          { name: 'AltArrowDown',           outline: <AltArrowDown />,           solid: null },
-          { name: 'UserRounded',            outline: <UserRounded />,            solid: <UserRoundedBold /> },
-          { name: 'UsersGroupRounded',      outline: <UsersGroupRounded />,      solid: <UsersGroupRoundedBold /> },
-          { name: 'UserPlusRounded',        outline: <UserPlusRounded />,        solid: <UserPlusRoundedBold /> },
-          { name: 'UserCircle',             outline: <UserCircle />,             solid: <UserCircleBold /> },
-          { name: 'Widget2',                outline: <Widget2 />,                solid: <Widget2Bold /> },
-          { name: 'ListCheck',              outline: <ListCheck />,              solid: <ListCheckBold /> },
-          { name: 'Inbox',                  outline: <Inbox />,                  solid: <InboxBold /> },
-          { name: 'Letter',                 outline: <Letter />,                 solid: <LetterBold /> },
-          { name: 'Gallery',                outline: <Gallery />,                solid: <GalleryBold /> },
-          { name: 'FileText',               outline: <FileText />,               solid: <FileTextBold /> },
-          { name: 'Folder',                 outline: <Folder />,                 solid: <FolderBold /> },
-          { name: 'Clipboard',              outline: <Clipboard />,              solid: <ClipboardBold /> },
-          { name: 'Play',                   outline: <Play />,                   solid: <PlayBold /> },
-          { name: 'Pause',                  outline: <Pause />,                  solid: <PauseBold /> },
-          { name: 'Stop',                   outline: <Stop />,                   solid: <StopBold /> },
-          { name: 'Microphone',             outline: <Microphone />,             solid: <MicrophoneBold /> },
-          { name: 'Videocamera',            outline: <Videocamera />,            solid: <VideocameraBold /> },
-          { name: 'Moon',                   outline: <Moon />,                   solid: <MoonBold /> },
-          { name: 'Sun',                    outline: <Sun />,                    solid: <SunBold /> },
-        ]} />
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          COLOUR PALETTE — Raw
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-colours" title="Colour Palette / Raw">
-        <div className="w-full space-y-6">
-          {RAW_PALETTE.map((family) => (
-            <ColorRow key={family.name} family={family} />
-          ))}
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          COLOUR PALETTE — Semantic Tokens
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Colour Palette / Semantic Tokens">
-        <div className="w-full space-y-6">
-          {SEMANTIC_PALETTE.map((family) => (
-            <ColorRow key={family.name} family={family} />
-          ))}
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TEXT — Headings
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-text" title="Text / Headings">
-        <div className="w-full space-y-4">
-          <Text variant="h1">H1 — The Battle Begins</Text>
-          <Text variant="h2">H2 — Choose Your Forces</Text>
-          <Text variant="h3">H3 — Deploy Your Units</Text>
-          <Text variant="h4">H4 — Unit Statistics</Text>
-          <Text variant="h5">H5 — Abilities &amp; Traits</Text>
-          <Text variant="h6">H6 — Footnotes &amp; References</Text>
-        </div>
-      </GallerySection>
-
-      {/* ── Heading composition patterns (partial text styling) ───── */}
-      <GallerySection title="Text / Headings — Composition Patterns">
-        <div className="w-full space-y-6">
-
-          {/* Highlighted heading — wrap key words in a brand-coloured span */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Highlighted</p>
-            <Text variant="h2">
-              Build your{' '}
-              <span className="text-blue-600 dark:text-blue-400">perfect army</span>
-            </Text>
-          </div>
-
-          {/* Gradient heading */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Gradient</p>
-            <Text variant="h2">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">
-                Command the battlefield
-              </span>
-            </Text>
-          </div>
-
-          {/* Underlined heading */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Underlined</p>
-            <Text variant="h2">
-              <span className="underline underline-offset-4 decoration-4 decoration-blue-500">
-                Forge your legend
-              </span>
-            </Text>
-          </div>
-
-          {/* Mark / highlight heading */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Mark</p>
-            <Text variant="h2">
-              Create{' '}
-              <mark className="px-2 text-white bg-blue-600 rounded-sm">custom cards</mark>
-            </Text>
-          </div>
-
-          {/* Heading with secondary text */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">With secondary text</p>
-            <Text variant="h2">
-              Heavy Infantry{' '}
-              <small className="font-body ms-2 font-normal text-gray-500 dark:text-gray-400">
-                Unit Card
-              </small>
-            </Text>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TEXT — Paragraphs
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Text / Paragraphs">
-        <div className="w-full space-y-6 max-w-2xl">
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Default</p>
-            <Text variant="paragraph">
-              Heavy Infantry are the backbone of any great army. Clad in thick armour and wielding
-              heavy weapons, they hold the line while lighter units flank the enemy.
-            </Text>
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Lead (intro paragraph)</p>
-            <Text variant="paragraph-lead">
-              Build and share custom unit cards for any tabletop wargame. Define stats,
-              abilities, and lore — then take them to the battlefield.
-            </Text>
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-1">Drop cap</p>
-            <Text variant="paragraph-dropcap">
-              Heavy infantry are the backbone of any great army. Clad in thick armour and wielding
-              heavy weapons, they hold the line while lighter units flank the enemy and archers
-              rain fire from above.
-            </Text>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ── Inline paragraph modifiers ─────────────────────────────── */}
-      <GallerySection title="Text / Paragraph Modifiers">
-        <div className="w-full space-y-3">
-          <Text variant="paragraph" weight="bold">Bold paragraph text</Text>
-          <Text variant="paragraph" italic>Italic paragraph text</Text>
-          <Text variant="paragraph" underline>Underlined paragraph text</Text>
-          <Text variant="paragraph" strikethrough>Strikethrough paragraph text</Text>
-          <Text variant="paragraph" uppercase>Uppercase paragraph text</Text>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TEXT — Blockquotes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Text / Blockquotes">
-        <div className="w-full space-y-8 max-w-2xl">
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Default</p>
-            <Text variant="blockquote">
-              "An army marches on its stomach — but it wins on the strength of its cards."
-            </Text>
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Solid (border + background)</p>
-            <Text variant="blockquote-solid">
-              "An army marches on its stomach — but it wins on the strength of its cards."
-            </Text>
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Icon (with quotation mark)</p>
-            <Text variant="blockquote-icon">
-              "An army marches on its stomach — but it wins on the strength of its cards."
-            </Text>
-          </div>
-
-          {/* Alignment variants */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Alignments</p>
-            <div className="space-y-4">
-              <Text variant="blockquote" align="left">"Left-aligned quote."</Text>
-              <Text variant="blockquote" align="center">"Centred quote."</Text>
-              <Text variant="blockquote" align="right">"Right-aligned quote."</Text>
-            </div>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TEXT — Sizing scale
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Text / Sizing Scale">
-        <div className="w-full space-y-2">
-          {(
-            ['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl'] as const
-          ).map((size) => (
-            <Text key={size} variant="paragraph" size={size}>
-              {size} — The quick brown fox jumps over the lazy dog
-            </Text>
-          ))}
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TEXT — Font weights
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Text / Font Weights">
-        <div className="w-full space-y-2">
-          {(
-            ['thin', 'extralight', 'light', 'normal', 'medium', 'semibold', 'bold', 'extrabold', 'black'] as const
-          ).map((weight) => (
-            <Text key={weight} variant="paragraph" weight={weight}>
-              {weight} — The quick brown fox jumps over the lazy dog
-            </Text>
-          ))}
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TEXT — Colour roles
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Text / Colour Roles">
-        <div className="w-full space-y-2">
-          <Text variant="paragraph" color="default">default — Standard body text</Text>
-          <Text variant="paragraph" color="brand">brand — Blue accent text</Text>
-          <Text variant="paragraph" color="success">success — Positive / confirmed</Text>
-          <Text variant="paragraph" color="danger">danger — Error / destructive</Text>
-          <Text variant="paragraph" color="purple">purple — Special / legendary</Text>
-          <Text variant="paragraph" color="teal">teal — Informational / secondary</Text>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          LISTS
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-lists" title="Lists / Unordered">
-        <List
-          variant="unordered"
-          items={['Heavy Infantry', 'Mounted Archers', 'Siege Engineers', 'Scout Raiders']}
-        />
-      </GallerySection>
-
-      <GallerySection title="Lists / Ordered">
-        <List
-          variant="ordered"
-          items={['Deploy units', 'Roll for initiative', 'Resolve attacks', 'Check morale']}
-        />
-      </GallerySection>
-
-      <GallerySection title="Lists / Unstyled">
-        <List
-          variant="unstyled"
-          items={['No bullets', 'No numbers', 'Just clean text']}
-        />
-      </GallerySection>
-
-      <GallerySection title="Lists / Horizontal">
-        <List
-          variant="horizontal"
-          items={['Infantry', 'Cavalry', 'Artillery', 'Support', 'Hero']}
-        />
-      </GallerySection>
-
-      <GallerySection title="Lists / Description">
-        <List
-          variant="description"
-          descriptionItems={[
-            { term: 'Attack',   detail: 'Number of dice rolled when this unit attacks.' },
-            { term: 'Defence',  detail: 'Damage absorbed before wounds are applied.' },
-            { term: 'Movement', detail: 'Maximum distance in inches per turn.' },
-            { term: 'Morale',   detail: 'Threshold at which the unit may flee.' },
-          ]}
-        />
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          LISTS — Units
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Lists / Units">
+      <GallerySection id="nav-unit-list-entry" title="Unit List Entry">
         <div className="w-full max-w-sm space-y-4">
 
           {/* Default state — all statuses */}
@@ -1250,10 +524,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          LISTS — Deck card list (shared by every game builder)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Lists / Deck Card List">
+      <GallerySection id="nav-deck-card-list" title="Deck Card List">
         <div className="w-full max-w-sm space-y-6">
 
           {/* Edit mode — one flat list in deck order; rules are inline
@@ -1299,1306 +570,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          LINKS
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-links" title="Links / Variants">
-        <div className="w-full space-y-4">
-
-          <div className="flex items-center gap-2">
-            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Default</span>
-            <TextLink href="https://example.com">Visit example.com</TextLink>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Paragraph</span>
-            <Text variant="paragraph">
-              Read more about{' '}
-              <TextLink variant="paragraph" href="https://example.com">unit card rules</TextLink>
-              {' '}in the handbook.
-            </Text>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Icon</span>
-            <TextLink
-              variant="icon"
-              href="https://example.com"
-              icon={
-                // Simple arrow icon — replace with your icon library of choice
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              }
-            >
-              Learn more
-            </TextLink>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">CTA</span>
-            <TextLink variant="cta" to="/">Go to home</TextLink>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Button</span>
-            <TextLink variant="button" to="/">Create a card</TextLink>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BUTTON — Filled
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-buttons" title="Button / Filled">
-        <div className="flex flex-wrap gap-3">
-          <Button color="primary">Primary</Button>
-          <Button color="secondary">Secondary</Button>
-          <Button color="success">Success</Button>
-          <Button color="danger">Danger</Button>
-          <Button color="warning">Warning</Button>
-          <Button color="dark">Dark</Button>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BUTTON — Outlined
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Button / Outlined">
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" color="primary">Primary</Button>
-          <Button variant="outline" color="secondary">Secondary</Button>
-          <Button variant="outline" color="success">Success</Button>
-          <Button variant="outline" color="danger">Danger</Button>
-          <Button variant="outline" color="warning">Warning</Button>
-          <Button variant="outline" color="dark">Dark</Button>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BUTTON — Ghost
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Button / Ghost">
-        <div className="flex flex-wrap gap-3">
-          <Button variant="ghost" color="primary">Primary</Button>
-          <Button variant="ghost" color="secondary">Secondary</Button>
-          <Button variant="ghost" color="success">Success</Button>
-          <Button variant="ghost" color="danger">Danger</Button>
-          <Button variant="ghost" color="warning">Warning</Button>
-          <Button variant="ghost" color="dark">Dark</Button>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BUTTON — Sizes & Shapes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Button / Sizes & Shapes">
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <Button size="xs">Extra Small</Button>
-          <Button size="sm">Small</Button>
-          <Button size="base">Base</Button>
-          <Button size="lg">Large</Button>
-          <Button size="xl">Extra Large</Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button shape="rounded">Rounded</Button>
-          <Button shape="pill">Pill</Button>
-          <Button variant="outline" shape="rounded">Rounded outlined</Button>
-          <Button variant="outline" shape="pill">Pill outlined</Button>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BUTTON — Icons
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Button / With Icons">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button leftIcon={<AddCircle className="w-4 h-4" />}>Add Unit</Button>
-          <Button rightIcon={<ArrowRight className="w-4 h-4" />} variant="outline">
-            View Details
-          </Button>
-          <Button leftIcon={<DownloadMinimalistic className="w-4 h-4" />} color="success">
-            Export
-          </Button>
-          <Button leftIcon={<TrashBinMinimalistic className="w-4 h-4" />} color="danger" variant="outline">
-            Delete
-          </Button>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BUTTON — States
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Button / States">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button>Default</Button>
-          <Button loading>Loading</Button>
-          <Button disabled>Disabled</Button>
-          <Button variant="outline" loading>Loading outline</Button>
-          <Button variant="outline" disabled>Disabled outline</Button>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          COUNTER
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-counter" title="Counter">
-        <div className="space-y-6">
-
-          {/* Base stepper — no label */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-3">Base stepper</p>
-            <div className="flex flex-wrap items-start gap-6">
-              <Counter value={counterDefault} onChange={setCounterDefault} />
-              <Counter value={counterDefault} onChange={setCounterDefault} min={counterDefault} />
-              <Counter value={counterDefault} onChange={setCounterDefault} max={counterDefault} />
-            </div>
-          </div>
-
-          {/* With label, required, and helper text — all states */}
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-3">With label &amp; states</p>
-            <div className="flex flex-wrap items-start gap-6">
-              <Counter
-                label="Counter Label"
-                required
-                helperText="This is a helper message."
-                value={counterDefault}
-                onChange={setCounterDefault}
-              />
-              <Counter
-                label="Counter Label"
-                required
-                state="success"
-                helperText="This is a helper message."
-                value={counterSuccess}
-                onChange={setCounterSuccess}
-              />
-              <Counter
-                label="Counter Label"
-                required
-                state="error"
-                helperText="This is a helper message."
-                value={counterError}
-                onChange={setCounterError}
-                min={1}
-              />
-            </div>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BADGE — Solid
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-badges" title="Badge / Solid">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge color="primary">Primary</Badge>
-          <Badge color="gray">Gray</Badge>
-          <Badge color="success">Success</Badge>
-          <Badge color="danger">Danger</Badge>
-          <Badge color="warning">Warning</Badge>
-          <Badge color="purple">Purple</Badge>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BADGE — Outline
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Badge / Outline">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" color="primary">Primary</Badge>
-          <Badge variant="outline" color="gray">Gray</Badge>
-          <Badge variant="outline" color="success">Success</Badge>
-          <Badge variant="outline" color="danger">Danger</Badge>
-          <Badge variant="outline" color="warning">Warning</Badge>
-          <Badge variant="outline" color="purple">Purple</Badge>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BADGE — Sizes & Shapes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Badge / Sizes & Shapes">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge size="sm">Small rounded</Badge>
-          <Badge size="lg">Large rounded</Badge>
-          <Badge size="sm" shape="pill">Small pill</Badge>
-          <Badge size="lg" shape="pill">Large pill</Badge>
-          <Badge size="lg" variant="outline" shape="pill">Large outline pill</Badge>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BADGE — Dot & Icon
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Badge / Dot & Icon">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge dot color="success">Online</Badge>
-          <Badge dot color="danger">Busy</Badge>
-          <Badge dot color="warning">Away</Badge>
-          <Badge dot color="gray">Offline</Badge>
-          <Badge icon={<Star className="w-3 h-3" />} color="warning" size="lg">Legendary</Badge>
-          <Badge icon={<Shield className="w-3 h-3" />} color="primary" size="lg">Verified</Badge>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BADGE — Dismissible
-          Uses local state to demonstrate removing a badge.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Badge / Dismissible">
-        <DismissibleBadgeDemo />
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          AVATAR — Sizes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-avatars" title="Avatar / Sizes">
-        <div className="flex flex-wrap items-end gap-3">
-          <Avatar size="xs"  initials="XS" />
-          <Avatar size="sm"  initials="SM" />
-          <Avatar size="base" initials="BS" />
-          <Avatar size="lg"  initials="LG" />
-          <Avatar size="xl"  initials="XL" />
-          <Avatar size="2xl" initials="2X" />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          AVATAR — Shapes & Colours
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Avatar / Shapes & Colours">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Circle (default) with each color */}
-          <Avatar initials="PR" color="primary" />
-          <Avatar initials="GR" color="gray" />
-          <Avatar initials="OK" color="success" />
-          <Avatar initials="NO" color="danger" />
-          <Avatar initials="AW" color="warning" />
-          <Avatar initials="LG" color="purple" />
-          {/* Rounded shape */}
-          <Avatar initials="RD" shape="rounded" color="primary" />
-          {/* Placeholder icon (no initials) */}
-          <Avatar color="gray" />
-          <Avatar color="primary" shape="rounded" />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          AVATAR — Bordered & Status
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Avatar / Bordered & Status">
-        <div className="flex flex-wrap items-center gap-3">
-          <Avatar initials="BD" bordered />
-          <Avatar initials="ON" status="online" />
-          <Avatar initials="BS" status="busy" color="danger" />
-          <Avatar initials="AW" status="away" color="warning" />
-          <Avatar initials="OF" status="offline" color="gray" />
-          <Avatar initials="AL" bordered status="online" size="lg" />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          AVATAR — Stacked Group
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Avatar / Stacked Group">
-        <div className="flex flex-col gap-4">
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">No overflow</p>
-            <AvatarGroup>
-              <Avatar initials="JL" color="primary"  bordered />
-              <Avatar initials="AM" color="success"  bordered />
-              <Avatar initials="RK" color="purple"   bordered />
-              <Avatar initials="TB" color="warning"  bordered />
-            </AvatarGroup>
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">With overflow (max=3)</p>
-            <AvatarGroup max={3}>
-              <Avatar initials="JL" color="primary"  bordered />
-              <Avatar initials="AM" color="success"  bordered />
-              <Avatar initials="RK" color="purple"   bordered />
-              <Avatar initials="TB" color="warning"  bordered />
-              <Avatar initials="CM" color="danger"   bordered />
-            </AvatarGroup>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          FRIENDS — Add Friend + Friend Profile
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Friends / Modals">
-        <FriendsModalsGalleryDemo />
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          AVATAR PICKER — Profile picture chooser
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="AvatarPicker">
-        <div className="flex flex-col gap-6">
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              Empty — falls back to initials. Picking a file opens the crop dialog.
-            </p>
-            <AvatarPicker
-              initials="JL"
-              onChange={blob => setPickedAvatar(blob)}
-            />
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              With an existing picture — gains a Remove action
-            </p>
-            <AvatarPicker
-              currentUrl={heroImage}
-              initials="JL"
-              onChange={blob => setPickedAvatar(blob)}
-            />
-          </div>
-
-          <div>
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              Disabled (parent form is saving)
-            </p>
-            <AvatarPicker initials="JL" onChange={() => {}} disabled />
-          </div>
-
-          <Text variant="paragraph" size="sm">
-            Last onChange: {pickedAvatar === undefined
-              ? 'untouched'
-              : pickedAvatar === null
-                ? 'removed'
-                : `${Math.round(pickedAvatar.size / 1024)} KB JPEG`}
-          </Text>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          AVATAR — With Text (composition pattern)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Avatar / With Text (composition)">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <Avatar initials="JL" color="primary" size="lg" />
-            <div>
-              <Text variant="paragraph" weight="semibold">Jane Lee</Text>
-              <Text variant="paragraph" size="sm">Commander — 3rd Battalion</Text>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Avatar color="gray" status="online" />
-            <div>
-              <Text variant="paragraph" weight="semibold">Unknown Soldier</Text>
-              <Text variant="paragraph" size="sm">Online now</Text>
-            </div>
-          </div>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — Default & With Button & With Link
-          Simple text-only cards with increasing interaction.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-cards" title="Card / Default, Button & Link">
-        <div className="flex flex-wrap gap-4 items-start">
-
-          {/* 1. Default */}
-          <Card className="max-w-xs w-full">
-            <CardBody>
-              <Text variant="h5" className="mb-2">Default Card</Text>
-              <Text variant="paragraph">
-                Use this as a starting point for any card that just needs a
-                title and supporting description.
-              </Text>
-            </CardBody>
-          </Card>
-
-          {/* 2. With Button */}
-          <Card className="max-w-xs w-full">
-            <CardBody className="flex flex-col gap-3">
-              <Text variant="h5">Card with Button</Text>
-              <Text variant="paragraph">
-                Pair a description with a primary action to guide the user
-                toward the next step.
-              </Text>
-              <Button rightIcon={<ArrowRight className="w-4 h-4" />}>
-                Read more
-              </Button>
-            </CardBody>
-          </Card>
-
-          {/* 3. With Link */}
-          <Card className="max-w-xs w-full">
-            <CardBody className="flex flex-col gap-3">
-              <Rocket className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              <Text variant="h5">Card with Link</Text>
-              <Text variant="paragraph">
-                Use an icon to give the card instant visual context, then
-                point users to related content with a text link.
-              </Text>
-              <TextLink variant="icon" href="https://example.com"
-                icon={<ArrowRight className="w-4 h-4" />}>
-                Learn more
-              </TextLink>
-            </CardBody>
-          </Card>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — With Image (top image variants)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / With Image">
-        <div className="flex flex-wrap gap-4 items-start">
-
-          {/* 4. Image + badge + button */}
-          <Card className="max-w-xs w-full">
-            <CardImage src={heroImage} alt="Unit card" className="h-44" />
-            <CardBody className="flex flex-col gap-3">
-              <Badge color="purple" shape="pill">Legendary</Badge>
-              <Text variant="h5">Heavy Infantry</Text>
-              <Button className="w-full">Deploy unit</Button>
-            </CardBody>
-          </Card>
-
-          {/* 5. Image + description + button */}
-          <Card className="max-w-xs w-full">
-            <CardImage src={heroImage} alt="Unit card" className="h-44" />
-            <CardBody className="flex flex-col gap-3">
-              <Text variant="h5">Mounted Archers</Text>
-              <Text variant="paragraph">
-                Fast-moving cavalry archers that harass enemy flanks and
-                withdraw before retaliation.
-              </Text>
-              <Button variant="outline">View stats</Button>
-            </CardBody>
-          </Card>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — Horizontal
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / Horizontal">
-        <Card horizontal className="max-w-xl w-full">
-          <CardImage
-            src={heroImage}
-            alt="Unit"
-            className="h-48 md:h-auto md:w-48 shrink-0"
-          />
-          <CardBody className="flex flex-col justify-center gap-3">
-            <Text variant="h5">Siege Engineers</Text>
-            <Text variant="paragraph">
-              Specialist troops that construct and operate heavy siege
-              equipment. Slow to deploy but devastating once in position.
-            </Text>
-            <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Read more
-            </Button>
-          </CardBody>
-        </Card>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — User Profile
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / User Profile">
-        <Card className="max-w-xs w-full relative">
-          {/* Options dropdown — absolute top-right */}
-          <div className="absolute top-3 right-3">
-            <Dropdown
-              trigger={
-                <Button variant="ghost" color="secondary" size="xs">
-                  <MenuDots className="w-5 h-5" />
-                </Button>
-              }
-              align="right"
-            >
-              <DropdownItem icon={<Pen2 className="w-4 h-4" />}>Edit</DropdownItem>
-              <DropdownItem icon={<DownloadMinimalistic className="w-4 h-4" />}>Export</DropdownItem>
-              <DropdownDivider />
-              <DropdownItem icon={<TrashBinMinimalistic className="w-4 h-4" />}>Delete</DropdownItem>
-            </Dropdown>
-          </div>
-
-          <CardBody className="flex flex-col items-center text-center gap-2 pt-8">
-            <Avatar initials="JL" color="primary" size="xl" />
-            <Text variant="h5" className="mt-1">Jane Lee</Text>
-            <Text variant="paragraph" size="sm">Commander — 3rd Battalion</Text>
-            <div className="flex gap-2 mt-2">
-              <Button size="sm">Add friend</Button>
-              <Button size="sm" variant="outline">Message</Button>
-            </div>
-          </CardBody>
-        </Card>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — With Form
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / With Form">
-        <Card className="max-w-sm w-full">
-          <CardBody className="flex flex-col gap-4">
-            <Text variant="h5">Sign in to BattleCards</Text>
-            <Input label="Email" type="email" placeholder="name@battlecards.app" leftIcon={<Letter className="w-4 h-4" />} />
-            <Input label="Password" type="password" placeholder="••••••••" leftIcon={<Lock className="w-4 h-4" />} />
-            <div className="flex items-center justify-between">
-              <Checkbox label="Remember me" />
-              <TextLink variant="paragraph" href="#">Lost password?</TextLink>
-            </div>
-            <Button type="submit" className="w-full">Sign in</Button>
-            <Text variant="paragraph" size="sm" align="center">
-              No account?{' '}
-              <TextLink variant="paragraph" href="#">Create one</TextLink>
-            </Text>
-          </CardBody>
-        </Card>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — E-commerce (unit shop)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / E-commerce">
-        <Card className="max-w-xs w-full">
-          <CardImage src={heroImage} alt="Heavy Infantry" className="h-44" />
-          <CardBody className="flex flex-col gap-2">
-            <StarRating rating={4} count={73} size="sm" />
-            <Text variant="h5">Heavy Infantry Pack</Text>
-            <div className="flex items-center justify-between mt-1">
-              <Text variant="h5">$9.99</Text>
-              <Button size="sm" leftIcon={<AddCircle className="w-4 h-4" />}>Add to cart</Button>
-            </div>
-          </CardBody>
-        </Card>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — Call to Action
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / Call to Action">
-        <Card className="max-w-sm w-full">
-          <CardBody className="flex flex-col items-center text-center gap-4">
-            <Rocket className="w-10 h-10 text-blue-600 dark:text-blue-400" />
-            <Text variant="h5">Take BattleCards mobile</Text>
-            <Text variant="paragraph">
-              Manage your decks, track battles, and challenge opponents
-              from anywhere with the BattleCards app.
-            </Text>
-            <div className="flex flex-col gap-2 w-full">
-              <Button leftIcon={<DownloadMinimalistic className="w-4 h-4" />}>
-                App Store
-              </Button>
-              <Button variant="outline" leftIcon={<DownloadMinimalistic className="w-4 h-4" />}>
-                Google Play
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — Nav Tabs (underline + default style)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / Nav Tabs">
-        <div className="flex flex-wrap gap-4 items-start">
-
-          {/* Underline tabs inside a card */}
-          <Card className="max-w-md w-full">
-            <Tabs
-              variant="underline"
-              panelClassName="border-0 rounded-none"
-              tabs={[
-                { id: 'stats',     label: 'Stats',     icon: <Star className="w-4 h-4" />,   content: <Text variant="paragraph">Attack: 8 · Defence: 12 · Movement: 4 · Morale: 9</Text> },
-                { id: 'abilities', label: 'Abilities', icon: <Shield className="w-4 h-4" />, content: <Text variant="paragraph">Shield Wall — Reduces incoming damage by 2 when adjacent to a friendly unit.</Text> },
-                { id: 'lore',      label: 'Lore',      icon: <FileText className="w-4 h-4" />, content: <Text variant="paragraph">Forged in the northern campaigns, Heavy Infantry are the backbone of any great army.</Text> },
-              ]}
-            />
-          </Card>
-
-          {/* Full-width tabs inside a card */}
-          <Card className="max-w-md w-full">
-            <Tabs
-              variant="fullWidth"
-              panelClassName="border-0 rounded-none"
-              tabs={[
-                { id: 'stats',     label: 'Stats',     content: <Text variant="paragraph">Attack: 8 · Defence: 12 · Movement: 4 · Morale: 9</Text> },
-                { id: 'abilities', label: 'Abilities', content: <Text variant="paragraph">Shield Wall — Reduces incoming damage by 2 when adjacent to a friendly unit.</Text> },
-                { id: 'lore',      label: 'Lore',      content: <Text variant="paragraph">Forged in the northern campaigns, Heavy Infantry are the backbone of any great army.</Text> },
-              ]}
-            />
-          </Card>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — With List
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / With List">
-        <Card className="max-w-md w-full">
-          <CardBody>
-            <div className="flex items-center justify-between mb-4">
-              <Text variant="h5">Recent Battles</Text>
-              <TextLink variant="paragraph" href="#">View all</TextLink>
-            </div>
-            <div className="space-y-4">
-              {[
-                { initials: 'JL', color: 'primary' as const, name: 'Jane Lee',    detail: 'Commander',  value: '+2,400 pts' },
-                { initials: 'AM', color: 'success' as const, name: 'Alex Marsh',  detail: 'Captain',    value: '+800 pts'   },
-                { initials: 'RK', color: 'purple'  as const, name: 'Raj Kumar',   detail: 'Lieutenant', value: '−1,200 pts' },
-                { initials: 'TC', color: 'warning' as const, name: 'Tara Chen',   detail: 'Sergeant',   value: '+540 pts'   },
-              ].map((item) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar initials={item.initials} color={item.color} />
-                    <div>
-                      <Text variant="paragraph" weight="medium">{item.name}</Text>
-                      <Text variant="paragraph" size="sm">{item.detail}</Text>
-                    </div>
-                  </div>
-                  <Text variant="paragraph" weight="semibold">{item.value}</Text>
-                </div>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — Pricing (three tiers)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / Pricing">
-        <div className="flex flex-wrap gap-4 items-start">
-
-          {/* Free */}
-          <Card className="max-w-xs w-full">
-            <CardBody className="flex flex-col gap-4">
-              <div>
-                <Badge color="gray">Free</Badge>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-heading text-4xl font-bold text-gray-900 dark:text-white">$0</span>
-                  <span className="font-body text-sm text-gray-500 dark:text-gray-400">/month</span>
-                </div>
-              </div>
-              <ul className="space-y-2">
-                {[
-                  { text: '2 deck slots',       ok: true  },
-                  { text: 'Up to 50 cards',     ok: true  },
-                  { text: 'Battle analytics',   ok: false },
-                  { text: 'Custom card art',    ok: false },
-                  { text: 'Priority support',   ok: false },
-                ].map(({ text, ok }) => (
-                  <li key={text} className="flex items-center gap-2">
-                    <CheckCircle className={`w-4 h-4 shrink-0 ${ok ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'}`} />
-                    <Text variant="paragraph" size="sm" strikethrough={!ok}>{text}</Text>
-                  </li>
-                ))}
-              </ul>
-              <Button variant="outline" className="w-full">Get started</Button>
-            </CardBody>
-          </Card>
-
-          {/* Standard */}
-          <Card className="max-w-xs w-full">
-            <CardBody className="flex flex-col gap-4">
-              <div>
-                <Badge color="primary">Standard</Badge>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-heading text-4xl font-bold text-gray-900 dark:text-white">$9</span>
-                  <span className="font-body text-sm text-gray-500 dark:text-gray-400">/month</span>
-                </div>
-              </div>
-              <ul className="space-y-2">
-                {[
-                  { text: '10 deck slots',      ok: true  },
-                  { text: 'Up to 500 cards',    ok: true  },
-                  { text: 'Battle analytics',   ok: true  },
-                  { text: 'Custom card art',    ok: false },
-                  { text: 'Priority support',   ok: false },
-                ].map(({ text, ok }) => (
-                  <li key={text} className="flex items-center gap-2">
-                    <CheckCircle className={`w-4 h-4 shrink-0 ${ok ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'}`} />
-                    <Text variant="paragraph" size="sm" strikethrough={!ok}>{text}</Text>
-                  </li>
-                ))}
-              </ul>
-              <Button className="w-full">Get started</Button>
-            </CardBody>
-          </Card>
-
-          {/* Pro */}
-          <Card className="max-w-xs w-full">
-            <CardBody className="flex flex-col gap-4">
-              <div>
-                <Badge color="purple">Pro</Badge>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-heading text-4xl font-bold text-gray-900 dark:text-white">$29</span>
-                  <span className="font-body text-sm text-gray-500 dark:text-gray-400">/month</span>
-                </div>
-              </div>
-              <ul className="space-y-2">
-                {[
-                  { text: 'Unlimited decks',    ok: true },
-                  { text: 'Unlimited cards',    ok: true },
-                  { text: 'Battle analytics',   ok: true },
-                  { text: 'Custom card art',    ok: true },
-                  { text: 'Priority support',   ok: true },
-                ].map(({ text, ok }) => (
-                  <li key={text} className="flex items-center gap-2">
-                    <CheckCircle className={`w-4 h-4 shrink-0 ${ok ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'}`} />
-                    <Text variant="paragraph" size="sm">{text}</Text>
-                  </li>
-                ))}
-              </ul>
-              <Button color="dark" className="w-full">Get started</Button>
-            </CardBody>
-          </Card>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CARD — Testimonial
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Card / Testimonial">
-        <div className="flex flex-wrap gap-4 items-start">
-
-          {[
-            { initials: 'JL', color: 'primary' as const, name: 'Jane Lee',   role: 'Commander, 3rd Battalion', quote: 'BattleCards completely changed how I plan my campaigns. The card system is intuitive and endlessly customisable.' },
-            { initials: 'RK', color: 'purple'  as const, name: 'Raj Kumar',  role: 'Tournament Organiser',     quote: 'Running a league of 40+ players used to be chaos. Now every deck is tracked, every battle logged — flawless.' },
-            { initials: 'AM', color: 'success' as const, name: 'Alex Marsh', role: 'Competitive Player',       quote: 'The stats on every card tell me exactly where my army is weak. I\'ve won three tournaments since switching.' },
-          ].map(({ initials, color, name, role, quote }) => (
-            <Card key={name} className="max-w-xs w-full">
-              <CardBody>
-                <figure>
-                  <svg
-                    className="w-8 h-8 mb-3 text-gray-400 dark:text-gray-600"
-                    aria-hidden="true"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="currentColor"
-                    viewBox="0 0 18 14"
-                  >
-                    <path d="M6 0H2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4v1a3 3 0 0 1-3 3H2a1 1 0 0 0 0 2h1a5.006 5.006 0 0 0 5-5V2a2 2 0 0 0-2-2Zm10 0h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4v1a3 3 0 0 1-3 3h-1a1 1 0 0 0 0 2h1a5.006 5.006 0 0 0 5-5V2a2 2 0 0 0-2-2Z" />
-                  </svg>
-                  <blockquote>
-                    <Text variant="paragraph" italic className="mb-4">"{quote}"</Text>
-                  </blockquote>
-                  <figcaption className="flex items-center gap-3 mt-4">
-                    <Avatar initials={initials} color={color} />
-                    <div>
-                      <Text variant="paragraph" weight="semibold">{name}</Text>
-                      <Text variant="paragraph" size="sm">{role}</Text>
-                    </div>
-                  </figcaption>
-                </figure>
-              </CardBody>
-            </Card>
-          ))}
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          DROPDOWN — Basic
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-dropdowns" title="Dropdown / Basic">
-        {/* min-h gives the section space so the open menu doesn't clip */}
-        <div className="flex flex-wrap gap-4" style={{ minHeight: 200 }}>
-
-          <Dropdown trigger={<Button rightIcon={<AltArrowDown className="w-4 h-4" />}>Options</Button>}>
-            <DropdownItem>Dashboard</DropdownItem>
-            <DropdownItem>Settings</DropdownItem>
-            <DropdownItem>Earnings</DropdownItem>
-            <DropdownItem>Sign out</DropdownItem>
-          </Dropdown>
-
-          <Dropdown
-            trigger={<Button variant="outline" rightIcon={<AltArrowDown className="w-4 h-4" />}>With icons</Button>}
-          >
-            <DropdownItem icon={<Pen2 className="w-4 h-4" />}>Edit</DropdownItem>
-            <DropdownItem icon={<DownloadMinimalistic className="w-4 h-4" />}>Export</DropdownItem>
-            <DropdownDivider />
-            <DropdownItem icon={<TrashBinMinimalistic className="w-4 h-4" />} onClick={() => {}}>Delete</DropdownItem>
-          </Dropdown>
-
-          <Dropdown
-            trigger={<Button variant="ghost" color="secondary" rightIcon={<AltArrowDown className="w-4 h-4" />}>With header</Button>}
-            align="right"
-          >
-            <DropdownHeader>
-              <p className="font-semibold">Jane Lee</p>
-              <p className="text-gray-500 dark:text-gray-400">jane@battlecards.app</p>
-            </DropdownHeader>
-            <DropdownDivider />
-            <DropdownItem>Profile</DropdownItem>
-            <DropdownItem>Settings</DropdownItem>
-            <DropdownItem disabled>Admin panel</DropdownItem>
-            <DropdownDivider />
-            <DropdownItem>Sign out</DropdownItem>
-          </Dropdown>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          INPUT — Sizes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-inputs" title="Input / Sizes">
-        <div className="w-full max-w-sm space-y-3">
-          <Input
-            size="sm"
-            placeholder="Small input"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
-          />
-          <Input
-            size="base"
-            placeholder="Base input"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
-          />
-          <Input
-            size="lg"
-            placeholder="Large input"
-            leftIcon={<UserRounded className="w-5 h-5" />}
-            rightElement={<CloseCircle className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          INPUT — States
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Input / States">
-        <div className="w-full max-w-sm space-y-3">
-          <Input
-            label="Input Label"
-            required
-            placeholder="Value"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
-            helperText="This is a helper message."
-          />
-          <Input
-            label="Input Label"
-            required
-            placeholder="Value"
-            value="Filled value"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
-            helperText="This is a helper message."
-            readOnly
-          />
-          <Input
-            label="Input Label"
-            required
-            placeholder="Value"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
-            helperText="This is a helper message."
-            disabled
-          />
-          <Input
-            label="Input Label"
-            required
-            placeholder="Value"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
-            helperText="This is a helper message."
-            readOnly
-          />
-          <Input
-            label="Input Label"
-            required
-            state="success"
-            placeholder="Value"
-            value="Valid value"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CheckCircle className="w-4 h-4 text-green-500" />}
-            helperText="This is a helper message."
-          />
-          <Input
-            label="Input Label"
-            required
-            state="error"
-            placeholder="Value"
-            leftIcon={<UserRounded className="w-4 h-4" />}
-            rightElement={<CloseCircle className="w-4 h-4 text-red-500" />}
-            helperText="This is a helper message."
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          INPUT — With icons
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Input / With Icons">
-        <div className="w-full max-w-sm space-y-3">
-          <Input
-            label="Search"
-            placeholder="Search units..."
-            leftIcon={<Magnifer className="w-4 h-4" />}
-          />
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            leftIcon={<Lock className="w-4 h-4" />}
-            rightElement={<Eye className="w-4 h-4 text-gray-500 dark:text-gray-400" />}
-          />
-          <Input
-            label="Email"
-            type="email"
-            placeholder="name@battlecards.app"
-            leftIcon={<Letter className="w-4 h-4" />}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          SELECT — Sizes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-select" title="Select / Sizes">
-        <div className="w-full max-w-sm space-y-3">
-          <Select size="sm" defaultValue="">
-            <option value="" disabled>Small select</option>
-            <option value="infantry">Infantry</option>
-            <option value="cavalry">Cavalry</option>
-          </Select>
-          <Select size="base" defaultValue="">
-            <option value="" disabled>Base select</option>
-            <option value="infantry">Infantry</option>
-            <option value="cavalry">Cavalry</option>
-          </Select>
-          <Select size="lg" defaultValue="">
-            <option value="" disabled>Large select</option>
-            <option value="infantry">Infantry</option>
-            <option value="cavalry">Cavalry</option>
-          </Select>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          SELECT — States
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Select / States">
-        <div className="w-full max-w-sm space-y-3">
-          <Select
-            label="Select Label"
-            required
-            helperText="This is a helper message."
-            defaultValue=""
-          >
-            <option value="" disabled>Select option</option>
-            <option value="unsc">UNSC</option>
-            <option value="covenant">Covenant</option>
-          </Select>
-          <Select
-            label="Select Label"
-            required
-            helperText="This is a helper message."
-            value="unsc"
-            readOnly
-            onChange={() => {}}
-          >
-            <option value="unsc">UNSC</option>
-          </Select>
-          <Select
-            label="Select Label"
-            required
-            helperText="This is a helper message."
-            defaultValue=""
-            disabled
-          >
-            <option value="" disabled>Select option</option>
-            <option value="unsc">UNSC</option>
-          </Select>
-          <Select
-            label="Select Label"
-            required
-            state="success"
-            helperText="This is a helper message."
-            defaultValue="unsc"
-          >
-            <option value="unsc">UNSC</option>
-            <option value="covenant">Covenant</option>
-          </Select>
-          <Select
-            label="Select Label"
-            required
-            state="error"
-            helperText="This is a helper message."
-            defaultValue=""
-          >
-            <option value="" disabled>Select option</option>
-            <option value="unsc">UNSC</option>
-          </Select>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          SELECT — With Icon
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Select / With Icon">
-        <div className="w-full max-w-sm space-y-3">
-          <Select
-            label="Faction"
-            leftIcon={<Flag className="w-4 h-4" />}
-            defaultValue=""
-          >
-            <option value="" disabled>Choose faction…</option>
-            <option value="unsc">UNSC</option>
-            <option value="covenant">Covenant</option>
-            <option value="flood">Flood</option>
-          </Select>
-          <Select
-            label="Unit Type"
-            leftIcon={<Shield className="w-4 h-4" />}
-            defaultValue=""
-          >
-            <option value="" disabled>Choose type…</option>
-            <option value="infantry">Infantry</option>
-            <option value="vehicle">Vehicle</option>
-            <option value="air">Air Support</option>
-          </Select>
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CHECKBOX — Colors
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-checkboxes" title="Checkbox / Colors">
-        <div className="flex flex-wrap gap-6">
-          <Checkbox color="primary" label="Primary"  defaultChecked />
-          <Checkbox color="red"     label="Red"      defaultChecked />
-          <Checkbox color="green"   label="Green"    defaultChecked />
-          <Checkbox color="purple"  label="Purple"   defaultChecked />
-          <Checkbox color="teal"    label="Teal"     defaultChecked />
-          <Checkbox color="yellow"  label="Yellow"   defaultChecked />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CHECKBOX — States
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Checkbox / States">
-        <div className="space-y-4 max-w-sm">
-          <Checkbox
-            label="Default unchecked"
-          />
-          <Checkbox
-            label="Default checked"
-            defaultChecked
-          />
-          <Checkbox
-            indeterminate
-            label="Indeterminate (select all)"
-          />
-          <Checkbox
-            label="Disabled"
-            disabled
-          />
-          <Checkbox
-            label="Disabled checked"
-            disabled
-            defaultChecked
-          />
-          <Checkbox
-            label="Deploy units to the front line"
-            helperText="Requires at least one unit in reserve."
-            color="primary"
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          STAR RATING — Display
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-stars" title="Star Rating / Display">
-        <div className="flex flex-col gap-3">
-          <StarRating rating={5} />
-          <StarRating rating={4} />
-          <StarRating rating={3} />
-          <StarRating rating={4} showLabel />
-          <StarRating rating={4} count={128} />
-          <StarRating rating={4} showLabel count={128} />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          STAR RATING — Sizes
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Star Rating / Sizes">
-        <div className="flex flex-col gap-3">
-          <StarRating rating={4} size="sm"   />
-          <StarRating rating={4} size="base" />
-          <StarRating rating={4} size="lg"   />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          STAR RATING — Interactive
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Star Rating / Interactive">
-        <InteractiveStarDemo />
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TABS — Default (background highlight)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-tabs" title="Tabs / Default">
-        <div className="w-full max-w-lg">
-          <Tabs
-            tabs={[
-              { id: 'profile',   label: 'Profile',   content: <Text variant="paragraph">This is the Profile tab content.</Text> },
-              { id: 'dashboard', label: 'Dashboard', content: <Text variant="paragraph">This is the Dashboard tab content.</Text> },
-              { id: 'settings',  label: 'Settings',  content: <Text variant="paragraph">This is the Settings tab content.</Text> },
-              { id: 'disabled',  label: 'Disabled',  content: <></>, disabled: true },
-            ]}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TABS — Underline
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Tabs / Underline">
-        <div className="w-full max-w-lg">
-          <Tabs
-            variant="underline"
-            tabs={[
-              { id: 'profile',   label: 'Profile',   content: <Text variant="paragraph">This is the Profile tab content.</Text> },
-              { id: 'dashboard', label: 'Dashboard', content: <Text variant="paragraph">This is the Dashboard tab content.</Text> },
-              { id: 'settings',  label: 'Settings',  content: <Text variant="paragraph">This is the Settings tab content.</Text> },
-              { id: 'contacts',  label: 'Contacts',  content: <Text variant="paragraph">This is the Contacts tab content.</Text> },
-            ]}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TABS — Pills
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Tabs / Pills">
-        <div className="w-full max-w-lg">
-          <Tabs
-            variant="pills"
-            tabs={[
-              { id: 'stats',     label: 'Stats',     icon: <Star className="w-4 h-4" />,   content: <Text variant="paragraph">Unit statistics breakdown.</Text> },
-              { id: 'abilities', label: 'Abilities', icon: <Shield className="w-4 h-4" />, content: <Text variant="paragraph">Active and passive abilities.</Text> },
-              { id: 'lore',      label: 'Lore',      icon: <FileText className="w-4 h-4" />, content: <Text variant="paragraph">Background lore for this unit.</Text> },
-            ]}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          TABS — Full Width
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Tabs / Full Width">
-        <div className="w-full max-w-lg">
-          <Tabs
-            variant="fullWidth"
-            tabs={[
-              { id: 'stats',     label: 'Stats',     content: <Text variant="paragraph">Unit statistics breakdown.</Text> },
-              { id: 'abilities', label: 'Abilities', content: <Text variant="paragraph">Active and passive abilities.</Text> },
-              { id: 'lore',      label: 'Lore',      content: <Text variant="paragraph">Background lore for this unit.</Text> },
-            ]}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          HORIZONTAL RULES
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-hr" title="HR / Variants">
-        <div className="w-full space-y-2">
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default</p>
-          <HR variant="default" />
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Trimmed</p>
-          <HR variant="trimmed" />
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Text</p>
-          <HR variant="text" label="or" />
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Icon</p>
-          <HR
-            variant="icon"
-            icon={
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            }
-          />
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Shape</p>
-          <HR variant="shape" />
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          COLUMN HEADER
-          The header at the top of a dashboard column: left-aligned icon +
-          title, an optional description line, and an optional two-option
-          view toggle (hidden unless a `toggle` prop is passed). Rendered on
-          a dark card since the title is white.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-column-header" title="Column Header / Default">
-        <div className="flex flex-col gap-6 w-full max-w-sm">
-
-          {/* Icon + title + description */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-5">
-            <ColumnHeader
-              icon={<Shield className="w-12 h-12 text-primary-500" />}
-              title="My Battles"
-              description="The games you've played, and how they went."
-            />
-          </div>
-
-          {/* Title only (no description) */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-5">
-            <ColumnHeader
-              icon={<InfoCircle className="w-12 h-12 text-primary-500" />}
-              title="News & Updates"
-            />
-          </div>
-
-          {/* With the optional view toggle */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-5">
-            <ColumnHeader
-              icon={<Shield className="w-12 h-12 text-primary-500" />}
-              title="My Battles"
-              description="Switch between two views with the toggle."
-              toggle={{
-                value: columnHeaderView,
-                onChange: setColumnHeaderView,
-                options: [
-                  { id: 'list',    icon: <ListCheck className="w-4 h-4" />, label: 'List view' },
-                  { id: 'gallery', icon: <Gallery className="w-4 h-4" />,   label: 'Gallery view' },
-                ],
-              }}
-            />
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ── Blood Bowl Card ────────────────────────────────────────────── */}
       <GallerySection id="nav-bb-card" title="Blood Bowl Card / Default">
         <div className="flex flex-wrap gap-8 items-start">
 
@@ -2641,10 +612,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Blood Bowl Star Player Card ───────────────────────────────────
-          Same layout as the regular BB card, but Player Development is
-          replaced by a variable-height Special Rules block sourced from
-          star-only keywords. */}
       <GallerySection id="nav-bb-star-card" title="Blood Bowl Star Player Card / Default">
         <div className="flex flex-wrap gap-8 items-start">
 
@@ -2716,7 +683,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Halo Flashpoint Card ──────────────────────────────────────── */}
       <GallerySection id="nav-halo-card" title="Halo Flashpoint Card / Default">
         <div className="flex flex-wrap gap-8 items-start">
 
@@ -2761,7 +727,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Starcraft Card ─────────────────────────────────────────────── */}
       <GallerySection id="nav-sc-card" title="StarCraft Card / Default">
         <div className="flex flex-col gap-8 items-start">
 
@@ -2843,7 +808,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Starcraft Phase Frame ─────────────────────────────────────── */}
       <GallerySection id="nav-sc-phase-frame" title="StarCraft Phase Frame / Assault">
         <div className="flex flex-col gap-4 items-start">
           <p className="font-body text-xs text-gray-400 dark:text-gray-500">
@@ -2911,7 +875,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Kill Team Card ─────────────────────────────────────────── */}
       <GallerySection id="nav-kill-team-card" title="Kill Team Card / Default">
         <div className="flex flex-wrap gap-8 items-start">
 
@@ -3063,7 +1026,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Kill Team Rule Card ───────────────────────────────────── */}
       <GallerySection id="nav-kill-team-rule-card" title="Kill Team Rule Card / Default">
         <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
           Faction Rule layout — title + description, with an optional attached ability.
@@ -3118,7 +1080,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Addon Info Modal — universal, schema-driven ─────────────── */}
       <GallerySection id="nav-addon-info-modal" title="Addon Info Modal">
         <div className="w-full space-y-4">
           <p className="font-body text-sm text-gray-400">
@@ -3160,20 +1121,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Rich Text Editor ────────────────────────────────────────── */}
-      <GallerySection id="nav-rich-text-editor" title="Rich Text Editor">
-        <div className="max-w-md space-y-4">
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-            TipTap-based markdown editor with formatting toolbar. Used in the Add Rule modal.
-          </p>
-          <RichTextEditor
-            value={"**Bold text**, *italic text*, and ~~strikethrough~~.\n\n- Bullet one\n- Bullet two\n\n> A blockquote"}
-            onChange={() => {}}
-          />
-        </div>
-      </GallerySection>
-
-      {/* ── Halo Flashpoint Rule Card ─────────────────────────────── */}
       <GallerySection id="nav-halo-rule-card" title="Halo Flashpoint Rule Card">
         <div className="flex flex-wrap gap-8 items-start">
 
@@ -3207,7 +1154,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Card 3D Wrapper ───────────────────────────────────────── */}
       <GallerySection id="nav-card-3d" title="Card 3D Wrapper">
         <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
           Hover over each card to see the 3D tilt effect.
@@ -3279,214 +1225,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── Multi-Select Dropdown ──────────────────────────────────── */}
-      <GallerySection id="nav-multi-select" title="Multi-Select / Default">
-        <div className="flex flex-wrap gap-8 items-start">
-
-          <div className="flex flex-col gap-2 w-52">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Empty</p>
-            <MultiSelectDropdown
-              label="Primary Attributes"
-              required
-              options={MULTI_OPTIONS}
-              selected={[]}
-              onChange={() => {}}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 w-52">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With values</p>
-            <MultiSelectDropdown
-              label="Primary Attributes"
-              required
-              options={MULTI_OPTIONS}
-              selected={['Agility', 'Passing']}
-              onChange={() => {}}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 w-52">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With disabled options</p>
-            <MultiSelectDropdown
-              label="Secondary Attributes"
-              required
-              options={MULTI_OPTIONS}
-              selected={['General']}
-              disabledOptions={['Agility', 'Passing']}
-              onChange={() => {}}
-            />
-          </div>
-
-        </div>
-      </GallerySection>
-
-      <GallerySection title="Multi-Select / Interactive (mutual exclusion)">
-        <div className="flex flex-wrap gap-4 items-start">
-
-          <div className="w-52">
-            <MultiSelectDropdown
-              label="Primary Attributes"
-              required
-              helperText="Used for league progression."
-              options={MULTI_OPTIONS}
-              selected={multiSelected}
-              disabledOptions={multiSelected2}
-              onChange={setMultiSelected}
-            />
-          </div>
-
-          <div className="w-52">
-            <MultiSelectDropdown
-              label="Secondary Attributes"
-              required
-              helperText="Used for league progression."
-              options={MULTI_OPTIONS}
-              selected={multiSelected2}
-              disabledOptions={multiSelected}
-              onChange={setMultiSelected2}
-            />
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          VR — Vertical Rule
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-vr" title="VR / Variants">
-        <div className="flex flex-wrap gap-10 items-start">
-
-          <div className="flex flex-col gap-2 items-center">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default</p>
-            <div className="h-32 flex">
-              <VR />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 items-center">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default + indented</p>
-            <div className="h-32 flex">
-              <VR indented />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 items-center">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Or</p>
-            <div className="h-32 flex">
-              <VR style="or" />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 items-center">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Or + indented</p>
-            <div className="h-32 flex">
-              <VR style="or" indented />
-            </div>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          BANNER
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-banner" title="Banner">
-        <div className="w-full space-y-3">
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default (no icon, no dismiss)</p>
-          <Banner>
-            Scheduled maintenance on Sunday at 2 am UTC. Expect up to 30 minutes of downtime.
-          </Banner>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">With icon</p>
-          <Banner icon={<InfoCircle className="w-4 h-4" />}>
-            A new version of BattleCards is available — refresh to update.
-          </Banner>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">With icon + dismiss</p>
-          <Banner
-            icon={<Bell className="w-4 h-4" />}
-            onDismiss={() => {}}
-          >
-            Your roster export is ready to download.
-          </Banner>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          CALLOUT
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-callout" title="Callout">
-        <div className="w-full max-w-2xl space-y-3">
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default</p>
-          <Callout>
-            This is a default callout. Use it for neutral, informational messages.
-          </Callout>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Good</p>
-          <Callout flavour="good">
-            Unit added successfully to your roster.
-          </Callout>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Warning</p>
-          <Callout flavour="warning">
-            You're approaching your roster point limit — only 30 pts remaining.
-          </Callout>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Bad</p>
-          <Callout flavour="bad">
-            Failed to save your card. Check your connection and try again.
-          </Callout>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">With dismiss</p>
-          <Callout flavour="good" onDismiss={() => {}}>
-            Card exported successfully.
-          </Callout>
-
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500">No leading icon</p>
-          <Callout flavour="warning" leadingIcon={false}>
-            This action cannot be undone.
-          </Callout>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          GAME LOGOS
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-game-logos" title="Game Logos">
-        <div className="w-full space-y-6">
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Blood Bowl</p>
-            <div className="bg-gray-900 rounded-lg p-4 flex items-center justify-center">
-              <img
-                src={logoBloodBowl}
-                alt="Blood Bowl"
-                className="h-16 object-contain"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Halo Flashpoint</p>
-            <div className="bg-gray-900 rounded-lg p-4 flex items-center justify-center">
-              <img
-                src={logoHaloFlashpoint}
-                alt="Halo Flashpoint"
-                className="h-16 object-contain"
-              />
-            </div>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          DECK LIST ITEM
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-deck-list-item" title="Deck List Item">
         <div className="w-full space-y-6">
 
@@ -3554,11 +1292,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          PACK LIST ITEM
-          Used in the Packs column on AppHome. Composes Badge + a small
-          icon-only download button + a 64×64 thumbnail.
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-pack-list-item" title="Pack List Item">
         {/* Constrain to ~342px so the demo matches its real-world width. */}
         <div className="w-full max-w-[342px] space-y-6">
@@ -3654,71 +1387,10 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          SELECTABLE LIST ITEM
-          Compact picker row with leading checkbox. Used inside
-          AddToPackModal. Lives outside that modal so it can be reused
-          for any multi-select list elsewhere.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-selectable-list-item" title="Selectable List Item">
-        <div className="w-full max-w-[523px] space-y-6">
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Three rows — first checked, second hovered (passive), third long-name truncation</p>
-            <SelectableListItem name="BR55 Battle Rifle"   checked={true}  onCheckedChange={() => {}} />
-            <SelectableListItem name="MA40 AR"             checked={false} onCheckedChange={() => {}} />
-            <SelectableListItem
-              name="A Very Long Weapon Name That Should Definitely Truncate At Some Point"
-              checked={false}
-              onCheckedChange={() => {}}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With subtitle (source label, as used in the multi-source picker)</p>
-            <SelectableListItem
-              name="BR55 Battle Rifle"
-              subtitle="Pack: Space Marines"
-              checked={false}
-              onCheckedChange={() => {}}
-            />
-            <SelectableListItem
-              name="Spartan Zvezda"
-              subtitle="Deck: My Halo Skirmish"
-              checked={true}
-              onCheckedChange={() => {}}
-            />
-            <SelectableListItem
-              name="Stealth"
-              subtitle="My Library"
-              checked={false}
-              onCheckedChange={() => {}}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Disabled (e.g. submit in flight)</p>
-            <SelectableListItem name="Tackle" checked={true} onCheckedChange={() => {}} disabled />
-            <SelectableListItem name="Dodge"  checked={false} onCheckedChange={() => {}} disabled />
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          ADD TO PACK MODAL
-          Driver for "Add Unit / Rule Card / Addon / Keyword to Pack"
-          in the pack editor. The picker queries Supabase live, so the
-          gallery demo needs a real packId / gameId to render anything
-          meaningful — buttons here simulate an open with stub IDs.
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-add-to-pack-modal" title="Add to Pack Modal">
         <AddToPackModalGalleryDemo />
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          ADDON LIST ITEM
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-addon-list-item" title="Addon List Item">
         <div className="w-full space-y-6">
 
@@ -3775,9 +1447,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          ADD ADDON MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-add-addon-modal" title="Add Addon Modal">
         <div className="w-full space-y-4">
 
@@ -3846,9 +1515,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          ADD KEYWORD MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-add-keyword-modal" title="Add Keyword Modal">
         <div className="w-full space-y-4">
 
@@ -3873,9 +1539,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          KEYWORD INFO MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-keyword-info-modal" title="Keyword Info Modal">
         <div className="w-full space-y-4">
 
@@ -3898,9 +1561,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          WEAPON INFO MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-weapon-info-modal" title="Weapon Info Modal">
         <div className="w-full space-y-4">
 
@@ -3933,9 +1593,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          BLOG ENTRY PREVIEW
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-blog-entry-preview" title="Blog Entry Preview">
         <div className="w-full space-y-6">
 
@@ -3979,99 +1636,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          PAGINATION
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-pagination" title="Pagination">
-        <div className="w-full">
-          <PaginationGalleryDemo />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          MARKDOWN BODY
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-markdown-body" title="Markdown Body">
-        <div className="w-full max-w-xl space-y-6">
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-              Full size — colour themed by the caller (as used in Update Modal)
-            </p>
-            <MarkdownBody className="text-base leading-6 text-gray-300 [&_strong]:text-white [&_a]:text-blue-400">
-              {MARKDOWN_SAMPLE}
-            </MarkdownBody>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-              Clamped to 5 lines, SM Regular (as used in the News &amp; Updates cards)
-            </p>
-            <MarkdownBody className="text-sm leading-5 text-white line-clamp-5">
-              {MARKDOWN_SAMPLE}
-            </MarkdownBody>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          MODAL
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-modal" title="Modal">
-        <div className="w-full space-y-6">
-
-          <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Click to open a modal overlay</p>
-            <Button onClick={() => setModalOpen(true)}>Open Modal</Button>
-            <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
-              <div className="p-5 flex flex-col gap-4">
-                <h2 className="font-heading text-xl text-white">Example Modal</h2>
-                <p className="font-body text-sm text-gray-300">
-                  Click the backdrop or the button below to close.
-                </p>
-                <div className="flex justify-end">
-                  <Button variant="outline" color="danger" onClick={() => setModalOpen(false)}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </Modal>
-          </div>
-
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          WELCOME MODAL (onboarding)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-welcome-modal" title="Welcome Modal">
-        <div className="w-full space-y-6">
-          <WelcomeModalGalleryDemo />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          PROFILE MODAL (Your Profile)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-profile-modal" title="Profile Modal">
-        <div className="w-full space-y-6">
-          <ProfileModalGalleryDemo />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          UPDATE MODAL (News & Updates)
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-update-modal" title="Update Modal">
-        <div className="w-full space-y-6">
-          <UpdateModalGalleryDemo />
-        </div>
-      </GallerySection>
-
-      {/* ════════════════════════════════════════════════════════════════
-          UPLOAD PHOTO MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-upload-photo-modal" title="Upload Photo Modal">
         <div className="w-full space-y-6">
 
@@ -4093,9 +1657,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          GAME PICKER ITEM
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-game-picker-item" title="Game Picker Item">
         <div className="w-full space-y-6">
 
@@ -4136,9 +1697,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          IMPORT LIST MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-import-list-modal" title="Import List Modal">
         <div className="w-full space-y-4">
 
@@ -4163,9 +1721,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          SAVE TEMPLATE MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-save-template-modal" title="Save Template Modal">
         <div className="w-full space-y-4">
 
@@ -4200,9 +1755,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          NEW CARD MODAL
-      ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-new-card-modal" title="New Card Modal">
         <div className="w-full space-y-4">
 
@@ -4243,8 +1795,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── PlaySubnav ─────────────────────────────────────────────────── */}
-      <GallerySection title="PlaySubnav / Units & Rules">
+      <GallerySection id="nav-play-subnav" title="PlaySubnav / Units &amp; Rules">
         <div className="flex flex-col gap-6">
           {(() => {
             const [tab, setTab] = React.useState<PlayTab>('units');
@@ -4267,8 +1818,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── EditSubnav ─────────────────────────────────────────────────── */}
-      <GallerySection title="EditSubnav / Card List & Editor (tablet + mobile)">
+      <GallerySection id="nav-edit-subnav" title="EditSubnav / Card List &amp; Editor (tablet + mobile)">
         <div className="flex flex-col gap-6">
           <Text size="sm" color="secondary">
             Shown below the Navbar in Edit mode on viewports smaller than lg.
@@ -4336,30 +1886,6 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── ModeToggle ──────────────────────────────────────────────────── */}
-      <GallerySection title="ModeToggle / Edit & Play">
-        <div className="flex flex-wrap gap-6 items-start">
-          {(() => {
-            const [mode, setMode] = React.useState<Mode>('edit');
-            return (
-              <div className="flex flex-col gap-3">
-                <Text size="sm" color="secondary">Interactive (click to toggle)</Text>
-                <ModeToggle mode={mode} onModeChange={setMode} />
-                <Text size="xs" color="secondary">Current: {mode}</Text>
-              </div>
-            );
-          })()}
-          <div className="flex flex-col gap-3">
-            <Text size="sm" color="secondary">Edit active</Text>
-            <ModeToggle mode="edit" onModeChange={() => {}} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <Text size="sm" color="secondary">Play active</Text>
-            <ModeToggle mode="play" onModeChange={() => {}} />
-          </div>
-        </div>
-      </GallerySection>
-
       <GallerySection id="play-token-menu" title="TokenMenu / Play Mode">
         <div className="flex flex-col gap-6 w-full max-w-md">
           <Text size="sm" color="secondary">
@@ -4410,8 +1936,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ── PrintCardGrid ──────────────────────────────────────────────── */}
-      <GallerySection title="PrintCardGrid / Blood Bowl (A4)">
+      <GallerySection id="nav-print-card-grid" title="PrintCardGrid / Blood Bowl (A4)">
         <div className="flex flex-col gap-4 w-full overflow-auto">
           <Text size="sm" color="secondary">
             Print layout grid with demo Blood Bowl cards scaled to fit A4 paper. 2x2 = 4 cards per page.
@@ -4460,83 +1985,7 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      {/* ════════════════════════════════════════════════════════════════
-          BUILDER SHELL — Card-builder layout primitives shared across
-          every game (Halo, Starcraft, Blood Bowl, …). Game pages compose
-          these with `useCardBuilder` instead of duplicating frame markup.
-      ════════════════════════════════════════════════════════════════ */}
-      <GallerySection id="nav-builder-shell" title="Builder Shell / Composed">
-        <BuilderShellDemo />
-      </GallerySection>
-
-      <GallerySection title="Builder Shell / CardListPanel">
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <CardListPanel
-            deckName="UNSC Strike Team"
-            editingDeckName={false}
-            inputRef={{ current: null }}
-            onStartEdit={() => {}}
-            onCommit={() => {}}
-            onCancelEdit={() => {}}
-            footer={
-              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
-                Add Unit
-              </Button>
-            }
-          >
-            <UnitListEntry status="complete" unitName="Spartan CQB" active />
-            <UnitListEntry status="complete" unitName="ODST Demolition" />
-            <UnitListEntry status="complete" unitName="Marine Squad" />
-            <UnitListEntry status="blank" />
-          </CardListPanel>
-        </div>
-
-        {/* With a header action slot (e.g. edit-mode toggle) */}
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <CardListPanel
-            deckName="Banished Vanguard"
-            editingDeckName={false}
-            inputRef={{ current: null }}
-            onStartEdit={() => {}}
-            onCommit={() => {}}
-            onCancelEdit={() => {}}
-            headerAction={
-              <button className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white" title="Edit deck">
-                <Pen2 className="w-4 h-4" />
-              </button>
-            }
-            footer={
-              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
-                Add Unit
-              </Button>
-            }
-          >
-            <UnitListEntry status="complete" unitName="Elite Honor Guard" />
-            <UnitListEntry status="complete" unitName="Brute Chieftain" active />
-            <UnitListEntry status="complete" unitName="Jackal Sniper" />
-          </CardListPanel>
-        </div>
-      </GallerySection>
-
-      <GallerySection title="Builder Shell / EditorPanel">
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <EditorPanel title="Edit Card">
-            <Input label="Unit Name" placeholder="e.g. Spartan CQB" value="Spartan CQB" onChange={() => {}} />
-            <Counter label="Hit Points" value={3} onChange={() => {}} />
-            <Counter label="Armour"     value={2} onChange={() => {}} />
-            <Counter label="Points"     value={120} onChange={() => {}} />
-          </EditorPanel>
-        </div>
-
-        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <EditorPanel title="Edit Rule">
-            <Input label="Rule Title" placeholder="e.g. Assault" value="Energy Shield" onChange={() => {}} />
-            <p className="font-body text-xs text-gray-400">Description and rich-text body would go here in a real builder.</p>
-          </EditorPanel>
-        </div>
-      </GallerySection>
-
-      <GallerySection title="Builder Shell / CenterViewport">
+      <GallerySection id="nav-center-viewport" title="Center Viewport">
         <div className="w-full max-w-2xl h-[420px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col bg-gray-950">
           <CenterViewport
             logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}
@@ -4560,7 +2009,14 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-      <GallerySection title="Card Forms / Halo Flashpoint">
+      {/* The centre column in its real setting. <BuilderShell>, <ListPanel> and
+          <EditorPanel> are shared — their own demos are in the shared gallery
+          above — so this section is about what BattleCards puts between them. */}
+      <GallerySection title="Center Viewport / In the builder shell">
+        <BuilderShellDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-card-forms" title="Card Forms / Halo Flashpoint">
         <p className="font-body text-sm text-gray-400 mb-4">
           Phase 1 stats form — fills in card stats and creates the row in the DB before proceeding to weapons/keywords.
           Phase 2 (content) opens after create. Cancel/Done are non-functional in the gallery.
@@ -4594,149 +2050,333 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
-</div>{/* end sm:ml-64 content wrapper */}
-    </div>
-  );
-};
 
-// ── IconGrid ──────────────────────────────────────────────────────────────────
+      {/* ════════════════════════════════════════════════════════════════
+          REPENT YE FOOLISH GODS — CARDS
+          The three RYG card faces. RygCard is the warrior card and takes
+          inline-edit callbacks; omit them and it renders read-only, which
+          is what the gallery shows.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-ryg-card" title="RYG Card / Warrior">
+        <RygCard
+          warriorName="Hesper of the Ashen Vow"
+          type="Zealot"
+          sept="Sept of the Broken Chain"
+          offense={4}
+          defense={3}
+          life={5}
+          tactics={2}
+          fate={3}
+          talents="Fanatic, Unyielding, Zealous Charge"
+          specialAbilityDesc="Once per battle, Hesper may re-roll every failed Fate test in a single activation."
+          weapons={DEMO_RYG_WEAPONS}
+          armor={DEMO_RYG_ARMOR}
+          items={DEMO_RYG_ITEMS}
+          spells={DEMO_RYG_SPELLS}
+        />
+        <GalleryNote>
+          Read-only: the onChange* callbacks are omitted, so the editable fields
+          render as plain text. Pass <code>talentList</code> plus{' '}
+          <code>onTalentClick</code> instead of the flat <code>talents</code>{' '}
+          string to make talent names clickable in the builder.
+        </GalleryNote>
+      </GallerySection>
 
-/**
- * IconGrid — Displays a grid of icon previews.
- *
- * Each cell shows:
- * - The outline variant on the left
- * - The solid variant on the right (or a dash if no solid exists)
- * - The icon's import name below
- *
- * Used only in ComponentGallery — not a reusable app component.
- */
-interface IconEntry {
-  name: string;
-  outline: React.ReactNode;
-  /** Pass null if no solid variant exists for this icon */
-  solid: React.ReactNode | null;
-}
+      <GallerySection id="nav-god-card" title="RYG God Card">
+        <div className="flex flex-wrap gap-6">
+          <GodCard
+            godName="Vhorr, the Sundered"
+            specialAbility="Followers of Vhorr may ignore the first wound suffered each round."
+            minions="Chain-thrall, Ash Cur"
+            servants="Flagellant, Bone Piper"
+            lieutenants="Herald of Rust"
+            champions="The Sundering Hand"
+          />
+          {/* Empty state — every field is optional, so a blank god card is valid */}
+          <GodCard />
+        </div>
+        <GalleryNote>
+          Every field is optional; the second card is the blank state a new god
+          starts in.
+        </GalleryNote>
+      </GallerySection>
 
-const IconGrid = ({ icons }: { icons: IconEntry[] }) => (
-  <div className="w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-    {icons.map(({ name, outline, solid }) => (
-      <div
-        key={name}
-        className="flex flex-col items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-gray-900"
-      >
-        {/* Outline + Solid side by side */}
-        <div className="flex items-center gap-3 text-gray-900 dark:text-white">
-          {/* Outline variant */}
-          <div title="outline">{outline}</div>
-          {/* Solid variant — greyed out dash if unavailable */}
-          <div title={solid ? 'solid' : 'no solid variant'} className={solid ? '' : 'text-gray-300 dark:text-gray-700'}>
-            {solid ?? '—'}
+      <GallerySection id="nav-sept-card" title="RYG Sept Card">
+        <div className="flex flex-wrap gap-6">
+          <SeptCard
+            septName="Sept of the Broken Chain"
+            prohibited="Firearms, Mounts"
+            required="One Flagellant per three models"
+            restricted="Spells of the Third Circle"
+            benefits={[
+              { name: 'Unbowed',   description: 'Re-roll failed Tactics tests while within 3" of a Champion.' },
+              { name: 'Iron Will', description: 'Immune to Fear caused by unbroken enemies.' },
+            ]}
+            destinyName="The Chain Unmade"
+            destinyDesc="Destroy every enemy Champion before the fourth round."
+            destinyCurse="If the Destiny fails, all friendly models lose 1 Fate for the rest of the battle."
+          />
+          {/* Minimal — only the name is required */}
+          <SeptCard septName="Sept of Quiet Hours" />
+        </div>
+        <GalleryNote>
+          Only <code>septName</code> is required; the second card shows a sept with
+          no benefits or destiny yet.
+        </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD CAROUSEL
+          The centre of every builder: a zoomable, swipeable strip showing
+          the previous / active / next card. Generic over any item with an
+          id, so each builder passes its own card component to renderItem.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-card-carousel" title="Card Carousel">
+        <div className="w-full h-[620px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <CardCarousel
+            items={CAROUSEL_ITEMS}
+            activeId={carouselActive}
+            onActiveChange={setCarouselActive}
+            cardWidth={340}
+            cardHeight={520}
+            renderItem={(item, role) => (
+              <div
+                className={`w-[340px] h-[520px] rounded-2xl border-2 flex flex-col items-center justify-center gap-3
+                            ${role === 'active'
+                              ? 'border-primary-500 bg-gray-100 dark:bg-gray-900'
+                              : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950'}`}
+              >
+                <Shield className={`w-16 h-16 ${role === 'active' ? 'text-primary-500' : 'text-gray-400'}`} />
+                <p className="font-heading text-xl text-gray-900 dark:text-white">{item.name}</p>
+                <p className="font-body text-xs uppercase tracking-widest text-gray-400">{role}</p>
+              </div>
+            )}
+          />
+        </div>
+        <GalleryNote>
+          Active card: {CAROUSEL_ITEMS.find(i => i.id === carouselActive)?.name}. Swipe
+          or drag to page; the zoom controls sit bottom-right unless you pass{' '}
+          <code>hideZoomControls</code>. <code>bottomLeftSlot</code> /{' '}
+          <code>bottomRightSlot</code> are where builders hang their own actions.
+        </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ATTACHED ADDON ROW
+          A row in an editor panel's "attached" list — click to open, X to
+          detach.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-attached-addon-row" title="Attached Addon Row">
+        <div className="w-full max-w-md flex flex-col gap-2">
+          <AttachedAddonRow
+            name="Plasma Rifle"
+            subtitle="Rng 12 · Dmg 3 · Overheat"
+            onClick={() => alert('Open Plasma Rifle')}
+            onRemove={() => alert('Detach Plasma Rifle')}
+          />
+          <AttachedAddonRow
+            name="Energy Sword"
+            subtitle="Melee · Dmg 4 · Lethal"
+            onClick={() => alert('Open Energy Sword')}
+            onRemove={() => alert('Detach Energy Sword')}
+          />
+          {/* No onClick — the row is display-only, but still detachable */}
+          <AttachedAddonRow
+            name="Camouflage"
+            subtitle="Ability"
+            onRemove={() => alert('Detach Camouflage')}
+            removeAriaLabel="Remove Camouflage"
+          />
+        </div>
+        <GalleryNote>
+          Omit <code>onClick</code> and the row is display-only — the third row
+          here — but the remove control stays.
+        </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TOKENS
+          Play-mode counters. TokenBadge is one circular token; TokenBar is
+          the segmented wound/ammo track drawn beside a card.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-token-badge" title="Token Badge & Bar">
+        <div className="w-full flex flex-wrap gap-10 items-start">
+
+          <div className="flex flex-col gap-3">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">TokenBadge — sizes</p>
+            <div className="flex items-end gap-3">
+              <TokenBadge color="#ef4444" glyph="W" size={28} />
+              <TokenBadge color="#3b82f6" glyph="A" size={40} />
+              <TokenBadge color="#22c55e" glyph="S" size={56} />
+            </div>
           </div>
+
+          <div className="flex flex-col gap-3">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              With a count, and with a shadow
+            </p>
+            <div className="flex items-end gap-3">
+              <TokenBadge color="#a855f7" glyph="F" size={44} count={3} />
+              <TokenBadge color="#f59e0b" glyph="P" size={44} count={12} />
+              <TokenBadge color="#64748b" glyph="X" size={44} shadow />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              TokenBar — vertical (click a segment to change it)
+            </p>
+            <div className="flex items-end gap-6 h-40">
+              <TokenBar
+                max={6}
+                current={tokenBarValue}
+                palette={paletteFromHex('#ef4444')}
+                width={22}
+                height={150}
+                onChange={setTokenBarValue}
+              />
+              <TokenBar max={4} current={4} palette={paletteFromHex('#22c55e')} width={22} height={150} />
+              <TokenBar max={4} current={0} palette={paletteFromHex('#3b82f6')} width={22} height={150} />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">TokenBar — horizontal</p>
+            <TokenBar
+              max={8}
+              current={5}
+              palette={paletteFromHex('#a855f7')}
+              width={200}
+              height={22}
+              orientation="horizontal"
+            />
+          </div>
+
+          <GalleryNote>
+            Bar value: {tokenBarValue} / 6. Palettes come from{' '}
+            <code>paletteFromColorSet</code> (a named Tailwind set) or{' '}
+            <code>paletteFromHex</code> (a token's own display colour) — the demos
+            above use the hex form. Omit <code>onChange</code> for a read-only bar.
+          </GalleryNote>
         </div>
-        {/* Icon name */}
-        <span className="font-body text-xs text-center text-gray-500 dark:text-gray-400 leading-tight break-all">
-          {name}
-        </span>
-      </div>
-    ))}
-  </div>
-);
+      </GallerySection>
 
-// ── ColorRow ──────────────────────────────────────────────────────────────────
-
-/**
- * ColorRow — Displays a single color family as a horizontal strip of swatches.
- *
- * Each swatch shows:
- * - The color as a filled block (via inline style)
- * - The shade number (50 → 900)
- * - The hex value
- *
- * Used only in ComponentGallery — not a reusable app component.
- */
-const ColorRow = ({ family }: { family: ColorFamily }) => (
-  <div>
-    {/* Family name + example class */}
-    <div className="flex items-baseline gap-3 mb-2">
-      <span className="font-body text-sm font-semibold text-gray-900 dark:text-white">
-        {family.name}
-      </span>
-      <span className="font-body text-xs text-gray-400 dark:text-gray-500">
-        bg-{family.prefix}-500
-      </span>
-    </div>
-
-    {/* Swatch strip */}
-    <div className="flex rounded-lg overflow-hidden">
-      {family.shades.map(({ shade, hex, darkText }) => (
-        <div
-          key={shade}
-          className="flex-1 flex flex-col items-center justify-end py-2 gap-0.5"
-          style={{ backgroundColor: hex }}
-        >
-          {/* Shade number */}
-          <span
-            className={`font-body text-xs font-medium ${
-              darkText ? 'text-gray-900' : 'text-white'
-            }`}
+      {/* ════════════════════════════════════════════════════════════════
+          CUSTOM TOKEN MODAL
+          Create or edit a user-defined play-mode token.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-custom-token-modal" title="Custom Token Modal">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => { setCustomTokenEditing(null); setCustomTokenOpen(true); }}>
+            New custom token
+          </Button>
+          <Button
+            variant="outline"
+            color="secondary"
+            onClick={() => {
+              setCustomTokenEditing({ name: 'Overwatch', description: 'This model may fire out of sequence.', color: '#3b82f6', glyph: 'O' });
+              setCustomTokenOpen(true);
+            }}
           >
-            {shade}
-          </span>
-          {/* Hex value */}
-          <span
-            className={`font-body text-xs ${
-              darkText ? 'text-gray-600' : 'text-white/70'
-            }`}
-          >
-            {hex}
-          </span>
+            Edit an existing one
+          </Button>
+          <GalleryNote>
+            Passing <code>editing</code> switches it to edit mode and reveals the
+            delete action (wired to <code>onDelete</code>). Saving here just closes
+            the modal.
+          </GalleryNote>
+          <CustomTokenModal
+            open={customTokenOpen}
+            onClose={() => setCustomTokenOpen(false)}
+            editing={customTokenEditing}
+            onSave={() => setCustomTokenOpen(false)}
+            onDelete={customTokenEditing ? () => setCustomTokenOpen(false) : undefined}
+          />
         </div>
-      ))}
-    </div>
-  </div>
-);
+      </GallerySection>
 
-// ── GallerySection ────────────────────────────────────────────────────────────
+      {/* ════════════════════════════════════════════════════════════════
+          ADD RULE MODAL
+          Pick a rule from the library, or create one inline. Talks to
+          Supabase for the picker list.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-add-rule-modal" title="Add Rule Modal">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => setAddRuleOpen(true)}>Open Add Rule Modal</Button>
+          <GalleryNote>
+            The picker loads this game's rules from Supabase, so signed out (or on a
+            game with no rules) you land on the empty state and the "create a rule"
+            step — which is the more interesting half anyway. Pass{' '}
+            <code>editingRule</code> to open straight into edit mode.
+          </GalleryNote>
+          <AddRuleModal
+            open={addRuleOpen}
+            onClose={() => setAddRuleOpen(false)}
+            gameSlug="halo-flashpoint"
+            onRuleSelected={() => setAddRuleOpen(false)}
+          />
+        </div>
+      </GallerySection>
 
-/**
- * GallerySection — Wrapper for each component group
- *
- * Renders a labelled section with a divider, keeping the gallery
- * organised as the number of components grows.
- *
- * Props:
- * - title:    Section heading (e.g. "Buttons", "Unit Cards")
- * - children: Component previews to display inside the section
- */
-const GallerySection = ({
-  title,
-  id,
-  children,
-}: {
-  title: string;
-  id?: string;
-  children: React.ReactNode;
-}) => {
-  return (
-    <section id={id} className="mb-14">
+      {/* ════════════════════════════════════════════════════════════════
+          STARCRAFT — SUPPLY TIERS & KEYWORDS
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-sc-supply-tiers" title="StarCraft Supply Tiers Modal">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => setSupplyTiersOpen(true)}>Open Supply Tiers Modal</Button>
+          <GalleryNote>
+            Edits the model-count → supply-cost ladder shown on a StarCraft card.
+            Purely local state, so this demo is fully interactive.
+          </GalleryNote>
+          <StarcraftSupplyTiersModal
+            open={supplyTiersOpen}
+            tiers={supplyTiers}
+            onSave={t => { setSupplyTiers(t); setSupplyTiersOpen(false); }}
+            onClose={() => setSupplyTiersOpen(false)}
+          />
+        </div>
+      </GallerySection>
 
-      {/* Section title + divider */}
-      <div className="flex items-center gap-4 mb-6">
-        <h2 className="font-body text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 whitespace-nowrap">
-          {title}
-        </h2>
-        <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1" />
-      </div>
+      <GallerySection id="nav-sc-add-keyword" title="StarCraft Add Keyword Modal">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => { setScKeywordCreateOnly(false); setScKeywordOpen(true); }}>
+            Pick or create
+          </Button>
+          <Button variant="outline" color="secondary" onClick={() => { setScKeywordCreateOnly(true); setScKeywordOpen(true); }}>
+            Create only
+          </Button>
+          <GalleryNote>
+            Like Add Rule, the picker reads from Supabase. <code>createOnly</code>{' '}
+            skips the picker entirely — used where there is nothing to pick from
+            yet. A StarCraft keyword can carry a value, which adds a third
+            "set value" step after you choose one.
+          </GalleryNote>
+          <StarcraftAddKeywordModal
+            open={scKeywordOpen}
+            onClose={() => setScKeywordOpen(false)}
+            createOnly={scKeywordCreateOnly}
+            onKeywordSelected={() => setScKeywordOpen(false)}
+          />
+        </div>
+      </GallerySection>
 
-      {/* Component previews */}
-      <div className="flex flex-wrap gap-4">
-        {children}
-      </div>
+      {/* ════════════════════════════════════════════════════════════════
+          ADDON FORMS
+          Every addon form implements the same AddonFormProps contract so
+          AddAddonModal can mount any of them as its "create" step. That
+          shared shape is why one harness can demo them all — pick a form
+          and it renders exactly as the modal would mount it.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-addon-forms" title="Addon Forms / Halo, Kill Team & StarCraft">
+        <AddonFormHarness forms={GAME_ADDON_FORMS} />
+      </GallerySection>
 
-    </section>
+      <GallerySection id="nav-ryg-forms" title="Addon Forms / Repent Ye Foolish Gods">
+        <AddonFormHarness forms={RYG_ADDON_FORMS} />
+      </GallerySection>
+
+    </GalleryShell>
   );
 };
 
-export { GallerySection };
 export default ComponentGallery;

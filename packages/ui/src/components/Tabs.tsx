@@ -21,11 +21,19 @@
  */
 
 import React, { useState } from 'react';
+import Select from './Select';
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 
-/** Visual style of the tab bar */
-export type TabsVariant = 'default' | 'underline' | 'pills' | 'fullWidth';
+/**
+ * Visual style of the tab bar.
+ *
+ * `segmented` is the joined, full-width button group from the design system —
+ * the selected tab is a solid primary button and the rest are outlined, sharing
+ * edges with no gap. Unlike the other variants it is themed from `primary-*`
+ * rather than blue/grey, so it takes on each app's accent.
+ */
+export type TabsVariant = 'default' | 'underline' | 'pills' | 'fullWidth' | 'segmented';
 
 export interface TabItem {
   /** Unique identifier for this tab */
@@ -45,8 +53,33 @@ export interface TabsProps {
   tabs: TabItem[];
   /** Visual style of the tab bar */
   variant?: TabsVariant;
-  /** ID of the tab that is active on first render */
+  /** ID of the tab that is active on first render. Ignored when `activeTab` is set. */
   defaultTab?: string;
+  /**
+   * Controlled mode: the id of the active tab. Pass this together with
+   * `onTabChange` when something outside the tab bar also selects tabs — in
+   * BattlePack the left-hand category nav is the sole source of truth for
+   * which section is showing, and clicking a category has to switch the centre
+   * tab. Uncontrolled tabs cannot be driven from outside, so they would end up
+   * disagreeing with the nav.
+   *
+   * Omit both and the component keeps its own state, as before.
+   */
+  activeTab?: string;
+  /** Fires with the tab id when a tab is clicked. Required for controlled mode. */
+  onTabChange?: (tabId: string) => void;
+  /**
+   * Below `md`, swap the tab bar for a dropdown.
+   *
+   * A segmented bar divides the width by the number of tabs, so on a phone
+   * three tabs get about 100px each and the labels truncate to nothing —
+   * "Registration & Schedule" is unreadable at that size. A select shows one
+   * full label and opens the platform's own picker.
+   *
+   * Opt-in: a two-tab bar is fine on a phone, and this would be a surprise for
+   * the builders already using `segmented`.
+   */
+  mobileDropdown?: boolean;
   /**
    * Extra Tailwind classes on the tab panel.
    * Use to suppress the panel border when Tabs is placed inside a Card:
@@ -65,6 +98,8 @@ const listClasses: Record<TabsVariant, string> = {
   underline: 'flex flex-wrap -mb-px text-sm font-medium text-center border-b border-gray-200 dark:border-gray-700',
   pills:     'flex flex-wrap gap-2 text-sm font-medium text-center',
   fullWidth: 'flex w-full divide-x divide-gray-200 dark:divide-gray-700 rounded-lg shadow-xs text-sm font-medium text-center overflow-hidden',
+  // No rounding or clipping here — see the note on the button classes below.
+  segmented: 'flex w-full h-10 text-sm font-medium text-center',
 };
 
 /** Active tab button classes per variant */
@@ -73,6 +108,7 @@ const activeTabClasses: Record<TabsVariant, string> = {
   underline: 'inline-flex items-center gap-2 p-4 border-b-2 border-blue-600 text-blue-600 dark:text-blue-500 dark:border-blue-500',
   pills:     'inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white bg-blue-600',
   fullWidth: 'inline-flex flex-1 items-center justify-center gap-2 p-4 text-blue-600 bg-gray-100 dark:bg-gray-800 dark:text-blue-500',
+  segmented: 'inline-flex flex-1 items-center justify-center gap-2 px-3 py-2 bg-primary-600 text-white',
 };
 
 /** Inactive tab button classes per variant */
@@ -93,42 +129,97 @@ const inactiveTabClasses: Record<TabsVariant, string> = {
     'inline-flex flex-1 items-center justify-center gap-2 p-4 text-gray-500 ' +
     'hover:text-gray-600 hover:bg-gray-50 ' +
     'dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300',
+  segmented:
+    'inline-flex flex-1 items-center justify-center gap-2 px-3 py-2 ' +
+    'border border-primary-500 text-primary-500 hover:bg-primary-950 transition-colors',
 };
 
 /** Disabled tab button classes (same for all variants) */
 const DISABLED_TAB_CLASSES =
   'inline-flex items-center gap-2 p-4 text-gray-400 dark:text-gray-500 cursor-not-allowed';
 
+/**
+ * Rounding for the two ends of a segmented row.
+ *
+ * This lives on the buttons rather than on the container because the container
+ * would have to clip to round them, and clipping shaves the outlined buttons'
+ * 1px border off at the corners — the stroke stops short of where the curve is.
+ * Rounding the element the border is drawn on keeps the two in step.
+ */
+function segmentedEdge(index: number, count: number): string {
+  if (count === 1) return 'rounded-lg';
+  if (index === 0) return 'rounded-l-lg';
+  if (index === count - 1) return 'rounded-r-lg';
+  // Middle buttons overlap their neighbour's border so the shared edge stays 1px.
+  return '-ml-px';
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const Tabs = ({
   tabs,
-  variant       = 'default',
+  variant        = 'default',
   defaultTab,
+  activeTab: controlledTab,
+  onTabChange,
+  mobileDropdown = false,
   panelClassName = '',
-  className     = '',
+  className      = '',
 }: TabsProps) => {
 
   // Default to first non-disabled tab if no defaultTab is specified
   const firstEnabled = tabs.find((t) => !t.disabled)?.id ?? tabs[0]?.id;
-  const [activeTab, setActiveTab] = useState<string>(defaultTab ?? firstEnabled);
+  const [uncontrolledTab, setUncontrolledTab] = useState<string>(defaultTab ?? firstEnabled);
+
+  // Controlled when a tab id is supplied, uncontrolled otherwise. The internal
+  // state is still updated in controlled mode so that dropping the prop later
+  // does not snap the panel back to whatever was active before.
+  const isControlled = controlledTab !== undefined;
+  const activeTab    = isControlled ? controlledTab : uncontrolledTab;
+
+  const selectTab = (tabId: string) => {
+    if (!isControlled) setUncontrolledTab(tabId);
+    onTabChange?.(tabId);
+  };
 
   const activeContent = tabs.find((t) => t.id === activeTab)?.content;
 
   return (
     <div className={`w-full ${className}`}>
 
-      {/* Tab list */}
+      {/* Dropdown, below md only. Rendered alongside the bar rather than
+          swapped in by a JS breakpoint check: CSS already knows the viewport,
+          and a matchMedia hook would render the wrong one for a frame. */}
+      {mobileDropdown && (
+        <div className="md:hidden">
+          <Select
+            aria-label="Section"
+            value={activeTab}
+            onChange={e => selectTab(e.target.value)}
+            options={tabs.map(t => ({ value: t.id, label: t.label, disabled: t.disabled }))}
+          />
+        </div>
+      )}
+
+      {/* Tab list. Visibility lives on a WRAPPER, not on this element: the
+          variant classes already set `display: flex`, and adding `hidden`
+          beside it resolves by stylesheet order rather than by the order the
+          classes are written — so the bar would keep showing. */}
+      <div className={mobileDropdown ? 'hidden md:block' : ''}>
       <div role="tablist" className={listClasses[variant]}>
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive   = tab.id === activeTab;
           const isDisabled = tab.disabled ?? false;
 
-          const buttonClasses = isDisabled
+          const baseClasses = isDisabled
             ? DISABLED_TAB_CLASSES
             : isActive
               ? activeTabClasses[variant]
               : inactiveTabClasses[variant];
+
+          const buttonClasses = variant === 'segmented'
+            ? `${baseClasses} ${segmentedEdge(index, tabs.length)}`
+            : baseClasses;
 
           return (
             <button
@@ -139,7 +230,7 @@ const Tabs = ({
               aria-controls={`tabpanel-${tab.id}`}
               id={`tab-${tab.id}`}
               disabled={isDisabled}
-              onClick={() => !isDisabled && setActiveTab(tab.id)}
+              onClick={() => !isDisabled && selectTab(tab.id)}
               className={`font-body ${buttonClasses}`}
             >
               {tab.icon && (
@@ -151,6 +242,7 @@ const Tabs = ({
             </button>
           );
         })}
+      </div>
       </div>
 
       {/* Tab panel */}

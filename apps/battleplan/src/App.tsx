@@ -11,6 +11,7 @@ import ManageUsers from './pages/admin/ManageUsers.tsx';
 import ManageLocations from './pages/admin/ManageLocations.tsx';
 import ManageGames from './pages/admin/ManageGames.tsx';
 import ManageUpdates from './pages/admin/ManageUpdates.tsx';
+import ComponentGallery from './pages/ComponentGallery.tsx';
 
 /**
  * The app's own screens, as a route subtree.
@@ -69,6 +70,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback className="bg-neutral-950" />} />
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-neutral-950" />} />
+
+        {/* Component gallery — dev tool, not a user-facing screen */}
+        <Route path="/gallery" element={<ComponentGallery />} />
 
         {/* ── Protected routes — redirect unauthenticated users to /login,
                then gate on the user's platform access level ── */}

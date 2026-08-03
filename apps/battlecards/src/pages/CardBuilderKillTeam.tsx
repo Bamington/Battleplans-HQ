@@ -23,10 +23,8 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
-import BuilderShell from '../components/BuilderShell';
 import CenterViewport from '../components/CenterViewport';
-import CardListPanel from '../components/CardListPanel';
-import EditorPanel from '../components/EditorPanel';
+import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
 import { AltArrowDown } from '@battleplans/ui';
@@ -1749,9 +1747,9 @@ const CardBuilderKillTeam = () => {
       leftPanelOpen={cardListOpen}
       onClosePanels={closePanels}
       leftPanel={
-        <CardListPanel
-          deckName={deckName}
-          editingDeckName={editingDeckName}
+        <ListPanel
+          title={deckName}
+          editingTitle={editingDeckName}
           inputRef={deckNameInputRef}
           onStartEdit={startDeckNameEdit}
           onCommit={(n) => commitDeckName(n, { persist: !editMode })}
@@ -1844,7 +1842,7 @@ const CardBuilderKillTeam = () => {
               onDragEnd={handleDragEnd}
             />
           </nav>
-        </CardListPanel>
+        </ListPanel>
       }
       center={
         /* ── Center: card display ──────────────────────────────────────────

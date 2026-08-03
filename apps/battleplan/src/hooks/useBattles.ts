@@ -141,7 +141,16 @@ export function useBattles(userId: string | null) {
       .from('battles')
       .select(BATTLE_SELECT)
       .eq('user_id', userId!)
+      // `date_played` is a date, not a timestamp, so ties are the norm rather
+      // than the exception — most users log several battles on the same day.
+      // Ordering by it alone is not a total order, and Postgres makes no promise
+      // that tied rows come back in the same sequence across two queries. Paging
+      // with .range() on top of that lets a row land on both sides of a page
+      // boundary (a visible duplicate) or neither (a battle that silently
+      // vanishes from the list). The id tiebreak makes the order total, so every
+      // page is a disjoint slice of one stable sequence.
       .order('date_played', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, to)
       .then(({ data }) => ((data as unknown as BattleRow[]) ?? []).map(mapRow)),
     [userId]);
