@@ -10,6 +10,7 @@
 import { CTAButton, ArrowLink } from './Button';
 import { ScreenshotFrame, type MockVariant } from './ScreenshotFrame';
 import { Reveal } from './Section';
+import { VenueLogos } from './VenueLogos';
 
 interface HeroProps {
   title: React.ReactNode;
@@ -18,6 +19,8 @@ interface HeroProps {
   secondaryCta: { to: string; label: string };
   /** Small reassurance under the buttons — never a promise about future pricing. */
   note: string;
+  /** The venue strip, directly under the note. Proof before product. */
+  logos?: { label: string; venues?: string[] };
   /** Usage figures. Placeholder until there are real ones worth showing. */
   trustLine?: string;
   mock?: MockVariant;
@@ -29,6 +32,7 @@ export function Hero({
   primaryCta,
   secondaryCta,
   note,
+  logos,
   trustLine,
   mock = 'columns',
 }: HeroProps) {
@@ -51,14 +55,20 @@ export function Hero({
             </div>
             <p className="mk-caption mt-5">{note}</p>
           </Reveal>
+
+          {logos && (
+            <Reveal delay={180}>
+              <VenueLogos label={logos.label} venues={logos.venues} />
+            </Reveal>
+          )}
         </div>
 
-        <Reveal delay={180} className="mt-16 md:mt-20">
+        <Reveal delay={240} className="mt-16 md:mt-20">
           <ScreenshotFrame hero mock={mock} aspect="aspect-[16/10]" />
         </Reveal>
 
         {trustLine && (
-          <Reveal delay={240}>
+          <Reveal delay={300}>
             <p className="mk-caption mt-10 text-center">{trustLine}</p>
           </Reveal>
         )}

@@ -18,10 +18,7 @@ import { TileGrid, type Tile } from '../components/TileGrid';
 import { SuiteSection } from '../components/SuiteSection';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
-import {
-  Calendar, Dice, Chart, Users,
-  Bell, User, Phone, Wallet, Pin, Moon, Grid, Layers,
-} from '../icons';
+import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
 
 const PILLARS: Pillar[] = [
   {
@@ -46,15 +43,18 @@ const PILLARS: Pillar[] = [
   },
 ];
 
+/*
+ * Four headline benefits rather than eight small features, and no supporting
+ * copy — each line is the whole point on its own.
+ *
+ * The section heading changed with them: "The small stuff that adds up" was
+ * right for eight minor conveniences and wrong for four summary claims.
+ */
 const TILES: Tile[] = [
-  { icon: Bell, title: 'News from your venues', body: 'Store announcements land on your home screen, not in a Facebook group.' },
-  { icon: User, title: 'Your profile', body: 'A picture, a username, and a record other players can see.' },
-  { icon: Phone, title: 'Android & iOS', body: 'Coming soon.' },
-  { icon: Wallet, title: 'Free to use', body: 'No card, no trial timer.' },
-  { icon: Pin, title: 'More than one store', body: 'Book at all of them, and see the record you have at each.' },
-  { icon: Moon, title: 'Built for dark rooms', body: 'Dark from the start, because gaming halls are.' },
-  { icon: Grid, title: 'Every game, iconed', body: 'Your games are recognisable at a glance, not a wall of text.' },
-  { icon: Layers, title: 'One account, three apps', body: 'BattlePlan, BattleBox and BattlePack share a single login.' },
+  { icon: Pin, title: 'One place to book at any store' },
+  { icon: Users, title: 'Invite your friends and find new opponents' },
+  { icon: Layers, title: 'Your tabletop history' },
+  { icon: Wallet, title: 'Free to use' },
 ];
 
 const TESTIMONIALS: Testimonial[] = [
@@ -87,6 +87,7 @@ export default function LandingPage() {
         primaryCta={{ to: '/login', label: 'Create your free account' }}
         secondaryCta={{ to: '/venue', label: 'See it for a venue' }}
         note="Free to use."
+        logos={{ label: 'Book a table at' }}
         trustLine="[PLACEHOLDER] 3,400 battles logged by 610 players across 18 venues"
         mock="columns"
       />
@@ -170,7 +171,7 @@ export default function LandingPage() {
       </Section>
 
       <Section tone="base">
-        <TileGrid title="The small stuff that adds up." tiles={TILES} />
+        <TileGrid title="The short version." tiles={TILES} />
       </Section>
 
       <Section tone="raised">
@@ -178,11 +179,7 @@ export default function LandingPage() {
       </Section>
 
       <Section tone="base">
-        <Testimonials
-          title="What players say"
-          testimonials={TESTIMONIALS}
-          logoCaption="[PLACEHOLDER] Bookable at 18 venues and counting."
-        />
+        <Testimonials title="What players say" testimonials={TESTIMONIALS} />
       </Section>
 
       <ClosingCTA

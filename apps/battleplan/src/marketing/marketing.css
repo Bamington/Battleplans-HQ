@@ -298,6 +298,31 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 40px 120px -20px var(--mk-accent-glow),
     0 2px 8px rgba(0, 0, 0, 0.4);
+  /*
+   * Slower than the button and card transitions (150–180ms). A screenshot is
+   * a big object with a very wide shadow, and at UI speed the glow snaps
+   * rather than swells — it needs long enough to read as light coming up.
+   */
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 320ms ease;
+  will-change: transform;
+}
+
+/*
+ * Lift on hover: a touch of scale and a brighter, wider glow.
+ *
+ * The scale is 1.012 — small enough that the 1px border and the rim highlight
+ * don't visibly soften, which is what gives a scaled-up frame away. The glow
+ * does most of the work.
+ */
+.mk-frame:hover {
+  transform: scale(1.012);
+  border-color: rgba(155, 107, 255, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 50px 150px -18px rgba(155, 107, 255, 0.55),
+    0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
 .mk-frame-hero {
@@ -305,6 +330,27 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 60px 180px -30px var(--mk-accent-glow),
     0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* The hero frame is already the brightest thing on the page, so it lifts from
+   a higher floor and scales a little less — it's much larger, and the same
+   1.2% on a full-width frame reads as a lurch. */
+.mk-frame-hero:hover {
+  transform: scale(1.008);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 70px 210px -28px rgba(155, 107, 255, 0.5),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* Coarse pointers have no hover state to speak of, and a sticky :hover left
+   behind after a tap is worse than no effect at all. */
+@media (hover: none) {
+  .mk-frame:hover,
+  .mk-frame-hero:hover {
+    transform: none;
+    border-color: var(--mk-border-hairline);
+  }
 }
 
 .mk-frame-inner {
@@ -363,6 +409,15 @@
     transition: opacity 200ms ease;
   }
   .mk-card-hover:hover { transform: none; }
+
+  /* The glow still brightens — it's a colour change, not motion — but nothing
+     moves or scales. */
+  .mk-frame,
+  .mk-frame-hero {
+    transition: box-shadow 200ms ease, border-color 200ms ease;
+  }
+  .mk-frame:hover,
+  .mk-frame-hero:hover { transform: none; }
 }
 
 /* ── FAQ ──────────────────────────────────────────────────────────────── */

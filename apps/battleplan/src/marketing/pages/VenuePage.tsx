@@ -108,6 +108,9 @@ export default function VenuePage() {
         primaryCta={{ to: '/login', label: 'List your venue' }}
         secondaryCta={{ to: '/', label: 'See what players get' }}
         note="Free to list your venue."
+        // Same strip, different question answered: a shop owner wants to know
+        // which of their peers is already doing this.
+        logos={{ label: 'Already taking bookings at' }}
         trustLine="[PLACEHOLDER] 18 venues. 4,100 tables booked this year."
         mock="store"
       />
@@ -193,11 +196,7 @@ export default function VenuePage() {
       </Section>
 
       <Section tone="base">
-        <Testimonials
-          title="What venues say"
-          testimonials={TESTIMONIALS}
-          logoCaption="[PLACEHOLDER] Taking bookings at 18 venues."
-        />
+        <Testimonials title="What venues say" testimonials={TESTIMONIALS} />
       </Section>
 
       <ClosingCTA

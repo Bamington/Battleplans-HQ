@@ -17,14 +17,17 @@ export interface Testimonial {
   detail: string;
 }
 
+/*
+ * The venue logo strip used to live at the bottom of this section. It moved
+ * into the hero — "is my shop on this?" is a first-screen question, and the
+ * stores are better proof than anything down here.
+ */
 export function Testimonials({
   title,
   testimonials,
-  logoCaption,
 }: {
   title: string;
   testimonials: Testimonial[];
-  logoCaption: string;
 }) {
   return (
     <>
@@ -50,28 +53,6 @@ export function Testimonials({
         ))}
       </div>
 
-      <Reveal delay={120}>
-        <div className="mt-14">
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex h-10 w-[130px] items-center justify-center"
-                style={{
-                  borderRadius: 'var(--mk-radius-chip)',
-                  border: '1px dashed var(--mk-border-strong)',
-                  color: 'var(--mk-text-muted)',
-                  fontSize: '0.6875rem',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                VENUE LOGO
-              </div>
-            ))}
-          </div>
-          <p className="mk-caption mt-8 text-center">{logoCaption}</p>
-        </div>
-      </Reveal>
     </>
   );
 }
