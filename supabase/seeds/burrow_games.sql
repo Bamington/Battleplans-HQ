@@ -86,6 +86,21 @@ insert into public.store_tables (id, location_id, name, size, enabled) values
   ('b0770000-0000-4000-a000-000000000027', 'b0770000-0000-4000-a000-000000000001', 'TCG 1',   'tcg',       true),
   ('b0770000-0000-4000-a000-000000000028', 'b0770000-0000-4000-a000-000000000001', 'TCG 2',   'tcg',       true);
 
+-- Which tables are bookable in which slot. Without these rows Manage Store
+-- reports "Available for 0 of 3 timeslots" on every table while bookings sit in
+-- all three — a fixture that contradicts itself on screen.
+--
+-- The wargaming tables are open in every slot. The two TCG tables skip Morning,
+-- which is the sort of small asymmetry a real shop has and a generated fixture
+-- usually lacks.
+insert into public.store_table_timeslots (table_id, timeslot_id)
+select t.id, ts.id
+from public.store_tables t
+join public.timeslots ts on ts.location_id = t.location_id
+where t.location_id = 'b0770000-0000-4000-a000-000000000001'
+  and not (t.size = 'tcg' and ts.name = 'Morning')
+on conflict do nothing;
+
 -- ── The bookers ─────────────────────────────────────────────────────────────
 --
 -- bookings.user_id references auth.users, so invented bookers need real auth
