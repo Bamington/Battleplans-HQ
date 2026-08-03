@@ -36,3 +36,9 @@ Thumbs.db
 
 .vercel
 .env*.local
+
+# ---- Screenshot tooling (tools/screenshots) ----
+# Saved browser sessions — real auth tokens, never commit these.
+tools/screenshots/.auth/
+# Generated marketing assets; regenerate with `pnpm shots`.
+tools/screenshots/out/
