@@ -17,6 +17,12 @@ interface HeroProps {
   lead: string;
   primaryCta: { to: string; label: string };
   secondaryCta: { to: string; label: string };
+  /**
+   * Set when the headline carries its own <br> breaks and one of those lines
+   * is long. Keeps the desktop size and scales down harder on phones, so the
+   * lines the copy asked for survive instead of wrapping in half.
+   */
+  longTitle?: boolean;
   /** Small reassurance under the buttons — never a promise about future pricing. */
   note: string;
   /** The venue strip, directly under the note. Proof before product. */
@@ -31,6 +37,7 @@ export function Hero({
   lead,
   primaryCta,
   secondaryCta,
+  longTitle = false,
   note,
   logos,
   trustLine,
@@ -39,9 +46,18 @@ export function Hero({
   return (
     <section className="mk-surface-base mk-glow relative overflow-hidden pt-[124px] pb-20 md:pt-[152px] md:pb-28 lg:pb-32">
       <div className="relative z-[1] mx-auto w-full max-w-[1200px] px-6 md:px-8 lg:px-12">
-        <div className="mx-auto max-w-[880px] text-center">
+        {/*
+          Wider than a comfortable measure would suggest, because the headline
+          sets its own line breaks with <br>. At the top of the display clamp
+          the longest line needs ~870px, and the old 880px block with a 16ch cap
+          on the h1 re-wrapped every line it was given. The lead paragraph keeps
+          its own 52ch measure, so widening this doesn't stretch the body copy.
+        */}
+        <div className="mx-auto max-w-[1000px] text-center">
           <Reveal>
-            <h1 className="mk-display-1 mx-auto max-w-[16ch]">{title}</h1>
+            <h1 className={`mk-display-1 mx-auto ${longTitle ? 'mk-display-1-long' : ''}`}>
+              {title}
+            </h1>
           </Reveal>
 
           <Reveal delay={60}>

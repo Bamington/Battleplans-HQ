@@ -82,7 +82,14 @@ export default function LandingPage() {
       description="Book a table at your local game store, log the battles you fight there, and find out who actually beats you. Free to use."
     >
       <Hero
-        title={<>Every game you'll play. Every game you've played.</>}
+        title={
+          <>
+            Find your next game.<br />
+            Book your next Battlefield.<br />
+            Claim your next Victory.
+          </>
+        }
+        longTitle
         lead="Book a table at your local store, log the battles you fight there, and find out who actually beats you."
         primaryCta={{ to: '/login', label: 'Create your free account' }}
         secondaryCta={{ to: '/venue', label: 'See it for a venue' }}

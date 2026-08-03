@@ -173,6 +173,25 @@
   letter-spacing: -0.025em;
 }
 
+/*
+ * For a headline that sets its own line breaks and has a long line to fit.
+ *
+ * Same size at the top of the range — nothing changes on desktop — but it
+ * scales down harder on narrow screens. The default clamp bottoms out at 44px,
+ * where a 27-character line needs about 440px and a 375px phone gives it 327.
+ * Every sentence then wrapped in half: six lines, half of them a single
+ * orphaned word. This bottoms out at 32px, where the longest line fits on one.
+ *
+ * The trade is a smaller hero on a phone. That's the cost of a three-sentence
+ * headline, and it beats six ragged lines.
+ *
+ * The 1.75rem floor only engages below about 348px — it's there so a 320px
+ * screen still gets three lines rather than four.
+ */
+.mk-display-1-long {
+  font-size: clamp(1.75rem, 0.33rem + 7.13vw, 5.75rem);
+}
+
 .mk-display-2 {
   font-family: var(--mk-font-display);
   font-weight: 400;
