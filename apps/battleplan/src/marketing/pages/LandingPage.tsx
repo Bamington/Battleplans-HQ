@@ -1,0 +1,196 @@
+/**
+ * LandingPage.tsx — battleplan.app, for players
+ *
+ * Section order and copy follow the agreed deck. Surfaces alternate
+ * base / raised down the page so sections separate without hard rules, and the
+ * only two accent moments are the hero and the closing CTA.
+ *
+ * All testimonial content is placeholder and marked as such on screen.
+ */
+
+import { MarketingLayout } from '../MarketingLayout';
+import { Section } from '../components/Section';
+import { Hero } from '../components/Hero';
+import { PillarGrid, type Pillar } from '../components/PillarGrid';
+import { FeatureDeepDive } from '../components/FeatureDeepDive';
+import { Callout } from '../components/Callout';
+import { TileGrid, type Tile } from '../components/TileGrid';
+import { SuiteSection } from '../components/SuiteSection';
+import { Testimonials, type Testimonial } from '../components/Testimonials';
+import { ClosingCTA } from '../components/ClosingCTA';
+import {
+  Calendar, Dice, Chart, Users,
+  Bell, User, Phone, Wallet, Pin, Moon, Grid, Layers,
+} from '../icons';
+
+const PILLARS: Pillar[] = [
+  {
+    icon: Calendar,
+    title: 'Book a table',
+    body: 'Pick your venue, your date, your slot. The confirmation lands in your inbox.',
+  },
+  {
+    icon: Dice,
+    title: 'Log your battles',
+    body: 'Game, opponent, result, photos. Thirty seconds after you pack the army away.',
+  },
+  {
+    icon: Chart,
+    title: 'See your record',
+    body: 'Win rates, streaks, and the matchups you quietly keep losing.',
+  },
+  {
+    icon: Users,
+    title: 'Bring your friends',
+    body: "Share a booking and invite the people you're actually playing.",
+  },
+];
+
+const TILES: Tile[] = [
+  { icon: Bell, title: 'News from your venues', body: 'Store announcements land on your home screen, not in a Facebook group.' },
+  { icon: User, title: 'Your profile', body: 'A picture, a username, and a record other players can see.' },
+  { icon: Phone, title: 'Android & iOS', body: 'Coming soon.' },
+  { icon: Wallet, title: 'Free to use', body: 'No card, no trial timer.' },
+  { icon: Pin, title: 'More than one store', body: 'Book at all of them, and see the record you have at each.' },
+  { icon: Moon, title: 'Built for dark rooms', body: 'Dark from the start, because gaming halls are.' },
+  { icon: Grid, title: 'Every game, iconed', body: 'Your games are recognisable at a glance, not a wall of text.' },
+  { icon: Layers, title: 'One account, three apps', body: 'BattlePlan, BattleBox and BattlePack share a single login.' },
+];
+
+const TESTIMONIALS: Testimonial[] = [
+  {
+    quote: "I'd been booking tables over Messenger for two years. This took about a minute to get used to and I've not gone back.",
+    name: 'Name Surname',
+    detail: 'plays 40K at [Store Name]',
+  },
+  {
+    quote: 'The stats page is genuinely a bit humbling. I thought I was better at this than I am.',
+    name: 'Name Surname',
+    detail: 'plays Age of Sigmar',
+  },
+  {
+    quote: "Being able to see the photos of every game I've played this year is worth it on its own.",
+    name: 'Name Surname',
+    detail: 'plays Kill Team',
+  },
+];
+
+export default function LandingPage() {
+  return (
+    <MarketingLayout
+      title="BattlePlan — Book the table. Log the battle. Know your record."
+      description="Book a table at your local game store, log the battles you fight there, and find out who actually beats you. Free to use."
+    >
+      <Hero
+        title={<>Every game you'll play. Every game you've played.</>}
+        lead="Book a table at your local store, log the battles you fight there, and find out who actually beats you."
+        primaryCta={{ to: '/login', label: 'Create your free account' }}
+        secondaryCta={{ to: '/venue', label: 'See it for a venue' }}
+        note="Free to use."
+        trustLine="[PLACEHOLDER] 3,400 battles logged by 610 players across 18 venues"
+        mock="columns"
+      />
+
+      <Section tone="raised">
+        <PillarGrid
+          eyebrow="One app for the whole hobby"
+          title={'Everything between "fancy a game?" and "well played."'}
+          pillars={PILLARS}
+        />
+      </Section>
+
+      <Section tone="base">
+        <FeatureDeepDive
+          eyebrow="Booking"
+          title="Your table, sorted in four taps."
+          body="Choose a venue, a date and a timeslot. BattlePlan already knows which tables that store has, when they're free, and when the store has closed for a tournament — so anything you can pick is a table you can actually have."
+          bullets={[
+            "Every venue's real tables and real timeslots",
+            'Confirmation and cancellation emails, sent automatically',
+            'Your upcoming bookings, always the first thing you see',
+            'Your usual store remembered, so you can stop picking it every time',
+          ]}
+          imageSide="left"
+          mock="booking"
+        />
+      </Section>
+
+      <Section tone="raised">
+        <FeatureDeepDive
+          eyebrow="Battle log"
+          title="A record of every game you've played."
+          body="Most of us remember the last game and forget the forty before it. Log a battle when you finish it and the whole season is still there in December — the lists that worked, the tables you played on, the people who beat you."
+          bullets={[
+            'Game, date, result, venue and opponent',
+            'Add photos of the table — they become the card',
+            'Opponents are people, not free text, so head-to-heads add up on their own',
+            "Log it from your phone before you've left the shop",
+          ]}
+          imageSide="right"
+          mock="battles"
+        >
+          <Callout
+            quote="You booked a table on the 14th. Did you play?"
+            body="BattlePlan spots bookings you've never logged a battle against, and offers to fill in the game, the date and the venue for you. One tap to log it. One tap to make it go away if it was a bad night."
+          />
+        </FeatureDeepDive>
+      </Section>
+
+      <Section tone="base">
+        <FeatureDeepDive
+          eyebrow="Statistics"
+          title="Find out who your nemesis is."
+          body="Every battle you log feeds a picture of how you actually play — not how you remember playing."
+          bullets={[
+            'Overall win/loss record and your current win streak',
+            'Most played games, venues and opponents',
+            'Break the whole thing down game by game',
+            'Best and worst: the games you win, the opponents you don’t, the venues where it goes wrong',
+            'Filter by year, or any range you like',
+          ]}
+          imageSide="left"
+          mock="stats"
+        />
+      </Section>
+
+      <Section tone="raised">
+        <FeatureDeepDive
+          eyebrow="Friends"
+          title="Nobody plays alone."
+          body="Book the table, then invite the person you're playing. They see it in their bookings, and neither of you has to check a group chat from three weeks ago to confirm it's still on."
+          bullets={[
+            "Invite friends to a booking you've made",
+            'Invitations land in their bookings, with accept or decline',
+            'Profiles with a picture and a username',
+            'Find people by username — no phone numbers, no address book',
+          ]}
+          imageSide="right"
+          mock="update"
+        />
+      </Section>
+
+      <Section tone="base">
+        <TileGrid title="The small stuff that adds up." tiles={TILES} />
+      </Section>
+
+      <Section tone="raised">
+        <SuiteSection />
+      </Section>
+
+      <Section tone="base">
+        <Testimonials
+          title="What players say"
+          testimonials={TESTIMONIALS}
+          logoCaption="[PLACEHOLDER] Bookable at 18 venues and counting."
+        />
+      </Section>
+
+      <ClosingCTA
+        title="Your next game is a Thursday night away."
+        body="Create an account, find your local store, and book a table. It's free."
+        primaryCta={{ to: '/login', label: 'Create your free account' }}
+        secondaryCta={{ to: '/venue', label: 'Run a store? See BattlePlan for venues' }}
+      />
+    </MarketingLayout>
+  );
+}
