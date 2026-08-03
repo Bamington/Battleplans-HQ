@@ -349,4 +349,144 @@ join game   gm on gm.n = ((r.seq + r.dup * 3) % 6) + 1;
 alter table public.bookings enable trigger bookings_notify_created;
 alter table public.bookings enable trigger bookings_notify_cancelled;
 
+-- ── Blocked dates ───────────────────────────────────────────────────────────
+--
+-- Relative to today because the table has a CHECK (date >= CURRENT_DATE): fixed
+-- dates would seed fine once and then refuse to reinsert the moment they went
+-- past, which would break every rebuild from that day on.
+--
+-- One whole-venue closure, one partial. blocked_tables null means the whole
+-- venue; a number blocks that many, which is the more interesting of the two to
+-- have on screen.
+
+delete from public.blocked_dates where location_id = 'b0770000-0000-4000-a000-000000000001';
+
+insert into public.blocked_dates (id, location_id, date, description, blocked_tables) values
+  ('b0770000-0000-4000-a000-000000000031', 'b0770000-0000-4000-a000-000000000001',
+   current_date + 12, 'Closed — Grand Tournament', null),
+  ('b0770000-0000-4000-a000-000000000032', 'b0770000-0000-4000-a000-000000000001',
+   -- 23 rather than a round number: 5, 12 and 26 days from a Monday all land on
+   -- a Saturday, and three identical weekdays in the panel looks generated.
+   current_date + 23, 'Stocktake', null),
+  ('b0770000-0000-4000-a000-000000000033', 'b0770000-0000-4000-a000-000000000001',
+   current_date + 5,  'Painting workshop — 3 tables in use', 3);
+
+-- ── Marcus Webb's battle history ────────────────────────────────────────────
+--
+-- So the player-facing screens can be screenshotted without a real person's
+-- name, or their win rate, ending up on a public marketing page. Marcus already
+-- books more than anyone else here, so he's the natural account to build out.
+--
+-- The record is designed backwards from what the marketing page claims. The
+-- landing page promises "find out who your nemesis is", so there has to be a
+-- nemesis: Marcus has never beaten Tom Ashworth in eight attempts. It promises
+-- best and worst, so Hannah Foster is a clean five from five the other way. The
+-- overall record lands at 21-19-2, close enough to even that the nemesis is the
+-- thing that stands out rather than the total.
+--
+-- The three most recent battles are wins, so the Win Streak card reads 3.
+--
+-- Dates run backwards from today at five-day intervals, which keeps every
+-- battle in the past, spreads them across about seven months, and — like the
+-- near-term bookings — survives being rebuilt on a different day.
+--
+-- Deliberately NOT aligned to Marcus's booking dates: bookings without a battle
+-- logged against them are exactly what feeds the Suggested Battles column, and
+-- that column is a section on the landing page.
+
+delete from public.battles where user_id = 'b0770000-0000-4000-b000-000000000001';
+delete from public.opponents where user_id = 'b0770000-0000-4000-b000-000000000001';
+
+-- Opponents are objects rather than free text, and linked_user_id ties each one
+-- to the invented account it represents — the same shape a real user gets when
+-- they pick an opponent who is also on the platform.
+insert into public.opponents (id, user_id, name, linked_user_id) values
+  ('b0770000-0000-4000-c000-000000000002', 'b0770000-0000-4000-b000-000000000001', 'Priya Nair',    'b0770000-0000-4000-b000-000000000002'),
+  ('b0770000-0000-4000-c000-000000000003', 'b0770000-0000-4000-b000-000000000001', 'Tom Ashworth',  'b0770000-0000-4000-b000-000000000003'),
+  ('b0770000-0000-4000-c000-000000000004', 'b0770000-0000-4000-b000-000000000001', 'Sofia Reyes',   'b0770000-0000-4000-b000-000000000004'),
+  ('b0770000-0000-4000-c000-000000000005', 'b0770000-0000-4000-b000-000000000001', 'Daniel Okafor', 'b0770000-0000-4000-b000-000000000005'),
+  ('b0770000-0000-4000-c000-000000000006', 'b0770000-0000-4000-b000-000000000001', 'Ellie Zhang',   'b0770000-0000-4000-b000-000000000006'),
+  ('b0770000-0000-4000-c000-000000000007', 'b0770000-0000-4000-b000-000000000001', 'Josh Brennan',  'b0770000-0000-4000-b000-000000000007'),
+  ('b0770000-0000-4000-c000-000000000008', 'b0770000-0000-4000-b000-000000000001', 'Amara Diallo',  'b0770000-0000-4000-b000-000000000008'),
+  ('b0770000-0000-4000-c000-000000000009', 'b0770000-0000-4000-b000-000000000001', 'Rob Sinclair',  'b0770000-0000-4000-b000-000000000009'),
+  ('b0770000-0000-4000-c000-00000000000a', 'b0770000-0000-4000-b000-000000000001', 'Hannah Foster', 'b0770000-0000-4000-b000-00000000000a');
+
+with
+game(key, id) as (values
+  ('40k',        '05009dfc-a129-4d86-9b25-680feb690746'::uuid),
+  ('aos',        '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d'::uuid),
+  ('necromunda', 'c8bd38d8-bbcf-44a0-8994-398feb11f2cd'::uuid),
+  ('bloodbowl',  '1a19e961-8273-46aa-9a74-f0ebd90657c5'::uuid),
+  ('battletech', 'aa727d43-324f-4f5c-9aa6-ebe5810e0abe'::uuid)
+),
+-- n counts backwards from today: 0 is the most recent battle.
+spec(n, game_key, opp_name, result) as (values
+  ( 0, '40k',        'Hannah Foster', 'won'),
+  ( 1, 'aos',        'Priya Nair',    'won'),
+  ( 2, '40k',        'Josh Brennan',  'won'),
+  ( 3, '40k',        'Tom Ashworth',  'lost'),
+  ( 4, 'necromunda', 'Ellie Zhang',   'lost'),
+  ( 5, '40k',        'Sofia Reyes',   'won'),
+  ( 6, 'aos',        'Hannah Foster', 'won'),
+  ( 7, '40k',        'Tom Ashworth',  'lost'),
+  ( 8, 'bloodbowl',  'Rob Sinclair',  'drew'),
+  ( 9, '40k',        'Daniel Okafor', 'won'),
+  (10, 'aos',        'Priya Nair',    'won'),
+  (11, '40k',        'Tom Ashworth',  'lost'),
+  (12, 'battletech', 'Amara Diallo',  'won'),
+  (13, '40k',        'Ellie Zhang',   'lost'),
+  (14, 'necromunda', 'Josh Brennan',  'won'),
+  (15, 'aos',        'Hannah Foster', 'won'),
+  (16, '40k',        'Tom Ashworth',  'drew'),
+  (17, '40k',        'Sofia Reyes',   'won'),
+  (18, 'bloodbowl',  'Priya Nair',    'lost'),
+  (19, 'aos',        'Daniel Okafor', 'lost'),
+  (20, '40k',        'Tom Ashworth',  'lost'),
+  (21, 'necromunda', 'Ellie Zhang',   'lost'),
+  (22, '40k',        'Hannah Foster', 'won'),
+  (23, 'aos',        'Josh Brennan',  'won'),
+  (24, '40k',        'Rob Sinclair',  'won'),
+  (25, 'battletech', 'Amara Diallo',  'won'),
+  (26, '40k',        'Tom Ashworth',  'lost'),
+  (27, 'aos',        'Sofia Reyes',   'won'),
+  (28, 'necromunda', 'Priya Nair',    'won'),
+  (29, '40k',        'Daniel Okafor', 'lost'),
+  (30, 'bloodbowl',  'Ellie Zhang',   'won'),
+  (31, '40k',        'Tom Ashworth',  'lost'),
+  (32, 'aos',        'Hannah Foster', 'won'),
+  (33, '40k',        'Josh Brennan',  'lost'),
+  (34, 'battletech', 'Rob Sinclair',  'lost'),
+  (35, 'necromunda', 'Sofia Reyes',   'lost'),
+  (36, '40k',        'Priya Nair',    'won'),
+  (37, 'aos',        'Amara Diallo',  'lost'),
+  (38, '40k',        'Tom Ashworth',  'lost'),
+  (39, 'bloodbowl',  'Daniel Okafor', 'won'),
+  (40, '40k',        'Sofia Reyes',   'lost'),
+  (41, 'battletech', 'Priya Nair',    'lost')
+),
+inserted as (
+  insert into public.battles
+    (user_id, game_id, date_played, opp_name, result, winner, location_id, location_name)
+  select
+    'b0770000-0000-4000-b000-000000000001',
+    g.id,
+    current_date - (s.n * 5),
+    s.opp_name,
+    s.result,
+    -- winner is only permitted on a loss (battles_winner_only_on_loss), and in
+    -- a two-player game the winner of a loss is the opponent.
+    case when s.result = 'lost' then s.opp_name end,
+    'b0770000-0000-4000-a000-000000000001',
+    'Burrow Games'
+  from spec s
+  join game g on g.key = s.game_key
+  returning id, opp_name
+)
+insert into public.battle_opponents (battle_id, opponent_id)
+select i.id, o.id
+from inserted i
+join public.opponents o
+  on o.user_id = 'b0770000-0000-4000-b000-000000000001'
+ and o.name = i.opp_name;
+
 commit;
