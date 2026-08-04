@@ -19,6 +19,7 @@ import { SuiteSection } from '../components/SuiteSection';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
 import { BookingsDemo } from '../components/demos/BookingsDemo';
+import { BattlesDemo } from '../components/demos/BattlesDemo';
 import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
 
 /*
@@ -166,6 +167,10 @@ export default function LandingPage() {
             "Log it from your phone before you've left the shop",
           ]}
           imageSide="right"
+          /* Second interactive section. shotBattles stays imported so reverting
+             to the screenshot is a one-line change. */
+          demo={<BattlesDemo />}
+          wideFrame
           src={shotBattles}
           alt="The battle gallery: each game shown as a card with a photograph of the table, the opponent and the result."
           aspect={COLUMN}

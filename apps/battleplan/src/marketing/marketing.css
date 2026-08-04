@@ -615,6 +615,89 @@
   outline-offset: 2px;
 }
 
+/* ── Battle gallery ──────────────────────────────────────────────────── */
+
+/* Two up, like the app's gallery view. */
+.mk-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.mk-battle-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-battle-card:hover { border-color: var(--app-accent); }
+
+.mk-battle-card:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-battle-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  /* The photograph is the card. Everything else is a caption under it. */
+  display: block;
+}
+
+.mk-battle-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 0;
+}
+
+.mk-battle-game {
+  font-family: var(--mk-font-display);
+  font-size: 0.8125rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-battle-result {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Result colours are the app's, not the marketing palette — same reasoning as
+   everything else inside the frame. */
+.mk-battle-result.is-won  { color: #34d399; }
+.mk-battle-result.is-lost { color: #f87171; }
+.mk-battle-result.is-drew { color: #9ca3af; }
+
+.mk-battle-opp {
+  display: block;
+  padding: 2px 10px 10px;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-battle-dialog-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
 /* ── Demo dialog ─────────────────────────────────────────────────────── */
 
 .mk-demo-scrim {

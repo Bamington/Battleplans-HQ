@@ -45,6 +45,7 @@ const OUT  = resolve(HERE, '..', '..', 'apps/battleplan/src/marketing/assets/sho
  * packages/ui, because the marketing system shares no modules with the app; and
  * sized for a 3x display at the 64px the detail dialog uses.
  */
+const PHOTO_DIR = resolve(HERE, 'out', 'battle-photos');
 const ICON_DIR = resolve(HERE, '..', '..', 'packages/ui/src/assets/games/icons');
 
 const ASSETS = [
@@ -63,6 +64,21 @@ const ASSETS = [
   { src: 'venue-manage-store-mobile', out: 'venue-manage-store-mobile', width: 800 },
   { src: 'player-stats-mobile',       out: 'player-stats-mobile',       width: 800 },
   { src: 'venue-stats-mobile',        out: 'venue-stats-mobile',        width: 800 },
+
+  /*
+   * Battle photos for the record demo. Cropped to the 4:3 the cards use and
+   * sized for a 2x display at the ~215px each one renders at.
+   */
+  { from: PHOTO_DIR, src: 'battle-01', ext: 'jpg', out: 'battles/battle-01', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-02', ext: 'jpg', out: 'battles/battle-02', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-03', ext: 'png', out: 'battles/battle-03', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-04', ext: 'jpg', out: 'battles/battle-04', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-05', ext: 'jpg', out: 'battles/battle-05', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-06', ext: 'jpg', out: 'battles/battle-06', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-07', ext: 'png', out: 'battles/battle-07', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-08', ext: 'jpg', out: 'battles/battle-08', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-09', ext: 'png', out: 'battles/battle-09', width: 480, ratio: 4 / 3 },
+  { from: PHOTO_DIR, src: 'battle-10', ext: 'jpg', out: 'battles/battle-10', width: 480, ratio: 4 / 3 },
 
   // Player page
   { src: 'player-home-gallery',   out: 'player-home',     width: 2400 },
@@ -86,19 +102,25 @@ await mkdir(OUT, { recursive: true });
 let before = 0, after = 0;
 
 for (const asset of ASSETS) {
-  // `from` lets an entry pull in something that isn't a capture — the game
-  // icons come out of the app's own asset folder.
-  const srcPath = resolve(asset.from ?? IN, `${asset.src}.png`);
+  /*
+   * `from` lets an entry pull in something that isn't a capture — the game
+   * icons come from the app's asset folder, the battle photos from storage.
+   * `ext` because those photos are a mix of jpg and png, and mislabelling one
+   * as the other leaves the browser sniffing content to decode it.
+   */
+  const ext = asset.ext ?? 'png';
+  const srcPath = resolve(asset.from ?? IN, `${asset.src}.${ext}`);
   let png;
   try {
     png = await readFile(srcPath);
   } catch {
-    console.error(`  MISSING ${asset.src}.png ${asset.from ? '(source asset)' : '— run capture.mjs first'}`);
+    console.error(`  MISSING ${asset.src}.${ext} ${asset.from ? '(source asset)' : '— run capture.mjs first'}`);
     continue;
   }
   before += png.length;
 
-  const dataUrl = `data:image/png;base64,${png.toString('base64')}`;
+  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const dataUrl = `data:${mime};base64,${png.toString('base64')}`;
   const webpBase64 = await page.evaluate(
     async ({ dataUrl, width, ratio, quality }) => {
       const img = new Image();
