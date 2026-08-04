@@ -34,7 +34,9 @@ import shotToday from '../assets/shots/venue-today.webp';
 import shotStats from '../assets/shots/venue-stats.webp';
 
 const LANDSCAPE = 'aspect-[8/5]';
-const COLUMN    = 'aspect-[3/4]';
+/* 30% taller than the 3:4 these started at — a column screenshot has more to
+   show vertically than a landscape box gives it room for. */
+const COLUMN    = 'aspect-[15/26]';
 
 const PILLARS: Pillar[] = [
   {
@@ -194,30 +196,22 @@ export default function VenuePage() {
         />
       </Section>
 
-      <Section tone="raised">
-        <FeatureDeepDive
-          eyebrow="News & updates"
-          title="A line straight to the people who play at your store."
-          body="Post an update and it appears on the home screen of everyone who plays at your venue. Tournament announcements, a new stock delivery, a change to opening hours — read by people who have already chosen to come to you."
-          bullets={[
-            'Post updates from Manage Store',
-            "They appear on your players' home screens",
-            'No algorithm, no boosting, no ad spend',
-          ]}
-          imageSide="right"
-          mock="update"
-        />
-      </Section>
+      {/*
+        The "News & updates" deep dive was here. It's the one section with no
+        screenshot to show — its subject is the News & Updates column, which is
+        deliberately hidden from every capture. Tones below shift up one step to
+        keep the base/raised alternation unbroken.
+      */}
 
-      <Section tone="base">
+      <Section tone="raised">
         <TileGrid title="What you don't have to worry about." tiles={TILES} />
       </Section>
 
-      <Section tone="raised">
+      <Section tone="base">
         <FAQ title="Questions we get asked." items={FAQS} />
       </Section>
 
-      <Section tone="base">
+      <Section tone="raised">
         <Testimonials title="What venues say" testimonials={TESTIMONIALS} />
       </Section>
 

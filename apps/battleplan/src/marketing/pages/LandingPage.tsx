@@ -35,7 +35,16 @@ import shotFriends from '../assets/shots/player-friends.webp';
 
 /* Match each asset's own shape — see FeatureDeepDive's `aspect`. */
 const LANDSCAPE = 'aspect-[8/5]';
-const COLUMN    = 'aspect-[3/4]';
+/* 30% taller than the 3:4 these started at — a column screenshot has more to
+   show vertically than a landscape box gives it room for. */
+const COLUMN    = 'aspect-[15/26]';
+/*
+ * The battle gallery gets its own shape. It lays out two cards per row, so the
+ * column is wider than the single-column clips and its capture runs out of
+ * height before reaching 15:26 — squeezing it into that box would crop roughly
+ * 9% off the sides, straight through the outer cards.
+ */
+const GALLERY   = 'aspect-[7/11]';
 
 const PILLARS: Pillar[] = [
   {
@@ -158,7 +167,7 @@ export default function LandingPage() {
           imageSide="right"
           src={shotBattles}
           alt="The battle gallery: each game shown as a card with a photograph of the table, the opponent and the result."
-          aspect={COLUMN}
+          aspect={GALLERY}
         >
           <Callout
             quote="You booked a table on the 14th. Did you play?"
