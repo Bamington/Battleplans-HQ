@@ -37,26 +37,34 @@ const statePath = resolve(HERE, '.auth', `${profile}.json`);
 await mkdir(dirname(statePath), { recursive: true });
 
 /*
- * This has to be a headed browser — the whole design is that a human types the
- * password into a real window and nothing else ever sees it.
+ * Prefer an installed browser over Playwright's bundled Chromium.
  *
- * That means it can only run from a terminal attached to a desktop session. An
- * agent shell, CI, or an SSH session without a display fails here with
- * "spawn UNKNOWN", which on its own reads like a broken Playwright install
- * rather than "you are in the wrong kind of terminal".
+ * The bundled build ships its DLLs flat next to chrome.exe with a
+ * <version>.manifest beside them and no matching <version> directory, so
+ * Windows can't resolve the private side-by-side assembly and the launch dies
+ * with "side-by-side configuration is incorrect". Headless dodges it — that
+ * path uses the separate headless shell — which is why capture.mjs works and
+ * only this script hit it.
+ *
+ * Windows reports that failure as a bare "spawn UNKNOWN", which is easy to
+ * misread as having no desktop to open a window on. Hence the loop: try the
+ * real browsers first, and only fall back to the bundled one.
  */
+const CHANNELS = ['chrome', 'msedge', undefined];
+
 let browser;
-try {
-  browser = await chromium.launch({ headless: false });
-} catch (err) {
-  if (/spawn|display|DISPLAY/i.test(err.message)) {
-    console.error('\n  Could not open a browser window.');
-    console.error('  This command needs a terminal attached to a desktop — run it yourself:\n');
-    console.error(`    pnpm shots:login ${profile}\n`);
-    console.error('  (capture.mjs is headless and runs fine anywhere once the session exists.)\n');
-    process.exit(1);
+for (const channel of CHANNELS) {
+  try {
+    browser = await chromium.launch({ headless: false, ...(channel ? { channel } : {}) });
+    console.log(`  Using ${channel ?? 'bundled chromium'}.`);
+    break;
+  } catch (err) {
+    if (channel === undefined) {
+      console.error('\n  Could not open a browser window with any of: chrome, msedge, bundled chromium.');
+      console.error(`  ${err.message.split('\n')[0]}\n`);
+      process.exit(1);
+    }
   }
-  throw err;
 }
 
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
