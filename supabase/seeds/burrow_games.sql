@@ -124,9 +124,15 @@ on conflict do nothing;
 -- local part and creates the user_profiles row. The display names are set after,
 -- since that trigger only sets the handle.
 
-insert into auth.users (id, aud, role, email, created_at, updated_at, email_confirmed_at, raw_app_meta_data, raw_user_meta_data)
+insert into auth.users (
+  id, instance_id, aud, role, email, created_at, updated_at, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change, email_change_token_new
+)
 select
   b.id,
+  -- GoTrue's own inserts use the zero uuid here, and it filters on it.
+  '00000000-0000-0000-0000-000000000000',
   'authenticated',
   'authenticated',
   b.email,
@@ -134,7 +140,16 @@ select
   timestamptz '2026-01-05 09:00+11',
   timestamptz '2026-01-05 09:00+11',
   '{"provider":"email","providers":["email"]}'::jsonb,
-  jsonb_build_object('display_name', b.name)
+  jsonb_build_object('display_name', b.name),
+  /*
+   * Empty strings, NOT null.
+   *
+   * GoTrue scans these four into non-nullable Go strings, so a null makes
+   * sign-in fail with a type error before it ever gets as far as checking the
+   * password — which looks exactly like a wrong password from the outside.
+   * A real signup writes '' here; only hand-written SQL leaves them null.
+   */
+  '', '', '', ''
 from (values
   ('b0770000-0000-4000-b000-000000000001'::uuid, 'marcus.webb@burrow.test',   'Marcus Webb'),
   ('b0770000-0000-4000-b000-000000000002'::uuid, 'priya.nair@burrow.test',    'Priya Nair'),
@@ -148,6 +163,34 @@ from (values
   ('b0770000-0000-4000-b000-00000000000a'::uuid, 'hannah.foster@burrow.test', 'Hannah Foster')
 ) as b(id, email, name)
 on conflict (id) do nothing;
+
+/*
+ * Repair rows created before the columns above were part of the insert.
+ *
+ * The insert is `on conflict do nothing`, so it can't correct an existing row —
+ * and these accounts are meant to outlive rebuilds, since a password set by
+ * hand lives on them. Hence a separate, idempotent normalise.
+ *
+ * encrypted_password is deliberately untouched: setting a password on one of
+ * these is a manual step done outside this script, and a rebuild must not
+ * undo it.
+ */
+update auth.users
+set instance_id             = coalesce(instance_id, '00000000-0000-0000-0000-000000000000'),
+    confirmation_token      = coalesce(confirmation_token, ''),
+    recovery_token          = coalesce(recovery_token, ''),
+    email_change            = coalesce(email_change, ''),
+    email_change_token_new  = coalesce(email_change_token_new, ''),
+    email_change_token_current = coalesce(email_change_token_current, ''),
+    phone_change            = coalesce(phone_change, ''),
+    phone_change_token      = coalesce(phone_change_token, ''),
+    reauthentication_token  = coalesce(reauthentication_token, '')
+where email like '%@burrow.test'
+  and (instance_id is null
+       or confirmation_token is null
+       or recovery_token is null
+       or email_change is null
+       or email_change_token_new is null);
 
 -- Display names, and mark them onboarded so nothing treats them as half-set-up.
 update public.user_profiles p
