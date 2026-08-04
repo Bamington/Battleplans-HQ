@@ -456,28 +456,43 @@ insert into public.opponents (id, user_id, name, linked_user_id) values
 
 with
 game(key, id) as (values
-  ('40k',        '05009dfc-a129-4d86-9b25-680feb690746'::uuid),
-  ('aos',        '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d'::uuid),
-  ('necromunda', 'c8bd38d8-bbcf-44a0-8994-398feb11f2cd'::uuid),
-  ('bloodbowl',  '1a19e961-8273-46aa-9a74-f0ebd90657c5'::uuid),
-  ('battletech', 'aa727d43-324f-4f5c-9aa6-ebe5810e0abe'::uuid)
+  ('40k',          '05009dfc-a129-4d86-9b25-680feb690746'::uuid),
+  ('aos',          '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d'::uuid),
+  ('necromunda',   'c8bd38d8-bbcf-44a0-8994-398feb11f2cd'::uuid),
+  ('bloodbowl',    '1a19e961-8273-46aa-9a74-f0ebd90657c5'::uuid),
+  ('battletech',   'aa727d43-324f-4f5c-9aa6-ebe5810e0abe'::uuid),
+  ('shatterpoint', '44e458ea-51b2-4e56-9148-10ed10355eda'::uuid),
+  ('halo',         '9ec0a79d-f780-4031-86bb-030fa669355e'::uuid)
 ),
--- n counts backwards from today: 0 is the most recent battle.
+/*
+ * n counts backwards from today: 0 is the most recent battle.
+ *
+ * The fourteen most recent are Shatterpoint, Blood Bowl and Halo — the three
+ * games there are real photographs for. The battle grid is ordered newest
+ * first, so this is what puts pictures on the cards that are actually in frame;
+ * everything older keeps the wargaming mix and renders as plain cards, which is
+ * what a real account looks like anyway.
+ *
+ * Only the GAME changed on these rows. Opponents and results are untouched, so
+ * the record still lands at 21-19-2 with Tom Ashworth as the nemesis and Hannah
+ * Foster five from five. 40K also stays the most played game overall at 12,
+ * which keeps it consistent with the venue's booking data.
+ */
 spec(n, game_key, opp_name, result) as (values
-  ( 0, '40k',        'Hannah Foster', 'won'),
-  ( 1, 'aos',        'Priya Nair',    'won'),
-  ( 2, '40k',        'Josh Brennan',  'won'),
-  ( 3, '40k',        'Tom Ashworth',  'lost'),
-  ( 4, 'necromunda', 'Ellie Zhang',   'lost'),
-  ( 5, '40k',        'Sofia Reyes',   'won'),
-  ( 6, 'aos',        'Hannah Foster', 'won'),
-  ( 7, '40k',        'Tom Ashworth',  'lost'),
-  ( 8, 'bloodbowl',  'Rob Sinclair',  'drew'),
-  ( 9, '40k',        'Daniel Okafor', 'won'),
-  (10, 'aos',        'Priya Nair',    'won'),
-  (11, '40k',        'Tom Ashworth',  'lost'),
-  (12, 'battletech', 'Amara Diallo',  'won'),
-  (13, '40k',        'Ellie Zhang',   'lost'),
+  ( 0, 'shatterpoint', 'Hannah Foster', 'won'),
+  ( 1, 'bloodbowl',    'Priya Nair',    'won'),
+  ( 2, 'shatterpoint', 'Josh Brennan',  'won'),
+  ( 3, 'shatterpoint', 'Tom Ashworth',  'lost'),
+  ( 4, 'halo',         'Ellie Zhang',   'lost'),
+  ( 5, 'shatterpoint', 'Sofia Reyes',   'won'),
+  ( 6, 'bloodbowl',    'Hannah Foster', 'won'),
+  ( 7, 'shatterpoint', 'Tom Ashworth',  'lost'),
+  ( 8, 'bloodbowl',    'Rob Sinclair',  'drew'),
+  ( 9, 'shatterpoint', 'Daniel Okafor', 'won'),
+  (10, 'halo',         'Priya Nair',    'won'),
+  (11, 'shatterpoint', 'Tom Ashworth',  'lost'),
+  (12, 'bloodbowl',    'Amara Diallo',  'won'),
+  (13, 'shatterpoint', 'Ellie Zhang',   'lost'),
   (14, 'necromunda', 'Josh Brennan',  'won'),
   (15, 'aos',        'Hannah Foster', 'won'),
   (16, '40k',        'Tom Ashworth',  'drew'),
@@ -531,6 +546,73 @@ from inserted i
 join public.opponents o
   on o.user_id = 'b0770000-0000-4000-b000-000000000001'
  and o.name = i.opp_name;
+
+-- ── Battle photos ───────────────────────────────────────────────────────────
+--
+-- Attaches the photos that tools/screenshots/copy-battle-photos.mjs has already
+-- copied into Marcus's own storage folder. RUN THAT FIRST — this only writes
+-- the rows; without the files the cards render as broken images.
+--
+-- They're copies rather than references because battle_images has
+-- UNIQUE (image_path): every original is already claimed by the battle it was
+-- uploaded for, so pointing at one fails outright. The copies keep the original
+-- filename and swap the owner folder, which is the same rule the copy script
+-- uses — that's how the two agree without sharing any state.
+--
+-- Only the platform owner's own photos are in play. Two images in that bucket
+-- belong to other real users and are excluded by the user_id filter; their
+-- miniatures are not ours to put on a public marketing page.
+--
+-- No photo is used twice. A repeated image in a grid is the most obvious
+-- possible tell, so coverage is capped by what actually exists: 24 Shatterpoint,
+-- 12 Blood Bowl, 2 Halo. Spread three-per-battle that's the fourteen most recent
+-- battles — and since the grid is ordered newest first, that's precisely the
+-- part of it that ends up in frame. Older battles keep plain cards, which is
+-- what a real account looks like anyway.
+--
+-- Three per battle on the two games that can afford it also gives the
+-- multi-photo carousel something to demonstrate.
+
+with
+plan(game_name, per_battle, max_battles) as (values
+  ('Star Wars Shatterpoint', 3, 8),
+  ('Blood Bowl',             3, 4),
+  ('Halo: Flashpoint',       1, 2)
+),
+-- The owner's own photos, oldest first, numbered within each game.
+src as (
+  select
+    'b0770000-0000-4000-b000-000000000001/' || split_part(bi.image_path, '/', 2) as image_path,
+    g.name as game_name,
+    row_number() over (partition by g.name order by bi.created_at, bi.id) as rn
+  from public.battle_images bi
+  join public.battles b on b.id = bi.battle_id
+  join public.games   g on g.id = b.game_id
+  where bi.user_id = 'c0fab326-f180-4fe6-bf1b-87c069be3794'
+    and g.name in ('Star Wars Shatterpoint', 'Blood Bowl', 'Halo: Flashpoint')
+),
+-- Marcus's battles in those games, most recent first.
+target as (
+  select
+    b.id as battle_id,
+    g.name as game_name,
+    row_number() over (partition by g.name order by b.date_played desc, b.id desc) as rn
+  from public.battles b
+  join public.games g on g.id = b.game_id
+  where b.user_id = 'b0770000-0000-4000-b000-000000000001'
+    and g.name in ('Star Wars Shatterpoint', 'Blood Bowl', 'Halo: Flashpoint')
+)
+insert into public.battle_images (battle_id, user_id, image_path, is_primary, display_order)
+select
+  t.battle_id,
+  'b0770000-0000-4000-b000-000000000001',
+  s.image_path,
+  s.rn - (t.rn - 1) * p.per_battle = 1,   -- first photo of a battle is its card background
+  s.rn - (t.rn - 1) * p.per_battle - 1    -- 0-based order within the battle
+from target t
+join plan p on p.game_name = t.game_name and t.rn <= p.max_battles
+join src  s on s.game_name = t.game_name
+           and s.rn between (t.rn - 1) * p.per_battle + 1 and t.rn * p.per_battle;
 
 -- ── Friendships ─────────────────────────────────────────────────────────────
 --

@@ -80,6 +80,19 @@ async function selectStore(page, name) {
 }
 
 /**
+ * Switch Your Battles from list rows to the photo-hero gallery.
+ *
+ * The gallery is where each card takes a battle photo as its background, which
+ * is the whole reason the fixture has photos — and it isn't the default view,
+ * so every gallery shot has to click into it first.
+ */
+async function galleryView(page) {
+  await page.getByRole('button', { name: /gallery view/i }).first().click();
+  // The column widens (wide={gallery}) and the images have to decode.
+  await page.waitForTimeout(1200);
+}
+
+/**
  * Scroll the whole page and come back.
  *
  * The marketing pages reveal each section on scroll and start at opacity 0, so
@@ -129,6 +142,12 @@ const SHOTS = [
   { name: 'player-bookings',   profile: 'player', path: '/app',       waitFor: 'Your Bookings',     clip: 'Your Bookings' },
   { name: 'player-battles',    profile: 'player', path: '/app',       waitFor: 'Your Battles',      clip: 'Your Battles' },
   { name: 'player-suggested',  profile: 'player', path: '/app',       waitFor: 'Suggested Battles', clip: 'Suggested Battles', optional: true },
+  /* The gallery view — photo-backed cards. The best-looking screen in the app,
+     and the one the landing page's battle-log section is written around. */
+  { name: 'player-battles-gallery', profile: 'player', path: '/app', waitFor: 'Your Battles',
+    viewport: WIDE, prepare: galleryView, clip: 'Your Battles' },
+  { name: 'player-home-gallery',    profile: 'player', path: '/app', waitFor: 'Your Battles',
+    viewport: WIDE, prepare: galleryView },
   { name: 'player-stats',      profile: 'player', path: '/app/stats', waitFor: 'Win / Loss' },
   { name: 'player-stats-overall',    profile: 'player', path: '/app/stats', waitFor: 'Win / Loss',   clip: 'Overall' },
   { name: 'player-stats-best-worst', profile: 'player', path: '/app/stats', waitFor: 'Best Games',   clip: 'Best & Worst' },
@@ -188,6 +207,7 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
       }
 
       if (shot.store) await selectStore(page, shot.store);
+      if (shot.prepare) await shot.prepare(page);
       if (shot.reveal) await revealAll(page);
 
       await page.getByText(shot.waitFor, { exact: false }).first()
