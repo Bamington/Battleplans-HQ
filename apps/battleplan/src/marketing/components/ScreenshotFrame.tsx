@@ -40,7 +40,17 @@ export function ScreenshotFrame({
     <div className={`mk-frame ${hero ? 'mk-frame-hero' : ''} ${className}`}>
       <div className={`mk-frame-inner ${aspect}`}>
         {src
-          ? <img src={src} alt={alt} className="w-full h-full object-cover" />
+          ? (
+            <img
+              src={src}
+              alt={alt}
+              className="w-full h-full object-cover"
+              /* The hero is the largest thing above the fold and shouldn't be
+                 deferred; everything below it can wait until it's near. */
+              loading={hero ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+          )
           : <AppMock variant={mock} />}
       </div>
     </div>

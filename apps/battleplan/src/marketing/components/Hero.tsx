@@ -30,6 +30,11 @@ interface HeroProps {
   /** Usage figures. Placeholder until there are real ones worth showing. */
   trustLine?: string;
   mock?: MockVariant;
+  /** Real screenshot. Falls back to the placeholder mock when absent. */
+  src?: string;
+  alt?: string;
+  /** Match the asset's shape so the hero isn't cropped by the frame. */
+  aspect?: string;
 }
 
 export function Hero({
@@ -42,6 +47,9 @@ export function Hero({
   logos,
   trustLine,
   mock = 'columns',
+  src,
+  alt,
+  aspect = 'aspect-[16/10]',
 }: HeroProps) {
   return (
     <section className="mk-surface-base mk-glow relative overflow-hidden pt-[124px] pb-20 md:pt-[152px] md:pb-28 lg:pb-32">
@@ -80,7 +88,7 @@ export function Hero({
         </div>
 
         <Reveal delay={240} className="mt-16 md:mt-20">
-          <ScreenshotFrame hero mock={mock} aspect="aspect-[16/10]" />
+          <ScreenshotFrame hero mock={mock} src={src} alt={alt} aspect={aspect} />
         </Reveal>
 
         {trustLine && (

@@ -228,8 +228,22 @@ async function revealAll(page) {
       await new Promise(r => setTimeout(r, 120));
     }
     window.scrollTo(0, 0);
+
+    /*
+     * Force every screenshot on the page to load and wait for it.
+     *
+     * The product shots are loading="lazy", and a full-page capture renders the
+     * whole document at once — including parts that were never scrolled into
+     * view long enough to trigger a fetch. Without this the lower half of the
+     * page photographs as empty frames.
+     */
+    const imgs = [...document.querySelectorAll('img')];
+    imgs.forEach(i => { i.loading = 'eager'; });
+    await Promise.all(imgs.map(i =>
+      i.complete ? null : new Promise(r => { i.onload = r; i.onerror = r; })
+    ));
   });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(800);
 }
 
 /* ── The shot list ───────────────────────────────────────────────────────── */
@@ -251,10 +265,10 @@ const SHOTS = [
      News, and dropping News leaves two columns that would be stranded in a
      2200px frame. Worth re-checking against a real capture. */
   { name: 'venue-home',          profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings" },
-  { name: 'venue-today',         profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", clip: "Today's Bookings" },
+  { name: 'venue-today',         profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", clip: "Today's Bookings", scale: 4 },
   { name: 'venue-upcoming',      profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: 'Upcoming Bookings', clip: 'Upcoming Bookings' },
   { name: 'venue-manage-store',  profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots' },
-  { name: 'venue-tables',        profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Tables',        clip: 'Tables' },
+  { name: 'venue-tables',        profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Tables',        clip: 'Tables', scale: 4 },
   { name: 'venue-timeslots',     profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots',     clip: 'Timeslots' },
   { name: 'venue-blocked-dates', profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Blocked Dates', clip: 'Blocked Dates' },
   { name: 'venue-stats',         profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Most Booked Games' },
@@ -264,13 +278,14 @@ const SHOTS = [
 
   /* Player side — Marcus Webb. */
   { name: 'player-home',       profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles', viewport: WIDE },
-  { name: 'player-bookings',   profile: 'player', path: '/app', personal: true,       waitFor: 'Your Bookings',     clip: 'Your Bookings' },
+  { name: 'player-bookings',   profile: 'player', path: '/app', personal: true,       waitFor: 'Your Bookings',     clip: 'Your Bookings', scale: 4 },
   { name: 'player-battles',    profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles',      clip: 'Your Battles' },
   { name: 'player-suggested',  profile: 'player', path: '/app', personal: true,       waitFor: 'Suggested Battles', clip: 'Suggested Battles', optional: true },
+  { name: 'player-friends',    profile: 'player', path: '/app', personal: true,       waitFor: 'My Friends',        clip: 'My Friends', scale: 4 },
   /* The gallery view — photo-backed cards. The best-looking screen in the app,
      and the one the landing page's battle-log section is written around. */
   { name: 'player-battles-gallery', profile: 'player', path: '/app', personal: true, waitFor: 'Your Battles',
-    viewport: WIDE, prepare: galleryView, clip: 'Your Battles' },
+    viewport: WIDE, prepare: galleryView, clip: 'Your Battles', scale: 4 },
   { name: 'player-home-gallery',    profile: 'player', path: '/app', personal: true, waitFor: 'Your Battles',
     viewport: WIDE, prepare: galleryView },
   { name: 'player-stats',      profile: 'player', path: '/app/stats', waitFor: 'Win / Loss' },
@@ -324,9 +339,17 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
   }
 
   for (const shot of shots) {
+    /*
+     * A clipped column is only ~335 CSS px wide, so 2x yields 670px — and the
+     * landing page displays it at around 560, which would mean upscaling a
+     * screenshot on a page whose whole point is that the product looks sharp.
+     * Those shots ask for more density instead.
+     */
+    const scale = shot.scale ?? SCALE;
+
     const context = await browser.newContext({
       viewport: shot.viewport ?? DESKTOP,
-      deviceScaleFactor: SCALE,
+      deviceScaleFactor: scale,
       storageState: needsAuth ? statePath : undefined,
       // The app is dark-only, but say so rather than depending on the runner's OS.
       colorScheme: 'dark',
@@ -367,7 +390,7 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
       });
 
       const vp = shot.viewport ?? DESKTOP;
-      const note = shot.clip ? `clip: ${shot.clip}` : `${vp.width * SCALE}px wide`;
+      const note = shot.clip ? `clip: ${shot.clip} @${scale}x` : `${vp.width * scale}px wide`;
       console.log(`    ${shot.name}  (${note})`);
       taken++;
     } catch (err) {

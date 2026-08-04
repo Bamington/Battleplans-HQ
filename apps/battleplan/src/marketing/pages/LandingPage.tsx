@@ -20,6 +20,23 @@ import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
 import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
 
+/*
+ * Screenshots of the real app, captured against the Burrow Games fixture by
+ * tools/screenshots. Everything in them is invented — the venue, the players,
+ * the results — so nothing here exposes a real person's account.
+ *
+ * Rebuild with: node tools/screenshots/capture.mjs && node tools/screenshots/optimise.mjs
+ */
+import shotHome from '../assets/shots/player-home.webp';
+import shotBookings from '../assets/shots/player-bookings.webp';
+import shotBattles from '../assets/shots/player-battles.webp';
+import shotStats from '../assets/shots/player-stats.webp';
+import shotFriends from '../assets/shots/player-friends.webp';
+
+/* Match each asset's own shape — see FeatureDeepDive's `aspect`. */
+const LANDSCAPE = 'aspect-[8/5]';
+const COLUMN    = 'aspect-[3/4]';
+
 const PILLARS: Pillar[] = [
   {
     icon: Calendar,
@@ -96,7 +113,9 @@ export default function LandingPage() {
         note="Free to use."
         logos={{ label: 'Book a table at' }}
         trustLine="[PLACEHOLDER] 3,400 battles logged by 610 players across 18 venues"
-        mock="columns"
+        src={shotHome}
+        alt="The BattlePlan home screen: upcoming bookings, suggested battles, a photo gallery of recent games, and a friends list."
+        aspect="aspect-[2400/1418]"
       />
 
       <Section tone="raised">
@@ -119,7 +138,9 @@ export default function LandingPage() {
             'Your usual store remembered, so you can stop picking it every time',
           ]}
           imageSide="left"
-          mock="booking"
+          src={shotBookings}
+          alt="The bookings column, listing tables booked at Burrow Games with the game and timeslot for each."
+          aspect={COLUMN}
         />
       </Section>
 
@@ -135,7 +156,9 @@ export default function LandingPage() {
             "Log it from your phone before you've left the shop",
           ]}
           imageSide="right"
-          mock="battles"
+          src={shotBattles}
+          alt="The battle gallery: each game shown as a card with a photograph of the table, the opponent and the result."
+          aspect={COLUMN}
         >
           <Callout
             quote="You booked a table on the 14th. Did you play?"
@@ -157,7 +180,9 @@ export default function LandingPage() {
             'Filter by year, or any range you like',
           ]}
           imageSide="left"
-          mock="stats"
+          src={shotStats}
+          alt="The statistics screen: overall win-loss record, most played games and venues, and best and worst opponents."
+          aspect={LANDSCAPE}
         />
       </Section>
 
@@ -173,7 +198,9 @@ export default function LandingPage() {
             'Find people by username — no phone numbers, no address book',
           ]}
           imageSide="right"
-          mock="update"
+          src={shotFriends}
+          alt="The friends column, showing an incoming friend request and a list of connected players."
+          aspect={COLUMN}
         />
       </Section>
 

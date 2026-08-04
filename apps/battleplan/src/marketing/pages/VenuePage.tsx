@@ -22,6 +22,20 @@ import {
   Server, Plug, Wallet, Phone, Mail, Buildings, Bolt, Shield,
 } from '../icons';
 
+/*
+ * Screenshots of the real app against the Burrow Games fixture — an invented
+ * venue with invented customers, so no real shop's booking diary is on show.
+ *
+ * Rebuild with: node tools/screenshots/capture.mjs && node tools/screenshots/optimise.mjs
+ */
+import shotManageStore from '../assets/shots/venue-manage-store.webp';
+import shotTables from '../assets/shots/venue-tables.webp';
+import shotToday from '../assets/shots/venue-today.webp';
+import shotStats from '../assets/shots/venue-stats.webp';
+
+const LANDSCAPE = 'aspect-[8/5]';
+const COLUMN    = 'aspect-[3/4]';
+
 const PILLARS: Pillar[] = [
   {
     icon: Calendar,
@@ -112,7 +126,9 @@ export default function VenuePage() {
         // which of their peers is already doing this.
         logos={{ label: 'Already taking bookings at' }}
         trustLine="[PLACEHOLDER] 18 venues. 4,100 tables booked this year."
-        mock="store"
+        src={shotManageStore}
+        alt="The venue management screen: blocked dates, tables, bookings by date and timeslots, side by side."
+        aspect={LANDSCAPE}
       />
 
       <Section tone="raised">
@@ -135,7 +151,9 @@ export default function VenuePage() {
             'Change any of it whenever you like — it takes effect immediately',
           ]}
           imageSide="left"
-          mock="store"
+          src={shotTables}
+          alt="The tables panel, each table listed with the timeslots it can be booked in."
+          aspect={COLUMN}
         />
       </Section>
 
@@ -151,7 +169,9 @@ export default function VenuePage() {
             'Automatic confirmation emails, so people turn up',
           ]}
           imageSide="right"
-          mock="booking"
+          src={shotToday}
+          alt="Today's bookings at a venue, grouped by timeslot, showing who is in and what they are playing."
+          aspect={COLUMN}
         />
       </Section>
 
@@ -168,7 +188,9 @@ export default function VenuePage() {
             'Filter by year or any range',
           ]}
           imageSide="left"
-          mock="stats"
+          src={shotStats}
+          alt="Venue statistics: bookings by month, most booked games, most frequent bookers, busiest days and timeslots."
+          aspect={LANDSCAPE}
         />
       </Section>
 

@@ -18,6 +18,9 @@ export function FeatureDeepDive({
   bullets,
   imageSide = 'left',
   mock = 'columns',
+  src,
+  alt,
+  aspect,
   children,
 }: {
   eyebrow: string;
@@ -26,6 +29,15 @@ export function FeatureDeepDive({
   bullets: string[];
   imageSide?: 'left' | 'right';
   mock?: MockVariant;
+  /** Real screenshot. Falls back to the placeholder mock when absent. */
+  src?: string;
+  alt?: string;
+  /**
+   * Match the asset's own shape. A single ratio can't serve both: the full-page
+   * shots are landscape and the single-column clips are 3:4, and forcing either
+   * into the other's box crops away the half that matters.
+   */
+  aspect?: string;
   /** Anything that belongs under the bullets — the Callout, usually. */
   children?: React.ReactNode;
 }) {
@@ -34,7 +46,12 @@ export function FeatureDeepDive({
   return (
     <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
       <Reveal className={imageFirst ? 'lg:order-1' : 'lg:order-2'}>
-        <ScreenshotFrame mock={mock} aspect="aspect-[4/3]" />
+        <ScreenshotFrame
+          mock={mock}
+          src={src}
+          alt={alt}
+          aspect={aspect ?? 'aspect-[4/3]'}
+        />
       </Reveal>
 
       <div className={imageFirst ? 'lg:order-2' : 'lg:order-1'}>
