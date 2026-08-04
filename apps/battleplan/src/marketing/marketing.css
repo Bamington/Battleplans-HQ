@@ -698,6 +698,97 @@
   border-radius: 8px;
 }
 
+/* ── Friends list ────────────────────────────────────────────────────── */
+
+.mk-friend-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-friend-row:hover { border-color: var(--app-accent); }
+
+.mk-friend-row:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+/* Initials, the way the app renders a profile with no picture. */
+.mk-friend-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #1f2937;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+}
+
+.mk-friend-avatar.is-large {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 10px;
+  font-size: 1.25rem;
+}
+
+.mk-friend-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-friend-handle {
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-accent);
+}
+
+.mk-friend-name { font-size: 0.9375rem; color: var(--app-muted); }
+
+/*
+ * Win / draw / loss as one bar, sized by the record itself.
+ *
+ * "0%" against Tom Ashworth is a statistic; a bar with no green in it is a
+ * feeling, and the feeling is what the section beside this is selling.
+ */
+.mk-friend-bar {
+  display: flex;
+  gap: 2px;
+  margin-top: 14px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mk-friend-bar > span { min-width: 0; }
+.mk-friend-bar .is-won  { background: #34d399; }
+.mk-friend-bar .is-drew { background: #6b7280; }
+.mk-friend-bar .is-lost { background: #f87171; }
+
+.mk-friend-games {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: #e5e7eb;
+}
+
 /* ── Demo dialog ─────────────────────────────────────────────────────── */
 
 .mk-demo-scrim {
@@ -785,9 +876,18 @@
 
 .mk-demo-dialog-rows dt { color: var(--app-muted); }
 .mk-demo-dialog-rows dd { color: #e5e7eb; }
-.mk-demo-dialog-ok { color: #34d399; }
-.mk-demo-dialog-handle { color: var(--app-accent); }
-.mk-demo-dialog-none { color: var(--app-muted); font-style: italic; }
+
+/*
+ * Scoped to beat the dd above them.
+ *
+ * As bare single classes these lost on specificity to '.mk-demo-dialog-rows dd'
+ * and silently did nothing — the bookings dialog had been rendering Confirmed
+ * in plain grey since the day it was written.
+ */
+.mk-demo-dialog-rows .mk-demo-dialog-ok     { color: #34d399; }
+.mk-demo-dialog-rows .mk-demo-dialog-handle { color: var(--app-accent); }
+.mk-demo-dialog-rows .mk-demo-dialog-none   { color: var(--app-muted); font-style: italic; }
+.mk-demo-dialog-rows .mk-friend-poor        { color: #f87171; }
 
 .mk-demo-dialog-actions {
   display: flex;

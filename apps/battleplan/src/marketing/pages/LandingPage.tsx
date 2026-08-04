@@ -20,6 +20,7 @@ import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
 import { BookingsDemo } from '../components/demos/BookingsDemo';
 import { BattlesDemo } from '../components/demos/BattlesDemo';
+import { FriendsDemo } from '../components/demos/FriendsDemo';
 import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
 
 /*
@@ -215,6 +216,10 @@ export default function LandingPage() {
             'Find people by username — no phone numbers, no address book',
           ]}
           imageSide="right"
+          /* Third interactive section. shotFriends stays imported so reverting
+             to the screenshot is a one-line change. */
+          demo={<FriendsDemo />}
+          wideFrame
           src={shotFriends}
           alt="The friends column, showing an incoming friend request and a list of connected players."
           aspect={COLUMN}
