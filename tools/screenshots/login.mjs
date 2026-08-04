@@ -36,7 +36,29 @@ if (!PROFILES.includes(profile)) {
 const statePath = resolve(HERE, '.auth', `${profile}.json`);
 await mkdir(dirname(statePath), { recursive: true });
 
-const browser = await chromium.launch({ headless: false });
+/*
+ * This has to be a headed browser — the whole design is that a human types the
+ * password into a real window and nothing else ever sees it.
+ *
+ * That means it can only run from a terminal attached to a desktop session. An
+ * agent shell, CI, or an SSH session without a display fails here with
+ * "spawn UNKNOWN", which on its own reads like a broken Playwright install
+ * rather than "you are in the wrong kind of terminal".
+ */
+let browser;
+try {
+  browser = await chromium.launch({ headless: false });
+} catch (err) {
+  if (/spawn|display|DISPLAY/i.test(err.message)) {
+    console.error('\n  Could not open a browser window.');
+    console.error('  This command needs a terminal attached to a desktop — run it yourself:\n');
+    console.error(`    pnpm shots:login ${profile}\n`);
+    console.error('  (capture.mjs is headless and runs fine anywhere once the session exists.)\n');
+    process.exit(1);
+  }
+  throw err;
+}
+
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await context.newPage();
 
