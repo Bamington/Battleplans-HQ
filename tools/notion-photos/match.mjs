@@ -43,6 +43,29 @@ const meta = new Map((metadata?.pages ?? []).map(p => [p.page_id, p]))
 // and "Michael Mckie" are the same person. Compare on a stripped form.
 const norm = (s) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 
+// Notion and the app grew their game lists separately, so the same game is
+// often spelled differently. Containment covers most of it ("Warhammer: Age of
+// Sigmar" contains "Age of Sigmar"); these two share no substring and need
+// stating outright. Kept as an explicit table rather than fuzzier matching,
+// because the cost of wrongly merging two games is a photo on the wrong
+// battle — "Star Wars Legion" and "Star Wars X-Wing" would happily fuzzy-match.
+const GAME_ALIASES = [
+  ['X-Wing Miniatures', 'Star Wars X-Wing'],
+  ['Kill Team (2021)', 'Warhammer 40,000: Kill Team'],
+]
+
+/** Same game, allowing for the two lists naming it differently. */
+function sameGame(a, b) {
+  const x = norm(a)
+  const y = norm(b)
+  if (!x || !y) return true // unknown on either side — don't disqualify
+  if (x === y || x.includes(y) || y.includes(x)) return true
+  return GAME_ALIASES.some(([p, q]) => {
+    const [np, nq] = [norm(p), norm(q)]
+    return (x === np && y === nq) || (x === nq && y === np)
+  })
+}
+
 /** Do two names plausibly denote the same person? Exact, or one contains the
  *  other ("Wade" vs "Wade McDonald"), or the surnames agree. */
 function samePerson(a, b) {
@@ -100,7 +123,7 @@ function score(page, battle) {
   if (!m) return 0
 
   if (m.game && battle.game && battle.game !== '?') {
-    if (norm(m.game) !== norm(battle.game)) return DISQUALIFIED
+    if (!sameGame(m.game, battle.game)) return DISQUALIFIED
   }
 
   let s = m.game && battle.game ? 2 : 0
