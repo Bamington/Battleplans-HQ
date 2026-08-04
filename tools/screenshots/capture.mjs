@@ -80,6 +80,43 @@ async function selectStore(page, name) {
 }
 
 /**
+ * Strip the two things that shouldn't appear in a marketing screenshot.
+ *
+ *   * The version / build-date footer. It dates the image the moment a release
+ *     goes out, and pins the shot to whatever build happened to be running.
+ *   * News & Updates. It carries real platform announcements written for
+ *     existing users, which is off-message on a page aimed at people who have
+ *     never seen the product.
+ *
+ * Done at capture time rather than in the app, because both are wanted in the
+ * product and unwanted only in the photograph.
+ *
+ * Applied to signed-in shots only. The marketing pages have their own <footer>
+ * that must survive, which is also why the selector is narrowed to the app
+ * footer's uppercase styling rather than matching every footer on the page.
+ */
+async function hideAppChrome(page) {
+  await page.addStyleTag({ content: 'footer.uppercase { display: none !important; }' });
+
+  /*
+   * No CSS selector matches on text, so the column goes via the DOM — and it
+   * has to keep going. This runs before React has painted, and the columns
+   * re-render afterwards anyway (switching venue rebuilds them), so a one-shot
+   * removal finds nothing and the column is back by the time the shutter fires.
+   * An observer survives both.
+   */
+  await page.evaluate(() => {
+    const drop = () => {
+      for (const col of document.querySelectorAll('div.snap-start')) {
+        if (col.textContent?.includes('News & Updates')) col.remove();
+      }
+    };
+    drop();
+    new MutationObserver(drop).observe(document.body, { childList: true, subtree: true });
+  });
+}
+
+/**
  * Switch Your Battles from list rows to the photo-hero gallery.
  *
  * The gallery is where each card takes a battle photo as its background, which
@@ -125,7 +162,10 @@ const SHOTS = [
   { name: 'venue-page-full',       profile: 'public', path: '/venue',  waitFor: 'Your tables, booked.', fullPage: true, reveal: true },
 
   /* Venue side — a Burrow Games admin. */
-  { name: 'venue-home',          profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", viewport: WIDE },
+  /* Not WIDE like the player home: the venue side is Today's / Upcoming /
+     News, and dropping News leaves two columns that would be stranded in a
+     2200px frame. Worth re-checking against a real capture. */
+  { name: 'venue-home',          profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings" },
   { name: 'venue-today',         profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", clip: "Today's Bookings" },
   { name: 'venue-upcoming',      profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: 'Upcoming Bookings', clip: 'Upcoming Bookings' },
   { name: 'venue-manage-store',  profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots' },
@@ -206,6 +246,9 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
         throw new Error(`session expired — re-run: node tools/screenshots/login.mjs ${profile}`);
       }
 
+      // Before prepare(), so a toggle click isn't measured against a layout
+      // that's about to lose a column.
+      if (needsAuth) await hideAppChrome(page);
       if (shot.store) await selectStore(page, shot.store);
       if (shot.prepare) await shot.prepare(page);
       if (shot.reveal) await revealAll(page);
