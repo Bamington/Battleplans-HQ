@@ -48,6 +48,14 @@ const MOBILE  = { width: 390, height: 844 };
  * shipping a hero image full of ellipses.
  */
 const WIDE = { width: 2200, height: 1300 };
+/*
+ * Taller viewports for the clipped columns. The columns fill the window height,
+ * so a 900px viewport caps how much of one a capture can contain — and the
+ * landing page now frames them at 9:21, which needs a source 2.33x taller than
+ * it is wide. A taller window simply puts more rows in the shot.
+ */
+const TALL      = { width: 1440, height: 1600 };
+const TALL_WIDE = { width: 2200, height: 2000 };
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -265,10 +273,10 @@ const SHOTS = [
      News, and dropping News leaves two columns that would be stranded in a
      2200px frame. Worth re-checking against a real capture. */
   { name: 'venue-home',          profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings" },
-  { name: 'venue-today',         profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", clip: "Today's Bookings", scale: 4 },
+  { name: 'venue-today',         profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", clip: "Today's Bookings", scale: 4, viewport: TALL },
   { name: 'venue-upcoming',      profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: 'Upcoming Bookings', clip: 'Upcoming Bookings' },
   { name: 'venue-manage-store',  profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots' },
-  { name: 'venue-tables',        profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Tables',        clip: 'Tables', scale: 4 },
+  { name: 'venue-tables',        profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Tables',        clip: 'Tables', scale: 4, viewport: TALL },
   { name: 'venue-timeslots',     profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots',     clip: 'Timeslots' },
   { name: 'venue-blocked-dates', profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Blocked Dates', clip: 'Blocked Dates' },
   { name: 'venue-stats',         profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Most Booked Games' },
@@ -278,14 +286,14 @@ const SHOTS = [
 
   /* Player side — Marcus Webb. */
   { name: 'player-home',       profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles', viewport: WIDE },
-  { name: 'player-bookings',   profile: 'player', path: '/app', personal: true,       waitFor: 'Your Bookings',     clip: 'Your Bookings', scale: 4 },
+  { name: 'player-bookings',   profile: 'player', path: '/app', personal: true,       waitFor: 'Your Bookings',     clip: 'Your Bookings', scale: 4, viewport: TALL },
   { name: 'player-battles',    profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles',      clip: 'Your Battles' },
   { name: 'player-suggested',  profile: 'player', path: '/app', personal: true,       waitFor: 'Suggested Battles', clip: 'Suggested Battles', optional: true },
-  { name: 'player-friends',    profile: 'player', path: '/app', personal: true,       waitFor: 'My Friends',        clip: 'My Friends', scale: 4 },
+  { name: 'player-friends',    profile: 'player', path: '/app', personal: true,       waitFor: 'My Friends',        clip: 'My Friends', scale: 4, viewport: TALL },
   /* The gallery view — photo-backed cards. The best-looking screen in the app,
      and the one the landing page's battle-log section is written around. */
   { name: 'player-battles-gallery', profile: 'player', path: '/app', personal: true, waitFor: 'Your Battles',
-    viewport: WIDE, prepare: galleryView, clip: 'Your Battles', scale: 4 },
+    viewport: TALL_WIDE, prepare: galleryView, clip: 'Your Battles', scale: 4 },
   { name: 'player-home-gallery',    profile: 'player', path: '/app', personal: true, waitFor: 'Your Battles',
     viewport: WIDE, prepare: galleryView },
   { name: 'player-stats',      profile: 'player', path: '/app/stats', waitFor: 'Win / Loss' },

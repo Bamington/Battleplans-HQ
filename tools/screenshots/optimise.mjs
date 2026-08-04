@@ -40,14 +40,14 @@ const OUT  = resolve(HERE, '..', '..', 'apps/battleplan/src/marketing/assets/sho
 const ASSETS = [
   // Player page
   { src: 'player-home-gallery',   out: 'player-home',     width: 2400 },
-  { src: 'player-bookings',       out: 'player-bookings', width: 1100, ratio: 15 / 26 },
-  { src: 'player-battles-gallery', out: 'player-battles', width: 1400, ratio: 15 / 26 },
+  { src: 'player-bookings',       out: 'player-bookings', width: 900, ratio: 9 / 21 },
+  { src: 'player-battles-gallery', out: 'player-battles', width: 1150, ratio: 9 / 21 },
   { src: 'player-stats',          out: 'player-stats',    width: 2000 },
-  { src: 'player-friends',        out: 'player-friends',  width: 1100, ratio: 15 / 26 },
+  { src: 'player-friends',        out: 'player-friends',  width: 900, ratio: 9 / 21 },
   // Venue page
   { src: 'venue-manage-store',    out: 'venue-manage-store', width: 2400 },
-  { src: 'venue-tables',          out: 'venue-tables',    width: 1100, ratio: 15 / 26 },
-  { src: 'venue-today',           out: 'venue-today',     width: 1100, ratio: 15 / 26 },
+  { src: 'venue-tables',          out: 'venue-tables',    width: 900, ratio: 9 / 21 },
+  { src: 'venue-today',           out: 'venue-today',     width: 900, ratio: 9 / 21 },
   { src: 'venue-stats',           out: 'venue-stats',     width: 2000 },
 ];
 

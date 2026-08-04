@@ -21,6 +21,7 @@ export function FeatureDeepDive({
   src,
   alt,
   aspect,
+  narrowImage = false,
   children,
 }: {
   eyebrow: string;
@@ -38,6 +39,8 @@ export function FeatureDeepDive({
    * into the other's box crops away the half that matters.
    */
   aspect?: string;
+  /** Pull the frame in to 80% of its column. For the tall portrait shots. */
+  narrowImage?: boolean;
   /** Anything that belongs under the bullets — the Callout, usually. */
   children?: React.ReactNode;
 }) {
@@ -46,12 +49,20 @@ export function FeatureDeepDive({
   return (
     <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
       <Reveal className={imageFirst ? 'lg:order-1' : 'lg:order-2'}>
-        <ScreenshotFrame
-          mock={mock}
-          src={src}
-          alt={alt}
-          aspect={aspect ?? 'aspect-[4/3]'}
-        />
+        {/*
+          Narrow frames sit centred in their half of the row rather than filling
+          it. At 9:21 a full-width frame would be over 1100px tall and tower
+          over the text beside it; pulling the width in keeps the pair in
+          proportion and makes the shape read as a phone-ish column.
+        */}
+        <div className={narrowImage ? 'mx-auto w-4/5' : ''}>
+          <ScreenshotFrame
+            mock={mock}
+            src={src}
+            alt={alt}
+            aspect={aspect ?? 'aspect-[4/3]'}
+          />
+        </div>
       </Reveal>
 
       <div className={imageFirst ? 'lg:order-2' : 'lg:order-1'}>

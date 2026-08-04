@@ -34,9 +34,8 @@ import shotToday from '../assets/shots/venue-today.webp';
 import shotStats from '../assets/shots/venue-stats.webp';
 
 const LANDSCAPE = 'aspect-[8/5]';
-/* 30% taller than the 3:4 these started at — a column screenshot has more to
-   show vertically than a landscape box gives it room for. */
-const COLUMN    = 'aspect-[15/26]';
+/* Tall and narrow, closer to the shape of the column it photographs. */
+const COLUMN    = 'aspect-[9/21]';
 
 const PILLARS: Pillar[] = [
   {
@@ -156,6 +155,7 @@ export default function VenuePage() {
           src={shotTables}
           alt="The tables panel, each table listed with the timeslots it can be booked in."
           aspect={COLUMN}
+          narrowImage
         />
       </Section>
 
@@ -174,6 +174,7 @@ export default function VenuePage() {
           src={shotToday}
           alt="Today's bookings at a venue, grouped by timeslot, showing who is in and what they are playing."
           aspect={COLUMN}
+          narrowImage
         />
       </Section>
 
