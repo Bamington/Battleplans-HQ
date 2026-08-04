@@ -28,13 +28,15 @@ import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
  * Rebuild with: node tools/screenshots/capture.mjs && node tools/screenshots/optimise.mjs
  */
 import shotHome from '../assets/shots/player-home.webp';
+import shotHomeMobile from '../assets/shots/player-home-mobile.webp';
 import shotBookings from '../assets/shots/player-bookings.webp';
 import shotBattles from '../assets/shots/player-battles.webp';
 import shotStats from '../assets/shots/player-stats.webp';
+import shotStatsMobile from '../assets/shots/player-stats-mobile.webp';
 import shotFriends from '../assets/shots/player-friends.webp';
 
-/* Match each asset's own shape — see FeatureDeepDive's `aspect`. */
-const LANDSCAPE = 'aspect-[8/5]';
+/* Match each asset's own shape — see FeatureDeepDive's `aspect`. The landscape
+   shots set theirs inline, because they also swap to a portrait mobile capture. */
 /* Tall and narrow, closer to the shape of the column it photographs. */
 const COLUMN    = 'aspect-[9/21]';
 
@@ -115,8 +117,9 @@ export default function LandingPage() {
         logos={{ label: 'Book a table at' }}
         trustLine="[PLACEHOLDER] 3,400 battles logged by 610 players across 18 venues"
         src={shotHome}
+        srcMobile={shotHomeMobile}
         alt="The BattlePlan home screen: upcoming bookings, suggested battles, a photo gallery of recent games, and a friends list."
-        aspect="aspect-[2400/1418]"
+        aspect="aspect-[39/84] md:aspect-[2400/1418]"
       />
 
       <Section tone="raised">
@@ -184,8 +187,9 @@ export default function LandingPage() {
           ]}
           imageSide="left"
           src={shotStats}
+          srcMobile={shotStatsMobile}
           alt="The statistics screen: overall win-loss record, most played games and venues, and best and worst opponents."
-          aspect={LANDSCAPE}
+          aspect="aspect-[39/84] md:aspect-[8/5]"
         />
       </Section>
 

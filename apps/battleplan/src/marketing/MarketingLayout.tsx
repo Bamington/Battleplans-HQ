@@ -54,8 +54,9 @@ export function MarketingLayout({
 
   return (
     <div className="mk min-h-screen">
+      <a href="#content" className="mk-skip">Skip to content</a>
       <MarketingNav />
-      <main>{children}</main>
+      <main id="content">{children}</main>
       <MarketingFooter />
     </div>
   );

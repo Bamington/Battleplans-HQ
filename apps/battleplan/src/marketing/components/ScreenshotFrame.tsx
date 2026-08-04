@@ -18,6 +18,8 @@ import React from 'react';
 interface FrameProps {
   /** Real screenshot. Falls back to the mock when absent. */
   src?: string;
+  /** Phone-width capture, used below md. */
+  srcMobile?: string;
   alt?: string;
   /** Hero frames get a wider, stronger underglow. */
   hero?: boolean;
@@ -30,6 +32,7 @@ interface FrameProps {
 
 export function ScreenshotFrame({
   src,
+  srcMobile,
   alt = '',
   hero = false,
   aspect = 'aspect-[16/10]',
@@ -41,15 +44,25 @@ export function ScreenshotFrame({
       <div className={`mk-frame-inner ${aspect}`}>
         {src
           ? (
-            <img
-              src={src}
-              alt={alt}
-              className="w-full h-full object-cover"
-              /* The hero is the largest thing above the fold and shouldn't be
-                 deferred; everything below it can wait until it's near. */
-              loading={hero ? 'eager' : 'lazy'}
-              decoding="async"
-            />
+            /*
+             * <picture> rather than one <img>, so a phone gets a capture taken
+             * at phone width. The desktop hero is a four-column screen; at
+             * 324px across it reads as grey mush and communicates nothing.
+             * The breakpoint matches Tailwind's md, which is where the frame's
+             * own aspect changes too.
+             */
+            <picture className="block w-full h-full">
+              {srcMobile && <source media="(max-width: 767px)" srcSet={srcMobile} />}
+              <img
+                src={src}
+                alt={alt}
+                className="w-full h-full object-cover"
+                /* The hero is the largest thing above the fold and shouldn't be
+                   deferred; everything below it can wait until it's near. */
+                loading={hero ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+            </picture>
           )
           : <AppMock variant={mock} />}
       </div>

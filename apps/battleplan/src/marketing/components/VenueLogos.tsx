@@ -38,7 +38,9 @@ export function VenueLogos({ label, venues, placeholderCount = 6 }: Props) {
         {items.map((venue, i) => (
           <div
             key={venue ?? i}
-            className="flex h-9 items-center justify-center px-3"
+            /* Only three on a phone. Six dashed boxes pushed the product shot
+               most of a screen further down, for no gain. */
+            className={`flex h-9 items-center justify-center px-3 ${i >= 3 ? 'hidden sm:flex' : ''}`}
             style={
               venue
                 ? { color: 'var(--mk-text-secondary)', fontSize: '0.9375rem' }

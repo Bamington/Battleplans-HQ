@@ -19,6 +19,7 @@ export function FeatureDeepDive({
   imageSide = 'left',
   mock = 'columns',
   src,
+  srcMobile,
   alt,
   aspect,
   narrowImage = false,
@@ -32,6 +33,8 @@ export function FeatureDeepDive({
   mock?: MockVariant;
   /** Real screenshot. Falls back to the placeholder mock when absent. */
   src?: string;
+  /** Phone-width capture, swapped in below md. */
+  srcMobile?: string;
   alt?: string;
   /**
    * Match the asset's own shape. A single ratio can't serve both: the full-page
@@ -46,19 +49,42 @@ export function FeatureDeepDive({
 }) {
   const imageFirst = imageSide === 'left';
 
+  /*
+   * Uneven columns, not 50/50.
+   *
+   * A half-and-half split left the body copy at 38 characters per line at
+   * 1024px — well under a readable measure — because a portrait screenshot
+   * needs far less width than a paragraph does. Giving the image a fixed column
+   * and the text whatever remains puts the measure back around 45ch at 1024 and
+   * 57ch at 1440, and it means the frame is the same size on every screen
+   * rather than growing with the viewport.
+   */
   return (
-    <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
+    <div
+      className={`grid items-center gap-12 lg:gap-16 ${
+        // Only the portrait frames get a fixed column. A landscape screenshot
+        // is already the wider, shorter shape and needs the room — squeezing
+        // the stats page into 360px would make it unreadable.
+        !narrowImage
+          ? 'lg:grid-cols-2'
+          : imageFirst
+            ? 'lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr]'
+            : 'lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px]'
+      }`}
+    >
       <Reveal className={imageFirst ? 'lg:order-1' : 'lg:order-2'}>
         {/*
-          Narrow frames sit centred in their half of the row rather than filling
-          it. At 9:21 a full-width frame would be over 1100px tall and tower
-          over the text beside it; pulling the width in keeps the pair in
-          proportion and makes the shape read as a phone-ish column.
+          Below lg the layout is stacked and the frame would run the full width
+          of the page: at 768 that made a 9:21 image 545 wide and 1272 tall —
+          taller than the whole viewport, with a single booking card rendered
+          bigger than life size. Capping it keeps a tablet closer to the phone
+          treatment, which was the one that already worked.
         */}
-        <div className={narrowImage ? 'mx-auto w-4/5' : ''}>
+        <div className={narrowImage ? 'mx-auto w-4/5 max-w-[300px] lg:w-full lg:max-w-none' : ''}>
           <ScreenshotFrame
             mock={mock}
             src={src}
+            srcMobile={srcMobile}
             alt={alt}
             aspect={aspect ?? 'aspect-[4/3]'}
           />

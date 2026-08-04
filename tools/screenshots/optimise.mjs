@@ -38,17 +38,27 @@ const OUT  = resolve(HERE, '..', '..', 'apps/battleplan/src/marketing/assets/sho
  *          few rows — which is the part worth showing.
  */
 const ASSETS = [
+  /*
+   * Mobile heroes. A four-column desktop capture rendered at 324px on a phone
+   * is an illegible smear — it says "an app exists" and nothing else. These are
+   * captures of the app at phone width, swapped in below md by <picture>.
+   */
+  { src: 'player-home-mobile',        out: 'player-home-mobile',        width: 800 },
+  { src: 'venue-manage-store-mobile', out: 'venue-manage-store-mobile', width: 800 },
+  { src: 'player-stats-mobile',       out: 'player-stats-mobile',       width: 800 },
+  { src: 'venue-stats-mobile',        out: 'venue-stats-mobile',        width: 800 },
+
   // Player page
   { src: 'player-home-gallery',   out: 'player-home',     width: 2400 },
   { src: 'player-bookings',       out: 'player-bookings', width: 900, ratio: 9 / 21 },
   { src: 'player-battles-gallery', out: 'player-battles', width: 1150, ratio: 9 / 21 },
-  { src: 'player-stats',          out: 'player-stats',    width: 2000 },
+  { src: 'player-stats',          out: 'player-stats',    width: 1200 },
   { src: 'player-friends',        out: 'player-friends',  width: 900, ratio: 9 / 21 },
   // Venue page
   { src: 'venue-manage-store',    out: 'venue-manage-store', width: 2400 },
   { src: 'venue-tables',          out: 'venue-tables',    width: 900, ratio: 9 / 21 },
   { src: 'venue-today',           out: 'venue-today',     width: 900, ratio: 9 / 21 },
-  { src: 'venue-stats',           out: 'venue-stats',     width: 2000 },
+  { src: 'venue-stats',           out: 'venue-stats',     width: 1200 },
 ];
 
 const QUALITY = 0.82;

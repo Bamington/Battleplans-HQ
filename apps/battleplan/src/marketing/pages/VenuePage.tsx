@@ -29,11 +29,12 @@ import {
  * Rebuild with: node tools/screenshots/capture.mjs && node tools/screenshots/optimise.mjs
  */
 import shotManageStore from '../assets/shots/venue-manage-store.webp';
+import shotManageStoreMobile from '../assets/shots/venue-manage-store-mobile.webp';
 import shotTables from '../assets/shots/venue-tables.webp';
 import shotToday from '../assets/shots/venue-today.webp';
 import shotStats from '../assets/shots/venue-stats.webp';
+import shotStatsMobile from '../assets/shots/venue-stats-mobile.webp';
 
-const LANDSCAPE = 'aspect-[8/5]';
 /* Tall and narrow, closer to the shape of the column it photographs. */
 const COLUMN    = 'aspect-[9/21]';
 
@@ -128,8 +129,9 @@ export default function VenuePage() {
         logos={{ label: 'Already taking bookings at' }}
         trustLine="[PLACEHOLDER] 18 venues. 4,100 tables booked this year."
         src={shotManageStore}
+        srcMobile={shotManageStoreMobile}
         alt="The venue management screen: blocked dates, tables, bookings by date and timeslots, side by side."
-        aspect={LANDSCAPE}
+        aspect="aspect-[39/84] md:aspect-[8/5]"
       />
 
       <Section tone="raised">
@@ -192,8 +194,9 @@ export default function VenuePage() {
           ]}
           imageSide="left"
           src={shotStats}
+          srcMobile={shotStatsMobile}
           alt="Venue statistics: bookings by month, most booked games, most frequent bookers, busiest days and timeslots."
-          aspect={LANDSCAPE}
+          aspect="aspect-[39/84] md:aspect-[8/5]"
         />
       </Section>
 

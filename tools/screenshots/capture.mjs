@@ -86,30 +86,27 @@ async function selectStore(page, name) {
   const nav = page.locator('header, nav').first();
 
   /*
-   * Wait for the navbar to exist before looking in it. This runs moments after
-   * domcontentloaded, and React hasn't painted yet — counting buttons at that
-   * point finds none and concludes the account isn't an admin, which is a very
-   * convincing wrong answer.
-   */
-  const trigger = nav.locator('button').first();
-  try {
-    await trigger.waitFor({ state: 'visible', timeout: 15_000 });
-  } catch {
-    throw new Error('navbar never rendered — is the dev server serving the app?');
-  }
-
-  /*
+   * Ask whether the venue is already selected BEFORE looking for the picker.
+   *
    * A store admin opens on their first venue, so for a single-venue account
-   * the right one is already showing — but not the instant the navbar appears.
-   * Give it a moment before deciding to go and click the dropdown.
+   * the answer is usually yes — and on a narrow viewport the picker isn't
+   * rendered at all, so waiting for it first failed the shot outright even
+   * though the right venue was on screen. Waiting on the outcome rather than
+   * the control also covers React not having painted yet.
    */
   try {
-    await nav.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 5_000 });
+    await nav.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 15_000 });
     return;
   } catch { /* not auto-selected — pick it by hand below */ }
 
   // The trigger has no text when nothing is selected — it renders as an icon
   // alone — so it can't be found by its label.
+  const trigger = nav.locator('button').first();
+  try {
+    await trigger.waitFor({ state: 'visible', timeout: 10_000 });
+  } catch {
+    throw new Error(`no venue picker, and "${name}" isn't already selected`);
+  }
   await trigger.click();
 
   const item = page.getByText(name, { exact: true }).first();
@@ -279,7 +276,17 @@ const SHOTS = [
   { name: 'venue-tables',        profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Tables',        clip: 'Tables', scale: 4, viewport: TALL },
   { name: 'venue-timeslots',     profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots',     clip: 'Timeslots' },
   { name: 'venue-blocked-dates', profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Blocked Dates', clip: 'Blocked Dates' },
+  /*
+   * Mobile hero. A four-column desktop capture shown at 324px on a phone is an
+   * illegible grey smear, so the page swaps to this below md.
+   *
+   * No `store` here: the narrow navbar has no venue picker to click. Marcus
+   * admins one venue so it's already selected, and waiting on the venue's own
+   * name in the page body confirms that better than the navbar would.
+   */
+  { name: 'venue-manage-store-mobile', profile: 'venue', path: '/app/manage-store', waitFor: 'Burrow Games', viewport: MOBILE },
   { name: 'venue-stats',         profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Most Booked Games' },
+  { name: 'venue-stats-mobile',  profile: 'venue', path: '/app/store-stats',                         waitFor: 'Most Booked Games', viewport: MOBILE },
   { name: 'venue-stats-overview', profile: 'venue', path: '/app/store-stats', store: 'Burrow Games', waitFor: 'Bookings by month', clip: 'Overview' },
   { name: 'venue-stats-who',     profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Most Booked Games', clip: 'What & Who' },
   { name: 'venue-stats-when',    profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Busiest Days',      clip: 'When' },
@@ -300,6 +307,7 @@ const SHOTS = [
   { name: 'player-stats-overall',    profile: 'player', path: '/app/stats', waitFor: 'Win / Loss',   clip: 'Overall' },
   { name: 'player-stats-best-worst', profile: 'player', path: '/app/stats', waitFor: 'Best Games',   clip: 'Best & Worst' },
   { name: 'player-home-mobile',      profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles', viewport: MOBILE },
+  { name: 'player-stats-mobile',     profile: 'player', path: '/app/stats',                  waitFor: 'Win / Loss',   viewport: MOBILE },
 ];
 
 /* ── Run ─────────────────────────────────────────────────────────────────── */

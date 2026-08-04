@@ -68,14 +68,14 @@ export function MarketingFooter() {
               >
                 {column.heading}
               </h3>
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-1">
                 {column.links.map(link => (
                   <li key={link.label}>
                     {/* '#' links are placeholders for pages that don't exist
                         yet — rendered as plain text so nothing dead-ends. */}
                     {link.to === '#' ? (
                       <span
-                        className="text-[0.9375rem]"
+                        className="inline-flex min-h-[36px] items-center text-[0.9375rem]"
                         style={{ color: 'var(--mk-text-muted)' }}
                       >
                         {link.label}
@@ -83,7 +83,7 @@ export function MarketingFooter() {
                     ) : (
                       <Link
                         to={link.to}
-                        className="text-[0.9375rem] transition-colors"
+                        className="inline-flex min-h-[36px] items-center text-[0.9375rem] transition-colors"
                         style={{ color: link.muted ? 'var(--mk-text-muted)' : 'var(--mk-text-secondary)' }}
                       >
                         {link.label}

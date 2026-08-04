@@ -32,6 +32,8 @@ interface HeroProps {
   mock?: MockVariant;
   /** Real screenshot. Falls back to the placeholder mock when absent. */
   src?: string;
+  /** Phone-width capture, swapped in below md. */
+  srcMobile?: string;
   alt?: string;
   /** Match the asset's shape so the hero isn't cropped by the frame. */
   aspect?: string;
@@ -48,6 +50,7 @@ export function Hero({
   trustLine,
   mock = 'columns',
   src,
+  srcMobile,
   alt,
   aspect = 'aspect-[16/10]',
 }: HeroProps) {
@@ -88,7 +91,7 @@ export function Hero({
         </div>
 
         <Reveal delay={240} className="mt-16 md:mt-20">
-          <ScreenshotFrame hero mock={mock} src={src} alt={alt} aspect={aspect} />
+          <ScreenshotFrame hero mock={mock} src={src} srcMobile={srcMobile} alt={alt} aspect={aspect} />
         </Reveal>
 
         {trustLine && (
