@@ -26,7 +26,7 @@ interface HeroProps {
   /** Small reassurance under the buttons — never a promise about future pricing. */
   note: string;
   /** The venue strip, directly under the note. Proof before product. */
-  logos?: { label: string; venues?: string[] };
+  logos?: { label: string };
   /** Usage figures. Placeholder until there are real ones worth showing. */
   trustLine?: string;
   mock?: MockVariant;
@@ -85,7 +85,7 @@ export function Hero({
 
           {logos && (
             <Reveal delay={180}>
-              <VenueLogos label={logos.label} venues={logos.venues} />
+              <VenueLogos label={logos.label} />
             </Reveal>
           )}
         </div>

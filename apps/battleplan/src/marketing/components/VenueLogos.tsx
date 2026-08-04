@@ -6,25 +6,35 @@
  * "who else is doing this?" — both are better answered above the fold than
  * eight sections later.
  *
- * Kept deliberately quiet: muted type, no accent, no card. It's proof, not a
+ * Kept deliberately quiet: muted, no accent, no card. It's proof, not a
  * feature, and it sits between the CTA and the hero screenshot where anything
  * loud would compete with both.
  */
 
-interface Props {
-  /** Sits above the row, e.g. "Bookable at". */
-  label: string;
-  /**
-   * Real venue names once we have permission to show them. Until then the
-   * placeholders render as dashed slots so nobody mistakes them for finished.
-   */
-  venues?: string[];
-  placeholderCount?: number;
-}
+import logoGufWerribee from '../assets/logos/gufw.png';
+import logoGufBallarat from '../assets/logos/gufb.png';
+import logoTopTable from '../assets/logos/ttg.png';
+import logoMiniMyths from '../assets/logos/mm.png';
 
-export function VenueLogos({ label, venues, placeholderCount = 6 }: Props) {
-  const items = venues ?? Array.from({ length: placeholderCount }, () => null);
+/*
+ * Four real venues, replacing the six dashed placeholders.
+ *
+ * Sized by HEIGHT rather than width. The artwork runs 189 to 300px wide at
+ * roughly the same height, so matching widths would leave the wordy ones tiny
+ * and the compact ones enormous — a common way for a logo wall to look wrong
+ * without anyone being able to say why.
+ *
+ * The files are white on transparent, so they're used as-is and simply dimmed:
+ * a logo wall that shouts competes with the call to action directly above it.
+ */
+const VENUES = [
+  { name: 'Guf Werribee',         src: logoGufWerribee },
+  { name: 'Guf Ballarat',         src: logoGufBallarat },
+  { name: 'Top Table Games',      src: logoTopTable },
+  { name: 'Mini Myths Clubhouse', src: logoMiniMyths },
+];
 
+export function VenueLogos({ label }: { label: string }) {
   return (
     <div className="mt-12">
       <p
@@ -34,30 +44,22 @@ export function VenueLogos({ label, venues, placeholderCount = 6 }: Props) {
         {label}
       </p>
 
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-5 md:gap-x-12">
-        {items.map((venue, i) => (
-          <div
-            key={venue ?? i}
-            /* Only three on a phone. Six dashed boxes pushed the product shot
-               most of a screen further down, for no gain. */
-            className={`flex h-9 items-center justify-center px-3 ${i >= 3 ? 'hidden sm:flex' : ''}`}
-            style={
-              venue
-                ? { color: 'var(--mk-text-secondary)', fontSize: '0.9375rem' }
-                : {
-                    width: 122,
-                    borderRadius: 'var(--mk-radius-chip)',
-                    border: '1px dashed var(--mk-border-strong)',
-                    color: 'var(--mk-text-muted)',
-                    fontSize: '0.625rem',
-                    letterSpacing: '0.1em',
-                  }
-            }
-          >
-            {venue ?? 'VENUE LOGO'}
-          </div>
+      <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-10 gap-y-7 md:gap-x-14">
+        {VENUES.map(venue => (
+          <li key={venue.name} className="flex items-center">
+            <img
+              src={venue.src}
+              /* The venue name is the information here — a decorative alt would
+                 make the row meaningless to anyone not looking at it. */
+              alt={venue.name}
+              className="h-6 w-auto md:h-7"
+              style={{ opacity: 0.72 }}
+              loading="lazy"
+              decoding="async"
+            />
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
