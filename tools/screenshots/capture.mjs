@@ -76,14 +76,32 @@ const column = (page, title) =>
  */
 async function selectStore(page, name) {
   const nav = page.locator('header, nav').first();
-  if (await nav.getByText(name, { exact: true }).count()) return;
+
+  /*
+   * Wait for the navbar to exist before looking in it. This runs moments after
+   * domcontentloaded, and React hasn't painted yet — counting buttons at that
+   * point finds none and concludes the account isn't an admin, which is a very
+   * convincing wrong answer.
+   */
+  const trigger = nav.locator('button').first();
+  try {
+    await trigger.waitFor({ state: 'visible', timeout: 15_000 });
+  } catch {
+    throw new Error('navbar never rendered — is the dev server serving the app?');
+  }
+
+  /*
+   * A store admin opens on their first venue, so for a single-venue account
+   * the right one is already showing — but not the instant the navbar appears.
+   * Give it a moment before deciding to go and click the dropdown.
+   */
+  try {
+    await nav.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 5_000 });
+    return;
+  } catch { /* not auto-selected — pick it by hand below */ }
 
   // The trigger has no text when nothing is selected — it renders as an icon
   // alone — so it can't be found by its label.
-  const trigger = nav.locator('button').first();
-  if (!(await trigger.count())) {
-    throw new Error('no venue selector in the navbar — is this session a store admin?');
-  }
   await trigger.click();
 
   const item = page.getByText(name, { exact: true }).first();
@@ -94,6 +112,31 @@ async function selectStore(page, name) {
   if (!(await nav.getByText(name, { exact: true }).count())) {
     throw new Error(`selected "${name}" but the navbar doesn't show it`);
   }
+}
+
+/**
+ * Switch the home screen back to the personal view.
+ *
+ * Marcus admins Burrow Games so that one session can shoot both sides, and a
+ * store admin's home screen opens on their first venue. Which means the PLAYER
+ * shots now have to ask for the personal view explicitly — without this, every
+ * one of them photographs the venue columns.
+ *
+ * Unlike selectStore this doesn't verify the navbar afterwards: with nothing
+ * selected the picker shows an icon and no venue name, so there's nothing to
+ * assert against. The shot's own waitFor covers it — "Your Bookings" only
+ * exists in the personal view.
+ */
+async function selectPersonal(page) {
+  const nav = page.locator('header, nav').first();
+  const trigger = nav.locator('button').first();
+  await trigger.waitFor({ state: 'visible', timeout: 15_000 });
+  await trigger.click();
+
+  const item = page.getByText('Your Profile', { exact: true }).first();
+  await item.waitFor({ state: 'visible', timeout: 5_000 });
+  await item.click();
+  await page.waitForTimeout(600);
 }
 
 /** Who a saved session actually belongs to. */
@@ -124,23 +167,30 @@ function sessionEmail(state) {
  */
 async function hideAppChrome(page) {
   await page.addStyleTag({ content: 'footer.uppercase { display: none !important; }' });
+}
 
-  /*
-   * No CSS selector matches on text, so the column goes via the DOM — and it
-   * has to keep going. This runs before React has painted, and the columns
-   * re-render afterwards anyway (switching venue rebuilds them), so a one-shot
-   * removal finds nothing and the column is back by the time the shutter fires.
-   * An observer survives both.
-   */
-  await page.evaluate(() => {
-    const drop = () => {
-      for (const col of document.querySelectorAll('div.snap-start')) {
-        if (col.textContent?.includes('News & Updates')) col.remove();
-      }
-    };
-    drop();
-    new MutationObserver(drop).observe(document.body, { childList: true, subtree: true });
+/**
+ * Drop the News & Updates column.
+ *
+ * Called immediately before the shutter, which is the only moment it has to be
+ * gone. Earlier attempts got this wrong twice in opposite directions: a one-shot
+ * removal straight after navigation ran before React had painted and found
+ * nothing, and a MutationObserver that re-ran on every DOM change ground the
+ * home screen to a halt — full document scans against five columns of rendering
+ * meant the navbar never reported itself visible and the whole page timed out.
+ *
+ * Doing it once, late, is both correct and free.
+ */
+async function dropNewsColumn(page) {
+  const removed = await page.evaluate(() => {
+    let n = 0;
+    for (const col of document.querySelectorAll('div.snap-start')) {
+      if (col.textContent?.includes('News & Updates')) { col.remove(); n++; }
+    }
+    return n;
   });
+  // Let the remaining columns re-flow into the space.
+  if (removed) await page.waitForTimeout(400);
 }
 
 /**
@@ -151,7 +201,15 @@ async function hideAppChrome(page) {
  * so every gallery shot has to click into it first.
  */
 async function galleryView(page) {
-  await page.getByRole('button', { name: /gallery view/i }).first().click();
+  const toggle = page.getByRole('button', { name: /gallery view/i }).first();
+  /*
+   * Wait for it explicitly. This runs straight after the view switch, and
+   * clicking into a layout that is still reflowing intermittently hangs until
+   * the 30s action timeout — it failed once in five runs before this.
+   */
+  await toggle.waitFor({ state: 'visible', timeout: 15_000 });
+  await page.waitForTimeout(400);
+  await toggle.click();
   // The column widens (wide={gallery}) and the images have to decode.
   await page.waitForTimeout(1200);
 }
@@ -205,20 +263,20 @@ const SHOTS = [
   { name: 'venue-stats-when',    profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Busiest Days',      clip: 'When' },
 
   /* Player side — Marcus Webb. */
-  { name: 'player-home',       profile: 'player', path: '/app',       waitFor: 'Your Battles', viewport: WIDE },
-  { name: 'player-bookings',   profile: 'player', path: '/app',       waitFor: 'Your Bookings',     clip: 'Your Bookings' },
-  { name: 'player-battles',    profile: 'player', path: '/app',       waitFor: 'Your Battles',      clip: 'Your Battles' },
-  { name: 'player-suggested',  profile: 'player', path: '/app',       waitFor: 'Suggested Battles', clip: 'Suggested Battles', optional: true },
+  { name: 'player-home',       profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles', viewport: WIDE },
+  { name: 'player-bookings',   profile: 'player', path: '/app', personal: true,       waitFor: 'Your Bookings',     clip: 'Your Bookings' },
+  { name: 'player-battles',    profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles',      clip: 'Your Battles' },
+  { name: 'player-suggested',  profile: 'player', path: '/app', personal: true,       waitFor: 'Suggested Battles', clip: 'Suggested Battles', optional: true },
   /* The gallery view — photo-backed cards. The best-looking screen in the app,
      and the one the landing page's battle-log section is written around. */
-  { name: 'player-battles-gallery', profile: 'player', path: '/app', waitFor: 'Your Battles',
+  { name: 'player-battles-gallery', profile: 'player', path: '/app', personal: true, waitFor: 'Your Battles',
     viewport: WIDE, prepare: galleryView, clip: 'Your Battles' },
-  { name: 'player-home-gallery',    profile: 'player', path: '/app', waitFor: 'Your Battles',
+  { name: 'player-home-gallery',    profile: 'player', path: '/app', personal: true, waitFor: 'Your Battles',
     viewport: WIDE, prepare: galleryView },
   { name: 'player-stats',      profile: 'player', path: '/app/stats', waitFor: 'Win / Loss' },
   { name: 'player-stats-overall',    profile: 'player', path: '/app/stats', waitFor: 'Win / Loss',   clip: 'Overall' },
   { name: 'player-stats-best-worst', profile: 'player', path: '/app/stats', waitFor: 'Best Games',   clip: 'Best & Worst' },
-  { name: 'player-home-mobile',      profile: 'player', path: '/app',       waitFor: 'Your Battles', viewport: MOBILE },
+  { name: 'player-home-mobile',      profile: 'player', path: '/app', personal: true,       waitFor: 'Your Battles', viewport: MOBILE },
 ];
 
 /* ── Run ─────────────────────────────────────────────────────────────────── */
@@ -287,6 +345,7 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
       // Before prepare(), so a toggle click isn't measured against a layout
       // that's about to lose a column.
       if (needsAuth) await hideAppChrome(page);
+      if (shot.personal) await selectPersonal(page);
       if (shot.store) await selectStore(page, shot.store);
       if (shot.prepare) await shot.prepare(page);
       if (shot.reveal) await revealAll(page);
@@ -296,6 +355,7 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
 
       // Let images decode and any transition settle before the shutter.
       await page.waitForTimeout(500);
+      if (needsAuth) await dropNewsColumn(page);
 
       const file = resolve(OUT, `${shot.name}.png`);
       // fullPage is a page-level option; a clipped shot is already bounded by

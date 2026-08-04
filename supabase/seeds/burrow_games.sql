@@ -33,8 +33,17 @@ alter table public.bookings disable trigger bookings_notify_created;
 alter table public.bookings disable trigger bookings_notify_cancelled;
 
 -- ── The venue ───────────────────────────────────────────────────────────────
--- admins is the platform owner, so the venue is reachable in the app for
--- screenshots. store_email is a real address we own, per the test-venue rule.
+--
+-- store_email is a real address we own, per the test-venue rule.
+--
+-- Two admins. The platform owner, so the venue is reachable from a real
+-- account — and Marcus, so one session covers both sides of the screenshots.
+-- The venue shots previously needed a second login, and having two saved
+-- sessions for two different accounts is exactly how the player's session
+-- ended up saved as the venue's.
+--
+-- Marcus being a venue admin is also true to life: plenty of shop staff play
+-- at their own store.
 
 insert into public.locations (id, name, address, store_email, is_test, admins)
 values (
@@ -43,7 +52,10 @@ values (
   '14 Warren Street, Fitzroy VIC 3065',
   'chris.bam.harrison@gmail.com',
   true,
-  array['c0fab326-f180-4fe6-bf1b-87c069be3794'::uuid]
+  array[
+    'c0fab326-f180-4fe6-bf1b-87c069be3794'::uuid,
+    'b0770000-0000-4000-b000-000000000001'::uuid
+  ]
 )
 on conflict (id) do update
   set name        = excluded.name,
