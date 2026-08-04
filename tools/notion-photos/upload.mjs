@@ -18,8 +18,20 @@
 // Review dates and undated pages are excluded: they have no agreed battle to
 // attach to.
 
-import { readFile, writeFile, mkdir, copyFile, rm } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, copyFile, rm, stat } from 'node:fs/promises'
 import { join, extname, basename } from 'node:path'
+import sharp from 'sharp'
+
+// Straight from a phone these average ~3.8MB, against ~630KB for the photos
+// already in the bucket. They're shown as card backgrounds and in a carousel,
+// including in the Android app, so full resolution is wasted bytes on every
+// render. 2000px on the long edge is still more than the lightbox needs.
+//
+// .rotate() before anything else is load-bearing: it bakes in EXIF orientation.
+// Re-encoding drops the metadata, so without it every photo a phone recorded as
+// "rotate 90°" would come out on its side.
+const MAX_EDGE = 2000
+const QUALITY = 82
 
 const here = (name) => new URL(`./${name}`, import.meta.url)
 const read = async (name) => JSON.parse(await readFile(here(name), 'utf8'))
@@ -51,6 +63,9 @@ await mkdir(stageDir, { recursive: true })
 const rows = []
 const rejected = []
 let staged = 0
+let keptOriginal = 0
+let bytesBefore = 0
+let bytesAfter = 0
 
 for (const match of manifest.matches) {
   const page = meta.get(match.page_id)
@@ -72,8 +87,29 @@ for (const match of manifest.matches) {
       continue
     }
 
-    const name = `notion-${match.page_id}-${i}.${ext}`
-    await copyFile(file, join(stageDir, name))
+    // Shrink, unless doing so would make the file bigger — which happens with
+    // small PNG screenshots, where JPEG has nothing to gain.
+    const original = (await stat(file)).size
+    let name = `notion-${match.page_id}-${i}.jpg`
+    let out = join(stageDir, name)
+
+    await sharp(file)
+      .rotate()
+      .resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: QUALITY, mozjpeg: true })
+      .toFile(out)
+
+    const shrunk = (await stat(out)).size
+    if (shrunk >= original) {
+      await rm(out)
+      name = `notion-${match.page_id}-${i}.${ext}`
+      out = join(stageDir, name)
+      await copyFile(file, out)
+      keptOriginal++
+    }
+
+    bytesBefore += original
+    bytesAfter += (await stat(out)).size
     staged++
 
     rows.push({
@@ -130,7 +166,11 @@ const migration = new URL(
 )
 await writeFile(migration, sql)
 
+const mb = (n) => `${(n / 1024 / 1024).toFixed(0)} MB`
+
 console.log(`Staged:     ${staged} files → ${stageDir}`)
+console.log(`Size:       ${mb(bytesBefore)} → ${mb(bytesAfter)}  (${(bytesBefore / bytesAfter).toFixed(1)}x smaller)`)
+console.log(`Kept as-is: ${keptOriginal} (re-encoding would have grown them)`)
 console.log(`Rows:       ${rows.length} battle_images inserts`)
 console.log(`Battles:    ${new Set(rows.map(r => r.battle_id)).size}`)
 console.log(`Rejected:   ${rejected.length}`)

@@ -10,3 +10,7 @@ match-manifest.json
 # The photos themselves never live in the repo — download.mjs puts them under
 # %LOCALAPPDATA%\notion-battle-photos by default.
 photos/
+
+# sharp is installed here ad hoc for the one-off resize in upload.mjs
+node_modules/
+package-lock.json
