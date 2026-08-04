@@ -37,7 +37,23 @@ const OUT  = resolve(HERE, '..', '..', 'apps/battleplan/src/marketing/assets/sho
  *          Cropping deliberately, from the top, keeps the header and the first
  *          few rows — which is the part worth showing.
  */
+/*
+ * Game icons for the interactive booking demo.
+ *
+ * `from` points outside the capture folder — these aren't screenshots, they're
+ * the app's own game artwork. Copied and shrunk rather than imported from
+ * packages/ui, because the marketing system shares no modules with the app; and
+ * shrunk hard, because they render at 40px and the Necromunda original is 37KB.
+ */
+const ICON_DIR = resolve(HERE, '..', '..', 'packages/ui/src/assets/games/icons');
+
 const ASSETS = [
+  { from: ICON_DIR, src: 'Battletech',            out: 'icons/battletech',  width: 96 },
+  { from: ICON_DIR, src: 'Bolt Action Icon',      out: 'icons/bolt-action', width: 96 },
+  { from: ICON_DIR, src: 'Blood Bowl Icon',       out: 'icons/blood-bowl',  width: 96 },
+  { from: ICON_DIR, src: 'Warhammer 40,000 Icon', out: 'icons/40k',         width: 96 },
+  { from: ICON_DIR, src: 'Necromunda Icon',       out: 'icons/necromunda',  width: 96 },
+
   /*
    * Mobile heroes. A four-column desktop capture rendered at 324px on a phone
    * is an illegible smear — it says "an app exists" and nothing else. These are
@@ -70,12 +86,14 @@ await mkdir(OUT, { recursive: true });
 let before = 0, after = 0;
 
 for (const asset of ASSETS) {
-  const srcPath = resolve(IN, `${asset.src}.png`);
+  // `from` lets an entry pull in something that isn't a capture — the game
+  // icons come out of the app's own asset folder.
+  const srcPath = resolve(asset.from ?? IN, `${asset.src}.png`);
   let png;
   try {
     png = await readFile(srcPath);
   } catch {
-    console.error(`  MISSING ${asset.src}.png — run capture.mjs first`);
+    console.error(`  MISSING ${asset.src}.png ${asset.from ? '(source asset)' : '— run capture.mjs first'}`);
     continue;
   }
   before += png.length;
@@ -106,7 +124,9 @@ for (const asset of ASSETS) {
 
   const webp = Buffer.from(webpBase64, 'base64');
   after += webp.length;
-  await writeFile(resolve(OUT, `${asset.out}.webp`), webp);
+  const outPath = resolve(OUT, `${asset.out}.webp`);
+  await mkdir(dirname(outPath), { recursive: true });
+  await writeFile(outPath, webp);
 
   const pct = Math.round((1 - webp.length / png.length) * 100);
   console.log(
@@ -117,7 +137,7 @@ for (const asset of ASSETS) {
 
 await browser.close();
 
-const files = (await readdir(OUT)).filter(f => f.endsWith('.webp'));
+const files = ASSETS;
 console.log(
   `\n  ${files.length} assets, ${Math.round(before / 1024)} KB -> ${Math.round(after / 1024)} KB total\n  ${OUT}\n`
 );

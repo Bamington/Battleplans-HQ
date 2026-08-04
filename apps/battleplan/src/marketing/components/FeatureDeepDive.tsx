@@ -23,6 +23,7 @@ export function FeatureDeepDive({
   alt,
   aspect,
   narrowImage = false,
+  demo,
   children,
 }: {
   eyebrow: string;
@@ -44,6 +45,11 @@ export function FeatureDeepDive({
   aspect?: string;
   /** Pull the frame in to 80% of its column. For the tall portrait shots. */
   narrowImage?: boolean;
+  /**
+   * An interactive replica shown instead of a screenshot. Brings its own frame.
+   * Used once, deliberately — see BookingsDemo on why this is not the default.
+   */
+  demo?: React.ReactNode;
   /** Anything that belongs under the bullets — the Callout, usually. */
   children?: React.ReactNode;
 }) {
@@ -81,13 +87,17 @@ export function FeatureDeepDive({
           treatment, which was the one that already worked.
         */}
         <div className={narrowImage ? 'mx-auto w-4/5 max-w-[300px] lg:w-full lg:max-w-none' : ''}>
-          <ScreenshotFrame
-            mock={mock}
-            src={src}
-            srcMobile={srcMobile}
-            alt={alt}
-            aspect={aspect ?? 'aspect-[4/3]'}
-          />
+          {/* A demo brings its own frame and caption, so it replaces the
+              screenshot outright rather than rendering inside one. */}
+          {demo ?? (
+            <ScreenshotFrame
+              mock={mock}
+              src={src}
+              srcMobile={srcMobile}
+              alt={alt}
+              aspect={aspect ?? 'aspect-[4/3]'}
+            />
+          )}
         </div>
       </Reveal>
 

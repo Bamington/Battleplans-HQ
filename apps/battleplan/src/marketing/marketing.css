@@ -478,6 +478,170 @@
 }
 
 /*
+ * ── Interactive demo ───────────────────────────────────────────────────
+ *
+ * The one section that's a replica rather than a photograph. These are APP
+ * colours, not marketing tokens — same reasoning as AppMock: the thing inside
+ * the frame is standing in for a screenshot, and a screenshot is app-coloured.
+ * Keeping them here as literals rather than adding --mk-* names is on purpose;
+ * they belong to the other design system.
+ */
+.mk-demo {
+  --app-bg:     #030712;
+  --app-panel:  #111827;
+  --app-line:   #1f2937;
+  --app-row:    #0b1220;
+  --app-accent: #8b5cf6;
+  --app-text:   #f9fafb;
+  --app-muted:  #6b7280;
+
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  background: var(--app-bg);
+  font-family: var(--mk-font-ui);
+}
+
+.mk-demo-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  gap: 12px;
+  background: var(--app-panel);
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+}
+
+.mk-demo-head { text-align: center; }
+
+.mk-demo-head-icon {
+  display: inline-flex;
+  color: var(--app-accent);
+}
+.mk-demo-head-icon svg { width: 26px; height: 26px; }
+
+.mk-demo-title {
+  margin-top: 4px;
+  font-family: var(--mk-font-display);
+  font-size: 1.0625rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-demo-sub {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #9ca3af;
+}
+
+/*
+ * Scrolls on a pointer device, clips on a phone.
+ *
+ * A scrollable region inside a scrolling page traps touch scrolling — the
+ * reader swipes to move the page and moves the list instead. Nobody is going to
+ * play with a demo mid-scroll on a phone anyway, so below md it just shows the
+ * top of the list and behaves exactly like the screenshot it replaced.
+ */
+.mk-demo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+@media (min-width: 768px) and (pointer: fine) {
+  .mk-demo-list {
+    overflow-y: auto;
+    /* Don't hand the scroll back to the page when the list bottoms out. */
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-line) transparent;
+    /*
+     * Fade the last row out at the bottom edge. Without it there's nothing to
+     * say the list continues — a demo nobody realises they can scroll is just
+     * a screenshot that cost more to build.
+     */
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+  }
+}
+
+.mk-demo-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.mk-demo-row:hover { border-color: #374151; }
+
+.mk-demo-row:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-demo-row.is-selected {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: var(--app-accent);
+}
+
+.mk-demo-row-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.mk-demo-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-demo-row-game {
+  font-family: var(--mk-font-display);
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-demo-row-venue { font-size: 0.75rem; color: var(--app-muted); }
+.mk-demo-row-when  { font-size: 0.75rem; color: #d1d5db; }
+
+.mk-demo-row-detail {
+  margin-top: 6px;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mk-accent-300);
+}
+
+.mk-demo-foot {
+  flex-shrink: 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--app-accent);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 999px;
+}
+
+/*
  * ── Skip link ──────────────────────────────────────────────────────────
  * Off-screen until focused. The nav is short, but a keyboard user shouldn't
  * have to tab past it on every page to reach the content.

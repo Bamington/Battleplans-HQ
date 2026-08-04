@@ -18,6 +18,7 @@ import { TileGrid, type Tile } from '../components/TileGrid';
 import { SuiteSection } from '../components/SuiteSection';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
+import { BookingsDemo } from '../components/demos/BookingsDemo';
 import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
 
 /*
@@ -142,6 +143,9 @@ export default function LandingPage() {
             'Your usual store remembered, so you can stop picking it every time',
           ]}
           imageSide="left"
+          /* The one interactive section. shotBookings stays imported so
+             swapping back to the screenshot is a one-line change. */
+          demo={<BookingsDemo />}
           src={shotBookings}
           alt="The bookings column, listing tables booked at Burrow Games with the game and timeslot for each."
           aspect={COLUMN}
