@@ -48,8 +48,16 @@ async function notion(path) {
 }
 
 /** Resolve a relation's page id to its title, cached — the same handful of
- *  games and people repeat across all 300 rows. */
+ *  games and people repeat across all 300 rows.
+ *
+ *  Relation targets live in *other* databases (Games, Players), and a Notion
+ *  integration sees nothing that hasn't been explicitly shared with it. Sharing
+ *  the Tabletop Games database alone leaves every one of these 404ing, which
+ *  silently empties the game and opponent fields — so unresolved ids are
+ *  counted and reported rather than swallowed. */
 const titles = new Map()
+const unresolved = new Map()
+
 async function titleOf(pageId) {
   if (titles.has(pageId)) return titles.get(pageId)
 
@@ -58,9 +66,8 @@ async function titleOf(pageId) {
     const page = await notion(`pages/${pageId}`)
     const prop = Object.values(page.properties ?? {}).find(p => p.type === 'title')
     title = prop?.title?.map(t => t.plain_text).join('') || null
-  } catch {
-    // A deleted or inaccessible relation target shouldn't sink the run.
-    title = null
+  } catch (err) {
+    unresolved.set(pageId, String(err.message ?? err))
   }
 
   titles.set(pageId, title)
@@ -195,6 +202,21 @@ console.log(`Pages processed:  ${metadata.length}`)
 console.log(`Photos on disk:   ${totalFiles}  (${downloaded} new, ${skipped} already there)`)
 console.log(`Pages with none:  ${missing.length}${missing.length ? ' — re-run to retry' : ''}`)
 console.log(`Games resolved:   ${new Set(metadata.map(m => m.game).filter(Boolean)).size}`)
+console.log(`Opponents found:  ${metadata.filter(m => m.players.length).length} pages`)
+
+if (unresolved.size) {
+  console.log('')
+  console.log(`!! ${unresolved.size} relation target(s) could not be read.`)
+  console.log('   Game and opponent will be blank, which drops the matcher back to')
+  console.log('   date-only. The Game and Players relations point at OTHER databases,')
+  console.log('   and an integration sees only what is shared with it explicitly.')
+  console.log('')
+  console.log('   Fix: share the parent page (The Vault) with the integration —')
+  console.log('   ••• → Connections — then re-run. Images already on disk are skipped,')
+  console.log('   so the second pass only refetches metadata.')
+  console.log('')
+  console.log(`   First failure: ${[...unresolved.entries()][0].join(' → ')}`)
+}
 console.log('')
 console.log(`Photos in ${PHOTO_DIR}`)
 console.log('Metadata written to tools/notion-photos/metadata.json')
