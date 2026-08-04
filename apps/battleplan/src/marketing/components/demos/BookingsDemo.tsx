@@ -31,6 +31,17 @@ interface Booking {
   date: string;
   time: string;
   table: string;
+  /**
+   * The friend invited to this booking, as an @handle.
+   *
+   * Half the rows have nobody, on purpose: a list where every booking already
+   * has someone attached says nothing about the feature, whereas the empty
+   * half is what makes the filled half legible as a thing you can do.
+   *
+   * The handles are the fixture friends, so a reader who reaches the friends
+   * section further down meets the same people.
+   */
+  invited?: string;
 }
 
 /*
@@ -49,15 +60,15 @@ interface Booking {
  * a Tuesday is exactly the detail this audience would spot.
  */
 const BOOKINGS: Booking[] = [
-  { id: 'b1',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Guf Werribee',         date: 'Friday 07/08/26',   time: '6:00 PM – 10:00 PM', table: 'Table 3' },
+  { id: 'b1',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Guf Werribee',         date: 'Friday 07/08/26',   time: '6:00 PM – 10:00 PM', table: 'Table 3', invited: '@tomashworth' },
   { id: 'b2',  game: 'Battletech',       icon: iconBattletech, venue: 'Top Table Games',      date: 'Saturday 15/08/26', time: '3:00 PM – 6:00 PM',  table: 'Table 1' },
-  { id: 'b3',  game: 'Necromunda',       icon: iconNecromunda, venue: 'Burrow Games',         date: 'Sunday 23/08/26',   time: '10:30 AM – 3:00 PM', table: 'Table 5' },
+  { id: 'b3',  game: 'Necromunda',       icon: iconNecromunda, venue: 'Burrow Games',         date: 'Sunday 23/08/26',   time: '10:30 AM – 3:00 PM', table: 'Table 5', invited: '@elliezhang' },
   { id: 'b4',  game: 'Warhammer 40,000', icon: icon40k,        venue: 'Mini Myths Clubhouse', date: 'Friday 04/09/26',   time: '6:00 PM – 10:00 PM', table: 'Table 2' },
-  { id: 'b5',  game: 'Bolt Action',      icon: iconBoltAction, venue: 'Victorius',            date: 'Saturday 12/09/26', time: '3:00 PM – 6:00 PM',  table: 'Table 4' },
+  { id: 'b5',  game: 'Bolt Action',      icon: iconBoltAction, venue: 'Victorius',            date: 'Saturday 12/09/26', time: '3:00 PM – 6:00 PM',  table: 'Table 4', invited: '@priyanair' },
   { id: 'b6',  game: 'Warhammer 40,000', icon: icon40k,        venue: 'Guf Werribee',         date: 'Friday 02/10/26',   time: '6:00 PM – 10:00 PM', table: 'Table 6' },
-  { id: 'b7',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Burrow Games',         date: 'Saturday 17/10/26', time: '3:00 PM – 6:00 PM',  table: 'Table 1' },
+  { id: 'b7',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Burrow Games',         date: 'Saturday 17/10/26', time: '3:00 PM – 6:00 PM',  table: 'Table 1', invited: '@hannahfoster' },
   { id: 'b8',  game: 'Battletech',       icon: iconBattletech, venue: 'Top Table Games',      date: 'Sunday 08/11/26',   time: '10:30 AM – 3:00 PM', table: 'Table 3' },
-  { id: 'b9',  game: 'Necromunda',       icon: iconNecromunda, venue: 'Mini Myths Clubhouse', date: 'Friday 20/11/26',   time: '6:00 PM – 10:00 PM', table: 'Table 2' },
+  { id: 'b9',  game: 'Necromunda',       icon: iconNecromunda, venue: 'Mini Myths Clubhouse', date: 'Friday 20/11/26',   time: '6:00 PM – 10:00 PM', table: 'Table 2', invited: '@robsinclair' },
   { id: 'b10', game: 'Bolt Action',      icon: iconBoltAction, venue: 'Victorius',            date: 'Saturday 05/12/26', time: '3:00 PM – 6:00 PM',  table: 'Table 5' },
 ];
 
@@ -172,6 +183,15 @@ export function BookingsDemo() {
                     <div><dt>When</dt><dd>{open.date}</dd></div>
                     <div><dt>Time</dt><dd>{open.time}</dd></div>
                     <div><dt>Table</dt><dd>{open.table}</dd></div>
+                    {/* Shown either way. "Nobody yet" is what tells a reader
+                        this is something they could do, rather than a field
+                        that happens to be filled in on some rows. */}
+                    <div>
+                      <dt>Invited</dt>
+                      <dd className={open.invited ? 'mk-demo-dialog-handle' : 'mk-demo-dialog-none'}>
+                        {open.invited ?? 'Nobody yet'}
+                      </dd>
+                    </div>
                     <div><dt>Status</dt><dd className="mk-demo-dialog-ok">Confirmed</dd></div>
                   </dl>
 

@@ -703,6 +703,8 @@
 .mk-demo-dialog-rows dt { color: var(--app-muted); }
 .mk-demo-dialog-rows dd { color: #e5e7eb; }
 .mk-demo-dialog-ok { color: #34d399; }
+.mk-demo-dialog-handle { color: var(--app-accent); }
+.mk-demo-dialog-none { color: var(--app-muted); font-style: italic; }
 
 .mk-demo-dialog-actions {
   display: flex;
