@@ -20,7 +20,7 @@
  */
 
 import { chromium } from 'playwright';
-import { mkdir, access } from 'node:fs/promises';
+import { mkdir, access, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,23 +60,50 @@ const WIDE = { width: 2200, height: 1300 };
  * wrapper.
  */
 const column = (page, title) =>
-  page.locator('div.snap-start').filter({ hasText: title }).first();
+  page.locator('div.snap-start').filter({
+    // Matched on the column's HEADING, not on any text inside it. A substring
+    // match picks up descriptions too — clip: 'Tables' cheerfully returned the
+    // bookings column, because its description begins "Tables you've booked".
+    has: page.getByRole('heading', { name: title, exact: true }),
+  }).first();
 
-/** Pick a venue in the navbar dropdown, unless it's already showing. */
+/**
+ * Pick a venue in the navbar dropdown.
+ *
+ * Throws rather than warns. A venue shot with the wrong venue selected — or
+ * with none, which lands you on the player home — is a plausible-looking image
+ * of the wrong thing, and that is worse than a missing file.
+ */
 async function selectStore(page, name) {
-  const header = page.locator('header, nav').first();
-  if (await header.getByText(name, { exact: true }).count()) return;
+  const nav = page.locator('header, nav').first();
+  if (await nav.getByText(name, { exact: true }).count()) return;
 
-  const trigger = header.locator('button').filter({ hasText: /\S/ }).first();
+  // The trigger has no text when nothing is selected — it renders as an icon
+  // alone — so it can't be found by its label.
+  const trigger = nav.locator('button').first();
   if (!(await trigger.count())) {
-    console.warn(`    ! no venue selector found; leaving whatever is selected`);
-    return;
+    throw new Error('no venue selector in the navbar — is this session a store admin?');
   }
   await trigger.click();
+
   const item = page.getByText(name, { exact: true }).first();
   await item.waitFor({ state: 'visible', timeout: 5_000 });
   await item.click();
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(600);
+
+  if (!(await nav.getByText(name, { exact: true }).count())) {
+    throw new Error(`selected "${name}" but the navbar doesn't show it`);
+  }
+}
+
+/** Who a saved session actually belongs to. */
+function sessionEmail(state) {
+  const kv = state.origins.flatMap(o => o.localStorage).find(k => /auth-token$/.test(k.name));
+  if (!kv) return null;
+  const raw = kv.value.startsWith('base64-')
+    ? Buffer.from(kv.value.slice(7), 'base64').toString()
+    : kv.value;
+  try { return JSON.parse(raw).user?.email ?? null; } catch { return null; }
 }
 
 /**
@@ -225,7 +252,18 @@ for (const profile of [...new Set(wanted.map(s => s.profile))]) {
     continue;
   }
 
-  console.log(`\n  ${profile}`);
+  /*
+   * Say whose session this is. Both profiles were once saved as the same
+   * account — a browser password manager helpfully autofilled the wrong one —
+   * and every venue shot came out as a photograph of the player screen with a
+   * venue filename. Printing it makes that obvious in one glance.
+   */
+  if (needsAuth) {
+    const email = sessionEmail(JSON.parse(await readFile(statePath, 'utf8')));
+    console.log(`\n  ${profile} — signed in as ${email ?? 'unknown'}`);
+  } else {
+    console.log(`\n  ${profile}`);
+  }
 
   for (const shot of shots) {
     const context = await browser.newContext({

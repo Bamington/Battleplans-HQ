@@ -88,6 +88,26 @@ await page.waitForFunction(
 );
 
 await context.storageState({ path: statePath });
-console.log(`  Saved ${profile} session to ${statePath}`);
+
+/*
+ * Report WHO was captured, not just that something was.
+ *
+ * A browser password manager will happily autofill the account you signed in
+ * with last time. That once put the player's session into the venue profile,
+ * and every venue shot came out as a convincing photograph of the player
+ * screen under a venue filename — the kind of mistake that survives all the
+ * way to a published page.
+ */
+const email = await page.evaluate(() => {
+  const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+  if (!key) return null;
+  const raw = localStorage.getItem(key);
+  const json = raw.startsWith('base64-') ? atob(raw.slice(7)) : raw;
+  try { return JSON.parse(json).user?.email ?? null; } catch { return null; }
+});
+
+console.log(`  Saved ${profile} session for ${email ?? 'unknown account'}`);
+console.log(`  ${statePath}`);
+if (email) console.log(`\n  Check that's the account you meant before capturing.`);
 
 await browser.close();
