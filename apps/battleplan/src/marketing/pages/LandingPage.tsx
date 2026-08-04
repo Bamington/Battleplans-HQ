@@ -146,6 +146,7 @@ export default function LandingPage() {
           /* The one interactive section. shotBookings stays imported so
              swapping back to the screenshot is a one-line change. */
           demo={<BookingsDemo />}
+          wideFrame
           src={shotBookings}
           alt="The bookings column, listing tables booked at Burrow Games with the game and timeslot for each."
           aspect={COLUMN}

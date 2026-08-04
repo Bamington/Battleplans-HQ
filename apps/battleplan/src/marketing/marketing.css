@@ -520,12 +520,12 @@
   display: inline-flex;
   color: var(--app-accent);
 }
-.mk-demo-head-icon svg { width: 26px; height: 26px; }
+.mk-demo-head-icon svg { width: 32px; height: 32px; }
 
 .mk-demo-title {
   margin-top: 4px;
   font-family: var(--mk-font-display);
-  font-size: 1.0625rem;
+  font-size: 1.3125rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--app-text);
@@ -533,7 +533,7 @@
 
 .mk-demo-sub {
   margin-top: 4px;
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
   line-height: 1.4;
   color: #9ca3af;
 }
@@ -575,7 +575,7 @@
 
 .mk-demo-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   padding: 10px;
   text-align: left;
@@ -599,8 +599,8 @@
 }
 
 .mk-demo-row-icon {
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
   border-radius: 6px;
   object-fit: cover;
@@ -614,18 +614,18 @@
 
 .mk-demo-row-game {
   font-family: var(--mk-font-display);
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--app-text);
 }
 
-.mk-demo-row-venue { font-size: 0.75rem; color: var(--app-muted); }
-.mk-demo-row-when  { font-size: 0.75rem; color: #d1d5db; }
+.mk-demo-row-venue { font-size: 0.9375rem; color: var(--app-muted); }
+.mk-demo-row-when  { font-size: 0.9375rem; color: #d1d5db; }
 
 .mk-demo-row-detail {
   margin-top: 6px;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--mk-accent-300);
@@ -633,9 +633,9 @@
 
 .mk-demo-foot {
   flex-shrink: 0;
-  padding: 10px;
+  padding: 12px;
   text-align: center;
-  font-size: 0.8125rem;
+  font-size: 1rem;
   color: var(--app-accent);
   border: 1px solid rgba(139, 92, 246, 0.4);
   border-radius: 999px;

@@ -29,6 +29,7 @@ interface Booking {
   id: string;
   game: string;
   icon: string;
+  venue: string;
   date: string;
   time: string;
   /** Revealed on selection — the detail a real booking row hides until tapped. */
@@ -39,21 +40,29 @@ interface Booking {
  * Ten, where the fixture account has six.
  *
  * Six rows fit the frame exactly, which made a list built to be scrolled sit
- * there refusing to move — the one thing the section is demonstrating. The
- * extra four continue the same account's pattern rather than inventing a
- * different one.
+ * there refusing to move — the one thing the section is demonstrating.
+ *
+ * Five venues rather than one. This section stopped being a photograph of a
+ * single test account the moment it became code, and a player who only ever
+ * books at one shop undersells the thing the page is selling — "one place to
+ * book at any store" is a claim two panels up.
+ *
+ * Every date is a Friday night, a Saturday afternoon or a Sunday morning, and
+ * the weekday names are real for 2026 — a booking labelled Friday that fell on
+ * a Tuesday is exactly the detail this audience would spot. Times follow the
+ * slot: evenings 6–10, afternoons 3–6, mornings 10:30–3.
  */
 const BOOKINGS: Booking[] = [
-  { id: 'bt',  game: 'Battletech',       icon: iconBattletech, date: 'Wednesday 05/08/26', time: '3:00 PM – 6:00 PM',  table: 'Table 2' },
-  { id: 'ba1', game: 'Bolt Action',      icon: iconBoltAction, date: 'Thursday 06/08/26',  time: '6:00 PM – 10:00 PM', table: 'Table 4' },
-  { id: 'bb',  game: 'Blood Bowl',       icon: iconBloodBowl,  date: 'Thursday 06/08/26',  time: '6:00 PM – 10:00 PM', table: 'Table 1' },
-  { id: '40k', game: 'Warhammer 40,000', icon: icon40k,        date: 'Thursday 01/10/26',  time: '6:00 PM – 10:00 PM', table: 'Table 5' },
-  { id: 'nec', game: 'Necromunda',       icon: iconNecromunda, date: 'Thursday 15/10/26',  time: '6:00 PM – 10:00 PM', table: 'Table 3' },
-  { id: 'ba2', game: 'Bolt Action',      icon: iconBoltAction, date: 'Thursday 26/11/26',  time: '6:00 PM – 10:00 PM', table: 'Table 2' },
-  { id: 'bb2', game: 'Blood Bowl',       icon: iconBloodBowl,  date: 'Thursday 10/12/26',  time: '6:00 PM – 10:00 PM', table: 'Table 1' },
-  { id: '40k2', game: 'Warhammer 40,000', icon: icon40k,       date: 'Thursday 17/12/26',  time: '6:00 PM – 10:00 PM', table: 'Table 5' },
-  { id: 'bt2', game: 'Battletech',       icon: iconBattletech, date: 'Saturday 19/12/26',  time: '3:00 PM – 6:00 PM',  table: 'Table 4' },
-  { id: 'nec2', game: 'Necromunda',      icon: iconNecromunda, date: 'Wednesday 30/12/26', time: '6:00 PM – 10:00 PM', table: 'Table 3' },
+  { id: 'b1',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Guf Werribee',         date: 'Friday 07/08/26',   time: '6:00 PM – 10:00 PM', table: 'Table 3' },
+  { id: 'b2',  game: 'Battletech',       icon: iconBattletech, venue: 'Top Table Games',      date: 'Saturday 15/08/26', time: '3:00 PM – 6:00 PM',  table: 'Table 1' },
+  { id: 'b3',  game: 'Necromunda',       icon: iconNecromunda, venue: 'Burrow Games',         date: 'Sunday 23/08/26',   time: '10:30 AM – 3:00 PM', table: 'Table 5' },
+  { id: 'b4',  game: 'Warhammer 40,000', icon: icon40k,        venue: 'Mini Myths Clubhouse', date: 'Friday 04/09/26',   time: '6:00 PM – 10:00 PM', table: 'Table 2' },
+  { id: 'b5',  game: 'Bolt Action',      icon: iconBoltAction, venue: 'Victorius',            date: 'Saturday 12/09/26', time: '3:00 PM – 6:00 PM',  table: 'Table 4' },
+  { id: 'b6',  game: 'Warhammer 40,000', icon: icon40k,        venue: 'Guf Werribee',         date: 'Friday 02/10/26',   time: '6:00 PM – 10:00 PM', table: 'Table 6' },
+  { id: 'b7',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Burrow Games',         date: 'Saturday 17/10/26', time: '3:00 PM – 6:00 PM',  table: 'Table 1' },
+  { id: 'b8',  game: 'Battletech',       icon: iconBattletech, venue: 'Top Table Games',      date: 'Sunday 08/11/26',   time: '10:30 AM – 3:00 PM', table: 'Table 3' },
+  { id: 'b9',  game: 'Necromunda',       icon: iconNecromunda, venue: 'Mini Myths Clubhouse', date: 'Friday 20/11/26',   time: '6:00 PM – 10:00 PM', table: 'Table 2' },
+  { id: 'b10', game: 'Bolt Action',      icon: iconBoltAction, venue: 'Victorius',            date: 'Saturday 05/12/26', time: '3:00 PM – 6:00 PM',  table: 'Table 5' },
 ];
 
 export function BookingsDemo() {
@@ -62,9 +71,14 @@ export function BookingsDemo() {
   return (
     <div>
       <div className="mk-frame">
-        {/* Same shape as the column screenshots it sits among, so the section
-            reads identically whether it's a picture or a demo. */}
-        <div className="mk-frame-inner aspect-[9/21]">
+        {/*
+          Wider than the 9:21 screenshots it sits among, and not as tall as
+          widening at that ratio would make it — 20% more width at 9:21 would
+          stand 1120px high and tower over every neighbouring section. Holding
+          the height and letting the shape relax keeps the page's rhythm; the
+          crop that forced 9:21 on the screenshots doesn't apply to markup.
+        */}
+        <div className="mk-frame-inner aspect-[9/17]">
           <div className="mk-demo" role="group" aria-label="Interactive demo of the bookings screen">
             <div className="mk-demo-panel">
               <div className="mk-demo-head">
@@ -97,7 +111,7 @@ export function BookingsDemo() {
                         <img className="mk-demo-row-icon" src={booking.icon} alt="" />
                         <span className="mk-demo-row-text">
                           <span className="mk-demo-row-game">{booking.game}</span>
-                          <span className="mk-demo-row-venue">Burrow Games</span>
+                          <span className="mk-demo-row-venue">{booking.venue}</span>
                           <span className="mk-demo-row-when">{booking.date}</span>
                           <span className="mk-demo-row-when">{booking.time}</span>
                           {isSelected && (

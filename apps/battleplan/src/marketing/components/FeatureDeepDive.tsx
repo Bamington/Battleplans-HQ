@@ -23,6 +23,7 @@ export function FeatureDeepDive({
   alt,
   aspect,
   narrowImage = false,
+  wideFrame = false,
   demo,
   children,
 }: {
@@ -45,6 +46,11 @@ export function FeatureDeepDive({
   aspect?: string;
   /** Pull the frame in to 80% of its column. For the tall portrait shots. */
   narrowImage?: boolean;
+  /**
+   * A 20% wider image column. For the interactive demo, which renders real text
+   * at real sizes rather than a downscaled screenshot and needs the room.
+   */
+  wideFrame?: boolean;
   /**
    * An interactive replica shown instead of a screenshot. Brings its own frame.
    * Used once, deliberately — see BookingsDemo on why this is not the default.
@@ -73,9 +79,13 @@ export function FeatureDeepDive({
         // the stats page into 360px would make it unreadable.
         !narrowImage
           ? 'lg:grid-cols-2'
-          : imageFirst
-            ? 'lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr]'
-            : 'lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px]'
+          : wideFrame
+            ? imageFirst
+              ? 'lg:grid-cols-[432px_1fr] xl:grid-cols-[480px_1fr]'
+              : 'lg:grid-cols-[1fr_432px] xl:grid-cols-[1fr_480px]'
+            : imageFirst
+              ? 'lg:grid-cols-[360px_1fr] xl:grid-cols-[400px_1fr]'
+              : 'lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px]'
       }`}
     >
       <Reveal className={imageFirst ? 'lg:order-1' : 'lg:order-2'}>
@@ -86,7 +96,7 @@ export function FeatureDeepDive({
           bigger than life size. Capping it keeps a tablet closer to the phone
           treatment, which was the one that already worked.
         */}
-        <div className={narrowImage ? 'mx-auto w-4/5 max-w-[300px] lg:w-full lg:max-w-none' : ''}>
+        <div className={narrowImage ? `mx-auto w-4/5 lg:w-full lg:max-w-none ${wideFrame ? 'max-w-[360px]' : 'max-w-[300px]'}` : ''}>
           {/* A demo brings its own frame and caption, so it replaces the
               screenshot outright rather than rendering inside one. */}
           {demo ?? (
