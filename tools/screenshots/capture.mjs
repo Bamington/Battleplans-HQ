@@ -40,6 +40,14 @@ const BASE  = args.url ?? process.env.SHOTS_URL ?? 'http://localhost:5174';
 const SCALE = Number(args.scale ?? 2);
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE  = { width: 390, height: 844 };
+/*
+ * The home screen lays out five columns, each capped at max-w-sm (384px). At
+ * 1440 they're crushed to ~274 and almost every line truncates — "WARHAM…",
+ * "Against Tom Ash…". Five columns at their cap, plus gaps and page padding,
+ * needs about 2100, so the home shots get their own viewport rather than
+ * shipping a hero image full of ellipses.
+ */
+const WIDE = { width: 2200, height: 1300 };
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -104,7 +112,7 @@ const SHOTS = [
   { name: 'venue-page-full',       profile: 'public', path: '/venue',  waitFor: 'Your tables, booked.', fullPage: true, reveal: true },
 
   /* Venue side — a Burrow Games admin. */
-  { name: 'venue-home',          profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings" },
+  { name: 'venue-home',          profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", viewport: WIDE },
   { name: 'venue-today',         profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: "Today's Bookings", clip: "Today's Bookings" },
   { name: 'venue-upcoming',      profile: 'venue', path: '/app',              store: 'Burrow Games', waitFor: 'Upcoming Bookings', clip: 'Upcoming Bookings' },
   { name: 'venue-manage-store',  profile: 'venue', path: '/app/manage-store', store: 'Burrow Games', waitFor: 'Timeslots' },
@@ -117,7 +125,7 @@ const SHOTS = [
   { name: 'venue-stats-when',    profile: 'venue', path: '/app/store-stats',  store: 'Burrow Games', waitFor: 'Busiest Days',      clip: 'When' },
 
   /* Player side — Marcus Webb. */
-  { name: 'player-home',       profile: 'player', path: '/app',       waitFor: 'Your Battles' },
+  { name: 'player-home',       profile: 'player', path: '/app',       waitFor: 'Your Battles', viewport: WIDE },
   { name: 'player-bookings',   profile: 'player', path: '/app',       waitFor: 'Your Bookings',     clip: 'Your Bookings' },
   { name: 'player-battles',    profile: 'player', path: '/app',       waitFor: 'Your Battles',      clip: 'Your Battles' },
   { name: 'player-suggested',  profile: 'player', path: '/app',       waitFor: 'Suggested Battles', clip: 'Suggested Battles', optional: true },

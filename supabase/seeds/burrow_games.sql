@@ -532,4 +532,49 @@ join public.opponents o
   on o.user_id = 'b0770000-0000-4000-b000-000000000001'
  and o.name = i.opp_name;
 
+-- ── Friendships ─────────────────────────────────────────────────────────────
+--
+-- Without these, My Friends renders "No friends yet" — an empty column in the
+-- middle of the player home screen, which is the shot the landing page hero
+-- uses. The landing page also sells friends as a feature, so an empty column
+-- there is the worst possible thing to photograph.
+--
+-- Marcus is friends with six of the regulars. Not all nine, deliberately: a
+-- player who is friends with literally everyone they have ever played looks
+-- generated, and leaving three off means the friends list and the opponents
+-- list don't match, which is what real accounts look like.
+--
+-- Two pending rows as well, one in each direction, so the requests state has
+-- something in it — an incoming request from Josh Brennan for Marcus to accept,
+-- and an outgoing one to Amara Diallo he's still waiting on.
+--
+-- Scoped delete: only rows where both sides are invented accounts, so this can
+-- never touch a real person's friendships.
+
+delete from public.friendships f
+where exists (select 1 from auth.users u where u.id = f.requester_id and u.email like '%@burrow.test')
+   or exists (select 1 from auth.users u where u.id = f.addressee_id and u.email like '%@burrow.test');
+
+insert into public.friendships (requester_id, addressee_id, status, created_at, responded_at)
+values
+  -- Accepted. Mixed direction, because who sent the request is not something
+  -- a real friends list has any pattern to.
+  ('b0770000-0000-4000-b000-000000000001', 'b0770000-0000-4000-b000-000000000002', 'accepted', timestamptz '2026-02-11 20:15+11', timestamptz '2026-02-11 21:02+11'),
+  ('b0770000-0000-4000-b000-000000000003', 'b0770000-0000-4000-b000-000000000001', 'accepted', timestamptz '2026-02-19 19:40+11', timestamptz '2026-02-20 08:11+11'),
+  ('b0770000-0000-4000-b000-000000000001', 'b0770000-0000-4000-b000-000000000004', 'accepted', timestamptz '2026-03-05 18:25+11', timestamptz '2026-03-05 19:47+11'),
+  ('b0770000-0000-4000-b000-000000000006', 'b0770000-0000-4000-b000-000000000001', 'accepted', timestamptz '2026-04-02 21:10+11', timestamptz '2026-04-03 07:55+11'),
+  ('b0770000-0000-4000-b000-000000000001', 'b0770000-0000-4000-b000-000000000009', 'accepted', timestamptz '2026-05-14 20:05+10', timestamptz '2026-05-14 20:31+10'),
+  ('b0770000-0000-4000-b000-00000000000a', 'b0770000-0000-4000-b000-000000000001', 'accepted', timestamptz '2026-06-18 19:15+10', timestamptz '2026-06-18 22:40+10'),
+
+  -- Pending, one each way.
+  ('b0770000-0000-4000-b000-000000000007', 'b0770000-0000-4000-b000-000000000001', 'pending', timestamptz '2026-07-29 20:50+10', null),
+  ('b0770000-0000-4000-b000-000000000001', 'b0770000-0000-4000-b000-000000000008', 'pending', timestamptz '2026-08-01 18:05+10', null),
+
+  -- A few between the others, so the group isn't a star with Marcus at the
+  -- centre. Nobody screenshots these, but they cost nothing and mean any other
+  -- invented account is usable for a shot later without redoing this.
+  ('b0770000-0000-4000-b000-000000000002', 'b0770000-0000-4000-b000-000000000004', 'accepted', timestamptz '2026-03-12 19:00+11', timestamptz '2026-03-12 19:22+11'),
+  ('b0770000-0000-4000-b000-000000000003', 'b0770000-0000-4000-b000-000000000006', 'accepted', timestamptz '2026-04-22 20:35+10', timestamptz '2026-04-23 09:14+10'),
+  ('b0770000-0000-4000-b000-000000000009', 'b0770000-0000-4000-b000-00000000000a', 'accepted', timestamptz '2026-05-30 18:45+10', timestamptz '2026-05-30 20:02+10');
+
 commit;
