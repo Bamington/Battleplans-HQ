@@ -43,16 +43,16 @@ const OUT  = resolve(HERE, '..', '..', 'apps/battleplan/src/marketing/assets/sho
  * `from` points outside the capture folder — these aren't screenshots, they're
  * the app's own game artwork. Copied and shrunk rather than imported from
  * packages/ui, because the marketing system shares no modules with the app; and
- * shrunk hard, because they render at 40px and the Necromunda original is 37KB.
+ * sized for a 3x display at the 64px the detail dialog uses.
  */
 const ICON_DIR = resolve(HERE, '..', '..', 'packages/ui/src/assets/games/icons');
 
 const ASSETS = [
-  { from: ICON_DIR, src: 'Battletech',            out: 'icons/battletech',  width: 96 },
-  { from: ICON_DIR, src: 'Bolt Action Icon',      out: 'icons/bolt-action', width: 96 },
-  { from: ICON_DIR, src: 'Blood Bowl Icon',       out: 'icons/blood-bowl',  width: 96 },
-  { from: ICON_DIR, src: 'Warhammer 40,000 Icon', out: 'icons/40k',         width: 96 },
-  { from: ICON_DIR, src: 'Necromunda Icon',       out: 'icons/necromunda',  width: 96 },
+  { from: ICON_DIR, src: 'Battletech',            out: 'icons/battletech',  width: 192 },
+  { from: ICON_DIR, src: 'Bolt Action Icon',      out: 'icons/bolt-action', width: 192 },
+  { from: ICON_DIR, src: 'Blood Bowl Icon',       out: 'icons/blood-bowl',  width: 192 },
+  { from: ICON_DIR, src: 'Warhammer 40,000 Icon', out: 'icons/40k',         width: 192 },
+  { from: ICON_DIR, src: 'Necromunda Icon',       out: 'icons/necromunda',  width: 192 },
 
   /*
    * Mobile heroes. A four-column desktop capture rendered at 324px on a phone

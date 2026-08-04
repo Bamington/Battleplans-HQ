@@ -355,7 +355,14 @@
   transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1),
               border-color 320ms ease;
-  will-change: transform;
+  /*
+   * No will-change here.
+   *
+   * It was promoting every frame to its own compositor layer permanently, which
+   * turns off subpixel antialiasing — invisible on an <img>, which is already a
+   * raster, but it softened all the live text in the interactive demo. A
+   * permanent rendering cost to smooth an occasional hover is the wrong trade.
+   */
 }
 
 /*
@@ -478,6 +485,18 @@
 }
 
 /*
+ * The demo frame doesn't lift.
+ *
+ * Scaling a frame that contains a photograph is free — it's already pixels.
+ * Scaling one that contains live text resamples every glyph for as long as the
+ * pointer is over it, which is exactly when someone is reading it. The demo is
+ * a control now, not a picture, so it stays at 1:1 and keeps its glow.
+ */
+.mk-frame-live:hover {
+  transform: none;
+}
+
+/*
  * ── Interactive demo ───────────────────────────────────────────────────
  *
  * The one section that's a replica rather than a photograph. These are APP
@@ -495,6 +514,7 @@
   --app-text:   #f9fafb;
   --app-muted:  #6b7280;
 
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 12px;
@@ -575,6 +595,8 @@
 
 .mk-demo-row {
   display: flex;
+  /* Icon centred against the text block rather than pinned to its first line. */
+  align-items: center;
   gap: 12px;
   width: 100%;
   padding: 10px;
@@ -593,9 +615,117 @@
   outline-offset: 2px;
 }
 
-.mk-demo-row.is-selected {
-  background: rgba(139, 92, 246, 0.12);
-  border-color: var(--app-accent);
+/* ── Demo dialog ─────────────────────────────────────────────────────── */
+
+.mk-demo-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 7, 18, 0.72);
+  backdrop-filter: blur(3px);
+  animation: mk-demo-fade 160ms ease;
+}
+
+@keyframes mk-demo-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.mk-demo-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+  text-align: center;
+  background: var(--app-panel);
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7);
+}
+
+.mk-demo-dialog:focus { outline: none; }
+.mk-demo-dialog:focus-visible { outline: 2px solid var(--mk-accent-400); outline-offset: 3px; }
+
+.mk-demo-dialog-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--app-muted);
+  cursor: pointer;
+}
+.mk-demo-dialog-close:hover { color: var(--app-text); }
+.mk-demo-dialog-close svg { width: 16px; height: 16px; }
+
+.mk-demo-dialog-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.mk-demo-dialog-title {
+  margin-top: 12px;
+  font-family: var(--mk-font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-demo-dialog-venue {
+  margin-top: 2px;
+  font-size: 0.9375rem;
+  color: var(--app-muted);
+}
+
+.mk-demo-dialog-rows {
+  margin-top: 16px;
+  border-top: 1px solid var(--app-line);
+}
+
+.mk-demo-dialog-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--app-line);
+  font-size: 0.875rem;
+}
+
+.mk-demo-dialog-rows dt { color: var(--app-muted); }
+.mk-demo-dialog-rows dd { color: #e5e7eb; }
+.mk-demo-dialog-ok { color: #34d399; }
+
+.mk-demo-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.mk-demo-dialog-action {
+  padding: 9px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: var(--app-accent);
+}
+
+.mk-demo-dialog-action.is-danger {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f87171;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-demo-scrim { animation: none; }
 }
 
 .mk-demo-row-icon {
@@ -622,14 +752,6 @@
 
 .mk-demo-row-venue { font-size: 0.9375rem; color: var(--app-muted); }
 .mk-demo-row-when  { font-size: 0.9375rem; color: #d1d5db; }
-
-.mk-demo-row-detail {
-  margin-top: 6px;
-  font-size: 0.8125rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--mk-accent-300);
-}
 
 .mk-demo-foot {
   flex-shrink: 0;

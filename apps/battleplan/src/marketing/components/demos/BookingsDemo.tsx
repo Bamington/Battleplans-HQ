@@ -12,12 +12,10 @@
  * component, and the other four frames stay honest.
  *
  * Deliberately dumb: a hardcoded array and one piece of state. No fetching, no
- * app imports, no reducer. The data matches the Burrow Games fixture used by
- * every screenshot on the page, so a reader who scrolls between them sees one
- * coherent account rather than two different sets of invented people.
+ * app imports, no reducer.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import icon40k from '../../assets/shots/icons/40k.webp';
 import iconBattletech from '../../assets/shots/icons/battletech.webp';
@@ -32,7 +30,6 @@ interface Booking {
   venue: string;
   date: string;
   time: string;
-  /** Revealed on selection — the detail a real booking row hides until tapped. */
   table: string;
 }
 
@@ -49,8 +46,7 @@ interface Booking {
  *
  * Every date is a Friday night, a Saturday afternoon or a Sunday morning, and
  * the weekday names are real for 2026 — a booking labelled Friday that fell on
- * a Tuesday is exactly the detail this audience would spot. Times follow the
- * slot: evenings 6–10, afternoons 3–6, mornings 10:30–3.
+ * a Tuesday is exactly the detail this audience would spot.
  */
 const BOOKINGS: Booking[] = [
   { id: 'b1',  game: 'Blood Bowl',       icon: iconBloodBowl,  venue: 'Guf Werribee',         date: 'Friday 07/08/26',   time: '6:00 PM – 10:00 PM', table: 'Table 3' },
@@ -66,17 +62,36 @@ const BOOKINGS: Booking[] = [
 ];
 
 export function BookingsDemo() {
-  const [selected, setSelected] = useState<string | null>('bb');
+  const [open, setOpen] = useState<Booking | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  /* Where to send focus back to, so keyboard users don't lose their place. */
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+
+  const close = () => {
+    setOpen(null);
+    /* Put the caret back where it came from — a keyboard user who dismisses
+       this shouldn't be dropped at the top of the document. */
+    openerRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    dialogRef.current?.focus();
+    // Escape has to go through close(), not setOpen(null): dismissing with the
+    // keyboard is precisely the case where focus needs restoring.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   return (
     <div>
-      <div className="mk-frame">
+      {/* mk-frame-live: no hover scale, because scaling live text resamples it. */}
+      <div className="mk-frame mk-frame-live">
         {/*
           Wider than the 9:21 screenshots it sits among, and not as tall as
           widening at that ratio would make it — 20% more width at 9:21 would
-          stand 1120px high and tower over every neighbouring section. Holding
-          the height and letting the shape relax keeps the page's rhythm; the
-          crop that forced 9:21 on the screenshots doesn't apply to markup.
+          stand 1120px high and tower over every neighbouring section.
         */}
         <div className="mk-frame-inner aspect-[9/17]">
           <div className="mk-demo" role="group" aria-label="Interactive demo of the bookings screen">
@@ -93,40 +108,80 @@ export function BookingsDemo() {
               </div>
 
               <ul className="mk-demo-list">
-                {BOOKINGS.map(booking => {
-                  const isSelected = selected === booking.id;
-                  return (
-                    <li key={booking.id}>
-                      {/*
-                        A real button, not a clickable div. This is an
-                        interactive control on a public page now, so it has to
-                        be reachable and operable from a keyboard like any other.
-                      */}
-                      <button
-                        type="button"
-                        className={`mk-demo-row ${isSelected ? 'is-selected' : ''}`}
-                        aria-pressed={isSelected}
-                        onClick={() => setSelected(isSelected ? null : booking.id)}
-                      >
-                        <img className="mk-demo-row-icon" src={booking.icon} alt="" />
-                        <span className="mk-demo-row-text">
-                          <span className="mk-demo-row-game">{booking.game}</span>
-                          <span className="mk-demo-row-venue">{booking.venue}</span>
-                          <span className="mk-demo-row-when">{booking.date}</span>
-                          <span className="mk-demo-row-when">{booking.time}</span>
-                          {isSelected && (
-                            <span className="mk-demo-row-detail">{booking.table} &middot; Confirmed</span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
+                {BOOKINGS.map(booking => (
+                  <li key={booking.id}>
+                    {/*
+                      A real button, not a clickable div. This is an interactive
+                      control on a public page now, so it has to be reachable and
+                      operable from a keyboard like any other.
+                    */}
+                    <button
+                      type="button"
+                      className="mk-demo-row"
+                      aria-haspopup="dialog"
+                      onClick={e => { openerRef.current = e.currentTarget; setOpen(booking); }}
+                    >
+                      <img className="mk-demo-row-icon" src={booking.icon} alt="" />
+                      <span className="mk-demo-row-text">
+                        <span className="mk-demo-row-game">{booking.game}</span>
+                        <span className="mk-demo-row-venue">{booking.venue}</span>
+                        {/* One line now there's width for it. */}
+                        <span className="mk-demo-row-when">{booking.date} &middot; {booking.time}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
               </ul>
 
               {/* Present for the shape of the thing, not to be pressed. */}
               <div className="mk-demo-foot" aria-hidden="true">+ New Booking</div>
             </div>
+
+            {open && (
+              /*
+               * Scoped to the frame rather than the page: it pops over the
+               * screenshot, exactly as asked, and clipping to the frame means it
+               * can never take the whole page hostage.
+               *
+               * Deliberately NOT a page-level modal — no body scroll lock and no
+               * focus trap, so a reader who scrolls past mid-demo just carries
+               * on. That also means no aria-modal, which would claim a trap that
+               * doesn't exist. Escape and click-outside both close it, and focus
+               * returns to the row that opened it.
+               */
+              <div className="mk-demo-scrim" onClick={close}>
+                <div
+                  ref={dialogRef}
+                  role="dialog"
+                  aria-label={`${open.game} booking details`}
+                  tabIndex={-1}
+                  className="mk-demo-dialog"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <button type="button" className="mk-demo-dialog-close" onClick={close} aria-label="Close details">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+
+                  <img className="mk-demo-dialog-icon" src={open.icon} alt="" />
+                  <h4 className="mk-demo-dialog-title">{open.game}</h4>
+                  <p className="mk-demo-dialog-venue">{open.venue}</p>
+
+                  <dl className="mk-demo-dialog-rows">
+                    <div><dt>When</dt><dd>{open.date}</dd></div>
+                    <div><dt>Time</dt><dd>{open.time}</dd></div>
+                    <div><dt>Table</dt><dd>{open.table}</dd></div>
+                    <div><dt>Status</dt><dd className="mk-demo-dialog-ok">Confirmed</dd></div>
+                  </dl>
+
+                  <div className="mk-demo-dialog-actions" aria-hidden="true">
+                    <span className="mk-demo-dialog-action">Invite a friend</span>
+                    <span className="mk-demo-dialog-action is-danger">Cancel booking</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
