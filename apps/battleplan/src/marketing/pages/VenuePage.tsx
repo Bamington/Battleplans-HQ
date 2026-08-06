@@ -18,6 +18,7 @@ import { FAQ, type FAQItem } from '../components/FAQ';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
 import { TablesDemo } from '../components/demos/TablesDemo';
+import { DayDemo } from '../components/demos/DayDemo';
 import {
   Calendar, Store, Chart,
   Server, Plug, Wallet, Phone, Mail, Buildings, Bolt, Shield,
@@ -178,6 +179,10 @@ export default function VenuePage() {
             'Automatic confirmation emails, so people turn up',
           ]}
           imageSide="right"
+          /* shotToday stays imported so reverting to the screenshot is a
+             one-line change. */
+          demo={<DayDemo />}
+          wideFrame
           src={shotToday}
           alt="Today's bookings at a venue, grouped by timeslot, showing who is in and what they are playing."
           aspect={COLUMN}
