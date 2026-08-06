@@ -17,6 +17,7 @@ import { TileGrid, type Tile } from '../components/TileGrid';
 import { FAQ, type FAQItem } from '../components/FAQ';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
+import { TablesDemo } from '../components/demos/TablesDemo';
 import {
   Calendar, Store, Chart,
   Server, Plug, Wallet, Phone, Mail, Buildings, Bolt, Shield,
@@ -154,6 +155,10 @@ export default function VenuePage() {
             'Change any of it whenever you like — it takes effect immediately',
           ]}
           imageSide="left"
+          /* The venue page's interactive section. shotTables stays imported so
+             reverting to the screenshot is a one-line change. */
+          demo={<TablesDemo />}
+          wideFrame
           src={shotTables}
           alt="The tables panel, each table listed with the timeslots it can be booked in."
           aspect={COLUMN}
