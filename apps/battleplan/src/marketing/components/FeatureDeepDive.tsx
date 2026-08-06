@@ -24,6 +24,7 @@ export function FeatureDeepDive({
   aspect,
   narrowImage = false,
   wideFrame = false,
+  layout = 'split',
   demo,
   children,
 }: {
@@ -52,6 +53,11 @@ export function FeatureDeepDive({
    */
   wideFrame?: boolean;
   /**
+   * "split" puts the frame beside the copy; "stacked" puts it full width above.
+   * Stacked is for screenshots that need the whole column to stay legible.
+   */
+  layout?: 'split' | 'stacked';
+  /**
    * An interactive replica shown instead of a screenshot. Brings its own frame.
    * Used once, deliberately — see BookingsDemo on why this is not the default.
    */
@@ -60,6 +66,50 @@ export function FeatureDeepDive({
   children?: React.ReactNode;
 }) {
   const imageFirst = imageSide === 'left';
+
+  /*
+   * Stacked: one full-width frame, then the copy underneath.
+   *
+   * For a screenshot that needs the whole column to be legible — the stats page
+   * is three panels of small numbers, and at 400px in a side-by-side it reads
+   * as texture. Heading and body centre under it like the hero; the bullets go
+   * two-up, because four of them in a single centred column would run to a
+   * ribbon almost as tall as the image.
+   */
+  if (layout === 'stacked') {
+    return (
+      <div>
+        <Reveal>
+          <ScreenshotFrame
+            mock={mock}
+            src={src}
+            srcMobile={srcMobile}
+            alt={alt}
+            aspect={aspect ?? 'aspect-[8/5]'}
+          />
+        </Reveal>
+
+        <Reveal delay={60} className="mt-14 text-center md:mt-16">
+          <p className="mk-eyebrow mb-4">{eyebrow}</p>
+          <h2 className="mk-display-2 mx-auto max-w-[18ch]">{title}</h2>
+          <p className="mk-lead mx-auto mt-6">{body}</p>
+        </Reveal>
+
+        <Reveal delay={120}>
+          <ul className="mx-auto mt-10 grid max-w-[900px] gap-x-10 gap-y-4 sm:grid-cols-2">
+            {bullets.map(bullet => (
+              <li key={bullet} className="flex gap-3">
+                <Tick />
+                <span className="mk-body-sm">{bullet}</span>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+
+        {children && <Reveal delay={180}>{children}</Reveal>}
+      </div>
+    );
+  }
 
   /*
    * Uneven columns, not 50/50.

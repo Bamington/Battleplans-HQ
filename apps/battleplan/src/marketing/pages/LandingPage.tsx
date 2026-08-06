@@ -14,14 +14,12 @@ import { Hero } from '../components/Hero';
 import { PillarGrid, type Pillar } from '../components/PillarGrid';
 import { FeatureDeepDive } from '../components/FeatureDeepDive';
 import { Callout } from '../components/Callout';
-import { TileGrid, type Tile } from '../components/TileGrid';
-import { SuiteSection } from '../components/SuiteSection';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
 import { BookingsDemo } from '../components/demos/BookingsDemo';
 import { BattlesDemo } from '../components/demos/BattlesDemo';
 import { FriendsDemo } from '../components/demos/FriendsDemo';
-import { Calendar, Dice, Chart, Users, Wallet, Pin, Layers } from '../icons';
+import { Calendar, Dice, Chart, Users } from '../icons';
 
 /*
  * Screenshots of the real app, captured against the Burrow Games fixture by
@@ -38,10 +36,16 @@ import shotStats from '../assets/shots/player-stats.webp';
 import shotStatsMobile from '../assets/shots/player-stats-mobile.webp';
 import shotFriends from '../assets/shots/player-friends.webp';
 
-/* Match each asset's own shape — see FeatureDeepDive's `aspect`. The landscape
-   shots set theirs inline, because they also swap to a portrait mobile capture. */
-/* Tall and narrow, closer to the shape of the column it photographs. */
-const COLUMN    = 'aspect-[9/21]';
+/*
+ * Hidden until there are real quotes. A flag rather than a comment block, so
+ * the section stays type-checked and can't quietly rot while it's off.
+ */
+const SHOW_TESTIMONIALS = false;
+
+/* Tall and narrow, closer to the shape of the column it photographs. The
+   landscape shots set their own aspect inline, because they also swap to a
+   portrait capture on mobile. */
+const COLUMN = 'aspect-[9/21]';
 
 const PILLARS: Pillar[] = [
   {
@@ -64,20 +68,6 @@ const PILLARS: Pillar[] = [
     title: 'Bring your friends',
     body: "Share a booking and invite the people you're actually playing.",
   },
-];
-
-/*
- * Four headline benefits rather than eight small features, and no supporting
- * copy — each line is the whole point on its own.
- *
- * The section heading changed with them: "The small stuff that adds up" was
- * right for eight minor conveniences and wrong for four summary claims.
- */
-const TILES: Tile[] = [
-  { icon: Pin, title: 'One place to book at any store' },
-  { icon: Users, title: 'Invite your friends and find new opponents' },
-  { icon: Layers, title: 'Your tabletop history' },
-  { icon: Wallet, title: 'Free to use' },
 ];
 
 const TESTIMONIALS: Testimonial[] = [
@@ -136,13 +126,13 @@ export default function LandingPage() {
       <Section tone="base">
         <FeatureDeepDive
           eyebrow="Booking"
-          title="Your table, sorted in four taps."
-          body="Choose a venue, a date and a timeslot. BattlePlan already knows which tables that store has, when they're free, and when the store has closed for a tournament — so anything you can pick is a table you can actually have."
+          title="Confirm your Battlefield."
+          body="Choose a venue, a date and a timeslot. BattlePlan already knows what tables are available, and helps you find the perfect place to play. No more calling stores. No more showing up and having nowhere to play."
           bullets={[
-            "Every venue's real tables and real timeslots",
-            'Confirmation and cancellation emails, sent automatically',
-            'Your upcoming bookings, always the first thing you see',
-            'Your usual store remembered, so you can stop picking it every time',
+            'See available tables at a glance.',
+            "Stores know you're coming, and can plan ahead.",
+            'Update or cancel your booking at any time.',
+            'BattlePlan remembers your preferred venue and games, so booking is ultra-fast.',
           ]}
           imageSide="left"
           /* The one interactive section. shotBookings stays imported so
@@ -159,13 +149,13 @@ export default function LandingPage() {
       <Section tone="raised">
         <FeatureDeepDive
           eyebrow="Battle log"
-          title="A record of every game you've played."
-          body="Most of us remember the last game and forget the forty before it. Log a battle when you finish it and the whole season is still there in December — the lists that worked, the tables you played on, the people who beat you."
+          title="Log your Victories. Learn from your Defeats."
+          body="Remembering the last game is easy enough — but how about your toughest opponents? Your best lists? Your most successful battlefields? BattlePlan helps you log everything, so you can celebrate your wins — or mourn your losses."
           bullets={[
-            'Game, date, result, venue and opponent',
-            'Add photos of the table — they become the card',
-            'Opponents are people, not free text, so head-to-heads add up on their own',
-            "Log it from your phone before you've left the shop",
+            'Log everything about the games you play.',
+            'Get reminders to log games based on your bookings, so you never miss one.',
+            "Your opponent's details are saved, so you can remember them for next time.",
+            'Upload photos, notes — whatever helps you win the next one.',
           ]}
           imageSide="right"
           /* Second interactive section. shotBattles stays imported so reverting
@@ -187,16 +177,18 @@ export default function LandingPage() {
       <Section tone="base">
         <FeatureDeepDive
           eyebrow="Statistics"
-          title="Find out who your nemesis is."
-          body="Every battle you log feeds a picture of how you actually play — not how you remember playing."
+          title="Analyze. Adapt. Conquer."
+          body="Every battle you log feeds into your personalised statistics."
           bullets={[
-            'Overall win/loss record and your current win streak',
-            'Most played games, venues and opponents',
-            'Break the whole thing down game by game',
-            'Best and worst: the games you win, the opponents you don’t, the venues where it goes wrong',
-            'Filter by year, or any range you like',
+            'See your Win/Loss record in certain games, or against certain opponents.',
+            'Look into the games you play most — and how successful you are at them.',
+            'Check your progress year-on-year.',
+            "Find out which venues are the luckiest — and which aren't.",
           ]}
-          imageSide="left"
+          /* Full width above the copy. The stats screen is three panels of small
+             numbers; beside the text at 400px it reads as texture rather than
+             information. */
+          layout="stacked"
           src={shotStats}
           srcMobile={shotStatsMobile}
           alt="The statistics screen: overall win-loss record, most played games and venues, and best and worst opponents."
@@ -207,13 +199,13 @@ export default function LandingPage() {
       <Section tone="raised">
         <FeatureDeepDive
           eyebrow="Friends"
-          title="Nobody plays alone."
-          body="Book the table, then invite the person you're playing. They see it in their bookings, and neither of you has to check a group chat from three weeks ago to confirm it's still on."
+          title="Form your Party."
+          body="Invite your friends to join you for your games, directly in the app. They'll even see cancellations and time changes."
           bullets={[
-            "Invite friends to a booking you've made",
-            'Invitations land in their bookings, with accept or decline',
-            'Profiles with a picture and a username',
-            'Find people by username — no phone numbers, no address book',
+            "Invite friends to a booking you've made.",
+            'Friends get updates when a booking changes.',
+            "See your friend's favorite games, and your win-rate against them.",
+            'Create a public profile to show off your stats and models (coming soon).',
           ]}
           imageSide="right"
           /* Third interactive section. shotFriends stays imported so reverting
@@ -227,17 +219,18 @@ export default function LandingPage() {
         />
       </Section>
 
-      <Section tone="base">
-        <TileGrid title="The short version." tiles={TILES} />
-      </Section>
+      {/* "The short version" and "The suite" removed. */}
 
-      <Section tone="raised">
-        <SuiteSection />
-      </Section>
-
-      <Section tone="base">
-        <Testimonials title="What players say" testimonials={TESTIMONIALS} />
-      </Section>
+      {/*
+        Hidden, not deleted — the quotes are still placeholder and the section
+        comes back once there are real ones. Kept behind a flag rather than
+        commented out so it stays type-checked and can't rot silently.
+      */}
+      {SHOW_TESTIMONIALS && (
+        <Section tone="base">
+          <Testimonials title="What players say" testimonials={TESTIMONIALS} />
+        </Section>
+      )}
 
       <ClosingCTA
         title="Your next game is a Thursday night away."

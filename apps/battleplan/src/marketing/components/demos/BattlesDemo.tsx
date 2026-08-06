@@ -83,8 +83,7 @@ export function BattlesDemo() {
   }, [open]);
 
   return (
-    <div>
-      <div className="mk-frame mk-frame-live">
+    <div className="mk-frame mk-frame-live">
         <div className="mk-frame-inner aspect-[9/17]">
           <div className="mk-demo" role="group" aria-label="Interactive demo of the battle record">
             <div className="mk-demo-panel">
@@ -165,11 +164,6 @@ export function BattlesDemo() {
             )}
           </div>
         </div>
-      </div>
-
-      <p className="mk-caption mt-4 text-center">
-        A live demo — pick a battle.
-      </p>
     </div>
   );
 }

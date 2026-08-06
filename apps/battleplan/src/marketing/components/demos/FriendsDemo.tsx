@@ -78,8 +78,7 @@ export function FriendsDemo() {
   const winRate = played ? Math.round((open!.won / played) * 100) : 0;
 
   return (
-    <div>
-      <div className="mk-frame mk-frame-live">
+    <div className="mk-frame mk-frame-live">
         <div className="mk-frame-inner aspect-[9/17]">
           <div className="mk-demo" role="group" aria-label="Interactive demo of the friends list">
             <div className="mk-demo-panel">
@@ -172,11 +171,6 @@ export function FriendsDemo() {
             )}
           </div>
         </div>
-      </div>
-
-      <p className="mk-caption mt-4 text-center">
-        A live demo — pick a friend.
-      </p>
     </div>
   );
 }

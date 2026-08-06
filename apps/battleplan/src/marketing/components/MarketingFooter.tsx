@@ -8,6 +8,14 @@
 
 import { Link } from 'react-router-dom';
 
+/*
+ * One column, and every link goes somewhere.
+ *
+ * The suite, company and legal columns were placeholders pointing at pages that
+ * don't exist — three quarters of the footer was furniture. What's left is only
+ * what a reader can actually follow, which also means the '#' fallback below
+ * has nothing to catch any more; it stays for whenever a real column returns.
+ */
 const COLUMNS: { heading: string; links: { label: string; to: string; muted?: boolean }[] }[] = [
   {
     heading: 'BattlePlan',
@@ -15,30 +23,6 @@ const COLUMNS: { heading: string; links: { label: string; to: string; muted?: bo
       { label: 'For players', to: '/' },
       { label: 'For venues', to: '/venue' },
       { label: 'Sign in', to: '/login' },
-      { label: 'Mobile apps — coming soon', to: '#', muted: true },
-    ],
-  },
-  {
-    heading: 'The suite',
-    links: [
-      { label: 'BattleBox', to: '#' },
-      { label: 'BattlePack', to: '#' },
-    ],
-  },
-  {
-    heading: 'Company',
-    links: [
-      { label: 'About', to: '#' },
-      { label: 'Contact', to: '#' },
-      { label: 'News', to: '#' },
-    ],
-  },
-  {
-    heading: 'Legal',
-    links: [
-      { label: 'Privacy', to: '#' },
-      { label: 'Terms', to: '#' },
-      { label: 'Cookies', to: '#' },
     ],
   },
 ];
@@ -47,7 +31,9 @@ export function MarketingFooter() {
   return (
     <footer className="mk-surface-well" style={{ borderTop: '1px solid var(--mk-border-strong)' }}>
       <div className="mx-auto w-full max-w-[1200px] px-6 py-16 md:px-8 lg:px-12 lg:py-20">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Two columns, not five — a five-track grid holding two things leaves
+            most of the footer as empty space. */}
+        <div className="grid gap-10 sm:grid-cols-2">
           <div className="lg:col-span-1">
             <span
               className="text-[1.375rem] tracking-[-0.01em]"
