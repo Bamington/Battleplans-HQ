@@ -21,7 +21,13 @@ export function ClosingCTA({
 }) {
   return (
     <section className="mk-surface-base relative overflow-hidden">
-      <div className="mx-auto w-full max-w-[1200px] px-6 pb-24 md:px-8 md:pb-28 lg:px-12 lg:pb-40">
+      {/*
+        Top padding on the same 80/112/160 rhythm every Section uses. This block
+        had bottom padding only, so it sat hard against whatever preceded it —
+        fine when a tile grid came before it, obvious now the section above ends
+        on a frame.
+      */}
+      <div className="mx-auto w-full max-w-[1200px] px-6 pt-20 pb-24 md:px-8 md:pt-28 md:pb-28 lg:px-12 lg:pt-40 lg:pb-40">
         <Reveal>
           <div
             className="relative overflow-hidden px-8 py-16 text-center md:px-16 md:py-24"
