@@ -13,11 +13,14 @@ export function ClosingCTA({
   body,
   primaryCta,
   secondaryCta,
+  children,
 }: {
   title: string;
   body: string;
-  primaryCta: { to: string; label: string };
-  secondaryCta: { to: string; label: string };
+  /** Omit both to close with something else — the venue page ends on a form. */
+  primaryCta?: { to: string; label: string };
+  secondaryCta?: { to: string; label: string };
+  children?: React.ReactNode;
 }) {
   return (
     <section className="mk-surface-base relative overflow-hidden">
@@ -41,10 +44,14 @@ export function ClosingCTA({
           >
             <h2 className="mk-display-2 mx-auto max-w-[18ch]">{title}</h2>
             <p className="mk-lead mx-auto mt-6 max-w-[46ch]">{body}</p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <CTAButton to={primaryCta.to}>{primaryCta.label}</CTAButton>
-              <ArrowLink to={secondaryCta.to}>{secondaryCta.label}</ArrowLink>
-            </div>
+            {(primaryCta || secondaryCta) && (
+              <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                {primaryCta && <CTAButton to={primaryCta.to}>{primaryCta.label}</CTAButton>}
+                {secondaryCta && <ArrowLink to={secondaryCta.to}>{secondaryCta.label}</ArrowLink>}
+              </div>
+            )}
+
+            {children && <div className="mt-10">{children}</div>}
           </div>
         </Reveal>
       </div>

@@ -22,6 +22,16 @@ export function TileGrid({ title, tiles }: { title: string; tiles: Tile[] }) {
   // Four or fewer means one row on desktop, and titles that stand alone.
   const spare = tiles.length <= 4;
 
+  /*
+   * Columns that divide the count.
+   *
+   * A fixed four-up leaves five tiles as a row of four and a lonely fifth,
+   * which reads as a mistake rather than a layout. Three-up gives 3 + 2, which
+   * at least looks intended.
+   */
+  const cols = tiles.length <= 4 || tiles.length % 4 === 0 ? 4 : 3;
+  const colClass = cols === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3';
+
   return (
     <>
       <Reveal>
@@ -29,14 +39,12 @@ export function TileGrid({ title, tiles }: { title: string; tiles: Tile[] }) {
       </Reveal>
 
       <div
-        className={`mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 ${
-          spare ? 'md:mt-16' : ''
-        }`}
+        className={`mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 ${colClass} ${spare ? 'md:mt-16' : ''}`}
       >
         {tiles.map((tile, i) => (
           // Stagger resets each row so the last tile isn't half a second behind
           // the first — 60ms x 8 is long enough to notice.
-          <Reveal key={tile.title} delay={(i % 4) * 60}>
+          <Reveal key={tile.title} delay={(i % cols) * 60}>
             {/* Larger icon rather than an accent-coloured one: four accent
                 icons would blow the page's accent budget, and the rule that
                 keeps the accent meaningful is worth more than the lift. */}

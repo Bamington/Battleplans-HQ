@@ -15,7 +15,8 @@ import { VenueLogos } from './VenueLogos';
 interface HeroProps {
   title: React.ReactNode;
   lead: string;
-  primaryCta: { to: string; label: string };
+  /** Optional: the venue page leads with the secondary link alone. */
+  primaryCta?: { to: string; label: string };
   secondaryCta: { to: string; label: string };
   /**
    * Set when the headline carries its own <br> breaks and one of those lines
@@ -77,7 +78,7 @@ export function Hero({
 
           <Reveal delay={120}>
             <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <CTAButton to={primaryCta.to}>{primaryCta.label}</CTAButton>
+              {primaryCta && <CTAButton to={primaryCta.to}>{primaryCta.label}</CTAButton>}
               <ArrowLink to={secondaryCta.to}>{secondaryCta.label}</ArrowLink>
             </div>
             <p className="mk-caption mt-5">{note}</p>

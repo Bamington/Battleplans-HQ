@@ -17,12 +17,10 @@ import { TileGrid, type Tile } from '../components/TileGrid';
 import { FAQ, type FAQItem } from '../components/FAQ';
 import { Testimonials, type Testimonial } from '../components/Testimonials';
 import { ClosingCTA } from '../components/ClosingCTA';
+import { VenueSignupForm } from '../components/VenueSignupForm';
 import { TablesDemo } from '../components/demos/TablesDemo';
 import { DayDemo } from '../components/demos/DayDemo';
-import {
-  Calendar, Store, Chart,
-  Server, Plug, Wallet, Phone, Mail, Buildings, Bolt, Shield,
-} from '../icons';
+import { Calendar, Store, Chart, Server, Phone, Mail, Buildings, Bolt } from '../icons';
 
 /*
  * Screenshots of the real app against the Burrow Games fixture — an invented
@@ -56,24 +54,22 @@ const PILLARS: Pillar[] = [
     title: 'Understand your customers',
     body: 'Which games fill tables, which nights are dead, who your regulars are.',
   },
+  {
+    icon: Phone,
+    title: 'Available anywhere',
+    body: 'Manage your store from behind the counter or on your phone.',
+  },
 ];
 
 const TILES: Tile[] = [
-  { icon: Server, title: 'No hardware', body: 'It runs in a browser. If you have a phone behind the counter, you’re set.' },
-  { icon: Plug, title: 'No POS integration', body: 'Nothing to plug into your till system. Nothing to break.' },
-  { icon: Wallet, title: 'Free to list', body: 'No card, no setup fee.' },
+  { icon: Bolt, title: 'Easy setup', body: 'No hardware. No POS integration. Setup in minutes.' },
   { icon: Phone, title: 'Works on a phone', body: 'Built for the screen you already have in your hand.' },
   { icon: Mail, title: 'Fewer no-shows', body: 'Every booking sends a confirmation email, and every cancellation too.' },
-  { icon: Buildings, title: 'More than one site', body: 'Running two shops? Manage both from one account.' },
-  { icon: Bolt, title: 'Set up in an afternoon', body: 'Tables, timeslots, done.' },
-  { icon: Shield, title: 'Your customers, yours', body: 'We don’t market to your players.' },
+  { icon: Buildings, title: 'Multiple stores', body: 'Add all your locations and manage them separately, from the same place.' },
+  { icon: Server, title: 'Ongoing support', body: 'New updates every week, based on your feedback.' },
 ];
 
 const FAQS: FAQItem[] = [
-  {
-    question: 'What does it cost?',
-    answer: 'Nothing at the moment. BattlePlan is free for players and free for venues. If that changes we’ll tell venues well in advance — no one’s card is on file and nothing switches off without notice.',
-  },
   {
     question: 'How long does setup take?',
     answer: 'An afternoon at most. Add your tables, set your timeslots, block your closures. Most of it is a one-off.',
@@ -89,10 +85,6 @@ const FAQS: FAQItem[] = [
   {
     question: 'What happens during a tournament, when tables aren’t available?',
     answer: 'Block the date. It disappears from what players can book, and comes back when you unblock it.',
-  },
-  {
-    question: 'Who owns the data?',
-    answer: 'You can see everything about bookings at your venue. We don’t sell it, and we don’t market to your players off the back of it.',
   },
 ];
 
@@ -118,14 +110,13 @@ export default function VenuePage() {
   return (
     <MarketingLayout
       title="BattlePlan for venues — Your tables, booked."
-      description="Players book your tables directly, you see the day on one screen, and you find out which games actually fill your floor. Free to list your venue."
+      description="Players book your tables directly, you see the day on one screen, and you find out which games actually fill your floor. Completely free for stores and clubs."
     >
       <Hero
         title={<>Your tables, booked.</>}
         lead="Stop running your table bookings through Messenger, a paper diary and a group chat. Players book directly, you see the day on one screen, and you finally find out which games are filling your tables."
-        primaryCta={{ to: '/login', label: 'List your venue' }}
-        secondaryCta={{ to: '/', label: 'See what players get' }}
-        note="Free to list your venue."
+        secondaryCta={{ to: '/', label: 'Benefits for Players' }}
+        note="Completely free for stores and clubs."
         // Same strip, different question answered: a shop owner wants to know
         // which of their peers is already doing this.
         logos={{ label: 'Already taking bookings at' }}
@@ -139,7 +130,7 @@ export default function VenuePage() {
       <Section tone="raised">
         <PillarGrid
           eyebrow="Built for game stores and clubs"
-          title="Set it up once. Run it from behind the counter."
+          title="Run your tables effortlessly."
           pillars={PILLARS}
         />
       </Section>
@@ -147,10 +138,10 @@ export default function VenuePage() {
       <Section tone="base">
         <FeatureDeepDive
           eyebrow="Setup"
-          title="You decide what's bookable. The app enforces it."
+          title="You decide what's available, and when."
           body="Add your tables, set the timeslots you actually run, and block out the dates you're closed or running a tournament. Nothing outside that is bookable, so you never get a booking you can't honour."
           bullets={[
-            'Define every table you have',
+            "Define what tables you have, when they're available, and what activities they're open for",
             'Set the timeslots that suit your opening hours',
             'Block dates for events, holidays and closures',
             'Change any of it whenever you like — it takes effect immediately',
@@ -171,7 +162,7 @@ export default function VenuePage() {
         <FeatureDeepDive
           eyebrow="Day to day"
           title="Open one screen and know your day."
-          body="Today's bookings and everything coming up, in the order they'll happen. Jump to any date to see what's on. Staff can book on behalf of anyone who phones or walks in, so the diary stays complete instead of splitting in two."
+          body="Your team understands the day at a glance. Jump to any date to see what's on, and make changes quickly and easily to adjust to the conditions of your store."
           bullets={[
             "Today's bookings, always front and centre",
             'Look ahead to any date',
@@ -193,16 +184,18 @@ export default function VenuePage() {
       <Section tone="base">
         <FeatureDeepDive
           eyebrow="Statistics"
-          title="Should you run a Warhammer night on a Thursday?"
-          body="Now you can answer that from your own numbers instead of a hunch. Everything here comes from bookings made through BattlePlan — real tables, real dates, at your venue."
+          title="Make great decisions based on real data."
+          body="Should you run Warhammer on Thursday nights? See what your players are playing, and when your store is busiest. Insights like you've never had before."
           bullets={[
             'Bookings over time, and month by month',
             'Your most booked games',
             'Your most frequent bookers',
             'Busiest days of the week and busiest timeslots',
-            'Filter by year or any range',
           ]}
-          imageSide="left"
+          /* Full width above the copy, matching the player page's stats
+             section — same screen, same reason: three panels of small figures
+             need the whole column to stay legible. */
+          layout="stacked"
           src={shotStats}
           srcMobile={shotStatsMobile}
           alt="Venue statistics: bookings by month, most booked games, most frequent bookers, busiest days and timeslots."
@@ -229,12 +222,17 @@ export default function VenuePage() {
         <Testimonials title="What venues say" testimonials={TESTIMONIALS} />
       </Section>
 
+      {/*
+        Closes on a form rather than two buttons. NOTE: the form has no
+        destination yet — see VenueSignupForm. It says so on screen when
+        submitted rather than pretending to have sent anything.
+      */}
       <ClosingCTA
         title="Get your tables on the map."
         body="Listing your venue is free, and takes an afternoon to set up."
-        primaryCta={{ to: '/login', label: 'List your venue' }}
-        secondaryCta={{ to: '/', label: 'Curious what players see?' }}
-      />
+      >
+        <VenueSignupForm />
+      </ClosingCTA>
     </MarketingLayout>
   );
 }

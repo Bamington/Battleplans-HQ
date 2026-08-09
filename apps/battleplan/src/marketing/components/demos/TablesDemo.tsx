@@ -188,9 +188,6 @@ export function TablesDemo() {
         </div>
       </div>
 
-      <p className="mk-caption mt-4 text-center">
-        A live demo — switch a table off.
-      </p>
     </div>
   );
 }

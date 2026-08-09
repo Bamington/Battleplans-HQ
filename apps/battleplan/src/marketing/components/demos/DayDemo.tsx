@@ -235,9 +235,6 @@ export function DayDemo() {
         </div>
       </div>
 
-      <p className="mk-caption mt-4 text-center">
-        A live demo — step through the days.
-      </p>
     </div>
   );
 }
