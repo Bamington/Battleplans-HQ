@@ -108,7 +108,8 @@ export default function LandingPage() {
         secondaryCta={{ to: '/venue', label: 'See it for a venue' }}
         note="Free to use."
         logos={{ label: 'Book a table at' }}
-        trustLine="[PLACEHOLDER] 3,400 battles logged by 610 players across 18 venues"
+        /* No trustLine until the numbers are real. Hero renders nothing when
+           it's absent, so restoring it is one prop. */
         src={shotHome}
         srcMobile={shotHomeMobile}
         alt="The BattlePlan home screen: upcoming bookings, suggested battles, a photo gallery of recent games, and a friends list."

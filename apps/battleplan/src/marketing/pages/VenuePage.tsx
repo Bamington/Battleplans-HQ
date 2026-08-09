@@ -88,6 +88,13 @@ const FAQS: FAQItem[] = [
   },
 ];
 
+/*
+ * Hidden until there are real quotes, matching the player page. A flag rather
+ * than a comment block, so the section stays type-checked and can't quietly rot
+ * while it's off.
+ */
+const SHOW_TESTIMONIALS = false;
+
 const TESTIMONIALS: Testimonial[] = [
   {
     quote: 'We were losing bookings in a Messenger inbox nobody had time to read. Now it’s one screen and the tables are fuller.',
@@ -120,7 +127,7 @@ export default function VenuePage() {
         // Same strip, different question answered: a shop owner wants to know
         // which of their peers is already doing this.
         logos={{ label: 'Already taking bookings at' }}
-        trustLine="[PLACEHOLDER] 18 venues. 4,100 tables booked this year."
+        /* No trustLine until the numbers are real — see LandingPage. */
         src={shotManageStore}
         srcMobile={shotManageStoreMobile}
         alt="The venue management screen: blocked dates, tables, bookings by date and timeslots, side by side."
@@ -218,9 +225,17 @@ export default function VenuePage() {
         <FAQ title="Questions we get asked." items={FAQS} />
       </Section>
 
-      <Section tone="raised">
-        <Testimonials title="What venues say" testimonials={TESTIMONIALS} />
-      </Section>
+      {/*
+        Hidden, not deleted — the quotes are still placeholder and the section
+        comes back once there are real ones. The FAQ above it keeps tone="base"
+        either way: it's the last Section on the page when this is off, and the
+        ClosingCTA's accent panel is what separates them, not the surface step.
+      */}
+      {SHOW_TESTIMONIALS && (
+        <Section tone="raised">
+          <Testimonials title="What venues say" testimonials={TESTIMONIALS} />
+        </Section>
+      )}
 
       {/* Closes on a form rather than two buttons — it writes to venue_leads
           and emails us. See VenueSignupForm. */}
