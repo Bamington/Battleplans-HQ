@@ -104,7 +104,7 @@ export function VenueSignupForm() {
       </div>
 
       <button type="submit" className="mk-btn mk-btn-primary mt-6" disabled={status === 'sending'}>
-        {status === 'sending' ? 'Sending…' : 'List your venue'}
+        {status === 'sending' ? 'Sending…' : 'Request for your store'}
       </button>
 
       {error && (
