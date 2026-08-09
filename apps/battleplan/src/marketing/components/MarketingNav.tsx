@@ -79,7 +79,18 @@ export function MarketingNav() {
           >
             Sign in
           </Link>
-          <CTAButton to="/login" className="!px-5 !py-3">Create free account</CTAButton>
+          {/*
+            Two labels, one button. "Create free account" is 188px wide, which
+            with the wordmark and the menu button needed 368 of a 375px phone —
+            the pill ended up sitting on the last letter of the wordmark. The
+            short label costs about 90px and the collision goes away. Hiding the
+            button below sm would have been the other fix, and it's the wrong
+            one: this is the page's whole conversion.
+          */}
+          <CTAButton to="/login" className="!px-5 !py-3">
+            <span className="sm:hidden">Get started</span>
+            <span className="hidden sm:inline">Create free account</span>
+          </CTAButton>
 
           {/*
             The menu button exists because "For venues" was otherwise

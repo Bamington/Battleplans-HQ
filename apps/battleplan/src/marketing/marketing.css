@@ -576,6 +576,43 @@
   list-style: none;
 }
 
+/*
+ * Below lg, the frame gives up its aspect ratio and follows its content.
+ *
+ * The 9:17 box is right where the column is a fixed 432–480px: the list ends up
+ * ~640px tall, everything of consequence is visible, and the rest scrolls under
+ * a fade. Below lg the frame's width is whatever the viewport allows, so the
+ * same ratio produced a box far shorter than the content — 187px of room for
+ * 1,858px of rows on a phone, clipped with no way to scroll. What you saw was
+ * one row and the top half of the next, sliced through the middle.
+ *
+ * So: no fixed height, no clipping, and a cap on how many rows render. Four
+ * whole rows say "this is a list of your bookings" better than one and a half
+ * ever did, and they cost about 700px of page instead of 1,900.
+ *
+ * The cap is deliberately dumb — nth-child, not a prop — so it can't get out of
+ * step with the data. In DayDemo the children are timeslot groups rather than
+ * bookings, and there are only ever two or three, so nothing is hidden there.
+ */
+@media (max-width: 1023px) {
+  .mk-frame-live .mk-frame-inner { aspect-ratio: auto; }
+
+  .mk-frame-live .mk-demo,
+  .mk-frame-live .mk-demo-panel { height: auto; }
+
+  .mk-frame-live .mk-demo-list {
+    flex: 0 0 auto;
+    overflow: visible;
+    /* A tablet with a mouse matches the scroll rule below as well. Nothing
+       scrolls here any more, so the fade would be a promise of more rows that
+       don't exist. */
+    -webkit-mask-image: none;
+            mask-image: none;
+  }
+
+  .mk-frame-live .mk-demo-list > :nth-child(n + 5) { display: none; }
+}
+
 @media (min-width: 768px) and (pointer: fine) {
   .mk-demo-list {
     overflow-y: auto;

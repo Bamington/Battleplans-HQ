@@ -146,7 +146,24 @@ export function FeatureDeepDive({
           bigger than life size. Capping it keeps a tablet closer to the phone
           treatment, which was the one that already worked.
         */}
-        <div className={narrowImage ? `mx-auto w-4/5 lg:w-full lg:max-w-none ${wideFrame ? 'max-w-[360px]' : 'max-w-[300px]'}` : ''}>
+        {/*
+          A demo is not a screenshot and can't take the same cap. The 80%/300px
+          rule below suits an image — it scales, so making it smaller only makes
+          it smaller. A demo renders live text at a fixed size, so narrowing it
+          doesn't shrink the content, it shortens the box the content has to fit
+          in: at 261px across, the bookings list had 187px of room for 1,858px
+          of rows. Demos get the full column on a phone and a reading-width cap
+          on a tablet, and their height follows their content (see marketing.css).
+        */}
+        <div
+          className={
+            demo
+              ? 'mx-auto w-full max-w-[420px] lg:max-w-none'
+              : narrowImage
+                ? `mx-auto w-4/5 lg:w-full lg:max-w-none ${wideFrame ? 'max-w-[360px]' : 'max-w-[300px]'}`
+                : ''
+          }
+        >
           {/* A demo brings its own frame and caption, so it replaces the
               screenshot outright rather than rendering inside one. */}
           {demo ?? (
