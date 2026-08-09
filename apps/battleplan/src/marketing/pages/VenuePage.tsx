@@ -222,11 +222,8 @@ export default function VenuePage() {
         <Testimonials title="What venues say" testimonials={TESTIMONIALS} />
       </Section>
 
-      {/*
-        Closes on a form rather than two buttons. NOTE: the form has no
-        destination yet — see VenueSignupForm. It says so on screen when
-        submitted rather than pretending to have sent anything.
-      */}
+      {/* Closes on a form rather than two buttons — it writes to venue_leads
+          and emails us. See VenueSignupForm. */}
       <ClosingCTA
         title="Get your tables on the map."
         body="Listing your venue is free, and takes an afternoon to set up."

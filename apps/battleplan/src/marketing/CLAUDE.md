@@ -96,5 +96,11 @@ time anyone sees them. Revisit if marketing ever moves to its own build.
   The badge stays until they're real.
 - **Mobile nav.** The middle links are desktop-only; the nav needs a proper
   mobile menu.
-- **The `/venue` CTA** currently points at `/login`. Whether listing a venue is
-  self-serve or a conversation is still undecided.
+## The `/venue` signup form
+
+Settled: listing a venue is a conversation, not self-serve. `VenueSignupForm`
+inserts into `public.venue_leads` and a Postgres trigger emails us through the
+`send-venue-lead` edge function. That's the one place in this directory that
+imports from `@battleplans/ui` — the Supabase client, which isn't a design
+asset and mustn't be constructed twice. The design ban still stands for
+everything else.

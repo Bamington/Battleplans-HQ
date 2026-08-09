@@ -1254,19 +1254,29 @@ select.mk-input option {
   color: var(--mk-text-primary);
 }
 
-/* Deliberately loud. This says the form goes nowhere yet, and it should be
-   impossible to miss while that's still true. */
+/* What the form says back — the thank-you that replaces it on success, and the
+   apology that sits under it on failure. Sized to be read, not to shout: the
+   loud version of this was the placeholder that said the form went nowhere. */
 .mk-form-notice {
-  margin-top: 16px;
-  padding: 12px 14px;
-  border: 1px dashed var(--mk-accent-500);
+  margin: 16px auto 0;
+  max-width: 640px;
+  padding: 14px 16px;
+  border: 1px solid var(--mk-accent-500);
   border-radius: var(--mk-radius-chip);
-  font-size: 0.875rem;
+  background: rgba(155, 107, 255, 0.08);
+  font-size: 0.9375rem;
   line-height: 1.5;
   color: var(--mk-text-secondary);
 }
 
 .mk-form-notice strong { color: var(--mk-accent-300); }
+
+/* A failure has to be distinguishable from a success at a glance, and the
+   accent can't do that job — it's the same violet either way. */
+.mk-form-notice[role='alert'] {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(248, 113, 113, 0.08);
+}
 
 /*
  * ── Skip link ──────────────────────────────────────────────────────────
