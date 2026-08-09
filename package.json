@@ -14,7 +14,9 @@
     "build:battlecards": "pnpm --filter @battleplans/battlecards build",
     "build:battlepack": "pnpm --filter @battleplans/battlepack build",
     "build:battleplan": "pnpm --filter @battleplans/battleplan build",
-    "build:battlebox": "pnpm --filter @battleplans/battlebox build"
+    "build:battlebox": "pnpm --filter @battleplans/battlebox build",
+    "shots": "node tools/screenshots/capture.mjs",
+    "shots:login": "node tools/screenshots/login.mjs"
   },
   "devDependencies": {
     "@capacitor/core": "^8.4.1",
@@ -23,6 +25,7 @@
     "@tiptap/starter-kit": "^3.27.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "playwright": "^1.62.1",
     "tiptap-markdown": "^0.9.0",
     "turbo": "^2.0.0"
   }

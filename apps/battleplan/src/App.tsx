@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import BattleStatsPage from './pages/BattleStatsPage.tsx';
@@ -12,6 +11,8 @@ import ManageLocations from './pages/admin/ManageLocations.tsx';
 import ManageGames from './pages/admin/ManageGames.tsx';
 import ManageUpdates from './pages/admin/ManageUpdates.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
+import LandingPage from './marketing/pages/LandingPage.tsx';
+import VenuePage from './marketing/pages/VenuePage.tsx';
 
 /**
  * The app's own screens, as a route subtree.
@@ -48,25 +49,21 @@ export function appRoutes() {
   );
 }
 
-function RootRedirect() {
-  const [target, setTarget] = useState<'/app' | '/login' | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setTarget(session ? '/app' : '/login');
-    });
-  }, []);
-
-  if (target === null) return null;
-  return <Navigate to={target} replace />;
-}
-
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ── Public routes ── */}
-        <Route path="/" element={<RootRedirect />} />
+        {/*
+          ── Public routes ──
+
+          The root used to bounce straight to /app or /login. It now serves the
+          marketing page to everyone, signed in or not — the app itself lives at
+          /app, and a signed-in user landing on battleplan.app should be able to
+          read the page they'd send to a friend rather than being redirected past
+          it. Reverting to the old behaviour means restoring RootRedirect here.
+        */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/venue" element={<VenuePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback className="bg-neutral-950" />} />
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-neutral-950" />} />

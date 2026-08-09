@@ -1,0 +1,1338 @@
+/*
+ * marketing.css — The BattlePlan marketing design system
+ *
+ * This is deliberately NOT the app's design system. The app optimises for
+ * repeated use: tight spacing, neutral greys, functional density. A landing
+ * page has to sell in one scroll, so everything here is broader, softer and
+ * slower — bigger radii, 160px section rhythm, negative display tracking.
+ *
+ * The two systems are siblings, not twins. What they share on purpose:
+ *   - Tanker as the display face, Space Grotesk for UI text
+ *   - A violet accent, drawn from the app's primary
+ *   - An 8px base unit, so both divide the same way
+ *   - A dark base
+ *
+ * What they deliberately don't share:
+ *   - Token names. These are all --mk-*, so nothing here can be resolved by an
+ *     app component and nothing in the app can be resolved by a marketing one.
+ *     If a marketing component ever renders with app colours, that's the bug.
+ *   - Surfaces. The app is near-black neutral grey; this is a lifted, violet
+ *     tinted charcoal. See the note on screenshot separation below.
+ *   - Tracking. The app sets display type wide; this sets it tight.
+ *
+ * FONTS: the spec called for copying the woff2 files so the two systems share
+ * no assets at all. We deliberately don't, because index.html warns that a
+ * second source for these faces downloads them twice, and these pages are
+ * routes inside the same SPA — packages/ui's stylesheet is already loaded by
+ * the time anyone sees them. Revisit if marketing ever moves to its own build.
+ */
+
+/*
+ * ── The screenshot problem ─────────────────────────────────────────────────
+ *
+ * The app's background is #030712 — effectively black. On a dark marketing
+ * page every screenshot would dissolve into the page, which is the usual
+ * reason product shots end up on white.
+ *
+ * So the page is LIGHTER than the app. --mk-surface-base sits well above the
+ * app's near-black, which lets a screenshot read as a well: the deepest thing
+ * on screen, framed by a rim light and lit from beneath by an accent glow.
+ *
+ * The rule that follows: nothing else on the page may be as dark as a
+ * screenshot. --mk-surface-well is reserved for screenshot frames and the
+ * footer. Cards and alternating sections all sit ABOVE the base, never below.
+ * If a screenshot ever stops separating, lift --mk-surface-base — don't darken
+ * the screenshot.
+ */
+
+.mk {
+  /* ── Surfaces — violet-tinted charcoal ──────────────────────────────── */
+  --mk-surface-well:    #06060c;  /* screenshot wells + footer. The floor.   */
+  --mk-surface-base:    #0c0a14;  /* page background                        */
+  --mk-surface-raised:  #14111f;  /* alternating sections                    */
+  --mk-surface-card:    #1b1729;  /* cards, tiles, quote panels              */
+  --mk-border-strong:   #272038;  /* card borders, visible dividers          */
+  --mk-border-hairline: #332a47;  /* frame edges                             */
+
+  /*
+   * ── Text ────────────────────────────────────────────────────────────
+   * Never pure white — it blooms on dark and makes long copy tiring.
+   * Contrast against --mk-surface-base: 17.7:1 / 8.4:1 / 5.0:1.
+   */
+  --mk-text-primary:   #f4f2f8;
+  --mk-text-secondary: #ada6bc;
+  --mk-text-muted:     #837c96;
+
+  /*
+   * ── Accent — electric violet ─────────────────────────────────────────
+   * A sibling to the app's #8b5cf6, pushed brighter so it holds up as the
+   * only saturated thing on a dark page.
+   *
+   * Contrast, checked rather than guessed:
+   *   --mk-accent-500 as text on --mk-surface-base   5.6:1  passes AA
+   *   --mk-surface-well ink on --mk-accent-500 fill  5.7:1  passes AA
+   *   white on --mk-accent-500 fill                  3.5:1  FAILS
+   *
+   * Which is why the primary button is dark ink on a bright fill, and not the
+   * white-on-violet the app uses. The accessible option and the distinctive
+   * option happen to be the same option.
+   */
+  --mk-accent-300: #c9aeff;
+  --mk-accent-400: #b490ff;
+  --mk-accent-500: #9b6bff;
+  --mk-accent-600: #7c45f0;
+  --mk-accent-700: #5b2ec4;
+  --mk-accent-glow: rgba(155, 107, 255, 0.35);
+
+  /* ── Type ───────────────────────────────────────────────────────────── */
+  --mk-font-display: 'Tanker', serif;
+  --mk-font-ui:      'Space Grotesk', sans-serif;
+
+  /* ── Radii — softer and larger than the app throughout ──────────────── */
+  --mk-radius-chip:   8px;
+  --mk-radius-input:  12px;
+  --mk-radius-card:   20px;
+  --mk-radius-frame:  28px;
+
+  background: var(--mk-surface-base);
+  color: var(--mk-text-secondary);
+  font-family: var(--mk-font-ui);
+
+  /*
+   * A flat dark fill looks cheap at this scale. A fixed noise overlay at ~2.5%
+   * costs one small data URI and takes the plastic off. Fixed rather than
+   * scrolling so it reads as film grain on the screen, not texture on the page.
+   */
+  position: relative;
+}
+
+.mk::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Everything real sits above the grain. */
+.mk > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Surfaces ─────────────────────────────────────────────────────────── */
+
+.mk-surface-base   { background: var(--mk-surface-base); }
+.mk-surface-raised { background: var(--mk-surface-raised); }
+.mk-surface-well   { background: var(--mk-surface-well); }
+
+/*
+ * ── Typography ─────────────────────────────────────────────────────────
+ *
+ * Display runs NEGATIVE tracking — the inverse of the app's tracking-wide.
+ * That single inversion is most of what stops the site reading as the app
+ * enlarged.
+ *
+ * Tanker ships one weight (400). Never synthesise bold: on dark it blooms
+ * badly. If a heading looks weak, tighten the tracking rather than reaching
+ * for weight.
+ */
+
+/*
+ * Page and section headings arrive light purple and settle to white as they
+ * scroll in. It's the one place the accent is allowed to appear at size, and
+ * it's transient — the resting state of every heading is still white.
+ *
+ * The timing is the whole trick. The reveal's opacity fade is 400ms, so a
+ * colour transition of the same length would finish while the text is still
+ * fading up and nobody would see the purple at all. This runs 900ms and starts
+ * 160ms *after* the reveal, so the heading lands purple and then cools.
+ *
+ * --mk-delay is inherited from the enclosing .mk-reveal, so a staggered group
+ * keeps its stagger instead of every heading turning at once.
+ */
+.mk-display-1,
+.mk-display-2 {
+  color: var(--mk-accent-300);
+  transition: color 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--mk-delay, 0ms) + 160ms);
+}
+
+.mk-reveal.is-visible .mk-display-1,
+.mk-reveal.is-visible .mk-display-2 {
+  color: var(--mk-text-primary);
+}
+
+.mk-display-1 {
+  font-family: var(--mk-font-display);
+  font-weight: 400;
+  font-size: clamp(2.75rem, 1.6rem + 5.6vw, 5.75rem);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+
+/*
+ * For a headline that sets its own line breaks and has a long line to fit.
+ *
+ * Same size at the top of the range — nothing changes on desktop — but it
+ * scales down harder on narrow screens. The default clamp bottoms out at 44px,
+ * where a 27-character line needs about 440px and a 375px phone gives it 327.
+ * Every sentence then wrapped in half: six lines, half of them a single
+ * orphaned word. This bottoms out at 32px, where the longest line fits on one.
+ *
+ * The trade is a smaller hero on a phone. That's the cost of a three-sentence
+ * headline, and it beats six ragged lines.
+ *
+ * The 1.75rem floor only engages below about 348px — it's there so a 320px
+ * screen still gets three lines rather than four.
+ */
+.mk-display-1-long {
+  font-size: clamp(1.75rem, 0.33rem + 7.13vw, 5.75rem);
+}
+
+.mk-display-2 {
+  font-family: var(--mk-font-display);
+  font-weight: 400;
+  font-size: clamp(2rem, 1.3rem + 3.4vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.mk-display-3 {
+  font-family: var(--mk-font-display);
+  font-weight: 400;
+  font-size: clamp(1.5rem, 1.35rem + 0.7vw, 1.875rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--mk-text-primary);
+}
+
+/*
+ * Body copy is Space Grotesk rather than a third face — Satoshi was specced
+ * and then cut. Nothing below 400: light weights disintegrate on dark.
+ */
+.mk-lead {
+  font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.3125rem);
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  color: var(--mk-text-secondary);
+  max-width: 34ch;
+}
+
+.mk-body {
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  line-height: 1.65;
+  color: var(--mk-text-secondary);
+}
+
+.mk-body-sm {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--mk-text-secondary);
+}
+
+.mk-eyebrow {
+  font-size: clamp(0.75rem, 0.73rem + 0.1vw, 0.8125rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mk-accent-400);
+}
+
+.mk-caption {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--mk-text-muted);
+}
+
+/* Measure caps. Long lines are worse on dark than on light. */
+.mk-measure    { max-width: 68ch; }
+.mk-measure-sm { max-width: 52ch; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.mk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-family: var(--mk-font-ui);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0.875rem 1.5rem;
+  /* 44px is the touch-target floor. The padding alone landed these at 43px —
+     close enough to look right and still short of the mark. */
+  min-height: 44px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.mk-btn:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 3px;
+}
+
+/* Dark ink on a bright fill. See the contrast note above — this is the one
+   that passes, and it's the site's most distinctive single element. */
+.mk-btn-primary {
+  background: var(--mk-accent-500);
+  color: var(--mk-surface-well);
+}
+.mk-btn-primary:hover { background: var(--mk-accent-400); }
+
+.mk-btn-ghost {
+  background: transparent;
+  color: var(--mk-text-primary);
+  border: 1px solid var(--mk-border-strong);
+}
+.mk-btn-ghost:hover { border-color: var(--mk-border-hairline); }
+
+/* Text link with a trailing arrow — the quiet secondary action. */
+.mk-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  /* Sits next to a button and reads as a peer action, so it needs the same
+     touch target — as bare text it was 23px tall. */
+  min-height: 44px;
+  padding: 0 0.25rem;
+  color: var(--mk-accent-400);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition: color 150ms ease;
+}
+.mk-link:hover { color: var(--mk-accent-300); }
+
+/*
+ * ── Elevation ──────────────────────────────────────────────────────────
+ *
+ * Drop shadows barely register on a dark page. Depth here comes from borders,
+ * inset rim highlights and glows instead. A pure-black shadow does nothing on
+ * #0c0a14 — the rim light is what separates a surface, and the shadow only
+ * grounds it.
+ */
+
+.mk-card {
+  background: var(--mk-surface-card);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.mk-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--mk-border-hairline);
+}
+
+/*
+ * The screenshot frame. Three layers doing three jobs:
+ *   inset rim   — separates the frame from the page
+ *   accent glow — stops the well reading as a hole
+ *   contact     — grounds it so it doesn't float
+ */
+.mk-frame {
+  background: var(--mk-surface-well);
+  border: 1px solid var(--mk-border-hairline);
+  border-radius: var(--mk-radius-frame);
+  padding: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 40px 120px -20px var(--mk-accent-glow),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+  /*
+   * Slower than the button and card transitions (150–180ms). A screenshot is
+   * a big object with a very wide shadow, and at UI speed the glow snaps
+   * rather than swells — it needs long enough to read as light coming up.
+   */
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 320ms ease;
+  /*
+   * No will-change here.
+   *
+   * It was promoting every frame to its own compositor layer permanently, which
+   * turns off subpixel antialiasing — invisible on an <img>, which is already a
+   * raster, but it softened all the live text in the interactive demo. A
+   * permanent rendering cost to smooth an occasional hover is the wrong trade.
+   */
+}
+
+/*
+ * Lift on hover: a touch of scale and a brighter, wider glow.
+ *
+ * The scale is 1.012 — small enough that the 1px border and the rim highlight
+ * don't visibly soften, which is what gives a scaled-up frame away. The glow
+ * does most of the work.
+ */
+.mk-frame:hover {
+  transform: scale(1.012);
+  border-color: rgba(155, 107, 255, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 50px 150px -18px rgba(155, 107, 255, 0.55),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.mk-frame-hero {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 60px 180px -30px var(--mk-accent-glow),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* The hero frame is already the brightest thing on the page, so it lifts from
+   a higher floor and scales a little less — it's much larger, and the same
+   1.2% on a full-width frame reads as a lurch. */
+.mk-frame-hero:hover {
+  transform: scale(1.008);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 70px 210px -28px rgba(155, 107, 255, 0.5),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* Coarse pointers have no hover state to speak of, and a sticky :hover left
+   behind after a tap is worse than no effect at all. */
+@media (hover: none) {
+  .mk-frame:hover,
+  .mk-frame-hero:hover {
+    transform: none;
+    border-color: var(--mk-border-hairline);
+  }
+}
+
+.mk-frame-inner {
+  border-radius: calc(var(--mk-radius-frame) - 8px);
+  overflow: hidden;
+  display: block;
+  width: 100%;
+}
+
+/*
+ * ── Accent glow ────────────────────────────────────────────────────────
+ * One soft radial behind the hero headline and another behind the closing
+ * CTA. Nothing in between — a glow repeated on every section stops meaning
+ * anything.
+ */
+.mk-glow::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  width: min(1100px, 120%);
+  height: 720px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(155, 107, 255, 0.18) 0%,
+    rgba(155, 107, 255, 0.06) 40%,
+    transparent 70%
+  );
+}
+
+/*
+ * ── Motion ─────────────────────────────────────────────────────────────
+ * Fade and rise, once, on entry. No parallax, no scroll-jacking, no counters
+ * that tick up. The stagger is set per-element as a CSS variable.
+ */
+.mk-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 400ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--mk-delay, 0ms);
+}
+
+.mk-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-reveal {
+    transform: none;
+    transition: opacity 200ms ease;
+  }
+  .mk-card-hover:hover { transform: none; }
+
+  /* The glow still brightens — it's a colour change, not motion — but nothing
+     moves or scales. */
+  .mk-frame,
+  .mk-frame-hero {
+    transition: box-shadow 200ms ease, border-color 200ms ease;
+  }
+  .mk-frame:hover,
+  .mk-frame-hero:hover { transform: none; }
+
+  /* Headings still cool from purple to white — again a colour change, not
+     motion — just faster, so it doesn't linger. */
+  .mk-display-1,
+  .mk-display-2 {
+    transition: color 400ms ease;
+    transition-delay: 80ms;
+  }
+}
+
+/*
+ * The demo frame doesn't lift.
+ *
+ * Scaling a frame that contains a photograph is free — it's already pixels.
+ * Scaling one that contains live text resamples every glyph for as long as the
+ * pointer is over it, which is exactly when someone is reading it. The demo is
+ * a control now, not a picture, so it stays at 1:1 and keeps its glow.
+ */
+.mk-frame-live:hover {
+  transform: none;
+}
+
+/*
+ * ── Interactive demo ───────────────────────────────────────────────────
+ *
+ * The one section that's a replica rather than a photograph. These are APP
+ * colours, not marketing tokens — same reasoning as AppMock: the thing inside
+ * the frame is standing in for a screenshot, and a screenshot is app-coloured.
+ * Keeping them here as literals rather than adding --mk-* names is on purpose;
+ * they belong to the other design system.
+ */
+.mk-demo {
+  --app-bg:     #030712;
+  --app-panel:  #111827;
+  --app-line:   #1f2937;
+  --app-row:    #0b1220;
+  --app-accent: #8b5cf6;
+  --app-text:   #f9fafb;
+  --app-muted:  #6b7280;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  background: var(--app-bg);
+  font-family: var(--mk-font-ui);
+}
+
+.mk-demo-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  gap: 12px;
+  background: var(--app-panel);
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+}
+
+.mk-demo-head { text-align: center; }
+
+.mk-demo-head-icon {
+  display: inline-flex;
+  color: var(--app-accent);
+}
+.mk-demo-head-icon svg { width: 32px; height: 32px; }
+
+.mk-demo-title {
+  margin-top: 4px;
+  font-family: var(--mk-font-display);
+  font-size: 1.3125rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-demo-sub {
+  margin-top: 4px;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: #9ca3af;
+}
+
+/*
+ * Scrolls on a pointer device, clips on a phone.
+ *
+ * A scrollable region inside a scrolling page traps touch scrolling — the
+ * reader swipes to move the page and moves the list instead. Nobody is going to
+ * play with a demo mid-scroll on a phone anyway, so below md it just shows the
+ * top of the list and behaves exactly like the screenshot it replaced.
+ */
+.mk-demo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+@media (min-width: 768px) and (pointer: fine) {
+  .mk-demo-list {
+    overflow-y: auto;
+    /* Don't hand the scroll back to the page when the list bottoms out. */
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-line) transparent;
+    /*
+     * Fade the last row out at the bottom edge. Without it there's nothing to
+     * say the list continues — a demo nobody realises they can scroll is just
+     * a screenshot that cost more to build.
+     */
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+  }
+}
+
+.mk-demo-row {
+  display: flex;
+  /* Icon centred against the text block rather than pinned to its first line. */
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.mk-demo-row:hover { border-color: #374151; }
+
+.mk-demo-row:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+/* ── Battle gallery ──────────────────────────────────────────────────── */
+
+/* Two up, like the app's gallery view. */
+.mk-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.mk-battle-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-battle-card:hover { border-color: var(--app-accent); }
+
+.mk-battle-card:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-battle-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  /* The photograph is the card. Everything else is a caption under it. */
+  display: block;
+}
+
+.mk-battle-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 0;
+}
+
+.mk-battle-game {
+  font-family: var(--mk-font-display);
+  font-size: 0.8125rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-battle-result {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Result colours are the app's, not the marketing palette — same reasoning as
+   everything else inside the frame. */
+.mk-battle-result.is-won  { color: #34d399; }
+.mk-battle-result.is-lost { color: #f87171; }
+.mk-battle-result.is-drew { color: #9ca3af; }
+
+.mk-battle-opp {
+  display: block;
+  padding: 2px 10px 10px;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-battle-dialog-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* ── Friends list ────────────────────────────────────────────────────── */
+
+.mk-friend-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-friend-row:hover { border-color: var(--app-accent); }
+
+.mk-friend-row:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+/* Initials, the way the app renders a profile with no picture. */
+.mk-friend-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #1f2937;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+}
+
+.mk-friend-avatar.is-large {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 10px;
+  font-size: 1.25rem;
+}
+
+.mk-friend-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-friend-handle {
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-accent);
+}
+
+.mk-friend-name { font-size: 0.9375rem; color: var(--app-muted); }
+
+/*
+ * Win / draw / loss as one bar, sized by the record itself.
+ *
+ * "0%" against Tom Ashworth is a statistic; a bar with no green in it is a
+ * feeling, and the feeling is what the section beside this is selling.
+ */
+.mk-friend-bar {
+  display: flex;
+  gap: 2px;
+  margin-top: 14px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mk-friend-bar > span { min-width: 0; }
+.mk-friend-bar .is-won  { background: #34d399; }
+.mk-friend-bar .is-drew { background: #6b7280; }
+.mk-friend-bar .is-lost { background: #f87171; }
+
+.mk-friend-games {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: #e5e7eb;
+}
+
+/* ── Venue tables ────────────────────────────────────────────────────── */
+
+.mk-table-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+/* Switched off reads as switched off, not merely labelled that way. */
+.mk-table-row.is-off { opacity: 0.55; }
+
+.mk-table-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-table-open:focus-visible,
+.mk-table-switch:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.mk-table-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-table-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #1f2937;
+  font-family: var(--mk-font-ui);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.mk-table-slots {
+  margin-top: 3px;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-table-state {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+.mk-table-state.is-on { color: #34d399; }
+
+/* A switch, sized to the 44px touch target the rest of the page keeps to. */
+.mk-table-switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #374151;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.mk-table-switch[aria-checked='true'] { background: var(--app-accent); }
+
+.mk-table-switch-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #f9fafb;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mk-table-switch[aria-checked='true'] .mk-table-switch-knob {
+  transform: translateX(20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-table-switch-knob { transition: none; }
+}
+
+.mk-table-chips {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.mk-table-chip {
+  padding: 5px 10px;
+  border: 1px solid var(--app-line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--app-muted);
+}
+
+.mk-table-chip.is-on {
+  border-color: rgba(139, 92, 246, 0.45);
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--mk-accent-300);
+}
+
+/* ── Booking day ─────────────────────────────────────────────────────── */
+
+.mk-day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 4px;
+  border-top: 1px solid var(--app-line);
+  border-bottom: 1px solid var(--app-line);
+}
+
+.mk-day-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--app-accent);
+  cursor: pointer;
+  transition: background-color 140ms ease, opacity 140ms ease;
+}
+
+.mk-day-arrow svg { width: 18px; height: 18px; }
+.mk-day-arrow:hover:not(:disabled) { background: rgba(139, 92, 246, 0.14); }
+
+/* Disabled rather than wrapping: a diary that loops back to Friday when you
+   step past Tuesday is lying about what it is. */
+.mk-day-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.mk-day-arrow:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-day-label {
+  flex: 1;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+.mk-day-today {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--app-accent);
+}
+
+.mk-day-group { display: flex; flex-direction: column; gap: 8px; }
+.mk-day-group + .mk-day-group { margin-top: 14px; }
+
+.mk-day-slot {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+}
+
+.mk-day-booking {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-day-booking:hover { border-color: var(--app-accent); }
+
+.mk-day-booking:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-day-who {
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-day-table {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-day-game { font-size: 0.9375rem; color: #d1d5db; }
+
+.mk-day-empty {
+  padding: 28px 0;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--app-muted);
+}
+
+/* ── Demo dialog ─────────────────────────────────────────────────────── */
+
+.mk-demo-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 7, 18, 0.72);
+  backdrop-filter: blur(3px);
+  animation: mk-demo-fade 160ms ease;
+}
+
+@keyframes mk-demo-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.mk-demo-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+  text-align: center;
+  background: var(--app-panel);
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7);
+}
+
+.mk-demo-dialog:focus { outline: none; }
+.mk-demo-dialog:focus-visible { outline: 2px solid var(--mk-accent-400); outline-offset: 3px; }
+
+.mk-demo-dialog-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--app-muted);
+  cursor: pointer;
+}
+.mk-demo-dialog-close:hover { color: var(--app-text); }
+.mk-demo-dialog-close svg { width: 16px; height: 16px; }
+
+.mk-demo-dialog-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.mk-demo-dialog-title {
+  margin-top: 12px;
+  font-family: var(--mk-font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-demo-dialog-venue {
+  margin-top: 2px;
+  font-size: 0.9375rem;
+  color: var(--app-muted);
+}
+
+.mk-demo-dialog-rows {
+  margin-top: 16px;
+  border-top: 1px solid var(--app-line);
+}
+
+.mk-demo-dialog-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--app-line);
+  font-size: 0.875rem;
+}
+
+.mk-demo-dialog-rows dt { color: var(--app-muted); }
+.mk-demo-dialog-rows dd { color: #e5e7eb; }
+
+/*
+ * Scoped to beat the dd above them.
+ *
+ * As bare single classes these lost on specificity to '.mk-demo-dialog-rows dd'
+ * and silently did nothing — the bookings dialog had been rendering Confirmed
+ * in plain grey since the day it was written.
+ */
+.mk-demo-dialog-rows .mk-demo-dialog-ok     { color: #34d399; }
+.mk-demo-dialog-rows .mk-demo-dialog-handle { color: var(--app-accent); }
+.mk-demo-dialog-rows .mk-demo-dialog-none   { color: var(--app-muted); font-style: italic; }
+.mk-demo-dialog-rows .mk-friend-poor        { color: #f87171; }
+
+.mk-demo-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.mk-demo-dialog-action {
+  padding: 9px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: var(--app-accent);
+}
+
+.mk-demo-dialog-action.is-danger {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f87171;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-demo-scrim { animation: none; }
+}
+
+.mk-demo-row-icon {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.mk-demo-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-demo-row-game {
+  font-family: var(--mk-font-display);
+  font-size: 1.0625rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-demo-row-venue { font-size: 0.9375rem; color: var(--app-muted); }
+.mk-demo-row-when  { font-size: 0.9375rem; color: #d1d5db; }
+
+.mk-demo-foot {
+  flex-shrink: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--app-accent);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 999px;
+}
+
+/* ── Venue signup form ───────────────────────────────────────────────── */
+
+.mk-form {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.mk-form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .mk-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.mk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* A real label above each field, not a placeholder standing in for one —
+   placeholder-as-label disappears the moment someone starts typing. */
+.mk-field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--mk-text-secondary);
+}
+
+.mk-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius-input);
+  background: var(--mk-surface-base);
+  font-family: var(--mk-font-ui);
+  font-size: 1rem;
+  color: var(--mk-text-primary);
+  transition: border-color 150ms ease;
+}
+
+.mk-input::placeholder { color: var(--mk-text-muted); }
+.mk-input:hover { border-color: var(--mk-border-hairline); }
+
+.mk-input:focus {
+  outline: none;
+  border-color: var(--mk-accent-500);
+  box-shadow: 0 0 0 3px rgba(155, 107, 255, 0.22);
+}
+
+/* The select needs its own arrow — the native one renders light-on-light in
+   several browsers once the control is this dark. */
+select.mk-input {
+  appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ada6bc' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+}
+
+select.mk-input option {
+  background: var(--mk-surface-raised);
+  color: var(--mk-text-primary);
+}
+
+/* What the form says back — the thank-you that replaces it on success, and the
+   apology that sits under it on failure. Sized to be read, not to shout: the
+   loud version of this was the placeholder that said the form went nowhere. */
+.mk-form-notice {
+  margin: 16px auto 0;
+  max-width: 640px;
+  padding: 14px 16px;
+  border: 1px solid var(--mk-accent-500);
+  border-radius: var(--mk-radius-chip);
+  background: rgba(155, 107, 255, 0.08);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--mk-text-secondary);
+}
+
+.mk-form-notice strong { color: var(--mk-accent-300); }
+
+/* A failure has to be distinguishable from a success at a glance, and the
+   accent can't do that job — it's the same violet either way. */
+.mk-form-notice[role='alert'] {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+/*
+ * ── Skip link ──────────────────────────────────────────────────────────
+ * Off-screen until focused. The nav is short, but a keyboard user shouldn't
+ * have to tab past it on every page to reach the content.
+ */
+.mk-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+
+.mk-skip:focus {
+  left: 1rem;
+  top: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--mk-radius-chip);
+  background: var(--mk-accent-500);
+  color: var(--mk-surface-well);
+  font-weight: 500;
+}
+
+/* ── FAQ ──────────────────────────────────────────────────────────────── */
+
+.mk-faq-item {
+  border-bottom: 1px solid var(--mk-border-strong);
+}
+
+.mk-faq-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  width: 100%;
+  padding: 1.5rem 0;
+  text-align: left;
+  color: var(--mk-text-primary);
+  font-family: var(--mk-font-ui);
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mk-faq-trigger:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 4px;
+  border-radius: var(--mk-radius-chip);
+}
+
+.mk-faq-icon {
+  flex-shrink: 0;
+  color: var(--mk-accent-400);
+  transition: transform 200ms ease;
+}
+
+.mk-faq-item[data-open='true'] .mk-faq-icon {
+  transform: rotate(45deg);
+}
