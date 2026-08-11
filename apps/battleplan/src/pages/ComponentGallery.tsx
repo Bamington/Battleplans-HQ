@@ -101,6 +101,23 @@ const DEMO_BLOCKED: BlockedDate = {
   date: '2026-08-15',
   description: 'Store closed for a tournament',
   blocked_tables: null,
+  recurrence: 'none',
+  interval_weeks: 1,
+  days_of_week: [],
+  until_date: null,
+  location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+};
+
+/** A repeating rule: every second Friday, two tables, until the end of the year. */
+const DEMO_BLOCKED_RECURRING: BlockedDate = {
+  id: 'bd-3',
+  date: '2026-08-07',
+  description: 'Regular club night',
+  blocked_tables: 2,
+  recurrence: 'weekly',
+  interval_weeks: 2,
+  days_of_week: ['Friday'],
+  until_date: '2026-12-31',
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
 };
 
@@ -590,12 +607,16 @@ const ComponentGallery = () => {
             locations={DEMO_LOCATIONS}
             onChanged={() => {}}
           />
+          <BlockedDateItem blocked={DEMO_BLOCKED_RECURRING} locations={DEMO_LOCATIONS} onChanged={() => {}} />
           <div className="mt-2">
             <Button onClick={() => setBlockOpen(true)}>Open Block Date Form</Button>
           </div>
           <GalleryNote>
             A null <code>blocked_tables</code> blocks the whole venue for that date
-            (the first row); a number blocks only that many tables (the second).
+            (the first row); a number blocks only that many tables (the second). The
+            third repeats: a rule, not expanded rows, so editing it moves every future
+            occurrence. Intervals count in whole weeks from the start date's week, so
+            "every 2nd Friday" stays on the same Fridays whatever day it was created.
           </GalleryNote>
           <BlockNewDateModal
             open={blockOpen}

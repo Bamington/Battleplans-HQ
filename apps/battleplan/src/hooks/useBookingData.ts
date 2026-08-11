@@ -282,23 +282,20 @@ export function useAvailableDates(locationId: string | null) {
         .from('timeslots')
         .select('availability')
         .eq('location_id', locationId),
+      // A recurring rule can have started long ago and still apply, so it can't
+      // be filtered out by date — only one-offs can.
       supabase
         .from('blocked_dates')
-        .select('date, blocked_tables')
+        .select(BLOCK_RULE_COLUMNS)
         .eq('location_id', locationId)
-        .gte('date', new Date().toISOString().slice(0, 10)),
+        .or(`recurrence.neq.none,date.gte.${isoDaysFromToday(0)}`),
     ]).then(([tsRes, bdRes]) => {
       // Collect all available day names across all timeslots
       const availableDays = new Set<string>(
         (tsRes.data ?? []).flatMap(ts => ts.availability as string[])
       );
 
-      // Collect fully-blocked dates (blocked_tables IS NULL = entire venue blocked)
-      const fullyBlocked = new Set<string>(
-        (bdRes.data ?? [])
-          .filter(bd => bd.blocked_tables === null)
-          .map(bd => bd.date)
-      );
+      const blocks = (bdRes.data ?? []) as unknown as (BlockRule & { blocked_tables: number | null })[];
 
       // Generate next 60 calendar days, keep those whose weekday has a timeslot
       const result: { value: string; label: string }[] = [];
@@ -310,7 +307,7 @@ export function useAvailableDates(locationId: string | null) {
         d.setDate(today.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayName = DAY_NAMES[d.getDay()];
-        if (availableDays.has(dayName) && !fullyBlocked.has(iso)) {
+        if (availableDays.has(dayName) && !blockedTablesOn(blocks, iso).fullyBlocked) {
           result.push({ value: iso, label: formatDateLabel(iso) });
         }
       }
@@ -625,13 +622,87 @@ export function useBookingsByDate(locationId: string | null, date: string | null
 // ── useBlockedDates ───────────────────────────────────────────────────────────
 // Returns upcoming blocked dates across the given location IDs, ordered by date.
 
+export type BlockRecurrence = 'none' | 'weekly';
+
 export interface BlockedDate {
   id:             string;
+  /** The blocked day for a one-off; the first day of the series when recurring. */
   date:           string;
   description:    string | null;
   blocked_tables: number | null;
+  recurrence:     BlockRecurrence;
+  /** 1 = every week, 2 = every second week. Counted from the week of `date`. */
+  interval_weeks: number;
+  /** Full day names, e.g. ['Monday']. Empty for a one-off. */
+  days_of_week:   string[];
+  /** Last day the rule can apply; null runs until deleted. */
+  until_date:     string | null;
   location:       { id: string; name: string; icon: string };
 }
+
+/** The recurrence fields, for callers that don't need the whole row. */
+export type BlockRule = Pick<
+  BlockedDate, 'date' | 'recurrence' | 'interval_weeks' | 'days_of_week' | 'until_date'
+>;
+
+/** Midnight on the Monday of that date's week — the anchor every interval counts from. */
+function startOfWeek(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  // getDay() is Sunday-first; shift so Monday is 0.
+  out.setDate(out.getDate() - ((out.getDay() + 6) % 7));
+  return out;
+}
+
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Does this block apply on `iso`?
+ *
+ * A one-off applies on exactly its date. A weekly rule applies on the listed
+ * weekdays, in every `interval_weeks`-th week counted from the week its series
+ * starts, from `date` until `until_date` inclusive.
+ *
+ * Anchoring the interval to whole weeks rather than to day-differences is what
+ * makes "every second Friday" mean the same Fridays no matter which day of the
+ * week the rule happened to be created on.
+ */
+export function blockAppliesOn(rule: BlockRule, iso: string): boolean {
+  if (rule.recurrence !== 'weekly') return rule.date === iso;
+
+  const day = parseDateLocal(iso);
+  if (iso < rule.date) return false;
+  if (rule.until_date && iso > rule.until_date) return false;
+  if (!rule.days_of_week.includes(DAY_NAMES[day.getDay()])) return false;
+
+  const every = rule.interval_weeks ?? 1;
+  if (every <= 1) return true;
+
+  // Whole weeks between the two Mondays. Rounded because a DST change inside
+  // the span leaves the difference an hour off a clean multiple.
+  const weeks = Math.round(
+    (startOfWeek(day).getTime() - startOfWeek(parseDateLocal(rule.date)).getTime()) / MS_PER_WEEK
+  );
+  return weeks % every === 0;
+}
+
+/**
+ * How many tables a set of blocks takes out of a given day, and whether the
+ * venue is shut entirely. A null `blocked_tables` means the whole venue.
+ */
+export function blockedTablesOn(
+  blocks: (BlockRule & { blocked_tables: number | null })[],
+  iso:    string,
+): { fullyBlocked: boolean; blockedCount: number } {
+  const active = blocks.filter(b => blockAppliesOn(b, iso));
+  return {
+    fullyBlocked: active.some(b => b.blocked_tables === null),
+    blockedCount: active.reduce((sum, b) => sum + (b.blocked_tables ?? 0), 0),
+  };
+}
+
+/** Columns every consumer of a block needs to evaluate it. */
+const BLOCK_RULE_COLUMNS = 'date, blocked_tables, recurrence, interval_weeks, days_of_week, until_date';
 
 export function useBlockedDates(locationIds: string[]) {
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
@@ -649,10 +720,13 @@ export function useBlockedDates(locationIds: string[]) {
       .from('blocked_dates')
       .select(`
         id, date, description, blocked_tables,
+        recurrence, interval_weeks, days_of_week, until_date,
         location:locations(id, name, icon)
       `)
       .in('location_id', locationIds)
-      .gte('date', today)
+      // A weekly rule started in March is still live in June, so it can't be
+      // filtered on its start date. It drops off the list once it has expired.
+      .or(`and(recurrence.eq.none,date.gte.${today}),and(recurrence.neq.none,or(until_date.is.null,until_date.gte.${today}))`)
       .order('date')
       .then(({ data }) => {
         setBlockedDates((data as unknown as BlockedDate[]) ?? []);
@@ -697,20 +771,19 @@ export function useTableAvailability(
         .eq('date', date)
         .eq('timeslot_id', timeslotId),
       // Blocked dates apply to the whole day, so they reduce the tables
-      // available for every timeslot on that date.
-      supabase.from('blocked_dates').select('blocked_tables')
+      // available for every timeslot on that date. A recurring rule can't be
+      // matched with `.eq('date', …)` — whether it covers this day is a
+      // computation, so fetch the venue's rules and evaluate them.
+      supabase.from('blocked_dates').select(BLOCK_RULE_COLUMNS)
         .eq('location_id', locationId)
-        .eq('date', date),
+        .or(`recurrence.neq.none,date.eq.${date}`),
     ]).then(([tablesRes, bookingsRes, blockedRes]) => {
       const totalTables = tablesRes.count ?? 0;
       const bookedCount = bookingsRes.count ?? 0;
 
-      // A NULL blocked_tables means the entire venue is blocked that day.
-      const blocks        = blockedRes.data ?? [];
-      const fullyBlocked  = blocks.some(b => b.blocked_tables === null);
-      const blockedTables = fullyBlocked
-        ? totalTables
-        : blocks.reduce((sum, b) => sum + (b.blocked_tables ?? 0), 0);
+      const rules = (blockedRes.data ?? []) as unknown as (BlockRule & { blocked_tables: number | null })[];
+      const { fullyBlocked, blockedCount } = blockedTablesOn(rules, date);
+      const blockedTables = fullyBlocked ? totalTables : blockedCount;
 
       const effectiveTables = Math.max(0, totalTables - blockedTables);
       setAvailable(Math.max(0, effectiveTables - bookedCount));
