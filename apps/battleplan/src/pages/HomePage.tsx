@@ -17,7 +17,7 @@ import { BookingDetailModal, BookingInvitationModal } from '../components/Bookin
 import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
-  useAdminLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
+  useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   useRecentBookedGames, useBookingFee,
   formatTimeslotLabel, formatBookingTime, formatFeeAmount,
 } from '../hooks/useBookingData';
@@ -1155,7 +1155,10 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: St
   );
 }
 
-function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: StoreColumnProps) {
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, showStats }: StoreColumnProps & {
+  /** Venue analytics are an owner's tool — staff get the bookings, not the numbers. */
+  showStats: boolean;
+}) {
   const navigate = useNavigate();
 
   // Today's bookings live in their own column, so this starts from tomorrow.
@@ -1187,9 +1190,11 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: 
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
             Manage Store
           </Button>
-          <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
-            Stats
-          </Button>
+          {showStats && (
+            <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
+              Stats
+            </Button>
+          )}
         </div>
       }
     />
@@ -1200,8 +1205,12 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: 
  * The store view's two booking columns. One fetch feeds both, so they can't
  * disagree and a change refreshes them together.
  */
-function StoreBookingColumns({ locations, selectedId }: { locations: Location[]; selectedId: string }) {
-  // selectedId is chosen from the navbar venue picker; '' = all of this admin's
+function StoreBookingColumns({ locations, selectedId, showStats }: {
+  locations: Location[];
+  selectedId: string;
+  showStats: boolean;
+}) {
+  // selectedId is chosen from the navbar venue picker; '' = all of this user's
   // venues, otherwise a single venue.
   const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
   const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
@@ -1217,7 +1226,7 @@ function StoreBookingColumns({ locations, selectedId }: { locations: Location[];
   return (
     <>
       <TodaysBookingsCard   {...shared} />
-      <UpcomingBookingsCard {...shared} />
+      <UpcomingBookingsCard {...shared} showStats={showStats} />
 
       {/* Store mode: Details + cancel, no Invite Friends — this booking is a
           customer's, not the admin's to share. */}
@@ -1247,12 +1256,12 @@ export default function HomePage() {
     });
   }, []);
 
-  const { adminLocations } = useAdminLocations(userId);
-  const adminLocationIds   = adminLocations.map(l => l.id);
-  const isLocationAdmin    = adminLocationIds.length > 0;
+  // Venues this user is attached to — as an admin, or as staff who work there.
+  const { locations: venueLocations, roles: venueRoles } = useManagedLocations(userId);
+  const hasVenue = venueLocations.length > 0;
 
   // What the navbar picker is pointed at. '' = "Your Profile" (the personal
-  // view); anything else is one of the venues this user administers.
+  // view); anything else is one of the venues this user is attached to.
   const [selectedVenueId, setSelectedVenueId] = useState('');
 
   // Store admins open on their first venue rather than their profile. This runs
@@ -1261,25 +1270,31 @@ export default function HomePage() {
   // immediately undone by this effect.
   const venueDefaulted = useRef(false);
   useEffect(() => {
-    if (venueDefaulted.current || adminLocations.length === 0) return;
+    if (venueDefaulted.current || venueLocations.length === 0) return;
     venueDefaulted.current = true;
-    setSelectedVenueId(adminLocations[0].id);
-  }, [adminLocations]);
+    setSelectedVenueId(venueLocations[0].id);
+  }, [venueLocations]);
 
-  // Store admins can switch between their personal view and a single venue.
+  // Venue people can switch between their personal view and a single venue.
   // Everyone else only ever has the personal view.
-  const viewingStore = isLocationAdmin && selectedVenueId !== '';
+  const viewingStore = hasVenue && selectedVenueId !== '';
+
+  // Stats are an owner's tool. With a venue selected that's simply its role;
+  // with "all venues" selected, offer it if they own any of them.
+  const canSeeStats = selectedVenueId
+    ? venueRoles[selectedVenueId] === 'admin'
+    : venueLocations.some(l => venueRoles[l.id] === 'admin');
 
   return (
     <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
-        {/* Shown to every store admin, even single-venue ones, because the
-            picker is also how they get back to their personal view. */}
-        {isLocationAdmin && (
+        {/* Shown to everyone attached to a venue, even single-venue ones,
+            because the picker is also how they get back to their personal view. */}
+        {hasVenue && (
           <StoreSelector
-            locations={adminLocations}
+            locations={venueLocations}
             selectedId={selectedVenueId}
             onSelect={setSelectedVenueId}
             emptyOption
@@ -1292,7 +1307,7 @@ export default function HomePage() {
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           {viewingStore ? (
-            <StoreBookingColumns locations={adminLocations} selectedId={selectedVenueId} />
+            <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} showStats={canSeeStats} />
           ) : (
             <>
               <BookingCard userId={userId} />

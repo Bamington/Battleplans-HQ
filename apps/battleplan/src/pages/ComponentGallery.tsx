@@ -48,8 +48,9 @@ import { StoreSelector, StoreIcon } from '../components/StoreSelector';
 import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
 import { BookingFeeItem, BookingFeeFormModal } from '../components/BookingFees';
+import { StaffItem, AddStaffModal } from '../components/LocationStaff';
 import type { Battle } from '../hooks/useBattles';
-import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee } from '../hooks/useBookingData';
+import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember } from '../hooks/useBookingData';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import type { IncomingBookingShare } from '@battleplans/ui';
 
@@ -87,6 +88,12 @@ const DEMO_FEES: BookingFee[] = [
   { id: 'fee-3', scope: 'timeslot', day_of_week: null,     timeslot_id: 'ts-1',
     amount_cents: 500,
     message: 'Morning tables are $5 for the three-hour slot. Pay at the counter when you arrive.' },
+];
+
+const DEMO_STAFF: StaffMember[] = [
+  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: '2026-08-01T09:00:00Z' },
+  // No display name set — the row falls back to the @handle.
+  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: '2026-08-03T09:00:00Z' },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {
@@ -164,6 +171,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-store-tables',      label: 'Store Tables',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-blocked-dates',     label: 'Blocked Dates',      icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-booking-fees',      label: 'Booking Fees',       icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-location-staff',    label: 'Location Staff',     icon: <UsersGroupRounded className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -177,6 +185,7 @@ const ComponentGallery = () => {
   const [tableOpen,      setTableOpen]      = useState(false);
   const [timeslotOpen,   setTimeslotOpen]   = useState(false);
   const [feeOpen,        setFeeOpen]        = useState(false);
+  const [staffOpen,      setStaffOpen]      = useState(false);
   const [date,           setDate]           = useState('2026-08-01');
   const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
@@ -626,6 +635,39 @@ const ComponentGallery = () => {
             timeslots={DEMO_TIMESLOTS}
             fees={DEMO_FEES}
             onSaved={() => setFeeOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-location-staff" title="Location Staff">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          {DEMO_STAFF.map(m => (
+            <StaffItem
+              key={m.userId}
+              member={m}
+              locationId="loc-1"
+              locationName="Battleground North"
+              onChanged={() => {}}
+            />
+          ))}
+          <div className="mt-2">
+            <Button onClick={() => setStaffOpen(true)}>Open Add Staff Form</Button>
+          </div>
+          <GalleryNote>
+            Staff read bookings at their venues and nothing else — they can't reach
+            venue settings, and the roster itself is admin-only to write. The second
+            row has no display name set, so it falls back to the @handle. Adding
+            someone resolves them by exact @handle or exact email through the{' '}
+            <code>lookup_user_for_venue</code> RPC.
+          </GalleryNote>
+          <AddStaffModal
+            open={staffOpen}
+            onClose={() => setStaffOpen(false)}
+            locationId="loc-1"
+            locationName="Battleground North"
+            existingIds={DEMO_STAFF.map(m => m.userId)}
+            adminIds={[]}
+            onSaved={() => setStaffOpen(false)}
           />
         </div>
       </GallerySection>

@@ -384,6 +384,146 @@ export function useAdminLocations(userId: string | null) {
   return { adminLocations, loading };
 }
 
+// ── Venue membership ──────────────────────────────────────────────────────────
+// Two ways to be attached to a venue. An `admin` (locations.admins) runs the
+// place and can change anything about it. `staff` work there: they can see who
+// is booked in, and nothing else. See 20260811020000.
+
+export type VenueRole = 'admin' | 'staff';
+
+/**
+ * Every venue this user can open Manage Store for, and what they may do at
+ * each. Admin beats staff where someone is both, so a venue owner who also
+ * added themselves as staff never loses their own controls.
+ */
+export function useManagedLocations(userId: string | null) {
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [roles,     setRoles]     = useState<Record<string, VenueRole>>({});
+  // Same trick as useAdminLocations: derive `loading` from which user the
+  // current data belongs to, so it's never stale within a render.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) { setLocations([]); setRoles({}); setLoadedFor(null); return; }
+
+    Promise.all([
+      supabase.from('locations').select('id, name, icon').contains('admins', [userId]),
+      supabase.from('location_staff').select('location_id').eq('user_id', userId),
+    ]).then(async ([adminRes, staffRes]) => {
+      if (cancelled) return;
+
+      const adminLocs = (adminRes.data ?? []) as Location[];
+      const adminIds  = new Set(adminLocs.map(l => l.id));
+      const staffIds  = ((staffRes.data as { location_id: string }[] | null) ?? [])
+        .map(r => r.location_id)
+        .filter(id => !adminIds.has(id));   // admin already covers these
+
+      let staffLocs: Location[] = [];
+      if (staffIds.length > 0) {
+        const { data } = await supabase
+          .from('locations').select('id, name, icon').in('id', staffIds);
+        if (cancelled) return;
+        staffLocs = (data ?? []) as Location[];
+      }
+
+      const nextRoles: Record<string, VenueRole> = {};
+      for (const l of adminLocs) nextRoles[l.id] = 'admin';
+      for (const l of staffLocs) nextRoles[l.id] = 'staff';
+
+      setLocations([...adminLocs, ...staffLocs].sort((a, b) => a.name.localeCompare(b.name)));
+      setRoles(nextRoles);
+      setLoadedFor(userId);
+    });
+
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const loading = !!userId && loadedFor !== userId;
+
+  return { locations, roles, loading };
+}
+
+/** The admin user ids on one venue — so the staff picker can spot an admin. */
+export function useLocationAdminIds(locationId: string | null) {
+  const [adminIds, setAdminIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!locationId) { setAdminIds([]); return; }
+    supabase
+      .from('locations').select('admins').eq('id', locationId).single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAdminIds(((data?.admins as string[] | null) ?? []));
+      });
+    return () => { cancelled = true; };
+  }, [locationId]);
+
+  return adminIds;
+}
+
+// ── useLocationStaff ──────────────────────────────────────────────────────────
+// The roster at one venue, with each person's public profile attached.
+
+export interface StaffMember {
+  userId:     string;
+  handle:     string | null;
+  username:   string | null;
+  avatarPath: string | null;
+  createdAt:  string | null;
+}
+
+export function useLocationStaff(locationId: string | null) {
+  const [staff,   setStaff]   = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(() => {
+    if (!locationId) { setStaff([]); setLoading(false); return; }
+    setLoading(true);
+
+    supabase
+      .from('location_staff')
+      .select('user_id, created_at')
+      .eq('location_id', locationId)
+      .order('created_at')
+      .then(async ({ data }) => {
+        const rows = (data as { user_id: string; created_at: string }[] | null) ?? [];
+        if (rows.length === 0) { setStaff([]); setLoading(false); return; }
+
+        // location_staff has no FK to public_profiles (it's a view), so the
+        // profiles come in a second pass rather than a join.
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, handle, username, avatar_path')
+          .in('id', rows.map(r => r.user_id));
+
+        const byId = new Map(
+          ((profiles as {
+            id: string; handle: string | null;
+            username: string | null; avatar_path: string | null;
+          }[] | null) ?? []).map(p => [p.id, p])
+        );
+
+        setStaff(rows.map(r => {
+          const p = byId.get(r.user_id);
+          return {
+            userId:     r.user_id,
+            handle:     p?.handle     ?? null,
+            username:   p?.username   ?? null,
+            avatarPath: p?.avatar_path ?? null,
+            createdAt:  r.created_at,
+          };
+        }));
+        setLoading(false);
+      });
+  }, [locationId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { staff, loading, refetch };
+}
+
 // ── useUpcomingBookings ───────────────────────────────────────────────────────
 // Returns all bookings on or after today across the given location IDs,
 // ordered by date then timeslot.
