@@ -1155,9 +1155,12 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: St
   );
 }
 
-function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, showStats }: StoreColumnProps & {
-  /** Venue analytics are an owner's tool — staff get the bookings, not the numbers. */
-  showStats: boolean;
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, isVenueAdmin }: StoreColumnProps & {
+  /**
+   * Both footer actions are an owner's tools — venue settings and venue
+   * analytics. Staff get the bookings themselves and no footer at all.
+   */
+  isVenueAdmin: boolean;
 }) {
   const navigate = useNavigate();
 
@@ -1185,18 +1188,16 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, sh
       empty="No upcoming bookings."
       getKey={r => r.key}
       renderItem={r => renderBookingRow(r, refetch, onOpen)}
-      footer={
+      footer={isVenueAdmin ? (
         <div className="flex gap-3 w-full shrink-0">
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
             Manage Store
           </Button>
-          {showStats && (
-            <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
-              Stats
-            </Button>
-          )}
+          <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
+            Stats
+          </Button>
         </div>
-      }
+      ) : undefined}
     />
   );
 }
@@ -1205,10 +1206,10 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, sh
  * The store view's two booking columns. One fetch feeds both, so they can't
  * disagree and a change refreshes them together.
  */
-function StoreBookingColumns({ locations, selectedId, showStats }: {
+function StoreBookingColumns({ locations, selectedId, isVenueAdmin }: {
   locations: Location[];
   selectedId: string;
-  showStats: boolean;
+  isVenueAdmin: boolean;
 }) {
   // selectedId is chosen from the navbar venue picker; '' = all of this user's
   // venues, otherwise a single venue.
@@ -1226,7 +1227,7 @@ function StoreBookingColumns({ locations, selectedId, showStats }: {
   return (
     <>
       <TodaysBookingsCard   {...shared} />
-      <UpcomingBookingsCard {...shared} showStats={showStats} />
+      <UpcomingBookingsCard {...shared} isVenueAdmin={isVenueAdmin} />
 
       {/* Store mode: Details + cancel, no Invite Friends — this booking is a
           customer's, not the admin's to share. */}
@@ -1279,9 +1280,9 @@ export default function HomePage() {
   // Everyone else only ever has the personal view.
   const viewingStore = hasVenue && selectedVenueId !== '';
 
-  // Stats are an owner's tool. With a venue selected that's simply its role;
-  // with "all venues" selected, offer it if they own any of them.
-  const canSeeStats = selectedVenueId
+  // Manage Store and Stats are both owner's tools. With a venue selected that's
+  // simply its role; with "all venues" selected, offer them if they own any.
+  const isVenueAdmin = selectedVenueId
     ? venueRoles[selectedVenueId] === 'admin'
     : venueLocations.some(l => venueRoles[l.id] === 'admin');
 
@@ -1307,7 +1308,7 @@ export default function HomePage() {
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           {viewingStore ? (
-            <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} showStats={canSeeStats} />
+            <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} />
           ) : (
             <>
               <BookingCard userId={userId} />
