@@ -427,6 +427,11 @@ verify_jwt = false
 [functions.send-venue-lead]
 verify_jwt = false
 
+# Same again — the bookings_invite_guest trigger calls this over pg_net when a
+# venue books a table for someone who has no account yet.
+[functions.send-booking-invite]
+verify_jwt = false
+
 # auth-handoff checks the caller's access token itself, and needs to answer the
 # browser's CORS preflight — which carries no Authorization header and would be
 # rejected before reaching the function if the gateway verified the JWT.

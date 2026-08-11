@@ -71,7 +71,7 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
         <Avatar
           src={url ?? undefined}
           initials={initialsFor(member)}
-          size="md"
+          size="lg"
           alt=""
           className="shrink-0"
         />

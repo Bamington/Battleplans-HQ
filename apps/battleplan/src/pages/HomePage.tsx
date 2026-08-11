@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -74,13 +74,25 @@ const BattlePlanLogo = () => (
 
 // ── New Booking Modal ─────────────────────────────────────────────────────────
 
+/** Someone resolved by the lookup_user_for_venue RPC. */
+interface FoundCustomer {
+  user_id:  string;
+  handle:   string | null;
+  username: string | null;
+}
+
+/** Good enough to tell an email apart from a @handle before we try to send to it. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function NewBookingModal({
-  open, onClose, userId, onCreated,
+  open, onClose, userId, onCreated, lockedLocationId,
 }: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
   onCreated: () => void;
+  /** Opened from the store view: this venue, not switchable. */
+  lockedLocationId?: string;
 }) {
   const [name,       setName]       = useState('');
   const [gameId,     setGameId]     = useState('');
@@ -90,6 +102,13 @@ function NewBookingModal({
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
+  // Booking on someone else's behalf — venue admins and staff only.
+  const [forSomeoneElse, setForSomeoneElse] = useState(false);
+  const [identifier,     setIdentifier]     = useState('');
+  const [found,          setFound]          = useState<FoundCustomer | null>(null);
+  const [searched,       setSearched]       = useState(false);
+  const [searching,      setSearching]      = useState(false);
+
   const { games,     loading: gamesLoading }     = useGames();
   const { locations, loading: locationsLoading } = useLocations();
   const { username, preferredLocationId }        = useUserProfile(userId);
@@ -97,23 +116,44 @@ function NewBookingModal({
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
   const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
   const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null);
+  const { roles: venueRoles }                    = useManagedLocations(userId);
+
+  // You can only book for someone else at a venue you actually work at, so the
+  // option appears once a venue you're attached to is chosen. The INSERT policy
+  // enforces the same rule server-side.
+  const canBookForOthers = !!locationId && !!venueRoles[locationId];
 
   const today = new Date().toISOString().slice(0, 10);
 
   // Pre-fill the name with the user's username when the modal opens, unless
-  // they've already typed something.
+  // they've already typed something. Not while booking for someone else — the
+  // name field is the customer's then, not yours.
   useEffect(() => {
-    if (!open || name || !username) return;
+    if (!open || name || !username || forSomeoneElse) return;
     setName(username);
-  }, [open, name, username]);
+  }, [open, name, username, forSomeoneElse]);
+
+  // Opened from the store view: that venue, fixed.
+  useEffect(() => {
+    if (!open || !lockedLocationId) return;
+    setLocationId(lockedLocationId);
+  }, [open, lockedLocationId]);
 
   // Pre-select the user's preferred location when the modal opens, unless they've
   // already picked one. Guarded on the location still existing in the list.
   useEffect(() => {
-    if (!open || locationId || !preferredLocationId) return;
+    if (!open || locationId || !preferredLocationId || lockedLocationId) return;
     if (!locations.some(l => l.id === preferredLocationId)) return;
     setLocationId(preferredLocationId);
-  }, [open, locationId, preferredLocationId, locations]);
+  }, [open, locationId, preferredLocationId, locations, lockedLocationId]);
+
+  // Losing the right to book for others (by switching venue) must not leave a
+  // half-filled customer behind that the submit would still try to use.
+  useEffect(() => {
+    if (canBookForOthers) return;
+    setForSomeoneElse(false);
+    setIdentifier(''); setFound(null); setSearched(false);
+  }, [canBookForOthers]);
 
   // Pre-select the game they last booked, unless they've already picked one.
   // Guarded on that game still being bookable.
@@ -159,13 +199,57 @@ function NewBookingModal({
   const handleLocationChange = (id: string) => { setLocationId(id); setDate(''); setTimeslotId(''); };
   const handleDateChange     = (d: string)  => { setDate(d); setTimeslotId(''); };
 
+  const trimmedIdentifier = identifier.trim();
+  const identifierIsEmail = EMAIL_RE.test(trimmedIdentifier);
+
+  /**
+   * Who this booking is for. Three outcomes:
+   *   - an existing account  → attach it, they see it straight away
+   *   - an unknown email     → a guest booking, and we invite them
+   *   - an unknown @handle   → nothing we can do; handles aren't contactable
+   */
+  const customerResolved =
+    !forSomeoneElse
+      ? true
+      : found !== null || (searched && identifierIsEmail);
+
   const tablesReady = locationId && date && timeslotId && !availLoading;
-  const canSubmit   = name.trim() && locationId && date && timeslotId && tablesReady && available !== null && available > 0;
+  const canSubmit   = name.trim() && locationId && date && timeslotId && tablesReady
+                      && available !== null && available > 0 && customerResolved;
+
+  const resetCustomer = () => {
+    setForSomeoneElse(false); setIdentifier(''); setFound(null);
+    setSearched(false); setSearching(false);
+  };
 
   const handleClose = () => {
     if (saving) return;
-    setName(''); setGameId(''); setLocationId(''); setDate(''); setTimeslotId(''); setError(null);
+    setName(''); setGameId(''); setLocationId(lockedLocationId ?? ''); setDate('');
+    setTimeslotId(''); setError(null);
+    resetCustomer();
     onClose();
+  };
+
+  // A new search invalidates the last one, so a stale match can't be submitted.
+  const handleIdentifierChange = (v: string) => {
+    setIdentifier(v); setFound(null); setSearched(false); setError(null);
+  };
+
+  const handleFindCustomer = async () => {
+    if (!trimmedIdentifier) return;
+    setSearching(true);
+    setError(null);
+    setFound(null);
+    const { data, error: rpcErr } = await supabase
+      .rpc('lookup_user_for_venue', { identifier: trimmedIdentifier });
+    setSearching(false);
+    setSearched(true);
+    if (rpcErr) { setError(rpcErr.message); return; }
+    const match = ((data as FoundCustomer[] | null) ?? [])[0] ?? null;
+    setFound(match);
+    // Their display name is a better default than whatever's in the box, but
+    // it stays editable — the venue may know them by something else.
+    if (match) setName(match.username?.trim() || (match.handle ? `@${match.handle}` : ''));
   };
 
   const handleConfirm = async () => {
@@ -176,13 +260,23 @@ function NewBookingModal({
     // either don't rewrite what this booking shows.
     const loc = locations.find(l => l.id === locationId);
     const ts  = timeslots.find(t => t.id === timeslotId);
+
+    // A guest booking (null user_id) is a real booking the venue holds; if that
+    // address ever signs up, the database hands them the booking. See
+    // 20260811040000.
+    const bookingUserId = forSomeoneElse ? (found?.user_id ?? null) : userId;
+    const bookingEmail  = forSomeoneElse && identifierIsEmail ? trimmedIdentifier : null;
+
     const { error: err } = await supabase.from('bookings').insert({
-      user_id:    userId,
+      user_id:    bookingUserId,
       user_name:  name.trim(),
+      user_email: bookingEmail,
       game_id:    gameId || null,
       location_id: locationId,
       timeslot_id: timeslotId,
       date,
+      // Always recorded, so "who actually took this booking" is never guesswork.
+      created_by_user_id:  userId,
       location_name:       loc?.name       ?? null,
       timeslot_name:       ts?.name         ?? null,
       timeslot_start_time: ts?.start_time   ?? null,
@@ -200,15 +294,84 @@ function NewBookingModal({
 
         <div className="flex flex-col gap-1">
           <h2 className="font-heading text-xl text-white">New Booking</h2>
-          <p className="font-body text-base text-neutral-300">Book a table at a nearby store.</p>
+          <p className="font-body text-base text-neutral-300">
+            {forSomeoneElse ? 'Book a table for a customer.' : 'Book a table at a nearby store.'}
+          </p>
         </div>
 
+        {canBookForOthers && (
+          <Checkbox
+            label="This booking is for someone else"
+            checked={forSomeoneElse}
+            onChange={e => {
+              const on = e.target.checked;
+              setForSomeoneElse(on);
+              setIdentifier(''); setFound(null); setSearched(false);
+              // Your own name is a bad default for a customer's booking, and
+              // vice versa, so the name field starts clean either way.
+              setName(on ? '' : (username ?? ''));
+            }}
+          />
+        )}
+
+        {forSomeoneElse && (
+          <div className="flex flex-col gap-2 p-3 rounded-lg bg-neutral-800 border border-neutral-700">
+            <Input
+              label="Their Username or Email"
+              type="text"
+              placeholder="@their-handle or their@email.com"
+              leftIcon={<UserRounded className="w-4 h-4" />}
+              helperText="We'll check whether they already have a BattlePlan account."
+              value={identifier}
+              disabled={searching || saving}
+              onChange={e => handleIdentifierChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleFindCustomer(); } }}
+            />
+            <Button
+              variant="outline"
+              color="primary"
+              size="sm"
+              className="self-start"
+              loading={searching}
+              disabled={!trimmedIdentifier || searching || saving}
+              onClick={handleFindCustomer}
+            >
+              Find Customer
+            </Button>
+
+            {found && (
+              <p className="font-body text-sm text-green-400">
+                Found {found.username?.trim() || (found.handle ? `@${found.handle}` : 'their account')}
+                {found.username?.trim() && found.handle ? ` (@${found.handle})` : ''} — this booking
+                will appear in their app straight away.
+              </p>
+            )}
+
+            {searched && !searching && !found && identifierIsEmail && (
+              <p className="font-body text-sm text-neutral-300">
+                No account with that email yet. The booking is still yours to keep — we'll
+                email them an invite, and if they join with that address the booking
+                will be waiting for them.
+              </p>
+            )}
+
+            {searched && !searching && !found && !identifierIsEmail && (
+              <p className="font-body text-sm text-yellow-400">
+                No account with that username. Enter their email address instead so we
+                can invite them.
+              </p>
+            )}
+          </div>
+        )}
+
         <Input
-          label="Your Name"
+          label={forSomeoneElse ? 'Their Name' : 'Your Name'}
           type="text"
-          placeholder="Your name"
+          placeholder={forSomeoneElse ? 'Customer name' : 'Your name'}
           leftIcon={<UserRounded className="w-4 h-4" />}
-          helperText="The store will see this name in your booking."
+          helperText={forSomeoneElse
+            ? 'Shown on the booking so you know whose table it is.'
+            : 'The store will see this name in your booking.'}
           value={name}
           onChange={e => setName(e.target.value)}
         />
@@ -224,6 +387,8 @@ function NewBookingModal({
           options={gameOptions}
         />
 
+        {/* Opened from the store view, the venue is already decided. */}
+        {!lockedLocationId && (
         <SearchSelect
           label="Location"
           placeholder="Choose a Venue"
@@ -249,6 +414,7 @@ function NewBookingModal({
             };
           })}
         />
+        )}
 
         {locationId && (
           <DatePickerInput
@@ -1132,7 +1298,10 @@ interface StoreColumnProps {
   onOpen:   (b: UpcomingBooking) => void;
 }
 
-function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: StoreColumnProps) {
+function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen, onTakeBooking }: StoreColumnProps & {
+  /** Opens the booking modal for this venue. Absent when no single venue is selected. */
+  onTakeBooking?: () => void;
+}) {
   // Grouped by timeslot, earliest first — the order a venue works through a day.
   const rows = useMemo(() => {
     const mine = bookings
@@ -1151,6 +1320,17 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen }: St
       empty="No bookings today."
       getKey={r => r.key}
       renderItem={r => renderBookingRow(r, refetch, onOpen)}
+      footer={onTakeBooking ? (
+        <Button
+          variant="outline"
+          color="primary"
+          leftIcon={<AddCircleIcon />}
+          className="w-full justify-center shrink-0"
+          onClick={onTakeBooking}
+        >
+          New Booking
+        </Button>
+      ) : undefined}
     />
   );
 }
@@ -1206,16 +1386,18 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, is
  * The store view's two booking columns. One fetch feeds both, so they can't
  * disagree and a change refreshes them together.
  */
-function StoreBookingColumns({ locations, selectedId, isVenueAdmin }: {
+function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId }: {
   locations: Location[];
   selectedId: string;
   isVenueAdmin: boolean;
+  userId: string | null;
 }) {
   // selectedId is chosen from the navbar venue picker; '' = all of this user's
   // venues, otherwise a single venue.
   const activeLocationIds = selectedId ? [selectedId] : locations.map(l => l.id);
   const { bookings, loading, refetch } = useUpcomingBookings(activeLocationIds);
   const [viewing, setViewing] = useState<UpcomingBooking | null>(null);
+  const [takingBooking, setTakingBooking] = useState(false);
 
   // One definition of "today" for both columns, so a booking can never fall
   // into both (or neither) if the day ticks over between two renders.
@@ -1224,9 +1406,16 @@ function StoreBookingColumns({ locations, selectedId, isVenueAdmin }: {
 
   const shared = { bookings, loading, refetch, todayIso, onOpen: setViewing };
 
+  // Taking a booking needs one venue in mind. With "all venues" selected there
+  // is nothing to pre-fill, so the action waits until a venue is chosen.
+  const canTakeBooking = !!selectedId;
+
   return (
     <>
-      <TodaysBookingsCard   {...shared} />
+      <TodaysBookingsCard
+        {...shared}
+        onTakeBooking={canTakeBooking ? () => setTakingBooking(true) : undefined}
+      />
       <UpcomingBookingsCard {...shared} isVenueAdmin={isVenueAdmin} />
 
       {/* Store mode: Details + cancel, no Invite Friends — this booking is a
@@ -1238,6 +1427,15 @@ function StoreBookingColumns({ locations, selectedId, isVenueAdmin }: {
         customerName={viewing?.user_name ?? undefined}
         onClose={() => setViewing(null)}
         onCancelled={() => { refetch(); setViewing(null); }}
+      />
+
+      {/* The counter workflow: same modal, venue already decided. */}
+      <NewBookingModal
+        open={takingBooking}
+        onClose={() => setTakingBooking(false)}
+        userId={userId}
+        lockedLocationId={selectedId}
+        onCreated={refetch}
       />
     </>
   );
@@ -1308,7 +1506,7 @@ export default function HomePage() {
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           {viewingStore ? (
-            <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} />
+            <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} />
           ) : (
             <>
               <BookingCard userId={userId} />
