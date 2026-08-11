@@ -4,12 +4,13 @@ import { supabase, AppFooter, Button, Layers } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
   useAdminLocations, useBlockedDates, useStoreTables, useLocationTimeslots, useBookingsByDate,
-  formatDateLabel, formatBookingTime,
+  useLocationBookingFees, formatDateLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { StoreTable, LocationTimeslot } from '../hooks/useBookingData';
+import type { StoreTable, LocationTimeslot, BookingFee } from '../hooks/useBookingData';
 import { BlockedDateItem, BlockNewDateModal } from '../components/BlockedDates';
 import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
+import { BookingFeeItem, BookingFeeFormModal, FeeIcon, sortFees } from '../components/BookingFees';
 import { StoreSelector } from '../components/StoreSelector';
 import { BookingItem } from '../components/BookingItem';
 import { GAME_ICONS } from '../components/gameIcons';
@@ -99,6 +100,16 @@ export default function ManageStore() {
 
   const openAddTimeslot  = () => { setEditingTimeslot(null); setTimeslotModalOpen(true); };
   const openEditTimeslot = (t: LocationTimeslot) => { setEditingTimeslot(t); setTimeslotModalOpen(true); };
+
+  const { fees, loading: feesLoading, refetch: refetchFees } = useLocationBookingFees(selectedId || null);
+  const [feeModalOpen, setFeeModalOpen] = useState(false);
+  const [editingFee,   setEditingFee]   = useState<BookingFee | null>(null);
+
+  const openAddFee  = () => { setEditingFee(null); setFeeModalOpen(true); };
+  const openEditFee = (f: BookingFee) => { setEditingFee(f); setFeeModalOpen(true); };
+
+  const sortedFees = sortFees(fees, timeslots);
+  const hasDefaultFee = fees.some(f => f.scope === 'default');
 
   // Bookings by date — defaults to today (local), any date pickable.
   const [bookingsDate, setBookingsDate] = useState(() => {
@@ -282,6 +293,49 @@ export default function ManageStore() {
             </div>
           </div>
 
+          {/* Booking Fees column */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+            <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+
+              <FeeIcon />
+
+              <h2 className="font-heading text-xl text-white">Booking Fees</h2>
+
+              <p className="font-body text-base text-neutral-300 text-center">
+                What players are told they'll pay to book at {selectedStore?.name ?? 'your venue'}.
+              </p>
+
+              <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
+                {feesLoading ? (
+                  <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
+                ) : sortedFees.length === 0 ? (
+                  <p className="font-body text-sm text-neutral-500 text-center py-4">
+                    No fees yet — booking here is free.
+                  </p>
+                ) : sortedFees.map(f => (
+                  <BookingFeeItem
+                    key={f.id}
+                    fee={f}
+                    timeslots={timeslots}
+                    hasDefault={hasDefaultFee}
+                    onEdit={() => openEditFee(f)}
+                    onChanged={refetchFees}
+                  />
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                color="primary"
+                className="w-full justify-center shrink-0"
+                onClick={openAddFee}
+              >
+                {hasDefaultFee ? 'Add Fee' : 'Set Booking Fee'}
+              </Button>
+
+            </div>
+          </div>
+
         </div>
       </main>
 
@@ -312,6 +366,16 @@ export default function ManageStore() {
         locationId={selectedId}
         editing={editingTimeslot}
         onSaved={() => { setTimeslotModalOpen(false); refetchTimeslots(); }}
+      />
+
+      <BookingFeeFormModal
+        open={feeModalOpen}
+        onClose={() => setFeeModalOpen(false)}
+        locationId={selectedId}
+        timeslots={timeslots}
+        fees={fees}
+        editing={editingFee}
+        onSaved={() => { setFeeModalOpen(false); refetchFees(); }}
       />
 
     </div>

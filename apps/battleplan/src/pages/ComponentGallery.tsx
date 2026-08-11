@@ -47,8 +47,9 @@ import { OpponentPicker } from '../components/OpponentPicker';
 import { StoreSelector, StoreIcon } from '../components/StoreSelector';
 import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
+import { BookingFeeItem, BookingFeeFormModal } from '../components/BookingFees';
 import type { Battle } from '../hooks/useBattles';
-import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate } from '../hooks/useBookingData';
+import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee } from '../hooks/useBookingData';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import type { IncomingBookingShare } from '@battleplans/ui';
 
@@ -75,6 +76,17 @@ const DEMO_TIMESLOTS: LocationTimeslot[] = [
 const DEMO_TABLES: StoreTable[] = [
   { id: 'tb-1', name: 'Table 1', size: 'wargaming', enabled: true,  timeslotIds: ['ts-1', 'ts-2'] },
   { id: 'tb-2', name: 'Table 2', size: 'tcg',       enabled: false, timeslotIds: ['ts-3'] },
+];
+
+const DEMO_FEES: BookingFee[] = [
+  { id: 'fee-1', scope: 'default',  day_of_week: null,     timeslot_id: null,
+    amount_cents: 1000,
+    message: 'Table booking at this store is $10 for 3 hours. If there is no other reservation, you can keep your table longer at no additional cost.' },
+  { id: 'fee-2', scope: 'day',      day_of_week: 'Saturday', timeslot_id: null,
+    amount_cents: 1500, message: 'Saturdays are busy — $15 holds your table for the full session.' },
+  { id: 'fee-3', scope: 'timeslot', day_of_week: null,     timeslot_id: 'ts-1',
+    amount_cents: 500,
+    message: 'Morning tables are $5 for the three-hour slot. Pay at the counter when you arrive.' },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {
@@ -151,6 +163,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-timeslots',         label: 'Timeslots',          icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-store-tables',      label: 'Store Tables',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-blocked-dates',     label: 'Blocked Dates',      icon: <Clipboard className="w-5 h-5" /> },
+  { href: '#nav-booking-fees',      label: 'Booking Fees',       icon: <ListCheck className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -163,6 +176,7 @@ const ComponentGallery = () => {
   const [blockOpen,      setBlockOpen]      = useState(false);
   const [tableOpen,      setTableOpen]      = useState(false);
   const [timeslotOpen,   setTimeslotOpen]   = useState(false);
+  const [feeOpen,        setFeeOpen]        = useState(false);
   const [date,           setDate]           = useState('2026-08-01');
   const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
@@ -580,6 +594,38 @@ const ComponentGallery = () => {
             locations={DEMO_LOCATIONS}
             defaultLocationId="loc-1"
             onSaved={() => setBlockOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-booking-fees" title="Booking Fees">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          {DEMO_FEES.map(f => (
+            <BookingFeeItem
+              key={f.id}
+              fee={f}
+              timeslots={DEMO_TIMESLOTS}
+              hasDefault
+              onEdit={() => setFeeOpen(true)}
+              onChanged={() => {}}
+            />
+          ))}
+          <div className="mt-2">
+            <Button onClick={() => setFeeOpen(true)}>Open Booking Fee Form</Button>
+          </div>
+          <GalleryNote>
+            Rules resolve most-specific-first: a <code>timeslot</code> fee beats a{' '}
+            <code>day</code> fee, which beats the venue <code>default</code>. Every rule
+            carries its own message — the form won't save without one, so a $15 Saturday
+            can never inherit wording that says $10.
+          </GalleryNote>
+          <BookingFeeFormModal
+            open={feeOpen}
+            onClose={() => setFeeOpen(false)}
+            locationId="loc-1"
+            timeslots={DEMO_TIMESLOTS}
+            fees={DEMO_FEES}
+            onSaved={() => setFeeOpen(false)}
           />
         </div>
       </GallerySection>

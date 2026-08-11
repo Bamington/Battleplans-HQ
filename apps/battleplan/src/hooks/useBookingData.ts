@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@battleplans/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -737,6 +737,109 @@ export async function findImpactedBookings(
 
   impacted.sort((a, b) => a.date.localeCompare(b.date) || a.timeLabel.localeCompare(b.timeLabel));
   return impacted;
+}
+
+// ── Booking fees ──────────────────────────────────────────────────────────────
+// A venue can charge for a table. Nothing is collected here — the fee exists so
+// the player is told about it before they confirm. Rules resolve most-specific
+// first: a timeslot rule beats a weekday rule, which beats the venue default.
+
+export type FeeScope = 'default' | 'day' | 'timeslot';
+
+export interface BookingFee {
+  id:           string;
+  scope:        FeeScope;
+  /** Full day name ('Monday') for `day` rules, else null. */
+  day_of_week:  string | null;
+  timeslot_id:  string | null;
+  amount_cents: number;
+  /** Required — every rule states its own terms. See 20260811010000. */
+  message:      string;
+}
+
+/** 1000 → "$10", 1050 → "$10.50", 0 → "Free". */
+export function formatFeeAmount(cents: number): string {
+  if (cents === 0) return 'Free';
+  const dollars = cents / 100;
+  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
+/** The fee that applies to one prospective booking. */
+export interface ResolvedFee {
+  amountCents: number;
+  message:     string;
+  /** Which rule won — lets the admin UI explain why this fee applied. */
+  scope:       FeeScope;
+}
+
+/**
+ * Pick the fee that applies to a date + timeslot. Returns null when the venue
+ * has no rule that covers it (the common case — most venues charge nothing).
+ */
+export function resolveBookingFee(
+  fees:       BookingFee[],
+  date:       string | null,
+  timeslotId: string | null,
+): ResolvedFee | null {
+  const byTimeslot = timeslotId
+    ? fees.find(f => f.scope === 'timeslot' && f.timeslot_id === timeslotId)
+    : undefined;
+  const byDay = date
+    ? fees.find(f => f.scope === 'day' && f.day_of_week === DAY_NAMES[parseDateLocal(date).getDay()])
+    : undefined;
+
+  // Most specific wins; the venue default catches everything else.
+  const winner = byTimeslot ?? byDay ?? fees.find(f => f.scope === 'default');
+  if (!winner) return null;
+
+  return {
+    amountCents: winner.amount_cents,
+    message:     winner.message,
+    scope:       winner.scope,
+  };
+}
+
+const BOOKING_FEE_SELECT = 'id, scope, day_of_week, timeslot_id, amount_cents, message';
+
+/** Every fee rule at a venue — for the Manage Store editor. */
+export function useLocationBookingFees(locationId: string | null) {
+  const [fees,    setFees]    = useState<BookingFee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = () => {
+    if (!locationId) { setFees([]); setLoading(false); return; }
+    setLoading(true);
+    supabase
+      .from('location_booking_fees')
+      .select(BOOKING_FEE_SELECT)
+      .eq('location_id', locationId)
+      .then(({ data }) => {
+        setFees((data ?? []) as BookingFee[]);
+        setLoading(false);
+      });
+  };
+
+  useEffect(refetch, [locationId]);
+
+  return { fees, loading, refetch };
+}
+
+/**
+ * The single fee that applies to one prospective booking — for the booking
+ * flow. Loads the venue's rules, then resolves them locally so changing the
+ * date or timeslot doesn't cost another round trip.
+ */
+export function useBookingFee(
+  locationId: string | null,
+  date:       string | null,
+  timeslotId: string | null,
+) {
+  const { fees, loading } = useLocationBookingFees(locationId);
+  const fee = useMemo(
+    () => resolveBookingFee(fees, date, timeslotId),
+    [fees, date, timeslotId],
+  );
+  return { fee, loading };
 }
 
 // ── useUserBookings ───────────────────────────────────────────────────────────

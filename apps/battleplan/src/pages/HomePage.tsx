@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -18,8 +18,8 @@ import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
   useAdminLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
-  useRecentBookedGames,
-  formatTimeslotLabel, formatBookingTime,
+  useRecentBookedGames, useBookingFee,
+  formatTimeslotLabel, formatBookingTime, formatFeeAmount,
 } from '../hooks/useBookingData';
 import type { Location, BattleSuggestion, UpcomingBooking, Booking } from '../hooks/useBookingData';
 
@@ -96,6 +96,7 @@ function NewBookingModal({
   const { gameIds: recentGameIds }               = useRecentBookedGames(userId, 5);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
   const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
+  const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -282,6 +283,21 @@ function NewBookingModal({
               <span className="font-body text-sm text-red-300">No tables available at this time</span>
             </div>
           )
+        )}
+
+        {/* The venue's booking fee. Shown as soon as a venue is picked so the
+            cost isn't a surprise at the end, then narrowed if the chosen day or
+            timeslot is priced differently. BattlePlan takes no payment — this
+            is the store telling the player what to expect. */}
+        {fee && (
+          <Callout>
+            {fee.amountCents > 0 && (
+              <span className="font-medium text-white">{formatFeeAmount(fee.amountCents)} booking fee</span>
+            )}
+            <span className={fee.amountCents > 0 ? 'block mt-1 text-neutral-300' : 'text-neutral-300'}>
+              {fee.message}
+            </span>
+          </Callout>
         )}
 
         {error && <p className="font-body text-sm text-red-400">{error}</p>}
