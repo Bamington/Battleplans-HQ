@@ -11,6 +11,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { legacyCss } from '../../tools/vite/legacy-css';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -36,6 +37,8 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // Second stylesheet for browsers without cascade layers. See the plugin.
+    legacyCss(),
   ],
   define: {
     __APP_VERSION__:    JSON.stringify(pkg.version),
