@@ -295,7 +295,7 @@ export function useAvailableDates(locationId: string | null) {
         (tsRes.data ?? []).flatMap(ts => ts.availability as string[])
       );
 
-      const blocks = (bdRes.data ?? []) as unknown as (BlockRule & { blocked_tables: number | null })[];
+      const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
 
       // Generate next 60 calendar days, keep those whose weekday has a timeslot
       const result: { value: string; label: string }[] = [];
@@ -307,7 +307,9 @@ export function useAvailableDates(locationId: string | null) {
         d.setDate(today.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayName = DAY_NAMES[d.getDay()];
-        if (availableDays.has(dayName) && !blockedTablesOn(blocks, iso).fullyBlocked) {
+        // Only a full closure hides a date outright; blocking some tables
+        // leaves the day bookable with less capacity.
+        if (availableDays.has(dayName) && !blockedTablesOn(blocks, iso).venueClosed) {
           result.push({ value: iso, label: formatDateLabel(iso) });
         }
       }
@@ -623,12 +625,18 @@ export function useBookingsByDate(locationId: string | null, date: string | null
 // Returns upcoming blocked dates across the given location IDs, ordered by date.
 
 export type BlockRecurrence = 'none' | 'weekly';
+/** 'all' shuts the venue (including tables added later); 'selected' names tables. */
+export type BlockTableScope = 'all' | 'selected';
 
 export interface BlockedDate {
   id:             string;
   /** The blocked day for a one-off; the first day of the series when recurring. */
   date:           string;
   description:    string | null;
+  /**
+   * LEGACY mirror of `tableIds.length`, kept only so pre-2.15 clients still
+   * compute capacity. `tableIds` is authoritative. See 20260812030000.
+   */
   blocked_tables: number | null;
   recurrence:     BlockRecurrence;
   /** 1 = every week, 2 = every second week. Counted from the week of `date`. */
@@ -637,6 +645,9 @@ export interface BlockedDate {
   days_of_week:   string[];
   /** Last day the rule can apply; null runs until deleted. */
   until_date:     string | null;
+  table_scope:    BlockTableScope;
+  /** The tables this block covers. Empty when table_scope is 'all'. */
+  tableIds:       string[];
   location:       { id: string; name: string; icon: string };
 }
 
@@ -644,6 +655,9 @@ export interface BlockedDate {
 export type BlockRule = Pick<
   BlockedDate, 'date' | 'recurrence' | 'interval_weeks' | 'days_of_week' | 'until_date'
 >;
+
+/** A rule plus what it takes out — enough to work out capacity on a day. */
+export type BlockCoverage = BlockRule & { table_scope: BlockTableScope; tableIds: string[] };
 
 /** Midnight on the Monday of that date's week — the anchor every interval counts from. */
 function startOfWeek(d: Date): Date {
@@ -687,22 +701,45 @@ export function blockAppliesOn(rule: BlockRule, iso: string): boolean {
 }
 
 /**
- * How many tables a set of blocks takes out of a given day, and whether the
- * venue is shut entirely. A null `blocked_tables` means the whole venue.
+ * Which tables a set of blocks takes out on a given day.
+ *
+ * `venueClosed` is separate from the id set on purpose: closing the venue has
+ * to cover tables that don't exist yet, so it can't be expressed as a list of
+ * today's ids. Overlapping blocks naming the same table collapse, which a
+ * count-based model got wrong — two blocks each covering Table 1 removed two
+ * tables' worth of capacity.
  */
 export function blockedTablesOn(
-  blocks: (BlockRule & { blocked_tables: number | null })[],
+  blocks: BlockCoverage[],
   iso:    string,
-): { fullyBlocked: boolean; blockedCount: number } {
+): { venueClosed: boolean; blockedTableIds: Set<string> } {
   const active = blocks.filter(b => blockAppliesOn(b, iso));
   return {
-    fullyBlocked: active.some(b => b.blocked_tables === null),
-    blockedCount: active.reduce((sum, b) => sum + (b.blocked_tables ?? 0), 0),
+    venueClosed:     active.some(b => b.table_scope === 'all'),
+    blockedTableIds: new Set(active.flatMap(b => b.tableIds)),
   };
 }
 
-/** Columns every consumer of a block needs to evaluate it. */
-const BLOCK_RULE_COLUMNS = 'date, blocked_tables, recurrence, interval_weeks, days_of_week, until_date';
+/** Columns every consumer of a block needs, plus its table selection. */
+const BLOCK_RULE_COLUMNS =
+  'date, recurrence, interval_weeks, days_of_week, until_date, table_scope, blocked_date_tables(table_id)';
+
+/** Raw block row → the shape blockedTablesOn expects. */
+function mapBlockCoverage(r: unknown): BlockCoverage {
+  const row = r as BlockRule & {
+    table_scope: BlockTableScope;
+    blocked_date_tables?: { table_id: string }[] | null;
+  };
+  return {
+    date:           row.date,
+    recurrence:     row.recurrence,
+    interval_weeks: row.interval_weeks,
+    days_of_week:   row.days_of_week ?? [],
+    until_date:     row.until_date,
+    table_scope:    row.table_scope,
+    tableIds:       (row.blocked_date_tables ?? []).map(t => t.table_id),
+  };
+}
 
 export function useBlockedDates(locationIds: string[]) {
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
@@ -721,6 +758,7 @@ export function useBlockedDates(locationIds: string[]) {
       .select(`
         id, date, description, blocked_tables,
         recurrence, interval_weeks, days_of_week, until_date,
+        table_scope, blocked_date_tables(table_id),
         location:locations(id, name, icon)
       `)
       .in('location_id', locationIds)
@@ -729,7 +767,14 @@ export function useBlockedDates(locationIds: string[]) {
       .or(`and(recurrence.eq.none,date.gte.${today}),and(recurrence.neq.none,or(until_date.is.null,until_date.gte.${today}))`)
       .order('date')
       .then(({ data }) => {
-        setBlockedDates((data as unknown as BlockedDate[]) ?? []);
+        // Flatten the join rows into plain ids, so nothing downstream has to
+        // know the shape Supabase returns a nested select in.
+        setBlockedDates(((data ?? []) as unknown as (Omit<BlockedDate, 'tableIds'> & {
+          blocked_date_tables?: { table_id: string }[] | null;
+        })[]).map(r => ({
+          ...r,
+          tableIds: (r.blocked_date_tables ?? []).map(t => t.table_id),
+        })));
         setLoading(false);
       });
   };
@@ -758,11 +803,15 @@ export function useTableAvailability(
     setAvailable(null);
 
     Promise.all([
-      // Total capacity = enabled tables that are available for this timeslot.
+      // Capacity is now a SET, not a count: which enabled tables serve this
+      // timeslot. A block names tables, so the two have to be intersected
+      // rather than subtracted — a blocked table that doesn't serve this
+      // timeslot was never part of this slot's capacity to begin with.
       supabase.from('store_table_timeslots')
-        .select('table_id, store_tables!inner(id)', { count: 'exact', head: true })
+        .select('table_id, store_tables!inner(id, enabled, location_id)')
         .eq('timeslot_id', timeslotId)
-        .eq('store_tables.enabled', true),
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
       // booking_occupancy, not bookings: a regular user can no longer read
       // other people's bookings, but they still need the slot's taken-count to
       // see availability. The view exposes occupancy without any identity.
@@ -778,14 +827,17 @@ export function useTableAvailability(
         .eq('location_id', locationId)
         .or(`recurrence.neq.none,date.eq.${date}`),
     ]).then(([tablesRes, bookingsRes, blockedRes]) => {
-      const totalTables = tablesRes.count ?? 0;
+      const capacityIds = ((tablesRes.data as { table_id: string }[] | null) ?? [])
+        .map(r => r.table_id);
       const bookedCount = bookingsRes.count ?? 0;
 
-      const rules = (blockedRes.data ?? []) as unknown as (BlockRule & { blocked_tables: number | null })[];
-      const { fullyBlocked, blockedCount } = blockedTablesOn(rules, date);
-      const blockedTables = fullyBlocked ? totalTables : blockedCount;
+      const rules = (blockedRes.data ?? []).map(mapBlockCoverage);
+      const { venueClosed, blockedTableIds } = blockedTablesOn(rules, date);
 
-      const effectiveTables = Math.max(0, totalTables - blockedTables);
+      const effectiveTables = venueClosed
+        ? 0
+        : capacityIds.filter(id => !blockedTableIds.has(id)).length;
+
       setAvailable(Math.max(0, effectiveTables - bookedCount));
       setLoading(false);
     });

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
-  supabase, Button, Modal, Dropdown, DropdownItem, Input, Select, SearchSelect, Badge,
+  supabase, Button, Modal, Dropdown, DropdownItem, Select, SearchSelect, Badge, Checkbox,
   TrashBinMinimalistic, Pen2, ArrowRight,
 } from '@battleplans/ui';
 import DatePickerInput from './DatePickerInput';
 import { formatDateLabel } from '../hooks/useBookingData';
-import type { Location, BlockedDate, BlockRecurrence } from '../hooks/useBookingData';
+import type {
+  Location, BlockedDate, BlockRecurrence, BlockTableScope, StoreTable,
+} from '../hooks/useBookingData';
 
 /** Local YYYY-MM-DD — toISOString would shift the day either side of UTC. */
 function localToday(): string {
@@ -25,9 +27,32 @@ const MenuDotsIcon = () => (
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function formatBlockedTables(n: number | null): string {
-  if (n === null) return 'All tables blocked';
-  return `${n} ${n === 1 ? 'table' : 'tables'} blocked`;
+/**
+ * Which tables a block covers, named where possible.
+ *
+ * `tables` is the venue's current table list; a block can reference a table
+ * that has since been deleted, so anything unresolved is counted rather than
+ * dropped — "3 tables blocked" is still true, and quietly showing 2 would not be.
+ */
+export function formatBlockedTables(
+  block:  { table_scope: BlockTableScope; tableIds: string[] },
+  tables: StoreTable[] = [],
+): string {
+  if (block.table_scope === 'all') return 'All tables blocked';
+  if (block.tableIds.length === 0) return 'No tables blocked';
+
+  const byId    = new Map(tables.map(t => [t.id, t.name]));
+  const named   = block.tableIds.map(id => byId.get(id)).filter(Boolean) as string[];
+  const unknown = block.tableIds.length - named.length;
+
+  if (named.length === 0) {
+    return `${unknown} ${unknown === 1 ? 'table' : 'tables'} blocked`;
+  }
+
+  const list = named.length <= 3
+    ? named.join(', ')
+    : `${named.slice(0, 3).join(', ')} +${named.length - 3} more`;
+  return unknown > 0 ? `${list} +${unknown} more` : `${list} blocked`;
 }
 
 /** Week order, so 'Friday, Monday' always reads 'Monday, Friday'. */
@@ -73,16 +98,18 @@ export function describeBlockSchedule(b: {
 
 // ── BlockedDateItem ───────────────────────────────────────────────────────────
 
-export function BlockedDateItem({ blocked, locations, onChanged }: {
+export function BlockedDateItem({ blocked, locations, tables = [], onChanged }: {
   blocked: BlockedDate;
   locations: Location[];
+  /** The venue's tables, so the block can name what it covers. */
+  tables?: StoreTable[];
   onChanged: () => void;
 }) {
   const [editOpen,    setEditOpen]    = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting,    setDeleting]    = useState(false);
 
-  const { location, date, blocked_tables, description, recurrence } = blocked;
+  const { location, date, description, recurrence } = blocked;
   const isUrl     = location.icon?.startsWith('http');
   const recurring = recurrence === 'weekly';
 
@@ -112,7 +139,7 @@ export function BlockedDateItem({ blocked, locations, onChanged }: {
             <span className="font-heading text-lg text-white leading-6">{location.name}</span>
             {recurring && <Badge color="primary" size="sm">Repeats</Badge>}
           </div>
-          <span className="font-body text-xs text-primary-300 leading-4">{formatBlockedTables(blocked_tables)}</span>
+          <span className="font-body text-xs text-primary-300 leading-4">{formatBlockedTables(blocked, tables)}</span>
           <span className="font-body text-xs text-neutral-300 leading-4">{describeBlockSchedule(blocked)}</span>
           {/* A series' start only matters once it's in the future; saying
               "from" a date that has passed is noise. */}
@@ -152,6 +179,7 @@ export function BlockedDateItem({ blocked, locations, onChanged }: {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         locations={locations}
+        tables={tables}
         editing={blocked}
         onSaved={() => { setEditOpen(false); onChanged(); }}
       />
@@ -186,12 +214,12 @@ export function BlockedDateItem({ blocked, locations, onChanged }: {
 
 // ── BlockNewDateModal ─────────────────────────────────────────────────────────
 
-type BlockMode = 'all' | 'specific';
-
-export function BlockNewDateModal({ open, onClose, locations, editing, defaultLocationId, onSaved }: {
+export function BlockNewDateModal({ open, onClose, locations, tables = [], editing, defaultLocationId, onSaved }: {
   open: boolean;
   onClose: () => void;
   locations: Location[];
+  /** The venue's tables, to choose from. */
+  tables?: StoreTable[];
   editing?: BlockedDate | null;
   /** Pre-selected venue for new blocks (still switchable). Ignored when editing. */
   defaultLocationId?: string;
@@ -205,8 +233,8 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
 
   const [locationId,  setLocationId]  = useState('');
   const [date,        setDate]        = useState('');
-  const [blockMode,   setBlockMode]   = useState<BlockMode>('all');
-  const [tableCount,  setTableCount]  = useState('');
+  const [tableScope,  setTableScope]  = useState<BlockTableScope>('all');
+  const [tableIds,    setTableIds]    = useState<string[]>([]);
   const [description, setDescription] = useState('');
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState<string | null>(null);
@@ -226,8 +254,8 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
     if (editing) {
       setLocationId(editing.location.id);
       setDate(editing.date);
-      setBlockMode(editing.blocked_tables === null ? 'all' : 'specific');
-      setTableCount(editing.blocked_tables === null ? '' : String(editing.blocked_tables));
+      setTableScope(editing.table_scope ?? 'all');
+      setTableIds(editing.tableIds ?? []);
       setDescription(editing.description ?? '');
       setRecurrence(editing.recurrence ?? 'none');
       setInterval(String(editing.interval_weeks ?? 1));
@@ -235,23 +263,27 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
       setUntilDate(editing.until_date ?? '');
     } else {
       setLocationId(initialLocationId);
-      setDate(''); setBlockMode('all'); setTableCount(''); setDescription('');
+      setDate(''); setTableScope('all'); setTableIds([]); setDescription('');
       setRecurrence('none'); setInterval('1'); setDays([]); setUntilDate('');
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
 
-  const specific    = blockMode === 'specific';
-  const tableCountN = Number(tableCount);
-  const tableCountOk = !specific || (Number.isInteger(tableCountN) && tableCountN > 0);
+  const selecting = tableScope === 'selected';
+  // A "selected" block naming nothing would block nothing while looking like
+  // it blocks something.
+  const tablesOk  = !selecting || tableIds.length > 0;
+
+  const toggleTable = (id: string) =>
+    setTableIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
 
   const repeats  = recurrence === 'weekly';
   // A weekly rule with no days would block nothing while looking like it does,
   // so it can't be saved. The database refuses it too.
   const daysOk   = !repeats || days.length > 0;
   const untilOk  = !repeats || !untilDate || untilDate >= date;
-  const canSubmit = !!locationId && !!date && tableCountOk && daysOk && untilOk;
+  const canSubmit = !!locationId && !!date && tablesOk && daysOk && untilOk;
 
   const toggleDay = (d: string) =>
     setDays(ds => ds.includes(d) ? ds.filter(x => x !== d) : [...ds, d]);
@@ -259,7 +291,7 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
   const handleClose = () => {
     if (saving) return;
     setLocationId(initialLocationId);
-    setDate(''); setBlockMode('all'); setTableCount(''); setDescription('');
+    setDate(''); setTableScope('all'); setTableIds([]); setDescription('');
     setRecurrence('none'); setInterval('1'); setDays([]); setUntilDate('');
     setError(null);
     onClose();
@@ -269,10 +301,14 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
     if (!canSubmit) return;
     setSaving(true);
     setError(null);
+    const chosen = selecting ? tableIds : [];
     const payload = {
       location_id:    locationId,
       date,
-      blocked_tables: specific ? tableCountN : null,
+      table_scope:    tableScope,
+      // Legacy mirror. Production still computes capacity from this column, so
+      // it has to stay truthful until 2.15 is everywhere. See 20260812030000.
+      blocked_tables: selecting ? chosen.length : null,
       description:    description.trim() || null,
       recurrence,
       // Kept consistent with the scope: a one-off carries no schedule, so
@@ -282,11 +318,29 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
       days_of_week:   repeats ? WEEK_DAYS.filter(d => days.includes(d)) : [],
       until_date:     repeats && untilDate ? untilDate : null,
     };
-    const { error: err } = isEdit
-      ? await supabase.from('blocked_dates').update(payload).eq('id', editing!.id)
-      : await supabase.from('blocked_dates').insert(payload);
+    // The block row first — its id is what the table rows hang off.
+    const { data, error: err } = isEdit
+      ? await supabase.from('blocked_dates').update(payload).eq('id', editing!.id).select('id').single()
+      : await supabase.from('blocked_dates').insert(payload).select('id').single();
+
+    if (err || !data) { setSaving(false); setError(err?.message ?? 'Could not save this block.'); return; }
+    const blockId = (data as { id: string }).id;
+
+    // Replace the selection wholesale rather than diffing it: the set is a
+    // handful of rows, and a delete-then-insert can't leave a table linked
+    // that the admin just unticked.
+    const { error: delErr } = await supabase
+      .from('blocked_date_tables').delete().eq('blocked_date_id', blockId);
+    if (delErr) { setSaving(false); setError(delErr.message); return; }
+
+    if (chosen.length > 0) {
+      const { error: linkErr } = await supabase
+        .from('blocked_date_tables')
+        .insert(chosen.map(id => ({ blocked_date_id: blockId, table_id: id })));
+      if (linkErr) { setSaving(false); setError(linkErr.message); return; }
+    }
+
     setSaving(false);
-    if (err) { setError(err.message); return; }
     onSaved();
     handleClose();
   };
@@ -415,24 +469,67 @@ export function BlockNewDateModal({ open, onClose, locations, editing, defaultLo
         )}
 
         <Select
-          label="Blocking Options"
-          value={blockMode}
-          onChange={e => setBlockMode(e.target.value as BlockMode)}
+          label="Which Tables"
+          value={tableScope}
+          onChange={e => setTableScope(e.target.value as BlockTableScope)}
         >
           <option value="all">Block all tables</option>
-          <option value="specific">Block specific number of tables</option>
+          <option value="selected">Block specific tables</option>
         </Select>
 
-        {specific && (
-          <Input
-            label="Number of Tables Blocked"
-            type="number"
-            min={1}
-            step={1}
-            placeholder="e.g. 3"
-            value={tableCount}
-            onChange={e => setTableCount(e.target.value)}
-          />
+        {selecting && (
+          <div className="flex flex-col gap-2 p-3 rounded-lg bg-neutral-800 border border-neutral-700">
+            {tables.length === 0 ? (
+              <p className="font-body text-sm text-yellow-400">
+                This venue has no tables yet — add some before blocking individual ones.
+              </p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-sm font-medium font-body text-white">Tables</label>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    className="font-body text-xs text-primary-300 hover:text-primary-200 transition-colors"
+                    onClick={() => setTableIds(
+                      tableIds.length === tables.length ? [] : tables.map(t => t.id)
+                    )}
+                  >
+                    {tableIds.length === tables.length ? 'Clear all' : 'Select all'}
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                  {tables.map(t => (
+                    <Checkbox
+                      key={t.id}
+                      label={
+                        <span className="flex items-center gap-2">
+                          <span>{t.name}</span>
+                          <Badge color="gray" size="sm">
+                            {t.size === 'tcg' ? 'TCG' : 'Wargaming'}
+                          </Badge>
+                          {/* A disabled table takes no bookings anyway, so
+                              blocking it changes nothing — say so rather than
+                              let someone think they've done something. */}
+                          {!t.enabled && <span className="font-body text-xs text-neutral-500">disabled</span>}
+                        </span>
+                      }
+                      checked={tableIds.includes(t.id)}
+                      disabled={saving}
+                      onChange={() => toggleTable(t.id)}
+                    />
+                  ))}
+                </div>
+
+                {!tablesOk && (
+                  <p className="font-body text-xs text-yellow-400">
+                    Pick at least one table, or this block would block nothing.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         )}
 
         <div className="flex flex-col gap-2">

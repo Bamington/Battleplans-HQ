@@ -105,19 +105,23 @@ const DEMO_BLOCKED: BlockedDate = {
   interval_weeks: 1,
   days_of_week: [],
   until_date: null,
+  table_scope: 'all',
+  tableIds: [],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
 };
 
-/** A repeating rule: every second Friday, two tables, until the end of the year. */
+/** A repeating rule naming the tables it covers: every second Friday, until year end. */
 const DEMO_BLOCKED_RECURRING: BlockedDate = {
   id: 'bd-3',
   date: '2026-08-07',
   description: 'Regular club night',
-  blocked_tables: 2,
+  blocked_tables: 2,           // legacy mirror of tableIds.length
   recurrence: 'weekly',
   interval_weeks: 2,
   days_of_week: ['Friday'],
   until_date: '2026-12-31',
+  table_scope: 'selected',
+  tableIds: ['tb-1', 'tb-2'],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
 };
 
@@ -601,27 +605,44 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-blocked-dates" title="Blocked Dates">
         <div className="w-full max-w-2xl flex flex-col gap-2">
-          <BlockedDateItem blocked={DEMO_BLOCKED} locations={DEMO_LOCATIONS} onChanged={() => {}} />
           <BlockedDateItem
-            blocked={{ ...DEMO_BLOCKED, id: 'bd-2', description: null, blocked_tables: 2 }}
+            blocked={DEMO_BLOCKED}
             locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
             onChanged={() => {}}
           />
-          <BlockedDateItem blocked={DEMO_BLOCKED_RECURRING} locations={DEMO_LOCATIONS} onChanged={() => {}} />
+          <BlockedDateItem
+            blocked={{
+              ...DEMO_BLOCKED, id: 'bd-2', description: null,
+              table_scope: 'selected', tableIds: ['tb-2'], blocked_tables: 1,
+            }}
+            locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
+            onChanged={() => {}}
+          />
+          <BlockedDateItem
+            blocked={DEMO_BLOCKED_RECURRING}
+            locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
+            onChanged={() => {}}
+          />
           <div className="mt-2">
             <Button onClick={() => setBlockOpen(true)}>Open Block Date Form</Button>
           </div>
           <GalleryNote>
-            A null <code>blocked_tables</code> blocks the whole venue for that date
-            (the first row); a number blocks only that many tables (the second). The
-            third repeats: a rule, not expanded rows, so editing it moves every future
-            occurrence. Intervals count in whole weeks from the start date's week, so
-            "every 2nd Friday" stays on the same Fridays whatever day it was created.
+            <code>table_scope: 'all'</code> shuts the venue, covering tables added
+            later (first row); <code>'selected'</code> names the tables it covers
+            (second and third), so a block only reduces capacity in the timeslots
+            those tables actually serve. The third also repeats — a rule, not
+            expanded rows, so editing it moves every future occurrence. Intervals
+            count in whole weeks from the start date's week, so "every 2nd Friday"
+            stays on the same Fridays whatever day it was created.
           </GalleryNote>
           <BlockNewDateModal
             open={blockOpen}
             onClose={() => setBlockOpen(false)}
             locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
             defaultLocationId="loc-1"
             onSaved={() => setBlockOpen(false)}
           />

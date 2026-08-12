@@ -163,6 +163,7 @@ export default function ManageStore() {
                     key={bd.id}
                     blocked={bd}
                     locations={adminLocations}
+                    tables={tables}
                     onChanged={refetch}
                   />
                 ))}
@@ -399,6 +400,7 @@ export default function ManageStore() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         locations={adminLocations}
+        tables={tables}
         defaultLocationId={selectedId}
         onSaved={() => { setAddOpen(false); refetch(); }}
       />
