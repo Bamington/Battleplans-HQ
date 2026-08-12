@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, AppFooter, Button, Layers } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
-  useManagedLocations, useBlockedDates, useStoreTables, useLocationTimeslots, useBookingsByDate,
+  useAdminLocations, useBlockedDates, useStoreTables, useLocationTimeslots, useBookingsByDate,
   useLocationBookingFees, useLocationStaff, useLocationAdminIds,
   formatDateLabel, formatBookingTime,
 } from '../hooks/useBookingData';
@@ -68,35 +68,29 @@ export default function ManageStore() {
     });
   }, []);
 
-  // Venues this user is attached to, either as an admin or as staff.
-  const { locations: managedLocations, roles, loading } = useManagedLocations(userId ?? null);
+  // Every column on this page edits venue settings, which is exactly what the
+  // staff role withholds — so the page is venue admins only. Staff get their
+  // venue's bookings on the home screen instead.
+  const { adminLocations, loading } = useAdminLocations(userId ?? null);
   const [selectedId, setSelectedId] = useState('');
   const [addOpen,    setAddOpen]    = useState(false);
 
   // Default the selection to the first store once locations load.
   useEffect(() => {
-    if (managedLocations.length > 0 && !managedLocations.some(l => l.id === selectedId)) {
-      setSelectedId(managedLocations[0].id);
+    if (adminLocations.length > 0 && !adminLocations.some(l => l.id === selectedId)) {
+      setSelectedId(adminLocations[0].id);
     }
-  }, [managedLocations, selectedId]);
+  }, [adminLocations, selectedId]);
 
-  // Only people attached to a venue may see this page — send everyone else home.
+  // Only venue admins may see this page — send everyone else home. Staff who
+  // reach the URL directly land back on their bookings.
   useEffect(() => {
     if (userId === undefined) return;            // still resolving the session
     if (userId === null) { navigate('/app', { replace: true }); return; }
-    if (!loading && managedLocations.length === 0) navigate('/app', { replace: true });
-  }, [userId, loading, managedLocations, navigate]);
+    if (!loading && adminLocations.length === 0) navigate('/app', { replace: true });
+  }, [userId, loading, adminLocations, navigate]);
 
-  const selectedStore = managedLocations.find(l => l.id === selectedId);
-
-  // Staff see the bookings column and nothing else — every other column edits
-  // venue settings, which is exactly what the staff role withholds. The server
-  // enforces this too; this just avoids showing controls that would fail.
-  const isVenueAdmin = roles[selectedId] === 'admin';
-
-  // Venue pickers inside the admin-only columns must only offer venues this
-  // user actually administers, not ones they merely work at.
-  const adminLocations = managedLocations.filter(l => roles[l.id] === 'admin');
+  const selectedStore = adminLocations.find(l => l.id === selectedId);
   const { blockedDates, loading: bdLoading, refetch } = useBlockedDates(selectedId ? [selectedId] : []);
 
   const { timeslots, loading: timeslotsLoading, refetch: refetchTimeslots } = useLocationTimeslots(selectedId || null);
@@ -140,7 +134,7 @@ export default function ManageStore() {
 
       <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
         {selectedStore && (
-          <StoreSelector locations={managedLocations} selectedId={selectedId} onSelect={setSelectedId} />
+          <StoreSelector locations={adminLocations} selectedId={selectedId} onSelect={setSelectedId} />
         )}
       </AppNavbar>
 
@@ -148,7 +142,6 @@ export default function ManageStore() {
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
 
           {/* Blocked Dates column */}
-          {isVenueAdmin && (
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
@@ -186,10 +179,8 @@ export default function ManageStore() {
 
             </div>
           </div>
-          )}
 
           {/* Tables column */}
-          {isVenueAdmin && (
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
@@ -230,7 +221,6 @@ export default function ManageStore() {
 
             </div>
           </div>
-          )}
 
           {/* Bookings by Date column — the one thing staff can see. */}
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
@@ -275,7 +265,6 @@ export default function ManageStore() {
           </div>
 
           {/* Timeslots column */}
-          {isVenueAdmin && (
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
@@ -313,10 +302,8 @@ export default function ManageStore() {
 
             </div>
           </div>
-          )}
 
           {/* Booking Fees column */}
-          {isVenueAdmin && (
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
@@ -358,12 +345,9 @@ export default function ManageStore() {
 
             </div>
           </div>
-          )}
 
-          {/* Staff column — admins only. Staff can't see who else works here
-              from this page, and the RLS on location_staff won't let them
-              change it regardless. */}
-          {isVenueAdmin && (
+          {/* Staff column. Reaching this page at all means you're a venue
+              admin, and the RLS on location_staff enforces the same thing. */}
           <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
@@ -405,7 +389,6 @@ export default function ManageStore() {
 
             </div>
           </div>
-          )}
 
         </div>
       </main>
