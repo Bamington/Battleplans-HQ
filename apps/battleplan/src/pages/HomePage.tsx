@@ -467,6 +467,14 @@ function NewBookingModal({
             <span className={fee.amountCents > 0 ? 'block mt-1 text-neutral-300' : 'text-neutral-300'}>
               {fee.message}
             </span>
+            {/* BattlePlan takes no payment, so say where it is actually taken —
+                otherwise "booking fee" on a Confirm screen reads like something
+                about to be charged here. */}
+            {fee.amountCents > 0 && (
+              <span className="block mt-1.5 text-xs text-neutral-400">
+                This fee is paid in-person at the venue.
+              </span>
+            )}
           </Callout>
         )}
 
