@@ -91,9 +91,10 @@ const DEMO_FEES: BookingFee[] = [
 ];
 
 const DEMO_STAFF: StaffMember[] = [
-  { userId: 'u-1', handle: 'marcus-w', avatarPath: null, createdAt: '2026-08-01T09:00:00Z' },
-  // A handle that never resolved — the row says so rather than showing a uuid.
-  { userId: 'u-2', handle: null,       avatarPath: null, createdAt: '2026-08-03T09:00:00Z' },
+  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: null },
+  // No real name set — the row falls back to the @handle, with no duplicate
+  // line beneath it.
+  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: null },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {

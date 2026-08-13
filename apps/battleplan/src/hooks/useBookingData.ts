@@ -476,6 +476,8 @@ export function useLocationAdminIds(locationId: string | null) {
 export interface StaffMember {
   userId:     string;
   handle:     string | null;
+  /** Their real name. Only venue admins can see this — see 20260812050000. */
+  username:   string | null;
   avatarPath: string | null;
   createdAt:  string | null;
 }
@@ -488,41 +490,25 @@ export function useLocationStaff(locationId: string | null) {
     if (!locationId) { setStaff([]); setLoading(false); return; }
     setLoading(true);
 
+    // One RPC rather than a roster query plus a profile join: real names live
+    // in user_profiles, which is select-own under RLS, so reading a colleague's
+    // needs the security-definer fence. It returns the roster already resolved.
     supabase
-      .from('location_staff')
-      .select('user_id, created_at')
-      .eq('location_id', locationId)
-      .order('created_at')
-      .then(async ({ data }) => {
-        const rows = (data as { user_id: string; created_at: string }[] | null) ?? [];
-        if (rows.length === 0) { setStaff([]); setLoading(false); return; }
-
-        // location_staff has no FK to public_profiles (it's a view), so the
-        // profiles come in a second pass rather than a join.
-        //
-        // No `username` here: it's the private "Your Name" and was deliberately
-        // dropped from this view (20260722030000). Staff are identified by
-        // their public @handle, which is unique and unambiguous.
-        const { data: profiles } = await supabase
-          .from('public_profiles')
-          .select('id, handle, avatar_path')
-          .in('id', rows.map(r => r.user_id));
-
-        const byId = new Map(
-          ((profiles as {
-            id: string; handle: string | null; avatar_path: string | null;
-          }[] | null) ?? []).map(p => [p.id, p])
-        );
-
-        setStaff(rows.map(r => {
-          const p = byId.get(r.user_id);
-          return {
-            userId:     r.user_id,
-            handle:     p?.handle     ?? null,
-            avatarPath: p?.avatar_path ?? null,
-            createdAt:  r.created_at,
-          };
-        }));
+      .rpc('venue_staff_profiles', { loc: locationId })
+      .then(({ data, error }) => {
+        // A staff member calling this is refused by design; they have no screen
+        // that shows the roster, so an empty list is the right thing to render.
+        if (error) { setStaff([]); setLoading(false); return; }
+        setStaff(((data as {
+          user_id: string; handle: string | null;
+          username: string | null; avatar_path: string | null;
+        }[] | null) ?? []).map(p => ({
+          userId:     p.user_id,
+          handle:     p.handle,
+          username:   p.username,
+          avatarPath: p.avatar_path,
+          createdAt:  null,
+        })));
         setLoading(false);
       });
   }, [locationId]);
