@@ -91,9 +91,9 @@ const DEMO_FEES: BookingFee[] = [
 ];
 
 const DEMO_STAFF: StaffMember[] = [
-  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: '2026-08-01T09:00:00Z' },
-  // No display name set — the row falls back to the @handle.
-  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: '2026-08-03T09:00:00Z' },
+  { userId: 'u-1', handle: 'marcus-w', avatarPath: null, createdAt: '2026-08-01T09:00:00Z' },
+  // A handle that never resolved — the row says so rather than showing a uuid.
+  { userId: 'u-2', handle: null,       avatarPath: null, createdAt: '2026-08-03T09:00:00Z' },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {
@@ -129,6 +129,11 @@ const DEMO_BOOKING: Booking = {
   id: 'bk-1',
   date: '2026-08-01',
   user_name: 'Chris Harrison',
+  user_id: 'u-1',
+  // Booked by whoever owns it, so the store view reads "Booked by Chris
+  // Harrison". Set created_by_user_id to a DIFFERENT id to see the counter
+  // variant, "Booked by {staff} on behalf of Chris Harrison".
+  created_by_user_id: 'u-1',
   game:     { id: 'g-1', name: 'Blood Bowl', slug: 'blood-bowl' },
   location: { id: 'loc-1', name: 'Battleground North', address: '12 Guild Street, Sheffield' },
   timeslot: { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00' },

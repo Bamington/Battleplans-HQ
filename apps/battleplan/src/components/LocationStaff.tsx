@@ -26,14 +26,16 @@ export const StaffIcon = () => (
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Their display name if they set one, else their @handle. */
+/**
+ * Their @handle — public, unique, and the only name available here. The
+ * private "Your Name" isn't in public_profiles by design (20260722030000).
+ */
 export function staffLabel(s: StaffMember): string {
-  return s.username?.trim() || (s.handle ? `@${s.handle}` : 'Unknown user');
+  return s.handle ? `@${s.handle}` : 'Unknown user';
 }
 
 function initialsFor(s: StaffMember): string {
-  const source = s.username?.trim() || s.handle || '?';
-  return source.slice(0, 2).toUpperCase();
+  return (s.handle || '?').slice(0, 2).toUpperCase();
 }
 
 // ── StaffItem ─────────────────────────────────────────────────────────────────
@@ -78,9 +80,6 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
 
         <div className="flex flex-col flex-1 min-w-0">
           <span className="font-heading text-lg text-white leading-6 truncate">{staffLabel(member)}</span>
-          {member.handle && member.username?.trim() && (
-            <span className="font-body text-xs text-neutral-400 leading-4 truncate">@{member.handle}</span>
-          )}
           <span className="font-body text-xs text-primary-300 leading-4">Staff</span>
         </div>
 

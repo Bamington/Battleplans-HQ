@@ -26,6 +26,10 @@ export interface Booking {
   id:        string;
   date:      string;
   user_name: string | null;
+  /** Whose booking it is. Null for a guest the venue booked in. */
+  user_id:            string | null;
+  /** Who took the booking. Differs from user_id when a venue booked for someone. */
+  created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
@@ -37,6 +41,8 @@ interface RawBookingRow {
   id:                   string;
   date:                 string;
   user_name:            string | null;
+  user_id:              string | null;
+  created_by_user_id:   string | null;
   location_id:          string | null;
   timeslot_id:          string | null;
   location_name:        string | null;
@@ -51,7 +57,7 @@ interface RawBookingRow {
 // Columns to select for a displayable booking: the snapshot columns first, then
 // the live joins as a fallback for rows that predate the snapshot.
 const BOOKING_SELECT = `
-  id, date, user_name, location_id, timeslot_id,
+  id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
   game:game_catalogue(id, name, slug),
   location:locations(id, name, address),
@@ -66,6 +72,8 @@ function mapBookingRow(r: RawBookingRow): Booking {
     id:        r.id,
     date:      r.date,
     user_name: r.user_name,
+    user_id:            r.user_id ?? null,
+    created_by_user_id: r.created_by_user_id ?? null,
     game:      r.game ?? null,
     location: {
       id:      r.location?.id ?? r.location_id ?? '',
@@ -468,7 +476,6 @@ export function useLocationAdminIds(locationId: string | null) {
 export interface StaffMember {
   userId:     string;
   handle:     string | null;
-  username:   string | null;
   avatarPath: string | null;
   createdAt:  string | null;
 }
@@ -492,15 +499,18 @@ export function useLocationStaff(locationId: string | null) {
 
         // location_staff has no FK to public_profiles (it's a view), so the
         // profiles come in a second pass rather than a join.
+        //
+        // No `username` here: it's the private "Your Name" and was deliberately
+        // dropped from this view (20260722030000). Staff are identified by
+        // their public @handle, which is unique and unambiguous.
         const { data: profiles } = await supabase
           .from('public_profiles')
-          .select('id, handle, username, avatar_path')
+          .select('id, handle, avatar_path')
           .in('id', rows.map(r => r.user_id));
 
         const byId = new Map(
           ((profiles as {
-            id: string; handle: string | null;
-            username: string | null; avatar_path: string | null;
+            id: string; handle: string | null; avatar_path: string | null;
           }[] | null) ?? []).map(p => [p.id, p])
         );
 
@@ -509,7 +519,6 @@ export function useLocationStaff(locationId: string | null) {
           return {
             userId:     r.user_id,
             handle:     p?.handle     ?? null,
-            username:   p?.username   ?? null,
             avatarPath: p?.avatar_path ?? null,
             createdAt:  r.created_at,
           };
@@ -531,9 +540,43 @@ export interface UpcomingBooking {
   id:        string;
   date:      string;
   user_name: string | null;
+  user_id:            string | null;
+  created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
+}
+
+// ── useProfileLabel ───────────────────────────────────────────────────────────
+// One user's display name, for attributing a booking to whoever took it.
+// Reads public_profiles, the sanctioned window past user_profiles' select-own
+// RLS — so a venue admin can name a staff member without needing to be them.
+
+export function useProfileLabel(userId: string | null) {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) { setLabel(null); return; }
+
+    // Handle, not username: `username` is the private "Your Name" and was
+    // deliberately dropped from this view (20260722030000). The handle is the
+    // public, unique identifier — the right thing to attribute a booking to.
+    supabase
+      .from('public_profiles')
+      .select('handle')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const handle = (data as { handle: string | null } | null)?.handle;
+        setLabel(handle ? `@${handle}` : null);
+      });
+
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  return label;
 }
 
 export function useUpcomingBookings(locationIds: string[]) {
@@ -1195,6 +1238,11 @@ export function useSuggestedBattles(userId: string | null) {
         id: s.booking_id,
         date: s.date,
         user_name: null,
+        // The share view deliberately withholds the owner's identity, and this
+        // shape only ever feeds the battle-logging nudge — which reads the
+        // date and game, never who booked it.
+        user_id:            null,
+        created_by_user_id: null,
         game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
         location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
         timeslot: { id: '', name: '', start_time: '', end_time: '' },

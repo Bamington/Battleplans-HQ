@@ -25,7 +25,7 @@ import {
   type IncomingBookingShare, type OutgoingBookingShare,
 } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
-import { formatBookingTime, type Booking } from '../hooks/useBookingData';
+import { formatBookingTime, useProfileLabel, type Booking } from '../hooks/useBookingData';
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ function GameThumb({ slug, name }: { slug: string | null; name: string }) {
 
 /** Header: game thumbnail, game name, venue, and an optional attribution line. */
 function BookingHeader({
-  gameName, gameSlug, venue, invitedBy, bookedBy,
+  gameName, gameSlug, venue, invitedBy, bookedBy, bookedOnBehalfBy,
 }: {
   gameName: string;
   gameSlug: string | null;
@@ -59,6 +59,12 @@ function BookingHeader({
   invitedBy?: { id: string; handle: string; avatarUrl: string | null };
   /** Store view: "Booked by {customer}". */
   bookedBy?: string;
+  /**
+   * Store view, when a venue took this booking for someone: the staff member
+   * who took it. Turns the line into "Booked by {staff} on behalf of
+   * {customer}", so a counter booking is never mistaken for the customer's own.
+   */
+  bookedOnBehalfBy?: string;
 }) {
   return (
     <div className="flex gap-3 items-center w-full">
@@ -75,7 +81,12 @@ function BookingHeader({
             Invited by <HandleLink userId={invitedBy.id} handle={invitedBy.handle} avatarUrl={invitedBy.avatarUrl} className="font-bold" />
           </p>
         )}
-        {bookedBy && (
+        {bookedOnBehalfBy ? (
+          <p className="font-body text-sm text-neutral-50 leading-5 truncate">
+            Booked by <span className="font-bold">{bookedOnBehalfBy}</span>
+            {bookedBy && <> on behalf of <span className="font-bold">{bookedBy}</span></>}
+          </p>
+        ) : bookedBy && (
           <p className="font-body text-sm text-neutral-50 leading-5 truncate">
             Booked by <span className="font-bold">{bookedBy}</span>
           </p>
@@ -235,9 +246,18 @@ export function BookingDetailModal({
   const [cancelling, setCancelling] = useState(false);
   const { outgoing, busy, share, withdraw } = useBookingShares();
 
-  if (!open || !booking) return null;
-
   const isStore = mode === 'store';
+
+  // A booking the venue took for someone: created by one person, owned by
+  // another — or by nobody yet, for a guest who has no account. Resolved here
+  // rather than in each caller, and above the early return because it's a hook.
+  const takenByStaffId =
+    isStore && booking?.created_by_user_id && booking.created_by_user_id !== booking.user_id
+      ? booking.created_by_user_id
+      : null;
+  const takenByStaffLabel = useProfileLabel(takenByStaffId);
+
+  if (!open || !booking) return null;
 
   const segBase = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 font-body font-medium text-sm transition-colors';
 
@@ -276,6 +296,7 @@ export function BookingDetailModal({
             gameSlug={booking.game?.slug ?? null}
             venue={booking.location.name}
             bookedBy={isStore ? customerName : undefined}
+            bookedOnBehalfBy={takenByStaffLabel ?? undefined}
           />
 
           {/* A store admin isn't the owner, so no Invite Friends tab — just the
