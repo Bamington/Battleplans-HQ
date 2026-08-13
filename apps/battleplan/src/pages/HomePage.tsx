@@ -19,7 +19,7 @@ import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   useRecentBookedGames, useBookingFee,
-  formatTimeslotLabel, formatBookingTime, formatFeeAmount,
+  formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
 import type { Location, BattleSuggestion, UpcomingBooking, Booking } from '../hooks/useBookingData';
 
@@ -457,8 +457,12 @@ function NewBookingModal({
             is the store telling the player what to expect. */}
         {fee && (
           <Callout>
+            {/* Deliberately static rather than derived from amount_cents. The
+                store's message states its own figures, and a heading built
+                from the amount could contradict them — "$10 booking fee" over
+                wording that says $5. One voice, the venue's. */}
             {fee.amountCents > 0 && (
-              <span className="font-medium text-white">{formatFeeAmount(fee.amountCents)} booking fee</span>
+              <span className="font-medium text-white">This venue has a booking fee.</span>
             )}
             <span className={fee.amountCents > 0 ? 'block mt-1 text-neutral-300' : 'text-neutral-300'}>
               {fee.message}
