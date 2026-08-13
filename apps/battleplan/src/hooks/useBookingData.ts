@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@battleplans/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -26,6 +26,10 @@ export interface Booking {
   id:        string;
   date:      string;
   user_name: string | null;
+  /** Whose booking it is. Null for a guest the venue booked in. */
+  user_id:            string | null;
+  /** Who took the booking. Differs from user_id when a venue booked for someone. */
+  created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
@@ -37,6 +41,8 @@ interface RawBookingRow {
   id:                   string;
   date:                 string;
   user_name:            string | null;
+  user_id:              string | null;
+  created_by_user_id:   string | null;
   location_id:          string | null;
   timeslot_id:          string | null;
   location_name:        string | null;
@@ -51,7 +57,7 @@ interface RawBookingRow {
 // Columns to select for a displayable booking: the snapshot columns first, then
 // the live joins as a fallback for rows that predate the snapshot.
 const BOOKING_SELECT = `
-  id, date, user_name, location_id, timeslot_id,
+  id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
   game:game_catalogue(id, name, slug),
   location:locations(id, name, address),
@@ -66,6 +72,8 @@ function mapBookingRow(r: RawBookingRow): Booking {
     id:        r.id,
     date:      r.date,
     user_name: r.user_name,
+    user_id:            r.user_id ?? null,
+    created_by_user_id: r.created_by_user_id ?? null,
     game:      r.game ?? null,
     location: {
       id:      r.location?.id ?? r.location_id ?? '',
@@ -282,23 +290,20 @@ export function useAvailableDates(locationId: string | null) {
         .from('timeslots')
         .select('availability')
         .eq('location_id', locationId),
+      // A recurring rule can have started long ago and still apply, so it can't
+      // be filtered out by date — only one-offs can.
       supabase
         .from('blocked_dates')
-        .select('date, blocked_tables')
+        .select(BLOCK_RULE_COLUMNS)
         .eq('location_id', locationId)
-        .gte('date', new Date().toISOString().slice(0, 10)),
+        .or(`recurrence.neq.none,date.gte.${isoDaysFromToday(0)}`),
     ]).then(([tsRes, bdRes]) => {
       // Collect all available day names across all timeslots
       const availableDays = new Set<string>(
         (tsRes.data ?? []).flatMap(ts => ts.availability as string[])
       );
 
-      // Collect fully-blocked dates (blocked_tables IS NULL = entire venue blocked)
-      const fullyBlocked = new Set<string>(
-        (bdRes.data ?? [])
-          .filter(bd => bd.blocked_tables === null)
-          .map(bd => bd.date)
-      );
+      const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
 
       // Generate next 60 calendar days, keep those whose weekday has a timeslot
       const result: { value: string; label: string }[] = [];
@@ -310,7 +315,9 @@ export function useAvailableDates(locationId: string | null) {
         d.setDate(today.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayName = DAY_NAMES[d.getDay()];
-        if (availableDays.has(dayName) && !fullyBlocked.has(iso)) {
+        // Only a full closure hides a date outright; blocking some tables
+        // leaves the day bookable with less capacity.
+        if (availableDays.has(dayName) && !blockedTablesOn(blocks, iso).venueClosed) {
           result.push({ value: iso, label: formatDateLabel(iso) });
         }
       }
@@ -384,6 +391,133 @@ export function useAdminLocations(userId: string | null) {
   return { adminLocations, loading };
 }
 
+// ── Venue membership ──────────────────────────────────────────────────────────
+// Two ways to be attached to a venue. An `admin` (locations.admins) runs the
+// place and can change anything about it. `staff` work there: they can see who
+// is booked in, and nothing else. See 20260811020000.
+
+export type VenueRole = 'admin' | 'staff';
+
+/**
+ * Every venue this user can open Manage Store for, and what they may do at
+ * each. Admin beats staff where someone is both, so a venue owner who also
+ * added themselves as staff never loses their own controls.
+ */
+export function useManagedLocations(userId: string | null) {
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [roles,     setRoles]     = useState<Record<string, VenueRole>>({});
+  // Same trick as useAdminLocations: derive `loading` from which user the
+  // current data belongs to, so it's never stale within a render.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) { setLocations([]); setRoles({}); setLoadedFor(null); return; }
+
+    Promise.all([
+      supabase.from('locations').select('id, name, icon').contains('admins', [userId]),
+      supabase.from('location_staff').select('location_id').eq('user_id', userId),
+    ]).then(async ([adminRes, staffRes]) => {
+      if (cancelled) return;
+
+      const adminLocs = (adminRes.data ?? []) as Location[];
+      const adminIds  = new Set(adminLocs.map(l => l.id));
+      const staffIds  = ((staffRes.data as { location_id: string }[] | null) ?? [])
+        .map(r => r.location_id)
+        .filter(id => !adminIds.has(id));   // admin already covers these
+
+      let staffLocs: Location[] = [];
+      if (staffIds.length > 0) {
+        const { data } = await supabase
+          .from('locations').select('id, name, icon').in('id', staffIds);
+        if (cancelled) return;
+        staffLocs = (data ?? []) as Location[];
+      }
+
+      const nextRoles: Record<string, VenueRole> = {};
+      for (const l of adminLocs) nextRoles[l.id] = 'admin';
+      for (const l of staffLocs) nextRoles[l.id] = 'staff';
+
+      setLocations([...adminLocs, ...staffLocs].sort((a, b) => a.name.localeCompare(b.name)));
+      setRoles(nextRoles);
+      setLoadedFor(userId);
+    });
+
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const loading = !!userId && loadedFor !== userId;
+
+  return { locations, roles, loading };
+}
+
+/** The admin user ids on one venue — so the staff picker can spot an admin. */
+export function useLocationAdminIds(locationId: string | null) {
+  const [adminIds, setAdminIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!locationId) { setAdminIds([]); return; }
+    supabase
+      .from('locations').select('admins').eq('id', locationId).single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAdminIds(((data?.admins as string[] | null) ?? []));
+      });
+    return () => { cancelled = true; };
+  }, [locationId]);
+
+  return adminIds;
+}
+
+// ── useLocationStaff ──────────────────────────────────────────────────────────
+// The roster at one venue, with each person's public profile attached.
+
+export interface StaffMember {
+  userId:     string;
+  handle:     string | null;
+  /** Their real name. Only venue admins can see this — see 20260812050000. */
+  username:   string | null;
+  avatarPath: string | null;
+  createdAt:  string | null;
+}
+
+export function useLocationStaff(locationId: string | null) {
+  const [staff,   setStaff]   = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(() => {
+    if (!locationId) { setStaff([]); setLoading(false); return; }
+    setLoading(true);
+
+    // One RPC rather than a roster query plus a profile join: real names live
+    // in user_profiles, which is select-own under RLS, so reading a colleague's
+    // needs the security-definer fence. It returns the roster already resolved.
+    supabase
+      .rpc('venue_staff_profiles', { loc: locationId })
+      .then(({ data, error }) => {
+        // A staff member calling this is refused by design; they have no screen
+        // that shows the roster, so an empty list is the right thing to render.
+        if (error) { setStaff([]); setLoading(false); return; }
+        setStaff(((data as {
+          user_id: string; handle: string | null;
+          username: string | null; avatar_path: string | null;
+        }[] | null) ?? []).map(p => ({
+          userId:     p.user_id,
+          handle:     p.handle,
+          username:   p.username,
+          avatarPath: p.avatar_path,
+          createdAt:  null,
+        })));
+        setLoading(false);
+      });
+  }, [locationId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { staff, loading, refetch };
+}
+
 // ── useUpcomingBookings ───────────────────────────────────────────────────────
 // Returns all bookings on or after today across the given location IDs,
 // ordered by date then timeslot.
@@ -392,9 +526,43 @@ export interface UpcomingBooking {
   id:        string;
   date:      string;
   user_name: string | null;
+  user_id:            string | null;
+  created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
+}
+
+// ── useProfileLabel ───────────────────────────────────────────────────────────
+// One user's display name, for attributing a booking to whoever took it.
+// Reads public_profiles, the sanctioned window past user_profiles' select-own
+// RLS — so a venue admin can name a staff member without needing to be them.
+
+export function useProfileLabel(userId: string | null) {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) { setLabel(null); return; }
+
+    // Handle, not username: `username` is the private "Your Name" and was
+    // deliberately dropped from this view (20260722030000). The handle is the
+    // public, unique identifier — the right thing to attribute a booking to.
+    supabase
+      .from('public_profiles')
+      .select('handle')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const handle = (data as { handle: string | null } | null)?.handle;
+        setLabel(handle ? `@${handle}` : null);
+      });
+
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  return label;
 }
 
 export function useUpcomingBookings(locationIds: string[]) {
@@ -485,12 +653,121 @@ export function useBookingsByDate(locationId: string | null, date: string | null
 // ── useBlockedDates ───────────────────────────────────────────────────────────
 // Returns upcoming blocked dates across the given location IDs, ordered by date.
 
+export type BlockRecurrence = 'none' | 'weekly';
+/** 'all' shuts the venue (including tables added later); 'selected' names tables. */
+export type BlockTableScope = 'all' | 'selected';
+
 export interface BlockedDate {
   id:             string;
+  /** The blocked day for a one-off; the first day of the series when recurring. */
   date:           string;
   description:    string | null;
+  /**
+   * LEGACY mirror of `tableIds.length`, kept only so pre-2.15 clients still
+   * compute capacity. `tableIds` is authoritative. See 20260812030000.
+   */
   blocked_tables: number | null;
+  recurrence:     BlockRecurrence;
+  /** 1 = every week, 2 = every second week. Counted from the week of `date`. */
+  interval_weeks: number;
+  /** Full day names, e.g. ['Monday']. Empty for a one-off. */
+  days_of_week:   string[];
+  /** Last day the rule can apply; null runs until deleted. */
+  until_date:     string | null;
+  table_scope:    BlockTableScope;
+  /** The tables this block covers. Empty when table_scope is 'all'. */
+  tableIds:       string[];
   location:       { id: string; name: string; icon: string };
+}
+
+/** The recurrence fields, for callers that don't need the whole row. */
+export type BlockRule = Pick<
+  BlockedDate, 'date' | 'recurrence' | 'interval_weeks' | 'days_of_week' | 'until_date'
+>;
+
+/** A rule plus what it takes out — enough to work out capacity on a day. */
+export type BlockCoverage = BlockRule & { table_scope: BlockTableScope; tableIds: string[] };
+
+/** Midnight on the Monday of that date's week — the anchor every interval counts from. */
+function startOfWeek(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  // getDay() is Sunday-first; shift so Monday is 0.
+  out.setDate(out.getDate() - ((out.getDay() + 6) % 7));
+  return out;
+}
+
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Does this block apply on `iso`?
+ *
+ * A one-off applies on exactly its date. A weekly rule applies on the listed
+ * weekdays, in every `interval_weeks`-th week counted from the week its series
+ * starts, from `date` until `until_date` inclusive.
+ *
+ * Anchoring the interval to whole weeks rather than to day-differences is what
+ * makes "every second Friday" mean the same Fridays no matter which day of the
+ * week the rule happened to be created on.
+ */
+export function blockAppliesOn(rule: BlockRule, iso: string): boolean {
+  if (rule.recurrence !== 'weekly') return rule.date === iso;
+
+  const day = parseDateLocal(iso);
+  if (iso < rule.date) return false;
+  if (rule.until_date && iso > rule.until_date) return false;
+  if (!rule.days_of_week.includes(DAY_NAMES[day.getDay()])) return false;
+
+  const every = rule.interval_weeks ?? 1;
+  if (every <= 1) return true;
+
+  // Whole weeks between the two Mondays. Rounded because a DST change inside
+  // the span leaves the difference an hour off a clean multiple.
+  const weeks = Math.round(
+    (startOfWeek(day).getTime() - startOfWeek(parseDateLocal(rule.date)).getTime()) / MS_PER_WEEK
+  );
+  return weeks % every === 0;
+}
+
+/**
+ * Which tables a set of blocks takes out on a given day.
+ *
+ * `venueClosed` is separate from the id set on purpose: closing the venue has
+ * to cover tables that don't exist yet, so it can't be expressed as a list of
+ * today's ids. Overlapping blocks naming the same table collapse, which a
+ * count-based model got wrong — two blocks each covering Table 1 removed two
+ * tables' worth of capacity.
+ */
+export function blockedTablesOn(
+  blocks: BlockCoverage[],
+  iso:    string,
+): { venueClosed: boolean; blockedTableIds: Set<string> } {
+  const active = blocks.filter(b => blockAppliesOn(b, iso));
+  return {
+    venueClosed:     active.some(b => b.table_scope === 'all'),
+    blockedTableIds: new Set(active.flatMap(b => b.tableIds)),
+  };
+}
+
+/** Columns every consumer of a block needs, plus its table selection. */
+const BLOCK_RULE_COLUMNS =
+  'date, recurrence, interval_weeks, days_of_week, until_date, table_scope, blocked_date_tables(table_id)';
+
+/** Raw block row → the shape blockedTablesOn expects. */
+function mapBlockCoverage(r: unknown): BlockCoverage {
+  const row = r as BlockRule & {
+    table_scope: BlockTableScope;
+    blocked_date_tables?: { table_id: string }[] | null;
+  };
+  return {
+    date:           row.date,
+    recurrence:     row.recurrence,
+    interval_weeks: row.interval_weeks,
+    days_of_week:   row.days_of_week ?? [],
+    until_date:     row.until_date,
+    table_scope:    row.table_scope,
+    tableIds:       (row.blocked_date_tables ?? []).map(t => t.table_id),
+  };
 }
 
 export function useBlockedDates(locationIds: string[]) {
@@ -509,13 +786,24 @@ export function useBlockedDates(locationIds: string[]) {
       .from('blocked_dates')
       .select(`
         id, date, description, blocked_tables,
+        recurrence, interval_weeks, days_of_week, until_date,
+        table_scope, blocked_date_tables(table_id),
         location:locations(id, name, icon)
       `)
       .in('location_id', locationIds)
-      .gte('date', today)
+      // A weekly rule started in March is still live in June, so it can't be
+      // filtered on its start date. It drops off the list once it has expired.
+      .or(`and(recurrence.eq.none,date.gte.${today}),and(recurrence.neq.none,or(until_date.is.null,until_date.gte.${today}))`)
       .order('date')
       .then(({ data }) => {
-        setBlockedDates((data as unknown as BlockedDate[]) ?? []);
+        // Flatten the join rows into plain ids, so nothing downstream has to
+        // know the shape Supabase returns a nested select in.
+        setBlockedDates(((data ?? []) as unknown as (Omit<BlockedDate, 'tableIds'> & {
+          blocked_date_tables?: { table_id: string }[] | null;
+        })[]).map(r => ({
+          ...r,
+          tableIds: (r.blocked_date_tables ?? []).map(t => t.table_id),
+        })));
         setLoading(false);
       });
   };
@@ -544,11 +832,15 @@ export function useTableAvailability(
     setAvailable(null);
 
     Promise.all([
-      // Total capacity = enabled tables that are available for this timeslot.
+      // Capacity is now a SET, not a count: which enabled tables serve this
+      // timeslot. A block names tables, so the two have to be intersected
+      // rather than subtracted — a blocked table that doesn't serve this
+      // timeslot was never part of this slot's capacity to begin with.
       supabase.from('store_table_timeslots')
-        .select('table_id, store_tables!inner(id)', { count: 'exact', head: true })
+        .select('table_id, store_tables!inner(id, enabled, location_id)')
         .eq('timeslot_id', timeslotId)
-        .eq('store_tables.enabled', true),
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
       // booking_occupancy, not bookings: a regular user can no longer read
       // other people's bookings, but they still need the slot's taken-count to
       // see availability. The view exposes occupancy without any identity.
@@ -557,22 +849,24 @@ export function useTableAvailability(
         .eq('date', date)
         .eq('timeslot_id', timeslotId),
       // Blocked dates apply to the whole day, so they reduce the tables
-      // available for every timeslot on that date.
-      supabase.from('blocked_dates').select('blocked_tables')
+      // available for every timeslot on that date. A recurring rule can't be
+      // matched with `.eq('date', …)` — whether it covers this day is a
+      // computation, so fetch the venue's rules and evaluate them.
+      supabase.from('blocked_dates').select(BLOCK_RULE_COLUMNS)
         .eq('location_id', locationId)
-        .eq('date', date),
+        .or(`recurrence.neq.none,date.eq.${date}`),
     ]).then(([tablesRes, bookingsRes, blockedRes]) => {
-      const totalTables = tablesRes.count ?? 0;
+      const capacityIds = ((tablesRes.data as { table_id: string }[] | null) ?? [])
+        .map(r => r.table_id);
       const bookedCount = bookingsRes.count ?? 0;
 
-      // A NULL blocked_tables means the entire venue is blocked that day.
-      const blocks        = blockedRes.data ?? [];
-      const fullyBlocked  = blocks.some(b => b.blocked_tables === null);
-      const blockedTables = fullyBlocked
-        ? totalTables
-        : blocks.reduce((sum, b) => sum + (b.blocked_tables ?? 0), 0);
+      const rules = (blockedRes.data ?? []).map(mapBlockCoverage);
+      const { venueClosed, blockedTableIds } = blockedTablesOn(rules, date);
 
-      const effectiveTables = Math.max(0, totalTables - blockedTables);
+      const effectiveTables = venueClosed
+        ? 0
+        : capacityIds.filter(id => !blockedTableIds.has(id)).length;
+
       setAvailable(Math.max(0, effectiveTables - bookedCount));
       setLoading(false);
     });
@@ -739,6 +1033,109 @@ export async function findImpactedBookings(
   return impacted;
 }
 
+// ── Booking fees ──────────────────────────────────────────────────────────────
+// A venue can charge for a table. Nothing is collected here — the fee exists so
+// the player is told about it before they confirm. Rules resolve most-specific
+// first: a timeslot rule beats a weekday rule, which beats the venue default.
+
+export type FeeScope = 'default' | 'day' | 'timeslot';
+
+export interface BookingFee {
+  id:           string;
+  scope:        FeeScope;
+  /** Full day name ('Monday') for `day` rules, else null. */
+  day_of_week:  string | null;
+  timeslot_id:  string | null;
+  amount_cents: number;
+  /** Required — every rule states its own terms. See 20260811010000. */
+  message:      string;
+}
+
+/** 1000 → "$10", 1050 → "$10.50", 0 → "Free". */
+export function formatFeeAmount(cents: number): string {
+  if (cents === 0) return 'Free';
+  const dollars = cents / 100;
+  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
+/** The fee that applies to one prospective booking. */
+export interface ResolvedFee {
+  amountCents: number;
+  message:     string;
+  /** Which rule won — lets the admin UI explain why this fee applied. */
+  scope:       FeeScope;
+}
+
+/**
+ * Pick the fee that applies to a date + timeslot. Returns null when the venue
+ * has no rule that covers it (the common case — most venues charge nothing).
+ */
+export function resolveBookingFee(
+  fees:       BookingFee[],
+  date:       string | null,
+  timeslotId: string | null,
+): ResolvedFee | null {
+  const byTimeslot = timeslotId
+    ? fees.find(f => f.scope === 'timeslot' && f.timeslot_id === timeslotId)
+    : undefined;
+  const byDay = date
+    ? fees.find(f => f.scope === 'day' && f.day_of_week === DAY_NAMES[parseDateLocal(date).getDay()])
+    : undefined;
+
+  // Most specific wins; the venue default catches everything else.
+  const winner = byTimeslot ?? byDay ?? fees.find(f => f.scope === 'default');
+  if (!winner) return null;
+
+  return {
+    amountCents: winner.amount_cents,
+    message:     winner.message,
+    scope:       winner.scope,
+  };
+}
+
+const BOOKING_FEE_SELECT = 'id, scope, day_of_week, timeslot_id, amount_cents, message';
+
+/** Every fee rule at a venue — for the Manage Store editor. */
+export function useLocationBookingFees(locationId: string | null) {
+  const [fees,    setFees]    = useState<BookingFee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = () => {
+    if (!locationId) { setFees([]); setLoading(false); return; }
+    setLoading(true);
+    supabase
+      .from('location_booking_fees')
+      .select(BOOKING_FEE_SELECT)
+      .eq('location_id', locationId)
+      .then(({ data }) => {
+        setFees((data ?? []) as BookingFee[]);
+        setLoading(false);
+      });
+  };
+
+  useEffect(refetch, [locationId]);
+
+  return { fees, loading, refetch };
+}
+
+/**
+ * The single fee that applies to one prospective booking — for the booking
+ * flow. Loads the venue's rules, then resolves them locally so changing the
+ * date or timeslot doesn't cost another round trip.
+ */
+export function useBookingFee(
+  locationId: string | null,
+  date:       string | null,
+  timeslotId: string | null,
+) {
+  const { fees, loading } = useLocationBookingFees(locationId);
+  const fee = useMemo(
+    () => resolveBookingFee(fees, date, timeslotId),
+    [fees, date, timeslotId],
+  );
+  return { fee, loading };
+}
+
 // ── useUserBookings ───────────────────────────────────────────────────────────
 
 export function useUserBookings(userId: string | null) {
@@ -827,6 +1224,11 @@ export function useSuggestedBattles(userId: string | null) {
         id: s.booking_id,
         date: s.date,
         user_name: null,
+        // The share view deliberately withholds the owner's identity, and this
+        // shape only ever feeds the battle-logging nudge — which reads the
+        // date and game, never who booked it.
+        user_id:            null,
+        created_by_user_id: null,
         game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
         location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
         timeslot: { id: '', name: '', start_time: '', end_time: '' },

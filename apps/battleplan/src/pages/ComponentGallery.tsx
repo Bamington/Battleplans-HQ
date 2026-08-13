@@ -47,8 +47,10 @@ import { OpponentPicker } from '../components/OpponentPicker';
 import { StoreSelector, StoreIcon } from '../components/StoreSelector';
 import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
+import { BookingFeeItem, BookingFeeFormModal } from '../components/BookingFees';
+import { StaffItem, AddStaffModal } from '../components/LocationStaff';
 import type { Battle } from '../hooks/useBattles';
-import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate } from '../hooks/useBookingData';
+import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember } from '../hooks/useBookingData';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import type { IncomingBookingShare } from '@battleplans/ui';
 
@@ -77,11 +79,50 @@ const DEMO_TABLES: StoreTable[] = [
   { id: 'tb-2', name: 'Table 2', size: 'tcg',       enabled: false, timeslotIds: ['ts-3'] },
 ];
 
+const DEMO_FEES: BookingFee[] = [
+  { id: 'fee-1', scope: 'default',  day_of_week: null,     timeslot_id: null,
+    amount_cents: 1000,
+    message: 'Table booking at this store is $10 for 3 hours. If there is no other reservation, you can keep your table longer at no additional cost.' },
+  { id: 'fee-2', scope: 'day',      day_of_week: 'Saturday', timeslot_id: null,
+    amount_cents: 1500, message: 'Saturdays are busy — $15 holds your table for the full session.' },
+  { id: 'fee-3', scope: 'timeslot', day_of_week: null,     timeslot_id: 'ts-1',
+    amount_cents: 500,
+    message: 'Morning tables are $5 for the three-hour slot. Pay at the counter when you arrive.' },
+];
+
+const DEMO_STAFF: StaffMember[] = [
+  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: null },
+  // No real name set — the row falls back to the @handle, with no duplicate
+  // line beneath it.
+  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: null },
+];
+
 const DEMO_BLOCKED: BlockedDate = {
   id: 'bd-1',
   date: '2026-08-15',
   description: 'Store closed for a tournament',
   blocked_tables: null,
+  recurrence: 'none',
+  interval_weeks: 1,
+  days_of_week: [],
+  until_date: null,
+  table_scope: 'all',
+  tableIds: [],
+  location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+};
+
+/** A repeating rule naming the tables it covers: every second Friday, until year end. */
+const DEMO_BLOCKED_RECURRING: BlockedDate = {
+  id: 'bd-3',
+  date: '2026-08-07',
+  description: 'Regular club night',
+  blocked_tables: 2,           // legacy mirror of tableIds.length
+  recurrence: 'weekly',
+  interval_weeks: 2,
+  days_of_week: ['Friday'],
+  until_date: '2026-12-31',
+  table_scope: 'selected',
+  tableIds: ['tb-1', 'tb-2'],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
 };
 
@@ -89,6 +130,11 @@ const DEMO_BOOKING: Booking = {
   id: 'bk-1',
   date: '2026-08-01',
   user_name: 'Chris Harrison',
+  user_id: 'u-1',
+  // Booked by whoever owns it, so the store view reads "Booked by Chris
+  // Harrison". Set created_by_user_id to a DIFFERENT id to see the counter
+  // variant, "Booked by {staff} on behalf of Chris Harrison".
+  created_by_user_id: 'u-1',
   game:     { id: 'g-1', name: 'Blood Bowl', slug: 'blood-bowl' },
   location: { id: 'loc-1', name: 'Battleground North', address: '12 Guild Street, Sheffield' },
   timeslot: { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00' },
@@ -151,6 +197,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-timeslots',         label: 'Timeslots',          icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-store-tables',      label: 'Store Tables',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-blocked-dates',     label: 'Blocked Dates',      icon: <Clipboard className="w-5 h-5" /> },
+  { href: '#nav-booking-fees',      label: 'Booking Fees',       icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-location-staff',    label: 'Location Staff',     icon: <UsersGroupRounded className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -163,6 +211,8 @@ const ComponentGallery = () => {
   const [blockOpen,      setBlockOpen]      = useState(false);
   const [tableOpen,      setTableOpen]      = useState(false);
   const [timeslotOpen,   setTimeslotOpen]   = useState(false);
+  const [feeOpen,        setFeeOpen]        = useState(false);
+  const [staffOpen,      setStaffOpen]      = useState(false);
   const [date,           setDate]           = useState('2026-08-01');
   const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
@@ -561,25 +611,111 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-blocked-dates" title="Blocked Dates">
         <div className="w-full max-w-2xl flex flex-col gap-2">
-          <BlockedDateItem blocked={DEMO_BLOCKED} locations={DEMO_LOCATIONS} onChanged={() => {}} />
           <BlockedDateItem
-            blocked={{ ...DEMO_BLOCKED, id: 'bd-2', description: null, blocked_tables: 2 }}
+            blocked={DEMO_BLOCKED}
             locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
+            onChanged={() => {}}
+          />
+          <BlockedDateItem
+            blocked={{
+              ...DEMO_BLOCKED, id: 'bd-2', description: null,
+              table_scope: 'selected', tableIds: ['tb-2'], blocked_tables: 1,
+            }}
+            locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
+            onChanged={() => {}}
+          />
+          <BlockedDateItem
+            blocked={DEMO_BLOCKED_RECURRING}
+            locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
             onChanged={() => {}}
           />
           <div className="mt-2">
             <Button onClick={() => setBlockOpen(true)}>Open Block Date Form</Button>
           </div>
           <GalleryNote>
-            A null <code>blocked_tables</code> blocks the whole venue for that date
-            (the first row); a number blocks only that many tables (the second).
+            <code>table_scope: 'all'</code> shuts the venue, covering tables added
+            later (first row); <code>'selected'</code> names the tables it covers
+            (second and third), so a block only reduces capacity in the timeslots
+            those tables actually serve. The third also repeats — a rule, not
+            expanded rows, so editing it moves every future occurrence. Intervals
+            count in whole weeks from the start date's week, so "every 2nd Friday"
+            stays on the same Fridays whatever day it was created.
           </GalleryNote>
           <BlockNewDateModal
             open={blockOpen}
             onClose={() => setBlockOpen(false)}
             locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
             defaultLocationId="loc-1"
             onSaved={() => setBlockOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-booking-fees" title="Booking Fees">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          {DEMO_FEES.map(f => (
+            <BookingFeeItem
+              key={f.id}
+              fee={f}
+              timeslots={DEMO_TIMESLOTS}
+              hasDefault
+              onEdit={() => setFeeOpen(true)}
+              onChanged={() => {}}
+            />
+          ))}
+          <div className="mt-2">
+            <Button onClick={() => setFeeOpen(true)}>Open Booking Fee Form</Button>
+          </div>
+          <GalleryNote>
+            Rules resolve most-specific-first: a <code>timeslot</code> fee beats a{' '}
+            <code>day</code> fee, which beats the venue <code>default</code>. Every rule
+            carries its own message — the form won't save without one, so a $15 Saturday
+            can never inherit wording that says $10.
+          </GalleryNote>
+          <BookingFeeFormModal
+            open={feeOpen}
+            onClose={() => setFeeOpen(false)}
+            locationId="loc-1"
+            timeslots={DEMO_TIMESLOTS}
+            fees={DEMO_FEES}
+            onSaved={() => setFeeOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-location-staff" title="Location Staff">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          {DEMO_STAFF.map(m => (
+            <StaffItem
+              key={m.userId}
+              member={m}
+              locationId="loc-1"
+              locationName="Battleground North"
+              onChanged={() => {}}
+            />
+          ))}
+          <div className="mt-2">
+            <Button onClick={() => setStaffOpen(true)}>Open Add Staff Form</Button>
+          </div>
+          <GalleryNote>
+            Staff read bookings at their venues and nothing else — they can't reach
+            venue settings, and the roster itself is admin-only to write. The second
+            row has no display name set, so it falls back to the @handle. Adding
+            someone resolves them by exact @handle or exact email through the{' '}
+            <code>lookup_user_for_venue</code> RPC.
+          </GalleryNote>
+          <AddStaffModal
+            open={staffOpen}
+            onClose={() => setStaffOpen(false)}
+            locationId="loc-1"
+            locationName="Battleground North"
+            existingIds={DEMO_STAFF.map(m => m.userId)}
+            adminIds={[]}
+            onSaved={() => setStaffOpen(false)}
           />
         </div>
       </GallerySection>
