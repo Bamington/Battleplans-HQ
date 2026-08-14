@@ -14,15 +14,23 @@
  * slug at the same moment would both be told it is free. The primary key on
  * battlepack_slugs is what actually decides, and the loser gets an error.
  *
- * V1 HAS NO PUBLIC READ VIEW, so publishing reserves a URL for a page that does
- * not resolve yet. The copy says exactly that. Claiming "your event is live"
- * when nothing renders would be a lie the organiser could check in one click.
+ * PUBLISHING ALSO HOLDS THE VENUE'S TABLES, when the organiser asks it to and
+ * the venue is run on BattlePlan. That pairing is deliberate: an event is not
+ * really on until it is published, and closing a shop's tables for something
+ * nobody can see would be the wrong way round. Unpublishing releases them
+ * again — enforced by a trigger, not by this panel, so a closed tab cannot
+ * leave a venue blocked. See lib/tableBlocks.ts and 20260803000000.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Badge, Button, Callout, CheckCircle, DangerCircle, PanelSection, Input, Rocket,
+  Badge, Button, Callout, CheckCircle, Checkbox, DangerCircle, PanelSection, Input, Select, Rocket,
 } from '@battleplans/ui';
+import {
+  NO_BLOCK, listStoreTables, locationUsesBattlePlan, packBlockDates,
+  readSelection, syncPackBlocks,
+} from '../lib/tableBlocks';
+import type { BlockSelection, BlockTableScope, StoreTableOption } from '../lib/tableBlocks';
 import { isSlugAvailable, suggestSlugs } from '../lib/packs';
 import type { Pack } from '../lib/packs';
 import type { CategoryDefinition } from '../registry/categories';
@@ -43,7 +51,13 @@ export interface PublishPanelProps {
 
 type Availability = 'idle' | 'checking' | 'free' | 'taken' | 'invalid' | 'error';
 
-/** Where a published pack will live, once the public view exists. */
+/** "12/09/2026" — the same dd/mm/yyyy the rest of the platform uses. */
+function formatBlockDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${d}/${m}/${y}` : iso;
+}
+
+/** Where a published pack lives once it is published. */
 const SITE = 'battlepack.app';
 
 const PublishPanel = ({
@@ -61,6 +75,59 @@ const PublishPanel = ({
   const [avail, setAvail]       = useState<Availability>('idle');
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+
+  // ── Table holding ──────────────────────────────────────────────────────────
+  const [usesBattlePlan, setUsesBattlePlan] = useState(false);
+  const [tables, setTables]         = useState<StoreTableOption[]>([]);
+  const [selection, setSelection]   = useState<BlockSelection>(NO_BLOCK);
+  const [blockState, setBlockState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [blockBusy, setBlockBusy]   = useState(false);
+
+  // The date a block would land on. One today; packBlockDates is where
+  // multi-day and recurring events will change this without touching the panel.
+  const blockDate = packBlockDates(pack)[0] ?? null;
+
+  useEffect(() => {
+    let stale = false;
+    (async () => {
+      const managed = await locationUsesBattlePlan(pack.location_id);
+      if (stale) return;
+      setUsesBattlePlan(managed);
+      if (!managed) return;
+      const [list, current] = await Promise.all([
+        listStoreTables(pack.location_id),
+        readSelection(pack.id),
+      ]);
+      if (stale) return;
+      setTables(list);
+      setSelection(current);
+    })();
+    return () => { stale = true; };
+  }, [pack.location_id, pack.id]);
+
+  /**
+   * Take a change to the selection.
+   *
+   * Staged while the pack is a draft — there is nothing to hold tables for
+   * until it publishes, and writing early would close a venue for an event
+   * nobody can see. Once published it writes immediately, like every other
+   * field in this editor.
+   */
+  async function applySelection(next: BlockSelection) {
+    setSelection(next);
+    if (pack.status !== 'published') return;
+
+    setBlockBusy(true);
+    setBlockState('saving');
+    try {
+      await syncPackBlocks(pack, next);
+      setBlockState('idle');
+    } catch {
+      setBlockState('error');
+    } finally {
+      setBlockBusy(false);
+    }
+  }
 
   // Once the pack has a slug it is the only possible value, so stop tracking.
   useEffect(() => { if (pack.slug) setSlug(pack.slug); }, [pack.slug]);
@@ -214,6 +281,84 @@ const PublishPanel = ({
         )}
       </div>
 
+      {/* ── Holding the venue's tables ──
+          Only for venues actually run on BattlePlan. Offering to close tables
+          at a shop with none is offering nothing, so the whole section is
+          absent rather than disabled. */}
+      {usesBattlePlan && (
+        <>
+          <PanelSection
+            title="Tables"
+            action={blockState === 'saving' ? 'Saving…' : blockState === 'error' ? 'Not saved' : ''}
+          />
+
+          <div className="flex flex-col gap-2">
+            {blockDate ? (
+              <>
+                <Checkbox
+                  label={`Hold tables at ${venueName ?? 'this venue'} on ${formatBlockDate(blockDate)}`}
+                  checked={selection.enabled}
+                  onChange={e => applySelection({ ...selection, enabled: e.target.checked })}
+                  disabled={blockBusy}
+                />
+
+                {selection.enabled && (
+                  <div className="flex flex-col gap-2 ps-6">
+                    <Select
+                      value={selection.scope}
+                      onChange={e => applySelection({
+                        ...selection,
+                        scope: e.target.value as BlockTableScope,
+                      })}
+                      disabled={blockBusy}
+                      options={[
+                        { value: 'all',      label: 'Every table' },
+                        { value: 'selected', label: 'Only some tables' },
+                      ]}
+                    />
+
+                    {selection.scope === 'selected' && (
+                      <div className="flex flex-col gap-1.5">
+                        {tables.map(t => (
+                          <Checkbox
+                            key={t.id}
+                            label={t.name}
+                            checked={selection.tableIds.includes(t.id)}
+                            disabled={blockBusy}
+                            onChange={e => applySelection({
+                              ...selection,
+                              tableIds: e.target.checked
+                                ? [...selection.tableIds, t.id]
+                                : selection.tableIds.filter(id => id !== t.id),
+                            })}
+                          />
+                        ))}
+                        {selection.tableIds.length === 0 && (
+                          <p className="font-body text-xs text-gray-500">
+                            Nothing ticked holds nothing. Choose at least one table.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="font-body text-xs text-gray-500">
+                  {pack.status === 'published'
+                    ? 'Changes apply straight away. Unpublishing or deleting the event releases the tables.'
+                    : 'Applied when you publish. Unpublishing or deleting the event releases the tables again.'}
+                </p>
+              </>
+            ) : (
+              <p className="font-body text-sm text-gray-500">
+                Set a start date in Event Basics and you can hold the venue's tables
+                for it.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
       {/* ── Actions ── */}
       {pack.status === 'published' ? (
         <div className="flex flex-col gap-2">
@@ -232,13 +377,18 @@ const PublishPanel = ({
             className="w-full"
             leftIcon={<Rocket className="w-4 h-4" />}
             disabled={!canPublish}
-            onClick={() => run(() => onPublish(slug))}
+            onClick={() => run(async () => {
+              await onPublish(slug);
+              // Only once the pack is actually published. A block written
+              // against a pack that failed to publish would hold a venue for
+              // an event with no public page.
+              await syncPackBlocks(pack, selection).catch(() => {});
+            })}
           >
             {busy ? 'Publishing…' : pack.status === 'unpublished' ? 'Publish again' : 'Publish'}
           </Button>
           <p className="font-body text-xs text-gray-500">
-            Publishing reserves this URL. The public page is not built yet, so nothing
-            resolves there in the meantime — nobody outside BattlePack can see the pack.
+            Publishing puts the pack at its URL for anyone to read.
           </p>
         </div>
       )}

@@ -272,9 +272,120 @@ export function useUserProfile(userId: string | null) {
   return { ...profile, loading };
 }
 
+// ── Day-level capacity ────────────────────────────────────────────────────────
+
+/** The enabled tables serving each timeslot, keyed by timeslot id. */
+export type TablesBySlot = Map<string, string[]>;
+
+export interface DaySlot { id: string; availability: string[] }
+
+/**
+ * Is there anything left to book at this venue on this day?
+ *
+ * THE ONE DEFINITION. The date picker, the date list and the timeslot check all
+ * have to agree, and they did not: a day used to count as closed only when a
+ * block said `table_scope: 'all'`, which missed one block naming every table,
+ * or two blocks that between them cover the lot. The customer picked the date
+ * and was told afterwards there was nothing free.
+ *
+ * Asked per SLOT rather than per venue, because a table that does not serve
+ * Saturday's only timeslot was never Saturday's capacity to lose.
+ *
+ * Bookings are deliberately not counted. A fully BOOKED day is a different
+ * thing from a closed one; treating them alike would hide a date that still has
+ * an honest story to tell about who got there first.
+ */
+export function dayHasCapacity(
+  slots:        DaySlot[],
+  tablesBySlot: TablesBySlot,
+  blocks:       BlockCoverage[],
+  iso:          string,
+  dayName:      string,
+): boolean {
+  const { venueClosed, blockedTableIds } = blockedTablesOn(blocks, iso);
+  if (venueClosed) return false;
+  return slots.some(s =>
+    s.availability.includes(dayName) &&
+    (tablesBySlot.get(s.id) ?? []).some(id => !blockedTableIds.has(id)),
+  );
+}
+
+/** timeslot → its enabled tables, from a store_table_timeslots select. */
+export function groupTablesBySlot(rows: { table_id: string; timeslot_id: string }[]): TablesBySlot {
+  const map: TablesBySlot = new Map();
+  for (const row of rows) {
+    const list = map.get(row.timeslot_id) ?? [];
+    list.push(row.table_id);
+    map.set(row.timeslot_id, list);
+  }
+  return map;
+}
+
+/**
+ * Weekday name for an ISO date.
+ *
+ * Split and rebuilt rather than `new Date(iso)`, which parses a bare date as
+ * UTC midnight — in any negative offset that is the day before, and the whole
+ * check would run against the wrong weekday.
+ */
+export function weekdayOf(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return DAY_NAMES[new Date(y, (m ?? 1) - 1, d ?? 1).getDay()];
+}
+
+// ── useDayHasCapacity ─────────────────────────────────────────────────────────
+//
+// Answers the question as soon as a DATE is picked, before a timeslot is
+// chosen. The booking form uses a free date picker, so a customer can land on a
+// day the venue has closed entirely — and used to have to pick a time before
+// anything said so.
+
+export function useDayHasCapacity(locationId: string | null, date: string | null) {
+  const [hasCapacity, setHasCapacity] = useState<boolean | null>(null);
+  const [loading,     setLoading]     = useState(false);
+
+  useEffect(() => {
+    if (!locationId || !date) { setHasCapacity(null); return; }
+
+    let stale = false;
+    setLoading(true);
+    setHasCapacity(null);
+
+    Promise.all([
+      supabase.from('timeslots').select('id, availability').eq('location_id', locationId),
+      supabase.from('store_table_timeslots')
+        .select('table_id, timeslot_id, store_tables!inner(enabled, location_id)')
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
+      // A recurring rule cannot be matched with .eq('date', …) — whether it
+      // covers this day is a computation, so fetch the rules and evaluate.
+      supabase.from('blocked_dates').select(BLOCK_RULE_COLUMNS)
+        .eq('location_id', locationId)
+        .or(`recurrence.neq.none,date.eq.${date}`),
+    ]).then(([tsRes, capRes, bdRes]) => {
+      if (stale) return;
+      const slots = (tsRes.data ?? []) as DaySlot[];
+      const tables = groupTablesBySlot(
+        (capRes.data ?? []) as { table_id: string; timeslot_id: string }[],
+      );
+      const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
+      setHasCapacity(dayHasCapacity(slots, tables, blocks, date, weekdayOf(date)));
+      setLoading(false);
+    });
+
+    return () => { stale = true; };
+  }, [locationId, date]);
+
+  return { hasCapacity, loading };
+}
+
 // ── useAvailableDates ─────────────────────────────────────────────────────────
-// Returns the next 60 dates that have at least one timeslot at the location,
-// minus any fully-blocked dates (blocked_tables IS NULL).
+// The next 60 dates worth offering at a location: a timeslot runs that weekday,
+// and the day's blocks have not taken every table that serves it.
+//
+// It asks the same question useAvailability asks per timeslot, on purpose. When
+// the two disagreed, the customer picked a date and was then told there was
+// nothing free on it.
 
 export function useAvailableDates(locationId: string | null) {
   const [dates,   setDates]   = useState<{ value: string; label: string }[]>([]);
@@ -288,7 +399,7 @@ export function useAvailableDates(locationId: string | null) {
     Promise.all([
       supabase
         .from('timeslots')
-        .select('availability')
+        .select('id, availability')
         .eq('location_id', locationId),
       // A recurring rule can have started long ago and still apply, so it can't
       // be filtered out by date — only one-offs can.
@@ -297,15 +408,21 @@ export function useAvailableDates(locationId: string | null) {
         .select(BLOCK_RULE_COLUMNS)
         .eq('location_id', locationId)
         .or(`recurrence.neq.none,date.gte.${isoDaysFromToday(0)}`),
-    ]).then(([tsRes, bdRes]) => {
-      // Collect all available day names across all timeslots
-      const availableDays = new Set<string>(
-        (tsRes.data ?? []).flatMap(ts => ts.availability as string[])
+      // Which enabled tables serve which timeslot. Needed because a day is only
+      // bookable if some timeslot on it still has a table left — see below.
+      supabase
+        .from('store_table_timeslots')
+        .select('table_id, timeslot_id, store_tables!inner(enabled, location_id)')
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
+    ]).then(([tsRes, bdRes, capRes]) => {
+      const slots = (tsRes.data ?? []) as DaySlot[];
+      const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
+      const tablesBySlot = groupTablesBySlot(
+        (capRes.data ?? []) as { table_id: string; timeslot_id: string }[],
       );
 
-      const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
-
-      // Generate next 60 calendar days, keep those whose weekday has a timeslot
+      // Generate next 60 calendar days, keep those still worth offering.
       const result: { value: string; label: string }[] = [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -315,9 +432,7 @@ export function useAvailableDates(locationId: string | null) {
         d.setDate(today.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayName = DAY_NAMES[d.getDay()];
-        // Only a full closure hides a date outright; blocking some tables
-        // leaves the day bookable with less capacity.
-        if (availableDays.has(dayName) && !blockedTablesOn(blocks, iso).venueClosed) {
+        if (dayHasCapacity(slots, tablesBySlot, blocks, iso, dayName)) {
           result.push({ value: iso, label: formatDateLabel(iso) });
         }
       }
@@ -620,6 +735,151 @@ export function useUpcomingBookings(locationIds: string[]) {
   }, [key]);
 
   return { bookings, loading, refetch };
+}
+
+// ── useVenueEvents ────────────────────────────────────────────────────────────
+//
+// The BattlePacks running at a venue — the BattlePlan half of the integration.
+//
+// A venue's staff work the counter on the day an event fills the shop, so they
+// are the people who most need to know it is coming. They cannot edit a pack;
+// this is the read.
+//
+// WHOSE PACKS SHOW is a display rule, not a permission. RLS lets a venue's
+// admins and staff read every pack at their venue (20260803000000), so the
+// "only your own drafts" filter below is politeness, not security — a draft is
+// half-written and showing someone else's to the whole shop is noise. Published
+// packs are public anyway.
+//
+// FILTERED IN THE CLIENT, deliberately. A venue has a handful of packs, and the
+// alternative is a nested PostgREST `or()` spanning three nullable date columns
+// that nobody will be able to read in six months. The date logic below is the
+// part that has to be right, so it is written plainly.
+
+export interface VenueEventHold {
+  /** BattlePlan's own vocabulary: every table, or the named ones. */
+  scope: 'all' | 'selected';
+  /** Empty when the scope is 'all'. */
+  tableNames: string[];
+  /** Every date held. One today; a multi-day event will return several. */
+  dates: string[];
+}
+
+export interface VenueEvent {
+  id:        string;
+  name:      string;
+  status:    string;
+  starts_on: string | null;
+  ends_on:   string | null;
+  game:      { id: string; name: string; slug: string } | null;
+  /** Null when the event holds no tables — most drafts, and any venue that
+   *  runs its bookings elsewhere. */
+  hold:      VenueEventHold | null;
+}
+
+interface RawPackRow {
+  id: string; name: string; status: string;
+  starts_on: string | null; ends_on: string | null; owner_id: string | null;
+  game: { id: string; name: string; slug: string } | null;
+}
+
+interface RawHoldRow {
+  battlepack_id: string;
+  date: string;
+  table_scope: 'all' | 'selected';
+  blocked_date_tables: { store_tables: { name: string } | null }[] | null;
+}
+
+/**
+ * Whether an event is still ahead of the venue.
+ *
+ * The last day is what matters: a three-day event on its middle day is very
+ * much still on, so a bare `starts_on >= today` would drop it from the column
+ * exactly when the counter needs it most. An undated draft is kept — the
+ * organiser is mid-way through writing it and hiding their own work reads as a
+ * bug.
+ */
+function eventIsUpcoming(e: { starts_on: string | null; ends_on: string | null }, todayIso: string): boolean {
+  const last = e.ends_on ?? e.starts_on;
+  return last === null || last >= todayIso;
+}
+
+export function useVenueEvents(locationIds: string[], userId: string | null) {
+  const [events,  setEvents]  = useState<VenueEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Stable key so the effect only re-runs when the set of venues really changes.
+  const key = locationIds.join(',');
+
+  useEffect(() => {
+    if (locationIds.length === 0) { setEvents([]); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      const d = new Date();
+      const todayIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const { data: packData, error } = await supabase
+        .from('battlepacks')
+        .select('id, name, status, starts_on, ends_on, owner_id, game:games(id, name, slug)')
+        .in('location_id', locationIds);
+
+      if (cancelled) return;
+      // The battlepack tables may not be readable at all (a venue whose staff
+      // have no grant). An empty column is the right answer, not an error.
+      if (error) { setEvents([]); setLoading(false); return; }
+
+      const packs = ((packData as unknown as RawPackRow[]) ?? [])
+        .filter(p => p.status === 'published' || (!!userId && p.owner_id === userId))
+        .filter(p => eventIsUpcoming(p, todayIso))
+        .sort((a, b) => {
+          // Undated drafts last — they have no place on a timeline.
+          if (!a.starts_on) return b.starts_on ? 1 : a.name.localeCompare(b.name);
+          if (!b.starts_on) return -1;
+          return a.starts_on.localeCompare(b.starts_on) || a.name.localeCompare(b.name);
+        });
+
+      if (packs.length === 0) { setEvents([]); setLoading(false); return; }
+
+      // What each event actually takes out of the venue. Read from blocked_dates
+      // rather than trusted from the pack, so the column shows what a customer
+      // will really run into when they try to book.
+      const { data: holdData } = await supabase
+        .from('blocked_dates')
+        .select('battlepack_id, date, table_scope, blocked_date_tables(store_tables(name))')
+        .in('battlepack_id', packs.map(p => p.id))
+        .order('date');
+
+      if (cancelled) return;
+
+      const holds = new Map<string, VenueEventHold>();
+      for (const row of ((holdData as unknown as RawHoldRow[]) ?? [])) {
+        const names = (row.blocked_date_tables ?? [])
+          .map(l => l.store_tables?.name)
+          .filter((n): n is string => !!n);
+        const existing = holds.get(row.battlepack_id);
+        if (existing) {
+          existing.dates.push(row.date);
+          for (const n of names) if (!existing.tableNames.includes(n)) existing.tableNames.push(n);
+        } else {
+          holds.set(row.battlepack_id, { scope: row.table_scope, tableNames: names.sort(), dates: [row.date] });
+        }
+      }
+
+      setEvents(packs.map(p => ({
+        id: p.id, name: p.name, status: p.status,
+        starts_on: p.starts_on, ends_on: p.ends_on, game: p.game,
+        hold: holds.get(p.id) ?? null,
+      })));
+      setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, userId]);
+
+  return { events, loading };
 }
 
 // ── useBookingsByDate ─────────────────────────────────────────────────────────
