@@ -273,8 +273,12 @@ export function useUserProfile(userId: string | null) {
 }
 
 // ── useAvailableDates ─────────────────────────────────────────────────────────
-// Returns the next 60 dates that have at least one timeslot at the location,
-// minus any fully-blocked dates (blocked_tables IS NULL).
+// The next 60 dates worth offering at a location: a timeslot runs that weekday,
+// and the day's blocks have not taken every table that serves it.
+//
+// It asks the same question useAvailability asks per timeslot, on purpose. When
+// the two disagreed, the customer picked a date and was then told there was
+// nothing free on it.
 
 export function useAvailableDates(locationId: string | null) {
   const [dates,   setDates]   = useState<{ value: string; label: string }[]>([]);
@@ -288,7 +292,7 @@ export function useAvailableDates(locationId: string | null) {
     Promise.all([
       supabase
         .from('timeslots')
-        .select('availability')
+        .select('id, availability')
         .eq('location_id', locationId),
       // A recurring rule can have started long ago and still apply, so it can't
       // be filtered out by date — only one-offs can.
@@ -297,15 +301,54 @@ export function useAvailableDates(locationId: string | null) {
         .select(BLOCK_RULE_COLUMNS)
         .eq('location_id', locationId)
         .or(`recurrence.neq.none,date.gte.${isoDaysFromToday(0)}`),
-    ]).then(([tsRes, bdRes]) => {
-      // Collect all available day names across all timeslots
-      const availableDays = new Set<string>(
-        (tsRes.data ?? []).flatMap(ts => ts.availability as string[])
-      );
-
+      // Which enabled tables serve which timeslot. Needed because a day is only
+      // bookable if some timeslot on it still has a table left — see below.
+      supabase
+        .from('store_table_timeslots')
+        .select('table_id, timeslot_id, store_tables!inner(enabled, location_id)')
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
+    ]).then(([tsRes, bdRes, capRes]) => {
+      const slots = (tsRes.data ?? []) as { id: string; availability: string[] }[];
       const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
 
-      // Generate next 60 calendar days, keep those whose weekday has a timeslot
+      // timeslot → the enabled tables that serve it.
+      const tablesBySlot = new Map<string, string[]>();
+      for (const row of (capRes.data ?? []) as { table_id: string; timeslot_id: string }[]) {
+        const list = tablesBySlot.get(row.timeslot_id) ?? [];
+        list.push(row.table_id);
+        tablesBySlot.set(row.timeslot_id, list);
+      }
+
+      /**
+       * Is there anything left to book on this day?
+       *
+       * A DATE USED TO BE HIDDEN ONLY FOR A `table_scope: 'all'` BLOCK, which
+       * missed every other way a day can be full: one block naming all four
+       * tables, or two blocks that between them cover the lot. The date stayed
+       * on offer and the customer picked a timeslot to be told nothing was
+       * free — having already committed to the day.
+       *
+       * This asks the same question useAvailability asks per timeslot, so the
+       * two can no longer disagree: intersect each slot's tables with the day's
+       * blocks, and keep the date if ANY slot has one left. Per slot rather
+       * than per venue, because a table that does not serve Saturday's only
+       * timeslot was never Saturday's capacity to lose.
+       *
+       * Bookings are deliberately not counted. A fully BOOKED day is a
+       * different thing from a closed one, and hiding it here would take the
+       * date away while the timeslot list still has the honest story.
+       */
+      const dayHasCapacity = (iso: string, dayName: string): boolean => {
+        const { venueClosed, blockedTableIds } = blockedTablesOn(blocks, iso);
+        if (venueClosed) return false;
+        return slots.some(s =>
+          s.availability.includes(dayName) &&
+          (tablesBySlot.get(s.id) ?? []).some(id => !blockedTableIds.has(id)),
+        );
+      };
+
+      // Generate next 60 calendar days, keep those still worth offering.
       const result: { value: string; label: string }[] = [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -315,9 +358,7 @@ export function useAvailableDates(locationId: string | null) {
         d.setDate(today.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayName = DAY_NAMES[d.getDay()];
-        // Only a full closure hides a date outright; blocking some tables
-        // leaves the day bookable with less capacity.
-        if (availableDays.has(dayName) && !blockedTablesOn(blocks, iso).venueClosed) {
+        if (dayHasCapacity(iso, dayName)) {
           result.push({ value: iso, label: formatDateLabel(iso) });
         }
       }
