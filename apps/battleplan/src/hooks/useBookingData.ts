@@ -737,6 +737,46 @@ export function useUpcomingBookings(locationIds: string[]) {
   return { bookings, loading, refetch };
 }
 
+// ── useLocationHasApp ─────────────────────────────────────────────────────────
+//
+// Whether a venue has one of the platform's apps switched on for it.
+//
+// Reads `location_apps` (20260814010000), the same table my_platform_apps()
+// consults to decide whether a venue admin gets the app in their switcher. Both
+// sides asking the same table is the point: a shop cannot end up with the
+// Upcoming Events column but no BattlePack, or the reverse.
+//
+// Starts null rather than false, and callers must wait for it. Defaulting to
+// false would flash the column away on every load for the venues that DO have
+// it, which reads as the feature breaking.
+
+export function useLocationHasApp(locationId: string | null, appSlug: string) {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!locationId) { setEnabled(false); return; }
+    let cancelled = false;
+    setEnabled(null);
+
+    supabase
+      .from('location_apps')
+      .select('app_slug', { count: 'exact', head: true })
+      .eq('location_id', locationId)
+      .eq('app_slug', appSlug)
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        // Fail closed. A venue that has not been given the app is the normal
+        // case, so an unreadable answer should look like that rather than
+        // switching a feature on by accident.
+        setEnabled(!error && (count ?? 0) > 0);
+      });
+
+    return () => { cancelled = true; };
+  }, [locationId, appSlug]);
+
+  return enabled;
+}
+
 // ── useVenueEvents ────────────────────────────────────────────────────────────
 //
 // The BattlePacks running at a venue — the BattlePlan half of the integration.

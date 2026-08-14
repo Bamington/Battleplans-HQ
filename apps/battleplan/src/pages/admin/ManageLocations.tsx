@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   AdminRoute,
   AltArrowLeft,
+  Badge,
   Button,
+  Checkbox,
   Dropdown,
   DropdownDivider,
   DropdownItem,
@@ -36,15 +38,28 @@ type UserRow = {
   email: string;
 };
 
+/**
+ * An app a venue can be given.
+ *
+ * Only apps granted to the `store_admin` pseudo-role appear — those are the
+ * ones where a `location_apps` row actually does something. Offering a switch
+ * for BattlePlan or BattleCards would be a control that changes nothing.
+ */
+type StoreApp = {
+  slug: string;
+  name: string;
+};
+
 type LocationFormState = {
   name: string;
   address: string;    // required — the column is NOT NULL
   icon: string;       // URL or empty string
   store_email: string;
   admins: string[];   // user ids
+  apps: string[];     // app slugs switched on for this venue
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', address: '', icon: '', store_email: '', admins: [] };
+const EMPTY_FORM: LocationFormState = { name: '', address: '', icon: '', store_email: '', admins: [], apps: [] };
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -140,12 +155,59 @@ function IconUpload({ name, value, onChange, disabled }: IconUploadProps) {
   );
 }
 
+// ── Apps switch ─────────────────────────────────────────────────────────────
+
+/**
+ * Which of the platform's apps this venue gets.
+ *
+ * Ticking one is what gives the venue's admins the app in their switcher AND
+ * the matching surfaces inside BattlePlan — the Upcoming Events column for
+ * BattlePack. Both read the same `location_apps` row, so they cannot disagree.
+ *
+ * Renders nothing when no app is granted to store admins, rather than an empty
+ * heading over a blank space.
+ */
+function AppsField({ apps, value, onChange, disabled }: {
+  apps: StoreApp[];
+  value: string[];
+  onChange: (slugs: string[]) => void;
+  disabled?: boolean;
+}) {
+  if (apps.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Apps</p>
+      <div className="flex flex-col gap-2 mt-1">
+        {apps.map(app => (
+          <Checkbox
+            key={app.slug}
+            label={app.name}
+            checked={value.includes(app.slug)}
+            disabled={disabled}
+            onChange={e => onChange(
+              e.target.checked
+                ? [...value, app.slug]
+                : value.filter(s => s !== app.slug),
+            )}
+          />
+        ))}
+      </div>
+      <p className="font-body text-xs text-neutral-600 mt-1">
+        This venue's admins get the app in their switcher, and see it inside BattlePlan.
+      </p>
+    </div>
+  );
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 
 function ManageLocationsInner() {
   const navigate = useNavigate();
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [storeApps, setStoreApps] = useState<StoreApp[]>([]);
+  const [appsByLocation, setAppsByLocation] = useState<Map<string, string[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,7 +228,65 @@ function ManageLocationsInner() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => { fetchLocations(); fetchUsers(); }, []);
+  useEffect(() => { fetchLocations(); fetchUsers(); fetchStoreApps(); fetchLocationApps(); }, []);
+
+  /**
+   * The apps a venue can be given: those granted to the 'store_admin'
+   * pseudo-role. Read from the grant table rather than hardcoded, so granting a
+   * second app to store admins makes its switch appear here on its own.
+   */
+  async function fetchStoreApps() {
+    const { data, error } = await supabase
+      .from('platform_app_roles')
+      .select('app_slug, app:platform_apps(slug, name)')
+      .eq('role', 'store_admin');
+    if (error) return;
+    const rows = (data ?? []) as unknown as { app: { slug: string; name: string } | null }[];
+    setStoreApps(
+      rows.map(r => r.app).filter((a): a is StoreApp => !!a)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  }
+
+  /** Which apps each venue currently has, keyed by venue. */
+  async function fetchLocationApps() {
+    const { data, error } = await supabase.from('location_apps').select('location_id, app_slug');
+    if (error) return;
+    const map = new Map<string, string[]>();
+    for (const row of ((data ?? []) as { location_id: string; app_slug: string }[])) {
+      map.set(row.location_id, [...(map.get(row.location_id) ?? []), row.app_slug]);
+    }
+    setAppsByLocation(map);
+  }
+
+  /**
+   * Make a venue's rows match `next`.
+   *
+   * Written as an add/remove diff rather than delete-then-insert: this table is
+   * what decides whether a venue admin can open the app at all, and a failed
+   * insert after a successful delete would quietly take it away from them.
+   */
+  async function syncLocationApps(locationId: string, next: string[]) {
+    const current = appsByLocation.get(locationId) ?? [];
+    const toAdd    = next.filter(s => !current.includes(s));
+    const toRemove = current.filter(s => !next.includes(s));
+
+    if (toAdd.length) {
+      const { error } = await supabase
+        .from('location_apps')
+        .insert(toAdd.map(app_slug => ({ location_id: locationId, app_slug })));
+      if (error) throw error;
+    }
+    if (toRemove.length) {
+      const { error } = await supabase
+        .from('location_apps')
+        .delete()
+        .eq('location_id', locationId)
+        .in('app_slug', toRemove);
+      if (error) throw error;
+    }
+    setAppsByLocation(prev => new Map(prev).set(locationId, next));
+  }
 
   /**
    * Venue admins are picked from the full user list. RLS on user_profiles is
@@ -212,7 +332,23 @@ function ManageLocationsInner() {
       .select()
       .single();
     if (error) { setAddError(error.message); setAdding(false); return; }
-    setLocations(prev => [...prev, data as LocationRow].sort((a, b) => a.name.localeCompare(b.name)));
+
+    // After the insert, because the rows are keyed by an id that did not exist
+    // until now. The venue is already saved at this point, so a failure here is
+    // reported without discarding it — the switches can be set from Edit.
+    const created = data as LocationRow;
+    if (addForm.apps.length > 0) {
+      try {
+        await syncLocationApps(created.id, addForm.apps);
+      } catch (e) {
+        setAddError(`Location saved, but its apps could not be set: ${(e as Error).message}`);
+        setAdding(false);
+        setLocations(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+        return;
+      }
+    }
+
+    setLocations(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     setAdding(false);
     setAddOpen(false);
   }
@@ -227,6 +363,7 @@ function ManageLocationsInner() {
       icon: loc.icon ?? '',
       store_email: loc.store_email ?? '',
       admins: loc.admins ?? [],
+      apps: appsByLocation.get(loc.id) ?? [],
     });
     setEditError(null);
   }
@@ -247,6 +384,15 @@ function ManageLocationsInner() {
       .update(next)
       .eq('id', editTarget.id);
     if (error) { setEditError(error.message); setSaving(false); return; }
+
+    try {
+      await syncLocationApps(editTarget.id, editForm.apps);
+    } catch (e) {
+      setEditError(`Details saved, but the apps could not be updated: ${(e as Error).message}`);
+      setSaving(false);
+      return;
+    }
+
     setLocations(prev =>
       prev.map(l => l.id === editTarget.id ? { ...l, ...next } : l)
           .sort((a, b) => a.name.localeCompare(b.name))
@@ -341,6 +487,13 @@ function ManageLocationsInner() {
                       {!loc.address && !loc.store_email && (!loc.admins || loc.admins.length === 0) && (
                         <span className="font-body text-xs text-neutral-600">No details set</span>
                       )}
+                      {/* Which apps this venue has been given. Rolling it out one
+                          shop at a time only works if the list says who has it. */}
+                      {(appsByLocation.get(loc.id) ?? []).map(slug => (
+                        <Badge key={slug} variant="outline" color="primary">
+                          {storeApps.find(a => a.slug === slug)?.name ?? slug}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
 
@@ -434,6 +587,13 @@ function ManageLocationsInner() {
             disabled={adding}
           />
 
+          <AppsField
+            apps={storeApps}
+            value={addForm.apps}
+            onChange={slugs => setAddForm(f => ({ ...f, apps: slugs }))}
+            disabled={adding}
+          />
+
           {addError && <p className="font-body text-sm text-red-400">{addError}</p>}
 
           <div className="flex items-center justify-end gap-3">
@@ -504,6 +664,13 @@ function ManageLocationsInner() {
                 disabled={saving}
               />
             </div>
+
+            <AppsField
+              apps={storeApps}
+              value={editForm.apps}
+              onChange={slugs => setEditForm(f => ({ ...f, apps: slugs }))}
+              disabled={saving}
+            />
 
             {editError && <p className="font-body text-sm text-red-400">{editError}</p>}
 

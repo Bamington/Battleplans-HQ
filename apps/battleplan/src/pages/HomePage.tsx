@@ -18,7 +18,7 @@ import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
-  useRecentBookedGames, useBookingFee, useVenueEvents,
+  useRecentBookedGames, useBookingFee, useVenueEvents, useLocationHasApp,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
 import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent } from '../hooks/useBookingData';
@@ -1487,8 +1487,25 @@ function EventItem({ event }: { event: VenueEvent }) {
   );
 }
 
-function UpcomingEventsCard({ locationIds, userId }: { locationIds: string[]; userId: string | null }) {
-  const { events, loading } = useVenueEvents(locationIds, userId);
+/**
+ * Shown only at venues BattlePack has been switched on for.
+ *
+ * The same `location_apps` row decides this and whether the venue's admins get
+ * BattlePack in their switcher, so the two can't disagree — a shop never ends up
+ * with the column but no app, or the app but no column.
+ *
+ * The column stays even with nothing in it. A venue that has just been given
+ * BattlePack has no events yet by definition, and an empty column that explains
+ * itself is how they find out the feature is theirs.
+ */
+function UpcomingEventsCard({ locationId, userId }: { locationId: string; userId: string | null }) {
+  const enabled = useLocationHasApp(locationId, 'battlepack');
+  // Don't go looking for a venue's events until we know it is meant to have any.
+  const { events, loading } = useVenueEvents(enabled ? [locationId] : [], userId);
+
+  // null while the answer is still unknown, so a venue that does have the app
+  // doesn't watch its column appear a moment after everything else.
+  if (!enabled) return null;
 
   return (
     <ScrollColumn
@@ -1497,7 +1514,7 @@ function UpcomingEventsCard({ locationIds, userId }: { locationIds: string[]; us
       description="BattlePacks running at your venue."
       items={events}
       loading={loading}
-      empty="No events coming up."
+      empty="Nothing booked in yet. Events you publish in BattlePack show up here."
       getKey={e => e.id}
       renderItem={e => <EventItem event={e} />}
     />
@@ -1630,9 +1647,10 @@ export default function HomePage() {
           {viewingStore ? (
             <>
               <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} />
-              {/* Staff as well as admins — see useVenueEvents. `viewingStore`
-                  guarantees a single venue, so the list is never empty. */}
-              <UpcomingEventsCard locationIds={[selectedVenueId]} userId={userId} />
+              {/* Staff as well as admins — see useVenueEvents. Renders nothing
+                  unless this venue has BattlePack switched on. `viewingStore`
+                  guarantees a single venue is selected. */}
+              <UpcomingEventsCard locationId={selectedVenueId} userId={userId} />
             </>
           ) : (
             <>

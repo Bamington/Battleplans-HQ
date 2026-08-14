@@ -47,17 +47,37 @@ The slug is wired through the platform: `battlepack` in `AppSlug`
 `com.bamington.battlepack` in [supabase.ts](../../packages/ui/src/lib/supabase.ts),
 and the route subtree in HQ's `APP_ROUTES` ([App.tsx](../hq/src/App.tsx)).
 
-Access is admins plus store admins. `20260728000000_battlepack_store_admins.sql`
-added `store_admin` as a PSEUDO-ROLE in `platform_app_roles` — a grant
-`my_platform_apps()` resolves against `locations.admins` rather than against
-`user_profiles.role` — and granted it to `battlepack`. Every admin of a store
-can edit every pack at that store, and losing the store loses the packs: the
+Access is platform admins, plus store admins **at venues BattlePack has been
+switched on for**. Two tables have to agree, and confusing them is the easy
+mistake:
+
+- `platform_app_roles` — `20260728000000_battlepack_store_admins.sql` added
+  `store_admin` as a PSEUDO-ROLE: a grant `my_platform_apps()` resolves against
+  `locations.admins` rather than `user_profiles.role`. This says store admins
+  MAY have the app.
+- `location_apps` — `20260814010000_location_apps.sql` says AT WHICH venues.
+  One row per (venue, app), written by platform admins only, from
+  `/app/admin/locations`.
+
+Both must say yes, so the app rolls out a shop at a time. `20260814000000`
+briefly revoked the grant entirely; `20260814010000` restored it behind the
+per-venue gate, which is why the grant alone changes nothing.
+
+The same `location_apps` row also decides whether that venue sees BattlePlan's
+Upcoming Events column — deliberately one switch, so a shop can never have the
+column without the app or the reverse.
+
+Row-level access is WIDER than the app gate and that is intended: a venue's
+admins and staff can read `battlepacks` at their venue whether or not
+BattlePack is switched on for them, because the events column needs it.
+Editing is still `locations.admins` only (`can_edit_battlepack`) — every admin
+of a store can edit every pack there, and losing the store loses the packs; the
 owner column grants nothing on its own.
 
-`url` is still `'#'` and `is_launched` is false. **Leave both alone until the
-production deploy.** One Supabase project sits behind production and every
-preview, so pointing `url` at a preview URL repoints the app switcher for every
-user in production. Reach a preview by its own URL instead.
+Live in production since 2026-08-14: `url` is `https://battlepack.app/app` and
+`is_launched` is true. One Supabase project sits behind production and every
+preview, so **never point `url` at a preview URL** — it repoints the app
+switcher for every user in production. Reach a preview by its own URL instead.
 
 ## Deploying to Production
 
