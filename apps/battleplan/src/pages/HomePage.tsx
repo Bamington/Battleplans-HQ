@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -18,10 +18,10 @@ import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
-  useRecentBookedGames, useBookingFee,
+  useRecentBookedGames, useBookingFee, useVenueEvents,
   formatTimeslotLabel, formatBookingTime,
 } from '../hooks/useBookingData';
-import type { Location, BattleSuggestion, UpcomingBooking, Booking } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -1414,6 +1414,96 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, is
   );
 }
 
+// ── Upcoming Events ───────────────────────────────────────────────────────────
+//
+// The BattlePack half of the store view: the events running at this venue.
+//
+// Read-only, and only for venue people. A venue's staff cannot edit a pack —
+// they work the counter on the day it fills the shop, and this is how they find
+// out it is coming. Customers see nothing here.
+
+/** 'Saturday 22/08/26', or 'Sat 22/08 – Sun 23/08' when it runs over days. */
+function formatEventDates(starts: string | null, ends: string | null): string {
+  if (!starts) return 'Date not set';
+  if (!ends || ends === starts) return formatBookingDate(starts);
+  const short = (iso: string) => {
+    const [, m, d] = iso.split('-');
+    return `${d}/${m}`;
+  };
+  return `${formatBookingDate(starts)} – ${short(ends)}`;
+}
+
+/**
+ * What the event takes out of the venue, in the words a counter needs.
+ *
+ * "No tables held" is said out loud rather than left blank. An event at the
+ * shop that has NOT closed any tables is the case where someone can still walk
+ * in and book into the middle of it, and silence would read as "not checked".
+ */
+function formatEventHold(hold: VenueEvent['hold']): string {
+  if (!hold) return 'No tables held';
+  if (hold.scope === 'all') return 'All tables held';
+  if (hold.tableNames.length === 0) return 'Tables held';
+  return `${hold.tableNames.join(', ')} held`;
+}
+
+function EventItem({ event }: { event: VenueEvent }) {
+  const icon = event.game?.slug ? GAME_ICONS[event.game.slug] : undefined;
+  const isDraft = event.status !== 'published';
+
+  return (
+    <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-center shadow-md overflow-hidden">
+
+      {/* Same thumbnail as a booking row — the two columns sit side by side. */}
+      <div className="w-16 h-16 rounded-sm overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center self-center">
+        {icon
+          ? <img src={icon} alt={event.game?.name ?? ''} className="w-full h-full object-cover" />
+          : <Trophy className="w-7 h-7 text-neutral-500" />
+        }
+      </div>
+
+      <div className="flex flex-col flex-1 min-w-0 justify-center">
+        <span className="font-heading text-lg text-white leading-6 line-clamp-2">{event.name}</span>
+        <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
+          {event.game?.name ?? 'No game'}
+        </span>
+        <span className="font-body text-sm text-neutral-50 leading-5 truncate">
+          {formatEventDates(event.starts_on, event.ends_on)}
+        </span>
+        <span className="font-body text-sm text-neutral-50 leading-5 truncate">
+          {formatEventHold(event.hold)}
+        </span>
+      </div>
+
+      {/* Only drafts are marked. A published event is the normal case and needs
+          no label; a draft is the one a staff member should not act on yet. */}
+      {isDraft && (
+        <div className="self-start shrink-0">
+          <Badge variant="outline" color="gray">Draft</Badge>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function UpcomingEventsCard({ locationIds, userId }: { locationIds: string[]; userId: string | null }) {
+  const { events, loading } = useVenueEvents(locationIds, userId);
+
+  return (
+    <ScrollColumn
+      icon={<Trophy className="w-12 h-12 text-primary-500" />}
+      title="Upcoming Events"
+      description="BattlePacks running at your venue."
+      items={events}
+      loading={loading}
+      empty="No events coming up."
+      getKey={e => e.id}
+      renderItem={e => <EventItem event={e} />}
+    />
+  );
+}
+
 /**
  * The store view's two booking columns. One fetch feeds both, so they can't
  * disagree and a change refreshes them together.
@@ -1538,7 +1628,12 @@ export default function HomePage() {
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           {viewingStore ? (
-            <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} />
+            <>
+              <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} />
+              {/* Staff as well as admins — see useVenueEvents. `viewingStore`
+                  guarantees a single venue, so the list is never empty. */}
+              <UpcomingEventsCard locationIds={[selectedVenueId]} userId={userId} />
+            </>
           ) : (
             <>
               <BookingCard userId={userId} />

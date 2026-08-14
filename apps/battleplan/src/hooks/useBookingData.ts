@@ -737,6 +737,151 @@ export function useUpcomingBookings(locationIds: string[]) {
   return { bookings, loading, refetch };
 }
 
+// ── useVenueEvents ────────────────────────────────────────────────────────────
+//
+// The BattlePacks running at a venue — the BattlePlan half of the integration.
+//
+// A venue's staff work the counter on the day an event fills the shop, so they
+// are the people who most need to know it is coming. They cannot edit a pack;
+// this is the read.
+//
+// WHOSE PACKS SHOW is a display rule, not a permission. RLS lets a venue's
+// admins and staff read every pack at their venue (20260803000000), so the
+// "only your own drafts" filter below is politeness, not security — a draft is
+// half-written and showing someone else's to the whole shop is noise. Published
+// packs are public anyway.
+//
+// FILTERED IN THE CLIENT, deliberately. A venue has a handful of packs, and the
+// alternative is a nested PostgREST `or()` spanning three nullable date columns
+// that nobody will be able to read in six months. The date logic below is the
+// part that has to be right, so it is written plainly.
+
+export interface VenueEventHold {
+  /** BattlePlan's own vocabulary: every table, or the named ones. */
+  scope: 'all' | 'selected';
+  /** Empty when the scope is 'all'. */
+  tableNames: string[];
+  /** Every date held. One today; a multi-day event will return several. */
+  dates: string[];
+}
+
+export interface VenueEvent {
+  id:        string;
+  name:      string;
+  status:    string;
+  starts_on: string | null;
+  ends_on:   string | null;
+  game:      { id: string; name: string; slug: string } | null;
+  /** Null when the event holds no tables — most drafts, and any venue that
+   *  runs its bookings elsewhere. */
+  hold:      VenueEventHold | null;
+}
+
+interface RawPackRow {
+  id: string; name: string; status: string;
+  starts_on: string | null; ends_on: string | null; owner_id: string | null;
+  game: { id: string; name: string; slug: string } | null;
+}
+
+interface RawHoldRow {
+  battlepack_id: string;
+  date: string;
+  table_scope: 'all' | 'selected';
+  blocked_date_tables: { store_tables: { name: string } | null }[] | null;
+}
+
+/**
+ * Whether an event is still ahead of the venue.
+ *
+ * The last day is what matters: a three-day event on its middle day is very
+ * much still on, so a bare `starts_on >= today` would drop it from the column
+ * exactly when the counter needs it most. An undated draft is kept — the
+ * organiser is mid-way through writing it and hiding their own work reads as a
+ * bug.
+ */
+function eventIsUpcoming(e: { starts_on: string | null; ends_on: string | null }, todayIso: string): boolean {
+  const last = e.ends_on ?? e.starts_on;
+  return last === null || last >= todayIso;
+}
+
+export function useVenueEvents(locationIds: string[], userId: string | null) {
+  const [events,  setEvents]  = useState<VenueEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Stable key so the effect only re-runs when the set of venues really changes.
+  const key = locationIds.join(',');
+
+  useEffect(() => {
+    if (locationIds.length === 0) { setEvents([]); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      const d = new Date();
+      const todayIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const { data: packData, error } = await supabase
+        .from('battlepacks')
+        .select('id, name, status, starts_on, ends_on, owner_id, game:games(id, name, slug)')
+        .in('location_id', locationIds);
+
+      if (cancelled) return;
+      // The battlepack tables may not be readable at all (a venue whose staff
+      // have no grant). An empty column is the right answer, not an error.
+      if (error) { setEvents([]); setLoading(false); return; }
+
+      const packs = ((packData as unknown as RawPackRow[]) ?? [])
+        .filter(p => p.status === 'published' || (!!userId && p.owner_id === userId))
+        .filter(p => eventIsUpcoming(p, todayIso))
+        .sort((a, b) => {
+          // Undated drafts last — they have no place on a timeline.
+          if (!a.starts_on) return b.starts_on ? 1 : a.name.localeCompare(b.name);
+          if (!b.starts_on) return -1;
+          return a.starts_on.localeCompare(b.starts_on) || a.name.localeCompare(b.name);
+        });
+
+      if (packs.length === 0) { setEvents([]); setLoading(false); return; }
+
+      // What each event actually takes out of the venue. Read from blocked_dates
+      // rather than trusted from the pack, so the column shows what a customer
+      // will really run into when they try to book.
+      const { data: holdData } = await supabase
+        .from('blocked_dates')
+        .select('battlepack_id, date, table_scope, blocked_date_tables(store_tables(name))')
+        .in('battlepack_id', packs.map(p => p.id))
+        .order('date');
+
+      if (cancelled) return;
+
+      const holds = new Map<string, VenueEventHold>();
+      for (const row of ((holdData as unknown as RawHoldRow[]) ?? [])) {
+        const names = (row.blocked_date_tables ?? [])
+          .map(l => l.store_tables?.name)
+          .filter((n): n is string => !!n);
+        const existing = holds.get(row.battlepack_id);
+        if (existing) {
+          existing.dates.push(row.date);
+          for (const n of names) if (!existing.tableNames.includes(n)) existing.tableNames.push(n);
+        } else {
+          holds.set(row.battlepack_id, { scope: row.table_scope, tableNames: names.sort(), dates: [row.date] });
+        }
+      }
+
+      setEvents(packs.map(p => ({
+        id: p.id, name: p.name, status: p.status,
+        starts_on: p.starts_on, ends_on: p.ends_on, game: p.game,
+        hold: holds.get(p.id) ?? null,
+      })));
+      setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, userId]);
+
+  return { events, loading };
+}
+
 // ── useBookingsByDate ─────────────────────────────────────────────────────────
 // Returns every booking at a location on a specific date (past or future),
 // ordered by timeslot.
