@@ -272,6 +272,113 @@ export function useUserProfile(userId: string | null) {
   return { ...profile, loading };
 }
 
+// ── Day-level capacity ────────────────────────────────────────────────────────
+
+/** The enabled tables serving each timeslot, keyed by timeslot id. */
+export type TablesBySlot = Map<string, string[]>;
+
+export interface DaySlot { id: string; availability: string[] }
+
+/**
+ * Is there anything left to book at this venue on this day?
+ *
+ * THE ONE DEFINITION. The date picker, the date list and the timeslot check all
+ * have to agree, and they did not: a day used to count as closed only when a
+ * block said `table_scope: 'all'`, which missed one block naming every table,
+ * or two blocks that between them cover the lot. The customer picked the date
+ * and was told afterwards there was nothing free.
+ *
+ * Asked per SLOT rather than per venue, because a table that does not serve
+ * Saturday's only timeslot was never Saturday's capacity to lose.
+ *
+ * Bookings are deliberately not counted. A fully BOOKED day is a different
+ * thing from a closed one; treating them alike would hide a date that still has
+ * an honest story to tell about who got there first.
+ */
+export function dayHasCapacity(
+  slots:        DaySlot[],
+  tablesBySlot: TablesBySlot,
+  blocks:       BlockCoverage[],
+  iso:          string,
+  dayName:      string,
+): boolean {
+  const { venueClosed, blockedTableIds } = blockedTablesOn(blocks, iso);
+  if (venueClosed) return false;
+  return slots.some(s =>
+    s.availability.includes(dayName) &&
+    (tablesBySlot.get(s.id) ?? []).some(id => !blockedTableIds.has(id)),
+  );
+}
+
+/** timeslot → its enabled tables, from a store_table_timeslots select. */
+export function groupTablesBySlot(rows: { table_id: string; timeslot_id: string }[]): TablesBySlot {
+  const map: TablesBySlot = new Map();
+  for (const row of rows) {
+    const list = map.get(row.timeslot_id) ?? [];
+    list.push(row.table_id);
+    map.set(row.timeslot_id, list);
+  }
+  return map;
+}
+
+/**
+ * Weekday name for an ISO date.
+ *
+ * Split and rebuilt rather than `new Date(iso)`, which parses a bare date as
+ * UTC midnight — in any negative offset that is the day before, and the whole
+ * check would run against the wrong weekday.
+ */
+export function weekdayOf(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return DAY_NAMES[new Date(y, (m ?? 1) - 1, d ?? 1).getDay()];
+}
+
+// ── useDayHasCapacity ─────────────────────────────────────────────────────────
+//
+// Answers the question as soon as a DATE is picked, before a timeslot is
+// chosen. The booking form uses a free date picker, so a customer can land on a
+// day the venue has closed entirely — and used to have to pick a time before
+// anything said so.
+
+export function useDayHasCapacity(locationId: string | null, date: string | null) {
+  const [hasCapacity, setHasCapacity] = useState<boolean | null>(null);
+  const [loading,     setLoading]     = useState(false);
+
+  useEffect(() => {
+    if (!locationId || !date) { setHasCapacity(null); return; }
+
+    let stale = false;
+    setLoading(true);
+    setHasCapacity(null);
+
+    Promise.all([
+      supabase.from('timeslots').select('id, availability').eq('location_id', locationId),
+      supabase.from('store_table_timeslots')
+        .select('table_id, timeslot_id, store_tables!inner(enabled, location_id)')
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
+      // A recurring rule cannot be matched with .eq('date', …) — whether it
+      // covers this day is a computation, so fetch the rules and evaluate.
+      supabase.from('blocked_dates').select(BLOCK_RULE_COLUMNS)
+        .eq('location_id', locationId)
+        .or(`recurrence.neq.none,date.eq.${date}`),
+    ]).then(([tsRes, capRes, bdRes]) => {
+      if (stale) return;
+      const slots = (tsRes.data ?? []) as DaySlot[];
+      const tables = groupTablesBySlot(
+        (capRes.data ?? []) as { table_id: string; timeslot_id: string }[],
+      );
+      const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
+      setHasCapacity(dayHasCapacity(slots, tables, blocks, date, weekdayOf(date)));
+      setLoading(false);
+    });
+
+    return () => { stale = true; };
+  }, [locationId, date]);
+
+  return { hasCapacity, loading };
+}
+
 // ── useAvailableDates ─────────────────────────────────────────────────────────
 // The next 60 dates worth offering at a location: a timeslot runs that weekday,
 // and the day's blocks have not taken every table that serves it.
@@ -309,44 +416,11 @@ export function useAvailableDates(locationId: string | null) {
         .eq('store_tables.enabled', true)
         .eq('store_tables.location_id', locationId),
     ]).then(([tsRes, bdRes, capRes]) => {
-      const slots = (tsRes.data ?? []) as { id: string; availability: string[] }[];
+      const slots = (tsRes.data ?? []) as DaySlot[];
       const blocks = (bdRes.data ?? []).map(mapBlockCoverage);
-
-      // timeslot → the enabled tables that serve it.
-      const tablesBySlot = new Map<string, string[]>();
-      for (const row of (capRes.data ?? []) as { table_id: string; timeslot_id: string }[]) {
-        const list = tablesBySlot.get(row.timeslot_id) ?? [];
-        list.push(row.table_id);
-        tablesBySlot.set(row.timeslot_id, list);
-      }
-
-      /**
-       * Is there anything left to book on this day?
-       *
-       * A DATE USED TO BE HIDDEN ONLY FOR A `table_scope: 'all'` BLOCK, which
-       * missed every other way a day can be full: one block naming all four
-       * tables, or two blocks that between them cover the lot. The date stayed
-       * on offer and the customer picked a timeslot to be told nothing was
-       * free — having already committed to the day.
-       *
-       * This asks the same question useAvailability asks per timeslot, so the
-       * two can no longer disagree: intersect each slot's tables with the day's
-       * blocks, and keep the date if ANY slot has one left. Per slot rather
-       * than per venue, because a table that does not serve Saturday's only
-       * timeslot was never Saturday's capacity to lose.
-       *
-       * Bookings are deliberately not counted. A fully BOOKED day is a
-       * different thing from a closed one, and hiding it here would take the
-       * date away while the timeslot list still has the honest story.
-       */
-      const dayHasCapacity = (iso: string, dayName: string): boolean => {
-        const { venueClosed, blockedTableIds } = blockedTablesOn(blocks, iso);
-        if (venueClosed) return false;
-        return slots.some(s =>
-          s.availability.includes(dayName) &&
-          (tablesBySlot.get(s.id) ?? []).some(id => !blockedTableIds.has(id)),
-        );
-      };
+      const tablesBySlot = groupTablesBySlot(
+        (capRes.data ?? []) as { table_id: string; timeslot_id: string }[],
+      );
 
       // Generate next 60 calendar days, keep those still worth offering.
       const result: { value: string; label: string }[] = [];
@@ -358,7 +432,7 @@ export function useAvailableDates(locationId: string | null) {
         d.setDate(today.getDate() + i);
         const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayName = DAY_NAMES[d.getDay()];
-        if (dayHasCapacity(iso, dayName)) {
+        if (dayHasCapacity(slots, tablesBySlot, blocks, iso, dayName)) {
           result.push({ value: iso, label: formatDateLabel(iso) });
         }
       }

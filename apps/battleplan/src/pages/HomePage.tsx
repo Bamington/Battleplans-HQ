@@ -16,7 +16,7 @@ import { BookingItem } from '../components/BookingItem';
 import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
-  useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability,
+  useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   useRecentBookedGames, useBookingFee,
   formatTimeslotLabel, formatBookingTime,
@@ -115,6 +115,9 @@ function NewBookingModal({
   const { gameIds: recentGameIds }               = useRecentBookedGames(userId, 5);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
   const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
+  // Answered as soon as a date is picked, so a closed day is called out before
+  // the customer is asked for a time.
+  const { hasCapacity: dayHasCapacity, loading: dayLoading } = useDayHasCapacity(locationId || null, date || null);
   const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null);
   const { roles: venueRoles }                    = useManagedLocations(userId);
 
@@ -425,12 +428,29 @@ function NewBookingModal({
           />
         )}
 
-        {locationId && date && (
+        {/* Answered on the DATE, before a time is asked for. The picker takes
+            any date, so a customer can land on one the venue has closed — and
+            used to have to choose a timeslot before anything said so. */}
+        {/* Deliberately not "no tables available" — a day can fail because every
+            table is blocked, OR because the venue simply does not open that
+            weekday, and naming the wrong cause is worse than naming none. */}
+        {locationId && date && !dayLoading && dayHasCapacity === false && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/40 border border-red-700">
+            <span className="font-body text-sm text-red-300">
+              Nothing available on this date. Try another day.
+            </span>
+          </div>
+        )}
+
+        {/* Hidden rather than disabled when the day is closed: there is no time
+            to pick, and offering an empty control invites the click this change
+            exists to save. */}
+        {locationId && date && dayHasCapacity !== false && (
           <Select
             label="Time"
             value={timeslotId}
             onChange={e => setTimeslotId(e.target.value)}
-            disabled={timeslotsLoading}
+            disabled={timeslotsLoading || dayLoading}
           >
             <option value="">{timeslotsLoading ? 'Loading…' : timeslots.length === 0 ? 'No timeslots available' : 'Select a timeslot'}</option>
             {timeslots.map(t => <option key={t.id} value={t.id}>{formatTimeslotLabel(t)}</option>)}
