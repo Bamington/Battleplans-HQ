@@ -226,6 +226,10 @@ export function useLocations() {
     supabase
       .from('locations')
       .select('id, name, icon')
+      // Spaces are never offered. A room a club borrows is where a booking
+      // happens, not something a player picks from a list — and RLS won't do
+      // this for us, because whoever created the space CAN read it.
+      .neq('kind', 'space')
       .order('name')
       .then(({ data }) => {
         setLocations(data ?? []);
@@ -491,6 +495,7 @@ export function useAdminLocations(userId: string | null) {
       .from('locations')
       .select('id, name, icon')
       .contains('admins', [userId])
+      .neq('kind', 'space')   // a room is not something you administer as a venue
       .order('name')
       .then(({ data }) => {
         if (cancelled) return;
@@ -530,7 +535,9 @@ export function useManagedLocations(userId: string | null) {
     if (!userId) { setLocations([]); setRoles({}); setLoadedFor(null); return; }
 
     Promise.all([
-      supabase.from('locations').select('id, name, icon').contains('admins', [userId]),
+      // Spaces excluded: the store view is for an organisation, and a borrowed
+      // room has no bookings of its own, no staff and no stats.
+      supabase.from('locations').select('id, name, icon').contains('admins', [userId]).neq('kind', 'space'),
       supabase.from('location_staff').select('location_id').eq('user_id', userId),
     ]).then(async ([adminRes, staffRes]) => {
       if (cancelled) return;
@@ -544,7 +551,7 @@ export function useManagedLocations(userId: string | null) {
       let staffLocs: Location[] = [];
       if (staffIds.length > 0) {
         const { data } = await supabase
-          .from('locations').select('id, name, icon').in('id', staffIds);
+          .from('locations').select('id, name, icon').in('id', staffIds).neq('kind', 'space');
         if (cancelled) return;
         staffLocs = (data ?? []) as Location[];
       }

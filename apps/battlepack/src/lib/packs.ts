@@ -178,6 +178,10 @@ export async function listMyLocations(): Promise<LocationOption[]> {
     .from('locations')
     .select('id, name, address, icon')
     .contains('admins', [auth.user.id])
+    // Spaces are not offered yet. Running a pack at a borrowed room is exactly
+    // what they are for, but that needs the organiser to have BattlePack in the
+    // first place — a separate gate that is still venue-shaped.
+    .neq('kind', 'space')
     .order('name');
   if (error) throw error;
   return (data ?? []) as LocationOption[];

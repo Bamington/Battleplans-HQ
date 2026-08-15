@@ -46,6 +46,8 @@ export function useAdminLocations(userId: string | null): UseAdminLocations {
       .from('locations')
       .select('id, name, icon, address')
       .contains('admins', [userId])
+      // A space is a borrowed room, not an organisation you administer.
+      .neq('kind', 'space')
       .order('name')
       .then(({ data }) => {
         if (cancelled) return;

@@ -96,6 +96,9 @@ export default function ManageUsersPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: 
     const { data } = await supabase
       .from('locations')
       .select('id, name, icon, admins')
+      // You are made an admin of an organisation, not of a room it borrows —
+      // a space's admins come from its owner.
+      .neq('kind', 'space')
       .order('name');
     if (data) setLocations(data as LocationRow[]);
   }

@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  Select,
   Dropdown,
   DropdownDivider,
   DropdownItem,
@@ -30,7 +31,23 @@ type LocationRow = {
   icon: string | null;
   store_email: string | null;
   admins: string[] | null;
+  kind: LocationKind;
+  owner_location_id: string | null;
 };
+
+/**
+ * What a location row is.
+ *
+ * 'club' exists in the database constraint but is not offered here yet —
+ * nothing knows how to run one, and a half-supported club row would be worse
+ * than no club at all.
+ */
+type LocationKind = 'venue' | 'club' | 'space';
+
+const KIND_OPTIONS = [
+  { value: 'venue', label: 'Venue — a shop, listed publicly' },
+  { value: 'space', label: 'Space — a borrowed room, never public' },
+];
 
 /** Shape returned by the admin_list_users RPC. */
 type UserRow = {
@@ -57,9 +74,15 @@ type LocationFormState = {
   store_email: string;
   admins: string[];   // user ids
   apps: string[];     // app slugs switched on for this venue
+  kind: LocationKind;
+  /** Required for a space, meaningless otherwise. */
+  owner_location_id: string;
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', address: '', icon: '', store_email: '', admins: [], apps: [] };
+const EMPTY_FORM: LocationFormState = {
+  name: '', address: '', icon: '', store_email: '', admins: [], apps: [],
+  kind: 'venue', owner_location_id: '',
+};
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -200,6 +223,68 @@ function AppsField({ apps, value, onChange, disabled }: {
   );
 }
 
+// ── Kind ────────────────────────────────────────────────────────────────────
+
+/**
+ * What this row is, and — for a space — who looks after it.
+ *
+ * A SPACE MUST HAVE AN OWNER. Reading a space is granted either by being in its
+ * own `admins` or by administering its owner; a space with neither is a row
+ * nobody can see, edit or delete. Platform admins are not stopped by the
+ * insert policy the way a venue admin is, so the form is what enforces it here.
+ */
+function KindField({ value, owner, owners, onChange, disabled }: {
+  value: LocationKind;
+  owner: string;
+  /** Candidate owners — anything that is not itself a space. */
+  owners: LocationRow[];
+  onChange: (patch: { kind?: LocationKind; owner_location_id?: string }) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Kind</p>
+      <div className="flex flex-col gap-3 mt-1">
+        <Select
+          options={KIND_OPTIONS}
+          value={value}
+          onChange={e => onChange({ kind: e.target.value as LocationKind })}
+          disabled={disabled}
+        />
+
+        {value === 'space' && (
+          <SearchSelect
+            placeholder="Choose an owner"
+            searchPlaceholder="Search venues…"
+            helperText="The venue or club that meets here and looks after this room."
+            emptyLabel="No venues match that search."
+            options={owners.map(o => ({ value: o.id, label: o.name }))}
+            value={owner}
+            onChange={id => onChange({ owner_location_id: id })}
+            disabled={disabled}
+          />
+        )}
+
+        {value === 'space' && (
+          <p className="font-body text-xs text-neutral-600">
+            Never appears publicly, and never in a booking or venue picker.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Whether the form can be saved. A space needs an owner on top of the usual
+ * name and address.
+ */
+function formIsValid(f: LocationFormState): boolean {
+  if (!f.name.trim() || !f.address.trim()) return false;
+  if (f.kind === 'space' && !f.owner_location_id) return false;
+  return true;
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 
 function ManageLocationsInner() {
@@ -302,7 +387,9 @@ function ManageLocationsInner() {
     setLoading(true);
     const { data, error } = await supabase
       .from('locations')
-      .select('id, name, address, icon, store_email, admins')
+      // Every kind, unfiltered — this is the one screen where a space is
+      // supposed to be visible.
+      .select('id, name, address, icon, store_email, admins, kind, owner_location_id')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -328,6 +415,10 @@ function ManageLocationsInner() {
         address: addForm.address.trim(),
         icon: addForm.icon || null,
         store_email: addForm.store_email.trim() || null,
+        kind: addForm.kind,
+        // An ownerless space is readable by nobody, so it would sit there
+        // unseeable and undeletable. The form requires an owner for a space.
+        owner_location_id: addForm.kind === 'space' ? addForm.owner_location_id : null,
       })
       .select()
       .single();
@@ -364,6 +455,8 @@ function ManageLocationsInner() {
       store_email: loc.store_email ?? '',
       admins: loc.admins ?? [],
       apps: appsByLocation.get(loc.id) ?? [],
+      kind: loc.kind,
+      owner_location_id: loc.owner_location_id ?? '',
     });
     setEditError(null);
   }
@@ -378,6 +471,8 @@ function ManageLocationsInner() {
       icon: editForm.icon || null,
       store_email: editForm.store_email.trim() || null,
       admins: editForm.admins,
+      kind: editForm.kind,
+      owner_location_id: editForm.kind === 'space' ? editForm.owner_location_id : null,
     };
     const { error } = await supabase
       .from('locations')
@@ -464,7 +559,17 @@ function ManageLocationsInner() {
                   )}
 
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <p className="font-body text-sm font-medium text-white leading-none">{loc.name}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-body text-sm font-medium text-white leading-none truncate">{loc.name}</p>
+                      {/* Venues are the norm and go unlabelled; anything else is
+                          worth calling out, because a space is invisible
+                          everywhere but this screen. */}
+                      {loc.kind !== 'venue' && (
+                        <Badge variant="outline" color="gray">
+                          {loc.kind === 'space' ? 'Space' : 'Club'}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                       {loc.address && (
                         <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
@@ -587,12 +692,23 @@ function ManageLocationsInner() {
             disabled={adding}
           />
 
-          <AppsField
-            apps={storeApps}
-            value={addForm.apps}
-            onChange={slugs => setAddForm(f => ({ ...f, apps: slugs }))}
+          <KindField
+            value={addForm.kind}
+            owner={addForm.owner_location_id}
+            owners={locations.filter(l => l.kind !== 'space')}
+            onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
             disabled={adding}
           />
+
+          {/* A space has no staff, no apps and no store email — it is a room. */}
+          {addForm.kind !== 'space' && (
+            <AppsField
+              apps={storeApps}
+              value={addForm.apps}
+              onChange={slugs => setAddForm(f => ({ ...f, apps: slugs }))}
+              disabled={adding}
+            />
+          )}
 
           {addError && <p className="font-body text-sm text-red-400">{addError}</p>}
 
@@ -600,7 +716,7 @@ function ManageLocationsInner() {
             <Button variant="ghost" color="secondary" disabled={adding} onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button color="primary" loading={adding} disabled={!addForm.name.trim() || !addForm.address.trim()} onClick={handleAdd}>
+            <Button color="primary" loading={adding} disabled={!formIsValid(addForm)} onClick={handleAdd}>
               Add Location
             </Button>
           </div>
@@ -665,12 +781,24 @@ function ManageLocationsInner() {
               />
             </div>
 
-            <AppsField
-              apps={storeApps}
-              value={editForm.apps}
-              onChange={slugs => setEditForm(f => ({ ...f, apps: slugs }))}
+            <KindField
+              value={editForm.kind}
+              owner={editForm.owner_location_id}
+              // Never itself, or a space could end up owning itself and become
+              // unreachable through the owner branch.
+              owners={locations.filter(l => l.kind !== 'space' && l.id !== editTarget.id)}
+              onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
               disabled={saving}
             />
+
+            {editForm.kind !== 'space' && (
+              <AppsField
+                apps={storeApps}
+                value={editForm.apps}
+                onChange={slugs => setEditForm(f => ({ ...f, apps: slugs }))}
+                disabled={saving}
+              />
+            )}
 
             {editError && <p className="font-body text-sm text-red-400">{editError}</p>}
 
@@ -678,7 +806,7 @@ function ManageLocationsInner() {
               <Button variant="ghost" color="secondary" disabled={saving} onClick={() => setEditTarget(null)}>
                 Cancel
               </Button>
-              <Button color="primary" loading={saving} disabled={!editForm.name.trim() || !editForm.address.trim()} onClick={handleSaveEdit}>
+              <Button color="primary" loading={saving} disabled={!formIsValid(editForm)} onClick={handleSaveEdit}>
                 Save
               </Button>
             </div>
