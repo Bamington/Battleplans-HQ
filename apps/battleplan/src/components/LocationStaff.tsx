@@ -230,7 +230,7 @@ export function AddStaffModal({
         <div className="flex flex-col gap-1">
           <h2 className="font-heading text-xl text-white">Add Staff Member</h2>
           <p className="font-body text-base text-neutral-300">
-            Staff can see bookings at {locationName}. They can’t change your venue
+            Staff can see bookings at {locationName}. They can’t change your
             settings, your tables, or who works here.
           </p>
         </div>

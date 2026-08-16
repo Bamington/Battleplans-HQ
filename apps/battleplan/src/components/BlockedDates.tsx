@@ -354,7 +354,7 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
           <p className="font-body text-base text-neutral-300">
             {isEdit
               ? 'Update this block. Changes apply to every future occurrence.'
-              : 'Make a date unbookable at your venue — once, or on a repeating schedule.'}
+              : 'Make a date unbookable — once, or on a repeating schedule.'}
           </p>
         </div>
 

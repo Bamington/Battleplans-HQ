@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, AppFooter, Button, Layers } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
+  orgNoun, orgNounTitle,
   useAdminLocations, useBlockedDates, useStoreTables, useLocationTimeslots, useBookingsByDate,
   useLocationBookingFees, useLocationStaff, useLocationAdminIds,
   formatDateLabel, formatBookingTime,
@@ -91,6 +92,11 @@ export default function ManageStore() {
   }, [userId, loading, adminLocations, navigate]);
 
   const selectedStore = adminLocations.find(l => l.id === selectedId);
+
+  // A club gets the same screen as a shop; only the standalone words change.
+  // Copy that interpolates the location's own name already reads correctly.
+  const noun = orgNoun(selectedStore?.kind);
+  const nounTitle = orgNounTitle(selectedStore?.kind);
   const { blockedDates, loading: bdLoading, refetch } = useBlockedDates(selectedId ? [selectedId] : []);
 
   const { timeslots, loading: timeslotsLoading, refetch: refetchTimeslots } = useLocationTimeslots(selectedId || null);
@@ -132,7 +138,13 @@ export default function ManageStore() {
   return (
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
-      <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
+      {/* The navbar's crumb table is keyed by route and can't know which
+          location is selected, so this page supplies its own trail. */}
+      <AppNavbar
+        fixed={false}
+        logo={<BattlePlanLogo />}
+        breadcrumbs={[{ label: 'Home', href: '/app' }, { label: `Manage ${nounTitle}` }]}
+      >
         {selectedStore && (
           <StoreSelector locations={adminLocations} selectedId={selectedId} onSelect={setSelectedId} />
         )}
@@ -150,7 +162,7 @@ export default function ManageStore() {
               <h2 className="font-heading text-xl text-white">Blocked Dates</h2>
 
               <p className="font-body text-base text-neutral-300 text-center">
-                Dates when tables can't be booked at {selectedStore?.name ?? 'your venue'}.
+                Dates when tables can't be booked at {selectedStore?.name ?? `your ${noun}`}.
               </p>
 
               <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
@@ -373,7 +385,7 @@ export default function ManageStore() {
                     key={m.userId}
                     member={m}
                     locationId={selectedId}
-                    locationName={selectedStore?.name ?? 'this venue'}
+                    locationName={selectedStore?.name ?? `this ${noun}`}
                     onChanged={refetchStaff}
                   />
                 ))}
@@ -438,7 +450,7 @@ export default function ManageStore() {
         open={staffModalOpen}
         onClose={() => setStaffModalOpen(false)}
         locationId={selectedId}
-        locationName={selectedStore?.name ?? 'this venue'}
+        locationName={selectedStore?.name ?? `this ${noun}`}
         existingIds={staff.map(m => m.userId)}
         adminIds={venueAdminIds}
         onSaved={() => { setStaffModalOpen(false); refetchStaff(); }}

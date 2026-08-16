@@ -338,7 +338,7 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
           <div className="flex flex-col gap-1">
             <h2 className="font-heading text-xl text-white">{isEdit ? 'Edit Table' : 'Add Table'}</h2>
             <p className="font-body text-base text-neutral-300">
-              {isEdit ? 'Update this table.' : 'Add a bookable table to this venue.'}
+              {isEdit ? 'Update this table.' : 'Add a bookable table.'}
             </p>
           </div>
 

@@ -9,10 +9,42 @@ export interface Game {
   slug: string;
 }
 
+/**
+ * What a location row is — see 20260814020000.
+ *
+ * 'venue' is a shop: listed publicly, has an address. 'club' is a group of
+ * people with no address of its own. 'space' is a borrowed room, never public
+ * and never offered in a picker.
+ */
+export type LocationKind = 'venue' | 'club' | 'space';
+
 export interface Location {
   id:   string;
   name: string;
   icon: string;
+  /** Absent on older reads that predate the column being selected. */
+  kind?: LocationKind;
+}
+
+/**
+ * The word for this kind of organisation, in the reader's terms.
+ *
+ * The store view serves both a shop and a club, and calling a club's page
+ * "Manage Store" is the sort of thing that makes software feel like it was not
+ * built for you. Copy that interpolates the location's own NAME needs none of
+ * this — "bookings at Warhammer Club" already reads correctly — so this is only
+ * for the places where the word stands on its own.
+ *
+ * Spaces fall through to 'venue' and never reach any of that copy: they have no
+ * store view, no staff and no stats.
+ */
+export function orgNoun(kind: LocationKind | undefined): 'club' | 'venue' {
+  return kind === 'club' ? 'club' : 'venue';
+}
+
+/** Same word, capitalised — for a button or the start of a sentence. */
+export function orgNounTitle(kind: LocationKind | undefined): 'Club' | 'Venue' {
+  return kind === 'club' ? 'Club' : 'Venue';
 }
 
 export interface Timeslot {
@@ -225,11 +257,18 @@ export function useLocations() {
   useEffect(() => {
     supabase
       .from('locations')
-      .select('id, name, icon')
-      // Spaces are never offered. A room a club borrows is where a booking
-      // happens, not something a player picks from a list — and RLS won't do
-      // this for us, because whoever created the space CAN read it.
-      .neq('kind', 'space')
+      .select('id, name, icon, kind')
+      // VENUES ONLY, on purpose.
+      //
+      // Spaces are never offered: a room a club borrows is where a booking
+      // happens, not something a player picks from a list. RLS won't do that
+      // for us, because whoever created the space CAN read it.
+      //
+      // Clubs are excluded too, for now. A club has no tables or timeslots yet,
+      // so offering one would be a dead end — pick it and nothing is bookable.
+      // Whether a club is publicly findable at all is the per-club visibility
+      // setting, which lands with membership.
+      .eq('kind', 'venue')
       .order('name')
       .then(({ data }) => {
         setLocations(data ?? []);
@@ -493,7 +532,7 @@ export function useAdminLocations(userId: string | null) {
 
     supabase
       .from('locations')
-      .select('id, name, icon')
+      .select('id, name, icon, kind')
       .contains('admins', [userId])
       .neq('kind', 'space')   // a room is not something you administer as a venue
       .order('name')
@@ -535,9 +574,10 @@ export function useManagedLocations(userId: string | null) {
     if (!userId) { setLocations([]); setRoles({}); setLoadedFor(null); return; }
 
     Promise.all([
-      // Spaces excluded: the store view is for an organisation, and a borrowed
-      // room has no bookings of its own, no staff and no stats.
-      supabase.from('locations').select('id, name, icon').contains('admins', [userId]).neq('kind', 'space'),
+      // Spaces excluded, clubs kept: the store view is for an organisation, and
+      // a club is one. A borrowed room is not — it has no bookings of its own,
+      // no staff and no stats.
+      supabase.from('locations').select('id, name, icon, kind').contains('admins', [userId]).neq('kind', 'space'),
       supabase.from('location_staff').select('location_id').eq('user_id', userId),
     ]).then(async ([adminRes, staffRes]) => {
       if (cancelled) return;
@@ -551,7 +591,7 @@ export function useManagedLocations(userId: string | null) {
       let staffLocs: Location[] = [];
       if (staffIds.length > 0) {
         const { data } = await supabase
-          .from('locations').select('id, name, icon').in('id', staffIds).neq('kind', 'space');
+          .from('locations').select('id, name, icon, kind').in('id', staffIds).neq('kind', 'space');
         if (cancelled) return;
         staffLocs = (data ?? []) as Location[];
       }

@@ -23,11 +23,13 @@ import {
   supabase,
 } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
+import type { LocationKind } from '../../hooks/useBookingData';
 
 type LocationRow = {
   id: string;
   name: string;
-  address: string;
+  /** Null for a club — see locations_address_required_unless_club. */
+  address: string | null;
   icon: string | null;
   store_email: string | null;
   admins: string[] | null;
@@ -35,19 +37,16 @@ type LocationRow = {
   owner_location_id: string | null;
 };
 
-/**
- * What a location row is.
- *
- * 'club' exists in the database constraint but is not offered here yet —
- * nothing knows how to run one, and a half-supported club row would be worse
- * than no club at all.
- */
-type LocationKind = 'venue' | 'club' | 'space';
-
 const KIND_OPTIONS = [
   { value: 'venue', label: 'Venue — a shop, listed publicly' },
+  { value: 'club',  label: 'Club — a group of people, no address' },
   { value: 'space', label: 'Space — a borrowed room, never public' },
 ];
+
+/** A club has no address of its own; everything else must have one. */
+function needsAddress(kind: LocationKind): boolean {
+  return kind !== 'club';
+}
 
 /** Shape returned by the admin_list_users RPC. */
 type UserRow = {
@@ -69,7 +68,7 @@ type StoreApp = {
 
 type LocationFormState = {
   name: string;
-  address: string;    // required — the column is NOT NULL
+  address: string;    // required unless this is a club
   icon: string;       // URL or empty string
   store_email: string;
   admins: string[];   // user ids
@@ -217,7 +216,7 @@ function AppsField({ apps, value, onChange, disabled }: {
         ))}
       </div>
       <p className="font-body text-xs text-neutral-600 mt-1">
-        This venue's admins get the app in their switcher, and see it inside BattlePlan.
+        Its admins get the app in their switcher, and see it inside BattlePlan.
       </p>
     </div>
   );
@@ -280,7 +279,10 @@ function KindField({ value, owner, owners, onChange, disabled }: {
  * name and address.
  */
 function formIsValid(f: LocationFormState): boolean {
-  if (!f.name.trim() || !f.address.trim()) return false;
+  if (!f.name.trim()) return false;
+  // Mirrors locations_address_required_unless_club — saving without this would
+  // be refused by the database rather than by the form.
+  if (needsAddress(f.kind) && !f.address.trim()) return false;
   if (f.kind === 'space' && !f.owner_location_id) return false;
   return true;
 }
@@ -405,14 +407,19 @@ function ManageLocationsInner() {
   }
 
   async function handleAdd() {
-    if (!addForm.name.trim() || !addForm.address.trim()) return;
+    // Same rule the button is disabled by. Two copies of it drifted apart once
+    // already — a club passed formIsValid, enabled the button, and was then
+    // silently dropped here for having no address.
+    if (!formIsValid(addForm)) return;
     setAdding(true);
     setAddError(null);
     const { data, error } = await supabase
       .from('locations')
       .insert({
         name: addForm.name.trim(),
-        address: addForm.address.trim(),
+        // NULL rather than '' for a club. An empty string would satisfy the
+        // database check while still being an address nobody typed.
+        address: needsAddress(addForm.kind) ? addForm.address.trim() : null,
         icon: addForm.icon || null,
         store_email: addForm.store_email.trim() || null,
         kind: addForm.kind,
@@ -462,12 +469,12 @@ function ManageLocationsInner() {
   }
 
   async function handleSaveEdit() {
-    if (!editTarget || !editForm.name.trim() || !editForm.address.trim()) return;
+    if (!editTarget || !formIsValid(editForm)) return;
     setSaving(true);
     setEditError(null);
     const next = {
       name: editForm.name.trim(),
-      address: editForm.address.trim(),
+      address: needsAddress(editForm.kind) ? editForm.address.trim() : null,
       icon: editForm.icon || null,
       store_email: editForm.store_email.trim() || null,
       admins: editForm.admins,
@@ -654,7 +661,7 @@ function ManageLocationsInner() {
         <div className="flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-0.5">
             <h2 className="font-heading text-base text-white">Add Location</h2>
-            <p className="font-body text-sm text-neutral-400">Fill in the details for the new venue.</p>
+            <p className="font-body text-sm text-neutral-400">Fill in the details, then choose what kind it is.</p>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -667,6 +674,7 @@ function ManageLocationsInner() {
                 placeholder="e.g. The Dice Den"
                 disabled={adding}
               />
+              {needsAddress(addForm.kind) && (
               <Input
                 label="Address"
                 value={addForm.address}
@@ -674,6 +682,7 @@ function ManageLocationsInner() {
                 placeholder="e.g. 12 Main Street, Werribee VIC"
                 disabled={adding}
               />
+              )}
               <Input
                 label="Store Email"
                 type="email"
@@ -741,12 +750,16 @@ function ManageLocationsInner() {
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   disabled={saving}
                 />
-                <Input
-                  label="Address"
-                  value={editForm.address}
-                  onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
-                  disabled={saving}
-                />
+                {/* A club has nowhere of its own — it meets at a space or at
+                    somebody else's shop. */}
+                {needsAddress(editForm.kind) && (
+                  <Input
+                    label="Address"
+                    value={editForm.address}
+                    onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                    disabled={saving}
+                  />
+                )}
                 <Input
                   label="Store Email"
                   type="email"

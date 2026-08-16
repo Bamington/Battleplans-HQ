@@ -19,9 +19,9 @@ import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   useRecentBookedGames, useBookingFee, useVenueEvents, useLocationHasApp,
-  formatTimeslotLabel, formatBookingTime,
+  formatTimeslotLabel, formatBookingTime, orgNoun, orgNounTitle,
 } from '../hooks/useBookingData';
-import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent, LocationKind } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -1367,12 +1367,14 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen, onTa
   );
 }
 
-function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, isVenueAdmin }: StoreColumnProps & {
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, isVenueAdmin, kind }: StoreColumnProps & {
   /**
    * Both footer actions are an owner's tools — venue settings and venue
    * analytics. Staff get the bookings themselves and no footer at all.
    */
   isVenueAdmin: boolean;
+  /** Words the Manage button for a club rather than a shop. */
+  kind?: LocationKind;
 }) {
   const navigate = useNavigate();
 
@@ -1403,7 +1405,7 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, is
       footer={isVenueAdmin ? (
         <div className="flex gap-3 w-full shrink-0">
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
-            Manage Store
+            Manage {orgNounTitle(kind)}
           </Button>
           <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
             Stats
@@ -1498,7 +1500,7 @@ function EventItem({ event }: { event: VenueEvent }) {
  * BattlePack has no events yet by definition, and an empty column that explains
  * itself is how they find out the feature is theirs.
  */
-function UpcomingEventsCard({ locationId, userId }: { locationId: string; userId: string | null }) {
+function UpcomingEventsCard({ locationId, userId, kind }: { locationId: string; userId: string | null; kind?: LocationKind }) {
   const enabled = useLocationHasApp(locationId, 'battlepack');
   // Don't go looking for a venue's events until we know it is meant to have any.
   const { events, loading } = useVenueEvents(enabled ? [locationId] : [], userId);
@@ -1511,7 +1513,7 @@ function UpcomingEventsCard({ locationId, userId }: { locationId: string; userId
     <ScrollColumn
       icon={<Trophy className="w-12 h-12 text-primary-500" />}
       title="Upcoming Events"
-      description="BattlePacks running at your venue."
+      description={`BattlePacks running at your ${orgNoun(kind)}.`}
       items={events}
       loading={loading}
       empty="Nothing booked in yet. Events you publish in BattlePack show up here."
@@ -1525,11 +1527,12 @@ function UpcomingEventsCard({ locationId, userId }: { locationId: string; userId
  * The store view's two booking columns. One fetch feeds both, so they can't
  * disagree and a change refreshes them together.
  */
-function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId }: {
+function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId, kind }: {
   locations: Location[];
   selectedId: string;
   isVenueAdmin: boolean;
   userId: string | null;
+  kind?: LocationKind;
 }) {
   // selectedId is chosen from the navbar venue picker; '' = all of this user's
   // venues, otherwise a single venue.
@@ -1555,7 +1558,7 @@ function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId }: {
         {...shared}
         onTakeBooking={canTakeBooking ? () => setTakingBooking(true) : undefined}
       />
-      <UpcomingBookingsCard {...shared} isVenueAdmin={isVenueAdmin} />
+      <UpcomingBookingsCard {...shared} isVenueAdmin={isVenueAdmin} kind={kind} />
 
       {/* Store mode: Details + cancel, no Invite Friends — this booking is a
           customer's, not the admin's to share. */}
@@ -1623,6 +1626,9 @@ export default function HomePage() {
     ? venueRoles[selectedVenueId] === 'admin'
     : venueLocations.some(l => venueRoles[l.id] === 'admin');
 
+  // A club and a shop get the same screens; only the standalone words differ.
+  const selectedKind = venueLocations.find(l => l.id === selectedVenueId)?.kind;
+
   return (
     <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
@@ -1646,11 +1652,11 @@ export default function HomePage() {
         <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
           {viewingStore ? (
             <>
-              <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} />
+              <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} kind={selectedKind} />
               {/* Staff as well as admins — see useVenueEvents. Renders nothing
                   unless this venue has BattlePack switched on. `viewingStore`
                   guarantees a single venue is selected. */}
-              <UpcomingEventsCard locationId={selectedVenueId} userId={userId} />
+              <UpcomingEventsCard locationId={selectedVenueId} userId={userId} kind={selectedKind} />
             </>
           ) : (
             <>
