@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  supabase, Button, Modal, Dropdown, DropdownItem, Input, Badge,
+  supabase, Button, Modal, Dropdown, DropdownItem, Input, Badge, Select,
   TrashBinMinimalistic, Pen2, ArrowRight,
 } from '@battleplans/ui';
 import { formatBookingTime } from '../hooks/useBookingData';
@@ -27,6 +27,28 @@ const DAYS: { full: string; abbr: string }[] = [
   { full: 'Saturday',  abbr: 'Sat' },
   { full: 'Sunday',    abbr: 'Sun' },
 ];
+
+/**
+ * The same names indexed by `Date.getDay()`, which is Sunday-first.
+ *
+ * DAYS above is Monday-first because that is the order the picker shows. Using
+ * it to look up a getDay() result would be off by one for six days of the week.
+ */
+const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** How often a slot repeats. Weekly first, because almost everything is. */
+const REPEAT_OPTIONS = [
+  { value: '1', label: 'Every week' },
+  { value: '2', label: 'Every 2nd week' },
+  { value: '3', label: 'Every 3rd week' },
+  { value: '4', label: 'Every 4th week' },
+];
+/** '21/08/26' — the first night, short enough to sit on one line. */
+function formatAnchor(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
 function localToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -77,6 +99,15 @@ export function TimeslotItem({ timeslot, onEdit, onChanged }: {
         <div className="flex flex-col flex-1 min-w-0 gap-0.5">
           <span className="font-heading text-lg text-white leading-6 truncate">{timeslot.name}</span>
           <span className="font-body text-sm text-neutral-50 leading-5">{formatBookingTime(timeslot)}</span>
+          {/* Only said when it isn't weekly. Every slot repeated weekly before
+              this existed, so labelling that would be noise on every row —
+              but a fortnightly slot that looks weekly is a trap. */}
+          {(timeslot.interval_weeks ?? 1) > 1 && (
+            <span className="font-body text-sm text-neutral-400 leading-5">
+              Every {timeslot.interval_weeks === 2 ? '2nd' : timeslot.interval_weeks === 3 ? '3rd' : `${timeslot.interval_weeks}th`} week
+              {timeslot.anchor_date ? `, from ${formatAnchor(timeslot.anchor_date)}` : ''}
+            </span>
+          )}
           {days.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-0.5">
               {days.map(d => <Badge key={d} color="primary" size="sm">{d}</Badge>)}
@@ -160,6 +191,9 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
   const [start,  setStart]  = useState('18:00');
   const [end,    setEnd]    = useState('21:00');
   const [days,   setDays]   = useState<string[]>([]);   // full names
+  // 1 = every week, which is what every slot meant before this existed.
+  const [every,  setEvery]  = useState(1);
+  const [anchor, setAnchor] = useState('');             // 'YYYY-MM-DD'
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
 
@@ -170,8 +204,11 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
       setStart(editing.start_time.slice(0, 5));   // "HH:MM:SS" -> "HH:MM"
       setEnd(editing.end_time.slice(0, 5));
       setDays(editing.availability ?? []);
+      setEvery(editing.interval_weeks ?? 1);
+      setAnchor(editing.anchor_date ?? '');
     } else {
       setName(''); setStart('18:00'); setEnd('21:00'); setDays([]);
+      setEvery(1); setAnchor('');
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,7 +217,12 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
   const toggleDay = (full: string) =>
     setDays(ds => ds.includes(full) ? ds.filter(d => d !== full) : [...ds, full]);
 
-  const canSubmit = !!name.trim() && !!start && !!end && days.length > 0 && !!locationId && !saving;
+  // A repeat needs a first night to count from — the database refuses the row
+  // without one (timeslots_anchor_required_when_repeating), so the button has
+  // to know the same rule.
+  const needsAnchor = every > 1;
+  const canSubmit = !!name.trim() && !!start && !!end && days.length > 0
+    && !!locationId && (!needsAnchor || !!anchor) && !saving;
 
   const handleClose = () => { if (!saving) onClose(); };
 
@@ -188,14 +230,29 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
     setError(null);
     if (end <= start) { setError('End time must be after the start time.'); return; }
 
+    // The cycle counts whole weeks from the first night, so an anchor that
+    // isn't one of the chosen days would put every occurrence on the wrong date.
+    if (needsAnchor && anchor) {
+      const [y, m, d] = anchor.split('-').map(Number);
+      const anchorDay = DAYS_FULL[new Date(y, m - 1, d).getDay()];
+      if (!days.includes(anchorDay)) {
+        setError(`The first night is a ${anchorDay}, which isn't one of the days you picked.`);
+        return;
+      }
+    }
+
     setSaving(true);
     // Preserve the day order rather than click order.
     const availability = DAYS.filter(d => days.includes(d.full)).map(d => d.full);
     const payload = {
-      name:         name.trim(),
-      start_time:   `${start}:00`,
-      end_time:     `${end}:00`,
+      name:           name.trim(),
+      start_time:     `${start}:00`,
+      end_time:       `${end}:00`,
       availability,
+      interval_weeks: every,
+      // Cleared when weekly, so a slot switched back to every week doesn't keep
+      // a stale date that would confuse the next person to open this form.
+      anchor_date:    needsAnchor ? anchor : null,
     };
 
     const { error: saveErr } = editing
@@ -262,6 +319,35 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
               );
             })}
           </div>
+        </div>
+
+        {/* Which weeks, as opposed to which day. Almost every shop wants "every
+            week"; a fortnightly club is what the rest of this is for. */}
+        <div className="flex flex-col gap-2">
+          <Select
+            label="Repeats"
+            options={REPEAT_OPTIONS}
+            value={String(every)}
+            disabled={saving}
+            onChange={e => setEvery(Number(e.target.value))}
+          />
+
+          {needsAnchor && (
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-medium font-body text-white">First night</label>
+              <input
+                type="date"
+                className={timeInputClass}
+                value={anchor}
+                min={localToday()}
+                disabled={saving}
+                onChange={e => setAnchor(e.target.value)}
+              />
+              <p className="font-body text-xs text-neutral-500">
+                The cycle counts from this date, so it has to be a night you actually run.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && <p className="font-body text-sm text-red-400">{error}</p>}

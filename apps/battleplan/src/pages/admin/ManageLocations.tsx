@@ -35,6 +35,8 @@ type LocationRow = {
   admins: string[] | null;
   kind: LocationKind;
   owner_location_id: string | null;
+  /** For a club, the space it meets at — its address. */
+  meets_at_id: string | null;
 };
 
 const KIND_OPTIONS = [
@@ -76,11 +78,13 @@ type LocationFormState = {
   kind: LocationKind;
   /** Required for a space, meaningless otherwise. */
   owner_location_id: string;
+  /** For a club only. '' = none chosen. */
+  meets_at_id: string;
 };
 
 const EMPTY_FORM: LocationFormState = {
   name: '', address: '', icon: '', store_email: '', admins: [], apps: [],
-  kind: 'venue', owner_location_id: '',
+  kind: 'venue', owner_location_id: '', meets_at_id: '',
 };
 
 const BattlePlanLogo = () => (
@@ -232,12 +236,16 @@ function AppsField({ apps, value, onChange, disabled }: {
  * nobody can see, edit or delete. Platform admins are not stopped by the
  * insert policy the way a venue admin is, so the form is what enforces it here.
  */
-function KindField({ value, owner, owners, onChange, disabled }: {
+function KindField({ value, owner, owners, meetsAt, spaces, onChange, disabled }: {
   value: LocationKind;
   owner: string;
   /** Candidate owners — anything that is not itself a space. */
   owners: LocationRow[];
-  onChange: (patch: { kind?: LocationKind; owner_location_id?: string }) => void;
+  /** For a club: the space it meets at. */
+  meetsAt: string;
+  /** The rooms this club owns, to choose from. Empty on a club being created. */
+  spaces: LocationRow[];
+  onChange: (patch: { kind?: LocationKind; owner_location_id?: string; meets_at_id?: string }) => void;
   disabled?: boolean;
 }) {
   return (
@@ -268,6 +276,30 @@ function KindField({ value, owner, owners, onChange, disabled }: {
           <p className="font-body text-xs text-neutral-600">
             Never appears publicly, and never in a booking or venue picker.
           </p>
+        )}
+
+        {/* A club's tables and timeslots are its own; this is only the address
+            members turn up to. */}
+        {value === 'club' && (
+          spaces.length > 0 ? (
+            <SearchSelect
+              placeholder="Nowhere set"
+              searchPlaceholder="Search rooms…"
+              helperText="The room this club meets in. Its tables and timeslots stay on the club."
+              emptyLabel="No rooms match that search."
+              options={[
+                { value: '', label: 'Nowhere set' },
+                ...spaces.map(s => ({ value: s.id, label: s.name })),
+              ]}
+              value={meetsAt}
+              onChange={id => onChange({ meets_at_id: id })}
+              disabled={disabled}
+            />
+          ) : (
+            <p className="font-body text-xs text-neutral-600">
+              To set where this club meets, first add a Space owned by it.
+            </p>
+          )
         )}
       </div>
     </div>
@@ -391,7 +423,7 @@ function ManageLocationsInner() {
       .from('locations')
       // Every kind, unfiltered — this is the one screen where a space is
       // supposed to be visible.
-      .select('id, name, address, icon, store_email, admins, kind, owner_location_id')
+      .select('id, name, address, icon, store_email, admins, kind, owner_location_id, meets_at_id')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -464,6 +496,7 @@ function ManageLocationsInner() {
       apps: appsByLocation.get(loc.id) ?? [],
       kind: loc.kind,
       owner_location_id: loc.owner_location_id ?? '',
+      meets_at_id: loc.meets_at_id ?? '',
     });
     setEditError(null);
   }
@@ -480,6 +513,8 @@ function ManageLocationsInner() {
       admins: editForm.admins,
       kind: editForm.kind,
       owner_location_id: editForm.kind === 'space' ? editForm.owner_location_id : null,
+      // Clubs only — locations_meets_at_clubs_only refuses it on anything else.
+      meets_at_id: editForm.kind === 'club' ? (editForm.meets_at_id || null) : null,
     };
     const { error } = await supabase
       .from('locations')
@@ -599,6 +634,14 @@ function ManageLocationsInner() {
                       {!loc.address && !loc.store_email && (!loc.admins || loc.admins.length === 0) && (
                         <span className="font-body text-xs text-neutral-600">No details set</span>
                       )}
+                      {/* A club has no address of its own, so say where it meets
+                          — otherwise its row reads as having no details at all. */}
+                      {loc.kind === 'club' && loc.meets_at_id && (
+                        <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
+                          <Home className="size-3 shrink-0" />
+                          Meets at {locations.find(l => l.id === loc.meets_at_id)?.name ?? 'a room'}
+                        </span>
+                      )}
                       {/* Which apps this venue has been given. Rolling it out one
                           shop at a time only works if the list says who has it. */}
                       {(appsByLocation.get(loc.id) ?? []).map(slug => (
@@ -705,6 +748,10 @@ function ManageLocationsInner() {
             value={addForm.kind}
             owner={addForm.owner_location_id}
             owners={locations.filter(l => l.kind !== 'space')}
+            meetsAt={addForm.meets_at_id}
+            // A club being created owns nothing yet, so there is nowhere to
+            // point at — the field explains that rather than showing an empty list.
+            spaces={[]}
             onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
             disabled={adding}
           />
@@ -800,6 +847,8 @@ function ManageLocationsInner() {
               // Never itself, or a space could end up owning itself and become
               // unreachable through the owner branch.
               owners={locations.filter(l => l.kind !== 'space' && l.id !== editTarget.id)}
+              meetsAt={editForm.meets_at_id}
+              spaces={locations.filter(l => l.kind === 'space' && l.owner_location_id === editTarget.id)}
               onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
               disabled={saving}
             />

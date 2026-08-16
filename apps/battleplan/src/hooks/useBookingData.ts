@@ -320,7 +320,55 @@ export function useUserProfile(userId: string | null) {
 /** The enabled tables serving each timeslot, keyed by timeslot id. */
 export type TablesBySlot = Map<string, string[]>;
 
-export interface DaySlot { id: string; availability: string[] }
+export interface DaySlot {
+  id: string;
+  availability: string[];
+  /** Weeks between occurrences. 1 (or absent) means every matching weekday. */
+  interval_weeks?: number;
+  /** A date this slot really runs, to count the cycle from. */
+  anchor_date?: string | null;
+}
+
+/**
+ * Does this slot run on this date, given its repeat rule?
+ *
+ * WEEKLY IS THE DEFAULT AND THE SAFE ANSWER. Anything missing, absent or
+ * unparseable falls through to true, so a venue that has never touched
+ * recurrence resolves exactly as it did before the column existed. The failure
+ * mode of a wrong answer here is a shop that looks closed, so the uncertain
+ * case has to be "open".
+ *
+ * Whole weeks, not days: two dates on the same weekday are always a multiple of
+ * seven days apart, so dividing by seven gives the week number. The weekday
+ * itself is already settled by `availability`, and this never second-guesses it
+ * — an anchor on a different weekday would still count whole weeks, and the
+ * caller has already established the day matches.
+ *
+ * Dates are split and rebuilt rather than parsed, for the same reason
+ * `weekdayOf` does it: `new Date('2026-08-21')` is UTC midnight, which is the
+ * previous day in any negative offset.
+ */
+export function slotRunsOn(slot: DaySlot, iso: string): boolean {
+  const every = slot.interval_weeks ?? 1;
+  if (every <= 1) return true;
+  if (!slot.anchor_date) return true;   // a cycle with no start is no cycle
+
+  const toUtcDays = (s: string): number | null => {
+    const [y, m, d] = s.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+  };
+
+  const target = toUtcDays(iso);
+  const anchor = toUtcDays(slot.anchor_date);
+  if (target === null || anchor === null) return true;
+
+  // Before the first night, it does not run. Modulo on a negative number would
+  // otherwise make some earlier weeks look on-cycle.
+  if (target < anchor) return false;
+
+  return Math.round((target - anchor) / 7) % every === 0;
+}
 
 /**
  * Is there anything left to book at this venue on this day?
@@ -349,6 +397,8 @@ export function dayHasCapacity(
   if (venueClosed) return false;
   return slots.some(s =>
     s.availability.includes(dayName) &&
+    // The weekday says which day; the repeat rule says which weeks.
+    slotRunsOn(s, iso) &&
     (tablesBySlot.get(s.id) ?? []).some(id => !blockedTableIds.has(id)),
   );
 }
@@ -395,7 +445,7 @@ export function useDayHasCapacity(locationId: string | null, date: string | null
     setHasCapacity(null);
 
     Promise.all([
-      supabase.from('timeslots').select('id, availability').eq('location_id', locationId),
+      supabase.from('timeslots').select('id, availability, interval_weeks, anchor_date').eq('location_id', locationId),
       supabase.from('store_table_timeslots')
         .select('table_id, timeslot_id, store_tables!inner(enabled, location_id)')
         .eq('store_tables.enabled', true)
@@ -442,7 +492,7 @@ export function useAvailableDates(locationId: string | null) {
     Promise.all([
       supabase
         .from('timeslots')
-        .select('id, availability')
+        .select('id, availability, interval_weeks, anchor_date')
         .eq('location_id', locationId),
       // A recurring rule can have started long ago and still apply, so it can't
       // be filtered out by date — only one-offs can.
@@ -503,12 +553,16 @@ export function useTimeslots(locationId: string | null, date: string | null) {
 
     supabase
       .from('timeslots')
-      .select('id, name, start_time, end_time, availability')
+      .select('id, name, start_time, end_time, availability, interval_weeks, anchor_date')
       .eq('location_id', locationId)
       .contains('availability', [dayName])
       .order('start_time')
       .then(({ data }) => {
-        setTimeslots(data ?? []);
+        // The weekday is filtered in the query; the repeat rule has to be
+        // applied here, because "every second Friday" is not a column Postgrest
+        // can compare. Without this a member would be offered a slot on an
+        // off week and told it was unavailable only after picking it.
+        setTimeslots((data ?? []).filter(s => slotRunsOn(s as DaySlot, date)));
         setLoading(false);
       });
   }, [locationId, date]);
@@ -1232,6 +1286,10 @@ export interface LocationTimeslot {
   end_time:     string;
   /** Full day names this slot runs on, e.g. ['Tuesday', 'Wednesday']. */
   availability: string[];
+  /** Weeks between occurrences; 1 is every matching weekday. */
+  interval_weeks: number;
+  /** Which occurrence to count the cycle from. Null when weekly. */
+  anchor_date: string | null;
 }
 
 export function useLocationTimeslots(locationId: string | null) {
@@ -1243,7 +1301,7 @@ export function useLocationTimeslots(locationId: string | null) {
     setLoading(true);
     supabase
       .from('timeslots')
-      .select('id, name, start_time, end_time, availability')
+      .select('id, name, start_time, end_time, availability, interval_weeks, anchor_date')
       .eq('location_id', locationId)
       .order('start_time')
       .then(({ data }) => {
