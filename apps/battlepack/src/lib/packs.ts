@@ -174,17 +174,42 @@ export async function listMyLocations(): Promise<LocationOption[]> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return [];
 
-  const { data, error } = await supabase
-    .from('locations')
-    .select('id, name, address, icon')
-    .contains('admins', [auth.user.id])
-    // Spaces are not offered yet. Running a pack at a borrowed room is exactly
-    // what they are for, but that needs the organiser to have BattlePack in the
-    // first place — a separate gate that is still venue-shaped.
-    .neq('kind', 'space')
-    .order('name');
-  if (error) throw error;
-  return (data ?? []) as LocationOption[];
+  // Two ways to be entitled to run an event somewhere, and the picker has to
+  // offer both or a nominated organiser sees an empty list and concludes the
+  // app is broken:
+  //
+  //   - you administer the place, or
+  //   - the place nominated you as an organiser (20260814060000)
+  //
+  // Asked as two queries rather than one. PostgREST cannot express "admins
+  // contains me OR I have a row in another table", and the alternative is a
+  // view that would hide this rule somewhere less obvious than here.
+  const [ownRes, nominatedRes] = await Promise.all([
+    supabase
+      .from('locations')
+      .select('id, name, address, icon')
+      .contains('admins', [auth.user.id])
+      // Spaces are not offered yet. Running a pack at a borrowed room is exactly
+      // what they are for, but that needs the organiser to have BattlePack in the
+      // first place — a separate gate that is still venue-shaped.
+      .neq('kind', 'space'),
+    supabase
+      .from('location_staff')
+      .select('location:locations(id, name, address, icon)')
+      .eq('user_id', auth.user.id)
+      .eq('role', 'organiser'),
+  ]);
+  if (ownRes.error) throw ownRes.error;
+
+  const own = (ownRes.data ?? []) as LocationOption[];
+  const seen = new Set(own.map(l => l.id));
+
+  // An organiser who also administers the place would otherwise appear twice.
+  const nominated = ((nominatedRes.data ?? []) as unknown as { location: LocationOption | null }[])
+    .map(r => r.location)
+    .filter((l): l is LocationOption => !!l && !seen.has(l.id));
+
+  return [...own, ...nominated].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // ── Packs ────────────────────────────────────────────────────────────────────

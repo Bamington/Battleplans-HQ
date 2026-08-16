@@ -94,10 +94,13 @@ const DEMO_FEES: BookingFee[] = [
 ];
 
 const DEMO_STAFF: StaffMember[] = [
-  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: null },
+  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: null, role: 'staff' },
   // No real name set — the row falls back to the @handle, with no duplicate
   // line beneath it.
-  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: null },
+  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: null, role: 'staff' },
+  // An organiser: runs events here, and cannot see the venue's bookings. The
+  // role line is the only thing distinguishing them at a glance.
+  { userId: 'u-3', handle: 'jo-tanaka', username: 'Jo Tanaka',  avatarPath: null, createdAt: null, role: 'organiser' },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {

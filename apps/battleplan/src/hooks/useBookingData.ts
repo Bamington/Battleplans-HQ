@@ -689,6 +689,15 @@ export function useLocationAdminIds(locationId: string | null) {
 // ── useLocationStaff ──────────────────────────────────────────────────────────
 // The roster at one venue, with each person's public profile attached.
 
+/**
+ * What this person does at the venue.
+ *
+ * 'staff' works the counter and sees the bookings. 'organiser' runs events —
+ * holds tables and publishes BattlePacks — and deliberately does NOT see who
+ * booked what. See 20260814060000.
+ */
+export type VenueStaffRole = 'staff' | 'organiser';
+
 export interface StaffMember {
   userId:     string;
   handle:     string | null;
@@ -696,6 +705,7 @@ export interface StaffMember {
   username:   string | null;
   avatarPath: string | null;
   createdAt:  string | null;
+  role:       VenueStaffRole;
 }
 
 export function useLocationStaff(locationId: string | null) {
@@ -718,12 +728,15 @@ export function useLocationStaff(locationId: string | null) {
         setStaff(((data as {
           user_id: string; handle: string | null;
           username: string | null; avatar_path: string | null;
+          role: VenueStaffRole | null;
         }[] | null) ?? []).map(p => ({
           userId:     p.user_id,
           handle:     p.handle,
           username:   p.username,
           avatarPath: p.avatar_path,
           createdAt:  null,
+          // Everyone who existed before roles did works the counter.
+          role:       p.role ?? 'staff',
         })));
         setLoading(false);
       });

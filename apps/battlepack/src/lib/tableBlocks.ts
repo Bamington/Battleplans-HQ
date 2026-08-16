@@ -167,8 +167,17 @@ export async function syncPackBlocks(
   // would take nothing out while looking like it had.
   if (selecting && selection.tableIds.length === 0) return;
 
+  // Who is doing this. A venue admin blocking their own shop does not need to
+  // say, but an ORGANISER does: the policy added in 20260814060000 only lets a
+  // nominated organiser write a block stamped with themselves, so that the
+  // venue can see which person closed its Friday. Without this a TO publishing
+  // a pack at a venue they do not own is refused at the last step.
+  const { data: auth } = await supabase.auth.getUser();
+  const createdBy = auth.user?.id ?? null;
+
   const rows = dates.map(date => ({
     location_id: pack.location_id,
+    created_by: createdBy,
     date,
     // The venue admin sees this in BattlePlan's blocked-dates list, where a
     // bare date with no reason is the thing this integration must not create.
