@@ -19,6 +19,7 @@ import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   useRecentBookedGames, useBookingFee, useVenueEvents, useLocationHasApp,
+  useIsOrganiser, useMyEvents,
   formatTimeslotLabel, formatBookingTime, orgNoun, orgNounTitle,
 } from '../hooks/useBookingData';
 import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent, LocationKind } from '../hooks/useBookingData';
@@ -1449,7 +1450,15 @@ function formatEventHold(hold: VenueEvent['hold']): string {
   return `${hold.tableNames.join(', ')} held`;
 }
 
-function EventItem({ event }: { event: VenueEvent }) {
+function EventItem({ event, venueName }: {
+  event: VenueEvent;
+  /**
+   * Where it runs. Passed only by the organiser's own column, which spans
+   * venues; the venue's column omits it because everything in it is already
+   * at the venue you are looking at.
+   */
+  venueName?: string | null;
+}) {
   const icon = event.game?.slug ? GAME_ICONS[event.game.slug] : undefined;
   const isDraft = event.status !== 'published';
 
@@ -1467,7 +1476,7 @@ function EventItem({ event }: { event: VenueEvent }) {
       <div className="flex flex-col flex-1 min-w-0 justify-center">
         <span className="font-heading text-lg text-white leading-6 line-clamp-2">{event.name}</span>
         <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
-          {event.game?.name ?? 'No game'}
+          {venueName ?? event.game?.name ?? 'No game'}
         </span>
         <span className="font-body text-sm text-neutral-50 leading-5 truncate">
           {formatEventDates(event.starts_on, event.ends_on)}
@@ -1486,6 +1495,40 @@ function EventItem({ event }: { event: VenueEvent }) {
       )}
 
     </div>
+  );
+}
+
+/**
+ * The events this person is running, wherever they run them.
+ *
+ * A personal column, so it sits with My Bookings and My Battles rather than in
+ * the store view — an organiser is not attached to one venue the way staff are.
+ * Shown to anyone nominated as an organiser anywhere, even before they have
+ * written a single pack: an empty column that explains itself is how somebody
+ * just nominated finds out the feature is theirs.
+ *
+ * Scoped by OWNER, not by venue. The venue's column answers "what is coming to
+ * my room"; this answers "what am I running", which is why every row names its
+ * venue and the venue's column does not.
+ */
+function MyEventsCard({ userId }: { userId: string | null }) {
+  const isOrganiser = useIsOrganiser(userId);
+  // Don't go looking until we know they are one.
+  const { events, loading } = useMyEvents(isOrganiser ? userId : null);
+
+  if (!isOrganiser) return null;
+
+  return (
+    <ScrollColumn
+      icon={<Trophy className="w-12 h-12 text-primary-500" />}
+      title="Your Events"
+      description="BattlePacks you're running."
+      items={events}
+      loading={loading}
+      empty="Nothing yet. Events you create in BattlePack show up here."
+      getKey={e => e.id}
+      renderItem={e => <EventItem event={e} venueName={e.venueName} />}
+    />
   );
 }
 
@@ -1661,6 +1704,9 @@ export default function HomePage() {
           ) : (
             <>
               <BookingCard userId={userId} />
+              {/* Renders nothing unless this person has been nominated as an
+                  organiser somewhere. */}
+              <MyEventsCard userId={userId} />
               <SuggestedBattlesCard userId={userId} onLogged={() => setBattlesVersion(v => v + 1)} />
               <MyBattlesCard userId={userId} refreshSignal={battlesVersion} />
               {/* Personal, so it belongs with the other personal columns — a

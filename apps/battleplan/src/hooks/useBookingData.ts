@@ -632,7 +632,11 @@ export function useManagedLocations(userId: string | null) {
       // a club is one. A borrowed room is not — it has no bookings of its own,
       // no staff and no stats.
       supabase.from('locations').select('id, name, icon, kind').contains('admins', [userId]).neq('kind', 'space'),
-      supabase.from('location_staff').select('location_id').eq('user_id', userId),
+      // COUNTER STAFF ONLY. An organiser is in this table too, but the store
+      // view is bookings-shaped and RLS gives an organiser none of them — they
+      // would land on a venue whose every column was empty and reasonably
+      // conclude it was broken. Their events live in the personal view instead.
+      supabase.from('location_staff').select('location_id').eq('user_id', userId).eq('role', 'staff'),
     ]).then(async ([adminRes, staffRes]) => {
       if (cancelled) return;
 
@@ -958,6 +962,29 @@ function eventIsUpcoming(e: { starts_on: string | null; ends_on: string | null }
   return last === null || last >= todayIso;
 }
 
+/**
+ * Fold blocked_dates rows into one hold per pack.
+ *
+ * Shared by the venue's column and an organiser's own, so the two can't come to
+ * different conclusions about what an event has taken out of a room.
+ */
+function collectHolds(rows: RawHoldRow[] | null): Map<string, VenueEventHold> {
+  const holds = new Map<string, VenueEventHold>();
+  for (const row of (rows ?? [])) {
+    const names = (row.blocked_date_tables ?? [])
+      .map(l => l.store_tables?.name)
+      .filter((n): n is string => !!n);
+    const existing = holds.get(row.battlepack_id);
+    if (existing) {
+      existing.dates.push(row.date);
+      for (const n of names) if (!existing.tableNames.includes(n)) existing.tableNames.push(n);
+    } else {
+      holds.set(row.battlepack_id, { scope: row.table_scope, tableNames: names.sort(), dates: [row.date] });
+    }
+  }
+  return holds;
+}
+
 export function useVenueEvents(locationIds: string[], userId: string | null) {
   const [events,  setEvents]  = useState<VenueEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1007,19 +1034,7 @@ export function useVenueEvents(locationIds: string[], userId: string | null) {
 
       if (cancelled) return;
 
-      const holds = new Map<string, VenueEventHold>();
-      for (const row of ((holdData as unknown as RawHoldRow[]) ?? [])) {
-        const names = (row.blocked_date_tables ?? [])
-          .map(l => l.store_tables?.name)
-          .filter((n): n is string => !!n);
-        const existing = holds.get(row.battlepack_id);
-        if (existing) {
-          existing.dates.push(row.date);
-          for (const n of names) if (!existing.tableNames.includes(n)) existing.tableNames.push(n);
-        } else {
-          holds.set(row.battlepack_id, { scope: row.table_scope, tableNames: names.sort(), dates: [row.date] });
-        }
-      }
+      const holds = collectHolds(holdData as unknown as RawHoldRow[] | null);
 
       setEvents(packs.map(p => ({
         id: p.id, name: p.name, status: p.status,
@@ -1032,6 +1047,117 @@ export function useVenueEvents(locationIds: string[], userId: string | null) {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, userId]);
+
+  return { events, loading };
+}
+
+// ── useIsOrganiser ────────────────────────────────────────────────────────────
+//
+// Whether this person has been nominated to run events anywhere.
+//
+// Gates the personal events column. Asked as "are you an organiser" rather than
+// "do you own any packs", because someone who has just been nominated and has
+// not written an event yet still needs to see the column — an empty one that
+// explains itself is how they find out the feature is theirs.
+
+export function useIsOrganiser(userId: string | null) {
+  const [isOrganiser, setIsOrganiser] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!userId) { setIsOrganiser(false); return; }
+    let cancelled = false;
+    setIsOrganiser(null);
+
+    supabase
+      .from('location_staff')
+      .select('location_id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('role', 'organiser')
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        setIsOrganiser(!error && (count ?? 0) > 0);
+      });
+
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  return isOrganiser;
+}
+
+// ── useMyEvents ───────────────────────────────────────────────────────────────
+//
+// The events this person is running, wherever they are running them.
+//
+// The venue's column answers "what is coming to my room"; this answers "what am
+// I running". So it is scoped by OWNER rather than by venue, and it spans every
+// venue at once — which is why, unlike the venue's column, each row has to say
+// where it is.
+//
+// Drafts included. Half of an organiser's work is a pack that is not published
+// yet, and a column that hid it would be missing the part they most need to get
+// back to.
+
+export interface MyEvent extends VenueEvent {
+  /** Where it runs. Always shown — this column spans venues. */
+  venueName: string | null;
+}
+
+interface RawMyPackRow extends RawPackRow {
+  location: { id: string; name: string } | null;
+}
+
+export function useMyEvents(userId: string | null) {
+  const [events,  setEvents]  = useState<MyEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) { setEvents([]); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      const d = new Date();
+      const todayIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const { data, error } = await supabase
+        .from('battlepacks')
+        .select('id, name, status, starts_on, ends_on, owner_id, game:games(id, name, slug), location:locations(id, name)')
+        .eq('owner_id', userId);
+
+      if (cancelled) return;
+      if (error) { setEvents([]); setLoading(false); return; }
+
+      const packs = ((data as unknown as RawMyPackRow[]) ?? [])
+        .filter(p => eventIsUpcoming(p, todayIso))
+        .sort((a, b) => {
+          // Undated drafts last — they have no place on a timeline.
+          if (!a.starts_on) return b.starts_on ? 1 : a.name.localeCompare(b.name);
+          if (!b.starts_on) return -1;
+          return a.starts_on.localeCompare(b.starts_on) || a.name.localeCompare(b.name);
+        });
+
+      if (packs.length === 0) { setEvents([]); setLoading(false); return; }
+
+      const { data: holdData } = await supabase
+        .from('blocked_dates')
+        .select('battlepack_id, date, table_scope, blocked_date_tables(store_tables(name))')
+        .in('battlepack_id', packs.map(p => p.id))
+        .order('date');
+
+      if (cancelled) return;
+      const holds = collectHolds(holdData as unknown as RawHoldRow[] | null);
+
+      setEvents(packs.map(p => ({
+        id: p.id, name: p.name, status: p.status,
+        starts_on: p.starts_on, ends_on: p.ends_on, game: p.game,
+        hold: holds.get(p.id) ?? null,
+        venueName: p.location?.name ?? null,
+      })));
+      setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [userId]);
 
   return { events, loading };
 }
