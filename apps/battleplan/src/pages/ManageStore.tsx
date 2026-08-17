@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Layers } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Layers, COLUMN_ROW, COLUMN_PANEL } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
   orgNoun, orgNounTitle,
@@ -160,10 +160,10 @@ export default function ManageStore() {
       </AppNavbar>
 
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+        <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
 
           {/* Blocked Dates column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <CalendarIcon />
@@ -203,7 +203,7 @@ export default function ManageStore() {
           </div>
 
           {/* Tables column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <TablesIcon />
@@ -245,7 +245,7 @@ export default function ManageStore() {
           </div>
 
           {/* Bookings by Date column — the one thing staff can see. */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <BookingsIcon />
@@ -287,7 +287,7 @@ export default function ManageStore() {
           </div>
 
           {/* Timeslots column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <Layers className="w-12 h-12 text-primary-500" />
@@ -326,7 +326,7 @@ export default function ManageStore() {
           </div>
 
           {/* Booking Fees column */}
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <FeeIcon />
@@ -373,7 +373,7 @@ export default function ManageStore() {
               list of a role it will never fill. Reaching this page at all means
               you administer this place, and the RLS enforces the same thing. */}
           {!isClub && (
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <StaffIcon />
@@ -419,7 +419,7 @@ export default function ManageStore() {
           {/* Organisers column — clubs only. Same list underneath as a venue's
               Staff column, filtered to the one role a club actually uses. */}
           {isClub && (
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <StaffIcon />
@@ -465,7 +465,7 @@ export default function ManageStore() {
           {/* Members column — clubs only. Membership carries no powers; it
               decides which nights they may book. */}
           {isClub && (
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto lg:flex-1 lg:max-w-sm flex flex-col min-h-0 shadow-md overflow-hidden">
+          <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <MembersIcon />

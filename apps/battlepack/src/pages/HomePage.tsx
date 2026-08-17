@@ -18,6 +18,7 @@ import {
   AppFooter, Button, ButtonPair, Dropdown, DropdownItem, Input, Modal, ScrollColumn,
   Select, StoreSelector, useAdminLocations,
   supabase, AddCircle, GAME_ICONS, Magnifer, MenuDots, Shield, TrashBinMinimalistic,
+  COLUMN_ROW,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import BattlepackListItem from '../components/BattlepackListItem';
@@ -144,7 +145,7 @@ export default function HomePage() {
         {/* Below lg the columns scroll horizontally and snap, so a second column
             can be added later without revisiting this. items-stretch is what
             makes the column full height — ColumnShell sizes itself from it. */}
-        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+        <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
           <ScrollColumn
             icon={<Shield className="w-12 h-12 text-primary-500" />}
             title="My Battlepacks"
