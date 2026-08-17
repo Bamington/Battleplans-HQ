@@ -536,6 +536,67 @@ export function useAvailableDates(locationId: string | null) {
   return { dates, loading };
 }
 
+// ── useDayBookable ────────────────────────────────────────────────────────────
+//
+// A predicate the calendar can ask about ANY date: could this place ever be
+// booked that day?
+//
+// Same three reads and the same `dayHasCapacity` as useAvailableDates, but
+// returned as a function rather than a precomputed list, because a calendar
+// can be paged to any month and a list would have to guess how far ahead to
+// look. Fetched once per location, then answered synchronously.
+//
+// "Ever" is the important word. This is about whether the place OPENS — a
+// weekday it doesn't run, an off week for a fortnightly night, a closure — and
+// deliberately not about whether it is full. A date where every table is
+// already booked stays selectable, because greying it out would read as "this
+// shop is closed" rather than "you're too late for that one".
+
+export function useDayBookable(locationId: string | null) {
+  const [rules, setRules] = useState<{
+    slots: DaySlot[];
+    tablesBySlot: TablesBySlot;
+    blocks: BlockCoverage[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!locationId) { setRules(null); return; }
+    let cancelled = false;
+
+    Promise.all([
+      supabase.from('timeslots')
+        .select('id, availability, interval_weeks, anchor_date')
+        .eq('location_id', locationId),
+      // A recurring rule can have started long ago and still apply, so it can't
+      // be filtered out by date — only one-offs can.
+      supabase.from('blocked_dates')
+        .select(BLOCK_RULE_COLUMNS)
+        .eq('location_id', locationId)
+        .or(`recurrence.neq.none,date.gte.${isoDaysFromToday(0)}`),
+      supabase.from('store_table_timeslots')
+        .select('table_id, timeslot_id, store_tables!inner(enabled, location_id)')
+        .eq('store_tables.enabled', true)
+        .eq('store_tables.location_id', locationId),
+    ]).then(([tsRes, bdRes, capRes]) => {
+      if (cancelled) return;
+      setRules({
+        slots: (tsRes.data ?? []) as DaySlot[],
+        blocks: (bdRes.data ?? []).map(mapBlockCoverage),
+        tablesBySlot: groupTablesBySlot((capRes.data ?? []) as { table_id: string; timeslot_id: string }[]),
+      });
+    });
+
+    return () => { cancelled = true; };
+  }, [locationId]);
+
+  return useCallback((iso: string): boolean => {
+    // Until the rules land, every date is offered. Answering "no" while loading
+    // would grey out the whole calendar for a moment, which looks broken.
+    if (!rules) return true;
+    return dayHasCapacity(rules.slots, rules.tablesBySlot, rules.blocks, iso, weekdayOf(iso));
+  }, [rules]);
+}
+
 // ── useTimeslots ──────────────────────────────────────────────────────────────
 // Returns timeslots for a location that are available on the given date's weekday.
 

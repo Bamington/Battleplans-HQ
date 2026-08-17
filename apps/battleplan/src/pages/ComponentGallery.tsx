@@ -515,6 +515,22 @@ const ComponentGallery = () => {
           <div className="w-64">
             <DatePickerInput label="Date (no past dates)" value={date} min="2026-07-26" onChange={setDate} />
           </div>
+          <div className="w-64">
+            {/* A fortnightly club night: alternate Fridays only, which is the
+                case a native date input could never express. */}
+            <DatePickerInput
+              label="Date (alternate Fridays)"
+              value={date}
+              onChange={setDate}
+              isDateBookable={iso => {
+                const [y, m, d] = iso.split('-').map(Number);
+                const dt = new Date(y, m - 1, d);
+                if (dt.getDay() !== 5) return false;
+                const weeks = Math.floor((dt.getTime() - new Date(2026, 7, 21).getTime()) / 604800000);
+                return weeks % 2 === 0;
+              }}
+            />
+          </div>
           <GalleryNote>
             Selected: {date}. <code>min</code> is how the booking flow stops you
             picking a date that has already passed.

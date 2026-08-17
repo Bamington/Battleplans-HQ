@@ -19,7 +19,7 @@ import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
   useRecentBookedGames, useBookingFee, useVenueEvents, useLocationHasApp,
-  useIsOrganiser, useMyEvents,
+  useIsOrganiser, useMyEvents, useDayBookable,
   formatTimeslotLabel, formatBookingTime, orgNoun, orgNounTitle,
 } from '../hooks/useBookingData';
 import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent, LocationKind } from '../hooks/useBookingData';
@@ -119,6 +119,9 @@ function NewBookingModal({
   // Answered as soon as a date is picked, so a closed day is called out before
   // the customer is asked for a time.
   const { hasCapacity: dayHasCapacity, loading: dayLoading } = useDayHasCapacity(locationId || null, date || null);
+  // Same rule, asked of the calendar for every date it draws rather than of one
+  // date after the fact.
+  const isDayBookable = useDayBookable(locationId || null);
   const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null);
   const { roles: venueRoles }                    = useManagedLocations(userId);
 
@@ -425,6 +428,10 @@ function NewBookingModal({
             label="Date"
             value={date}
             min={today}
+            // Crosses out days this place never opens — a weekday it doesn't
+            // run, an off week for a fortnightly night, a closure. A full day
+            // stays selectable; the form explains that one properly.
+            isDateBookable={isDayBookable}
             onChange={handleDateChange}
           />
         )}
