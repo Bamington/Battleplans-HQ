@@ -5,7 +5,7 @@ import AppNavbar from '../components/AppNavbar';
 import {
   orgNoun, orgNounTitle,
   useAdminLocations, useBlockedDates, useStoreTables, useLocationTimeslots, useBookingsByDate,
-  useLocationBookingFees, useLocationStaff, useLocationAdminIds, useClubMembers,
+  useLocationBookingFees, useLocationStaff, useLocationAdminIds, useClubPeople,
   formatDateLabel, formatBookingTime,
 } from '../hooks/useBookingData';
 import type { StoreTable, LocationTimeslot, BookingFee } from '../hooks/useBookingData';
@@ -14,7 +14,7 @@ import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
 import { BookingFeeItem, BookingFeeFormModal, FeeIcon, sortFees } from '../components/BookingFees';
 import { StaffItem, AddStaffModal, StaffIcon } from '../components/LocationStaff';
-import { MemberItem, AddMemberModal, MembersIcon } from '../components/ClubMembers';
+import { PersonItem, AddMemberModal, MembersIcon } from '../components/ClubMembers';
 import { StoreSelector } from '../components/StoreSelector';
 import { BookingItem } from '../components/BookingItem';
 import { GAME_ICONS } from '../components/gameIcons';
@@ -129,11 +129,9 @@ export default function ManageStore() {
   const venueAdminIds = useLocationAdminIds(selectedId || null);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
 
-  // A club's Organisers column shows only that role; the venue's Staff column
-  // shows everyone, because a venue can have both.
-  const organisers = staff.filter(m => m.role === 'organiser');
-
-  const { members, loading: membersLoading, refetch: refetchMembers } = useClubMembers(isClub ? selectedId || null : null);
+  // A club shows one People list — admins, organisers and members together,
+  // strongest role first. A venue keeps its Staff column instead.
+  const { people, loading: peopleLoading, refetch: refetchPeople } = useClubPeople(isClub ? selectedId || null : null);
   const [memberModalOpen, setMemberModalOpen] = useState(false);
 
   // Bookings by date — defaults to today (local), any date pickable.
@@ -416,81 +414,38 @@ export default function ManageStore() {
           </div>
           )}
 
-          {/* Organisers column — clubs only. Same list underneath as a venue's
-              Staff column, filtered to the one role a club actually uses. */}
-          {isClub && (
-          <div className={COLUMN_PANEL}>
-            <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
-
-              <StaffIcon />
-
-              <h2 className="font-heading text-xl text-white">Organisers</h2>
-
-              <p className="font-body text-base text-neutral-300 text-center">
-                People who run events for {selectedStore?.name ?? 'your club'} — they can
-                hold tables and publish BattlePacks.
-              </p>
-
-              <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
-                {staffLoading ? (
-                  <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-                ) : organisers.length === 0 ? (
-                  <p className="font-body text-sm text-neutral-500 text-center py-4">
-                    No organisers yet — only club admins can run events.
-                  </p>
-                ) : organisers.map(m => (
-                  <StaffItem
-                    key={m.userId}
-                    member={m}
-                    locationId={selectedId}
-                    locationName={selectedStore?.name ?? `this ${noun}`}
-                    onChanged={refetchStaff}
-                  />
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                color="primary"
-                className="w-full justify-center shrink-0"
-                onClick={() => setStaffModalOpen(true)}
-              >
-                Add Organiser
-              </Button>
-
-            </div>
-          </div>
-          )}
-
-          {/* Members column — clubs only. Membership carries no powers; it
-              decides which nights they may book. */}
+          {/* People — clubs only. One list rather than the two it replaced:
+              a club admin had to know whether somebody was an organiser or a
+              member in order to find them, and anyone who was both showed up
+              twice. Admins are in here too, the viewer included. */}
           {isClub && (
           <div className={COLUMN_PANEL}>
             <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
 
               <MembersIcon />
 
-              <h2 className="font-heading text-xl text-white">Members</h2>
+              <h2 className="font-heading text-xl text-white">People</h2>
 
               <p className="font-body text-base text-neutral-300 text-center">
-                People who belong to {selectedStore?.name ?? 'your club'}. Only they can
-                book a night marked members only.
+                Everyone in {selectedStore?.name ?? 'your club'}. Members can book
+                nights marked members only; organisers can also run events.
               </p>
 
               <div className="flex flex-col gap-1.5 w-full flex-1 min-h-0 overflow-y-auto">
-                {membersLoading ? (
+                {peopleLoading ? (
                   <p className="font-body text-sm text-neutral-500 text-center py-4">Loading…</p>
-                ) : members.length === 0 ? (
+                ) : people.length === 0 ? (
                   <p className="font-body text-sm text-neutral-500 text-center py-4">
-                    No members yet. Add people here, then mark a night members only.
+                    Nobody yet. Add people here, then mark a night members only.
                   </p>
-                ) : members.map(m => (
-                  <MemberItem
-                    key={m.userId}
-                    member={m}
+                ) : people.map(p => (
+                  <PersonItem
+                    key={p.userId}
+                    person={p}
                     locationId={selectedId}
                     clubName={selectedStore?.name ?? 'the club'}
-                    onChanged={refetchMembers}
+                    isYou={p.userId === userId}
+                    onChanged={refetchPeople}
                   />
                 ))}
               </div>
@@ -560,9 +515,6 @@ export default function ManageStore() {
         existingIds={staff.map(m => m.userId)}
         adminIds={venueAdminIds}
         onSaved={() => { setStaffModalOpen(false); refetchStaff(); }}
-        // A club only ever adds organisers here, so the role picker would be a
-        // choice with one answer.
-        fixedRole={isClub ? 'organiser' : undefined}
       />
 
       {isClub && (
@@ -571,8 +523,8 @@ export default function ManageStore() {
           onClose={() => setMemberModalOpen(false)}
           locationId={selectedId}
           clubName={selectedStore?.name ?? 'the club'}
-          existingIds={members.map(m => m.userId)}
-          onSaved={() => { setMemberModalOpen(false); refetchMembers(); }}
+          existingIds={people.map(p => p.userId)}
+          onSaved={() => { setMemberModalOpen(false); refetchPeople(); }}
         />
       )}
 

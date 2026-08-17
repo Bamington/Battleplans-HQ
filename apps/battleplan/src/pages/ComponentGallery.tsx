@@ -49,8 +49,9 @@ import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
 import { BookingFeeItem, BookingFeeFormModal } from '../components/BookingFees';
 import { StaffItem, AddStaffModal } from '../components/LocationStaff';
+import { PersonItem, AddMemberModal } from '../components/ClubMembers';
 import type { Battle } from '../hooks/useBattles';
-import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember } from '../hooks/useBookingData';
+import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember, ClubPerson } from '../hooks/useBookingData';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import type { IncomingBookingShare } from '@battleplans/ui';
 
@@ -105,6 +106,19 @@ const DEMO_STAFF: StaffMember[] = [
   // An organiser: runs events here, and cannot see the venue's bookings. The
   // role line is the only thing distinguishing them at a glance.
   { userId: 'u-3', handle: 'jo-tanaka', username: 'Jo Tanaka',  avatarPath: null, createdAt: null, role: 'organiser' },
+];
+
+/**
+ * A club's whole roster, strongest role first — which is the order the
+ * `club_people` RPC returns and the reason the list needs no grouping.
+ */
+const DEMO_PEOPLE: ClubPerson[] = [
+  // The viewer. Marked "(you)", and with no remove menu.
+  { userId: 'p-1', handle: 'bamington', username: 'Bam Harrison', avatarPath: null, role: 'admin' },
+  { userId: 'p-2', handle: 'jo-tanaka', username: 'Jo Tanaka',    avatarPath: null, role: 'organiser' },
+  { userId: 'p-3', handle: 'marcus-w',  username: 'Marcus Webb',  avatarPath: null, role: 'member' },
+  // No display name — falls back to the @handle, with no duplicate line under it.
+  { userId: 'p-4', handle: 'priya-n',   username: null,           avatarPath: null, role: 'member' },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {
@@ -209,6 +223,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-blocked-dates',     label: 'Blocked Dates',      icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-booking-fees',      label: 'Booking Fees',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-location-staff',    label: 'Location Staff',     icon: <UsersGroupRounded className="w-5 h-5" /> },
+  { href: '#nav-club-people',       label: 'Club People',        icon: <UsersGroupRounded className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -223,6 +238,7 @@ const ComponentGallery = () => {
   const [timeslotOpen,   setTimeslotOpen]   = useState(false);
   const [feeOpen,        setFeeOpen]        = useState(false);
   const [staffOpen,      setStaffOpen]      = useState(false);
+  const [peopleOpen,     setPeopleOpen]     = useState(false);
   const [date,           setDate]           = useState('2026-08-01');
   const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
@@ -726,6 +742,41 @@ const ComponentGallery = () => {
             existingIds={DEMO_STAFF.map(m => m.userId)}
             adminIds={[]}
             onSaved={() => setStaffOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-club-people" title="Club People">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          {DEMO_PEOPLE.map(p => (
+            <PersonItem
+              key={p.userId}
+              person={p}
+              locationId="loc-1"
+              clubName="Fitzroy Wargamers"
+              isYou={p.userId === 'p-1'}
+              onChanged={() => {}}
+            />
+          ))}
+          <div className="mt-2">
+            <Button onClick={() => setPeopleOpen(true)}>Open Add Member Form</Button>
+          </div>
+          <GalleryNote>
+            A club's whole roster in one list, strongest role first — admin, then
+            organiser, then member. Every row is here on purpose: the viewer's own
+            row is marked <em>(you)</em> and has no remove menu, and neither does an
+            admin, because their access comes from <code>locations.admins</code>
+            rather than this screen. Removing anyone else clears both their member
+            and organiser rows, since the organiser tick adds one on top of the
+            other. The last row has no display name, so it falls back to the @handle.
+          </GalleryNote>
+          <AddMemberModal
+            open={peopleOpen}
+            onClose={() => setPeopleOpen(false)}
+            locationId="loc-1"
+            clubName="Fitzroy Wargamers"
+            existingIds={DEMO_PEOPLE.map(p => p.userId)}
+            onSaved={() => setPeopleOpen(false)}
           />
         </div>
       </GallerySection>

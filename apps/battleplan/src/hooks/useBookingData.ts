@@ -781,39 +781,48 @@ export function useLocationStaff(locationId: string | null) {
 // which is select-own under RLS, so reading somebody else's needs the
 // security-definer RPC rather than a join the caller could not make.
 
-export interface ClubMember {
+/** What someone is to a club. Ordered strongest first by the RPC. */
+export type ClubRole = 'admin' | 'organiser' | 'staff' | 'member';
+
+export interface ClubPerson {
   userId:     string;
   handle:     string | null;
   username:   string | null;
   avatarPath: string | null;
-  createdAt:  string | null;
+  role:       ClubRole;
 }
 
-export function useClubMembers(locationId: string | null) {
-  const [members, setMembers] = useState<ClubMember[]>([]);
+/**
+ * Everyone attached to a club — one row each, strongest role first.
+ *
+ * One list rather than the two it replaced: a club admin looking for somebody
+ * had to know which of organisers or members they were in order to find them,
+ * and anyone who was both appeared twice. Admins are included too, which
+ * neither of the old functions could do — they live in `locations.admins`.
+ */
+export function useClubPeople(locationId: string | null) {
+  const [people,  setPeople]  = useState<ClubPerson[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(() => {
-    if (!locationId) { setMembers([]); setLoading(false); return; }
+    if (!locationId) { setPeople([]); setLoading(false); return; }
     setLoading(true);
 
     supabase
-      .rpc('club_member_profiles', { loc: locationId })
+      .rpc('club_people', { loc: locationId })
       .then(({ data, error }) => {
-        // The RPC refuses anyone who is not an admin of this club. There is no
-        // screen showing the roll to anyone else, so an empty list is the right
-        // thing to render rather than an error.
-        if (error) { setMembers([]); setLoading(false); return; }
-        setMembers(((data as {
+        // The RPC refuses anyone who is not an admin here. No screen shows this
+        // to anyone else, so an empty list is the right render, not an error.
+        if (error) { setPeople([]); setLoading(false); return; }
+        setPeople(((data as {
           user_id: string; handle: string | null;
-          username: string | null; avatar_path: string | null;
-          created_at: string | null;
+          username: string | null; avatar_path: string | null; role: ClubRole;
         }[] | null) ?? []).map(p => ({
           userId:     p.user_id,
           handle:     p.handle,
           username:   p.username,
           avatarPath: p.avatar_path,
-          createdAt:  p.created_at,
+          role:       p.role,
         })));
         setLoading(false);
       });
@@ -821,7 +830,7 @@ export function useClubMembers(locationId: string | null) {
 
   useEffect(() => { refetch(); }, [refetch]);
 
-  return { members, loading, refetch };
+  return { people, loading, refetch };
 }
 
 // ── useUpcomingBookings ───────────────────────────────────────────────────────

@@ -149,7 +149,7 @@ interface FoundUser {
 }
 
 export function AddStaffModal({
-  open, onClose, locationId, locationName, existingIds, adminIds, onSaved, fixedRole,
+  open, onClose, locationId, locationName, existingIds, adminIds, onSaved,
 }: {
   open: boolean;
   onClose: () => void;
@@ -160,11 +160,6 @@ export function AddStaffModal({
   /** Venue admins — already have more access than staff, so adding them is a no-op. */
   adminIds: string[];
   onSaved: () => void;
-  /**
-   * Forces the role and hides the picker. A club's Organisers column only ever
-   * adds organisers, so asking would be offering a choice with one answer.
-   */
-  fixedRole?: VenueStaffRole;
 }) {
   const [identifier, setIdentifier] = useState('');
   const [found,      setFound]      = useState<FoundUser | null>(null);
@@ -204,10 +199,7 @@ export function AddStaffModal({
 
   // Chosen before searching, because it changes what the modal is promising —
   // "sees your bookings" and "runs events here" are very different offers.
-  // A column that only ever adds one kind (a club's Organisers list) fixes it
-  // instead, and the picker is hidden.
-  const [role, setRole] = useState<VenueStaffRole>(fixedRole ?? 'staff');
-  useEffect(() => { if (fixedRole) setRole(fixedRole); }, [fixedRole, open]);
+  const [role, setRole] = useState<VenueStaffRole>('staff');
 
   const alreadyStaff = !!found && existingIds.includes(found.user_id);
   const alreadyAdmin = !!found && adminIds.includes(found.user_id);
@@ -253,18 +245,16 @@ export function AddStaffModal({
           </p>
         </div>
 
-        {!fixedRole && (
-          <Select
-            label="Role"
-            options={[
-              { value: 'staff',     label: 'Staff — works the counter' },
-              { value: 'organiser', label: 'Organiser — runs events here' },
-            ]}
-            value={role}
-            disabled={searching || saving}
-            onChange={e => setRole(e.target.value as VenueStaffRole)}
-          />
-        )}
+        <Select
+          label="Role"
+          options={[
+            { value: 'staff',     label: 'Staff — works the counter' },
+            { value: 'organiser', label: 'Organiser — runs events here' },
+          ]}
+          value={role}
+          disabled={searching || saving}
+          onChange={e => setRole(e.target.value as VenueStaffRole)}
+        />
 
         <div className="flex flex-col gap-2">
           <Input
