@@ -16,6 +16,7 @@ import { BookingFeeItem, BookingFeeFormModal, FeeIcon, sortFees } from '../compo
 import { StaffItem, AddStaffModal, StaffIcon } from '../components/LocationStaff';
 import { PersonItem, AddMemberModal, MembersIcon } from '../components/ClubMembers';
 import { StoreSelector } from '../components/StoreSelector';
+import { useSelectedVenue, resolveVenue } from '../hooks/useSelectedVenue';
 import { BookingItem } from '../components/BookingItem';
 import { GAME_ICONS } from '../components/gameIcons';
 import DatePickerInput from '../components/DatePickerInput';
@@ -74,15 +75,15 @@ export default function ManageStore() {
   // staff role withholds — so the page is venue admins only. Staff get their
   // venue's bookings on the home screen instead.
   const { adminLocations, loading } = useAdminLocations(userId ?? null);
-  const [selectedId, setSelectedId] = useState('');
+  const [storedVenueId, selectVenue] = useSelectedVenue();
   const [addOpen,    setAddOpen]    = useState(false);
 
-  // Default the selection to the first store once locations load.
-  useEffect(() => {
-    if (adminLocations.length > 0 && !adminLocations.some(l => l.id === selectedId)) {
-      setSelectedId(adminLocations[0].id);
-    }
-  }, [adminLocations, selectedId]);
+  // Whatever was chosen elsewhere, if this page can show it. It often can't:
+  // this screen is admin-only, so a venue you merely work at, or the "Your
+  // Profile" view, both fall back to the first venue you administer — and
+  // deliberately without writing that back, so returning home still shows what
+  // you actually picked.
+  const selectedId = resolveVenue(storedVenueId, adminLocations);
 
   // Only venue admins may see this page — send everyone else home. Staff who
   // reach the URL directly land back on their bookings.
@@ -153,7 +154,7 @@ export default function ManageStore() {
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: `Manage ${nounTitle}` }]}
       >
         {selectedStore && (
-          <StoreSelector locations={adminLocations} selectedId={selectedId} onSelect={setSelectedId} />
+          <StoreSelector locations={adminLocations} selectedId={selectedId} onSelect={selectVenue} />
         )}
       </AppNavbar>
 

@@ -12,6 +12,7 @@ import { useOpponents, resolveOpponentIds, setBattleOpponents, type SelectedOppo
 import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
+import { useSelectedVenue } from '../hooks/useSelectedVenue';
 import { BookingItem } from '../components/BookingItem';
 import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
 import { GAME_ICONS } from '../components/gameIcons';
@@ -1702,17 +1703,25 @@ export default function HomePage() {
 
   // What the navbar picker is pointed at. '' = "Your Profile" (the personal
   // view); anything else is one of the venues this user is attached to.
-  const [selectedVenueId, setSelectedVenueId] = useState('');
+  // Shared with Manage Store and Store Stats, so a choice here survives the
+  // trip. null means nothing has ever been chosen; '' means Your Profile,
+  // which is a choice worth keeping.
+  const [storedVenueId, selectVenue] = useSelectedVenue();
+  const selectedVenueId = storedVenueId ?? '';
 
-  // Store admins open on their first venue rather than their profile. This runs
-  // once, when the venues first arrive — a ref rather than a `selectedVenueId`
-  // check, so that later choosing "Your Profile" (which sets '') isn't
-  // immediately undone by this effect.
+  // Store admins open on their first venue rather than their profile — but only
+  // when they have never chosen. This runs once, when the venues first arrive;
+  // a ref rather than a `selectedVenueId` check, so that later choosing "Your
+  // Profile" (which sets '') isn't immediately undone by this effect.
   const venueDefaulted = useRef(false);
   useEffect(() => {
     if (venueDefaulted.current || venueLocations.length === 0) return;
     venueDefaulted.current = true;
-    setSelectedVenueId(venueLocations[0].id);
+    // A stored choice wins, including "Your Profile". Only a venue that no
+    // longer exists — or a first-ever visit — falls through to the default.
+    if (storedVenueId !== null && (storedVenueId === '' || venueLocations.some(l => l.id === storedVenueId))) return;
+    selectVenue(venueLocations[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venueLocations]);
 
   // Venue people can switch between their personal view and a single venue.
@@ -1739,7 +1748,7 @@ export default function HomePage() {
           <StoreSelector
             locations={venueLocations}
             selectedId={selectedVenueId}
-            onSelect={setSelectedVenueId}
+            onSelect={selectVenue}
             emptyOption
             emptyLabel="Your Profile"
             headerLabel="Viewing"
