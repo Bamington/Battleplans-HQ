@@ -773,6 +773,57 @@ export function useLocationStaff(locationId: string | null) {
   return { staff, loading, refetch };
 }
 
+// ── useClubMembers ────────────────────────────────────────────────────────────
+//
+// A club's roll, with real names.
+//
+// Same shape and same fence as the staff roster: names live in user_profiles,
+// which is select-own under RLS, so reading somebody else's needs the
+// security-definer RPC rather than a join the caller could not make.
+
+export interface ClubMember {
+  userId:     string;
+  handle:     string | null;
+  username:   string | null;
+  avatarPath: string | null;
+  createdAt:  string | null;
+}
+
+export function useClubMembers(locationId: string | null) {
+  const [members, setMembers] = useState<ClubMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(() => {
+    if (!locationId) { setMembers([]); setLoading(false); return; }
+    setLoading(true);
+
+    supabase
+      .rpc('club_member_profiles', { loc: locationId })
+      .then(({ data, error }) => {
+        // The RPC refuses anyone who is not an admin of this club. There is no
+        // screen showing the roll to anyone else, so an empty list is the right
+        // thing to render rather than an error.
+        if (error) { setMembers([]); setLoading(false); return; }
+        setMembers(((data as {
+          user_id: string; handle: string | null;
+          username: string | null; avatar_path: string | null;
+          created_at: string | null;
+        }[] | null) ?? []).map(p => ({
+          userId:     p.user_id,
+          handle:     p.handle,
+          username:   p.username,
+          avatarPath: p.avatar_path,
+          createdAt:  p.created_at,
+        })));
+        setLoading(false);
+      });
+  }, [locationId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { members, loading, refetch };
+}
+
 // ── useUpcomingBookings ───────────────────────────────────────────────────────
 // Returns all bookings on or after today across the given location IDs,
 // ordered by date then timeslot.

@@ -1,11 +1,25 @@
+/**
+ * ClubMembers.tsx — a club's roll.
+ *
+ * Deliberately the same shape as LocationStaff: a row per person, a menu to
+ * remove them, and a find-by-handle-or-email modal to add one. A club admin
+ * moves between the two columns without learning anything new.
+ *
+ * What it is NOT is the same list. Staff and organisers are a few people with
+ * powers; members are potentially hundreds with none, and membership only
+ * decides which nights they may book — see 20260817000000.
+ *
+ * There is no join flow yet. A club adds people by hand; browsing clubs and
+ * asking to join is a separate thing, and building half of it here would mean
+ * guessing at the rest.
+ */
+
 import { useEffect, useState } from 'react';
 import {
-  supabase, Button, Modal, Dropdown, DropdownItem, Input, Avatar, avatarUrl, Select,
+  supabase, Button, Modal, Dropdown, DropdownItem, Input, Avatar, avatarUrl,
   TrashBinMinimalistic, ArrowRight, UserRounded,
 } from '@battleplans/ui';
-import type { StaffMember, VenueStaffRole } from '../hooks/useBookingData';
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
+import type { ClubMember } from '../hooks/useBookingData';
 
 const MenuDotsIcon = () => (
   <svg className="w-4 h-4 text-neutral-400" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -15,35 +29,27 @@ const MenuDotsIcon = () => (
   </svg>
 );
 
-/** Column header icon — two figures, matching the other Manage Store columns. */
-export const StaffIcon = () => (
+/** Column header icon — a membership card, matching the other columns' weight. */
+export const MembersIcon = () => (
   <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="19" cy="15" r="7" stroke="currentColor" strokeWidth="2.5"/>
-    <path d="M6 39c0-6.6 5.8-11 13-11s13 4.4 13 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-    <path d="M33 9.7a7 7 0 0 1 0 10.6M36 28.9c3.6 1.6 6 4.6 6 8.1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <rect x="5" y="10" width="38" height="28" rx="3" stroke="currentColor" strokeWidth="2.5"/>
+    <circle cx="17" cy="22" r="5" stroke="currentColor" strokeWidth="2.5"/>
+    <path d="M9 33c0-3.9 3.6-6.5 8-6.5s8 2.6 8 6.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M30 20h9M30 27h9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
   </svg>
 );
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Their real name where the venue is entitled to it, else their @handle.
- * Only a venue's own admins get the name — see 20260812050000.
- */
-export function staffLabel(s: StaffMember): string {
-  return s.username?.trim() || (s.handle ? `@${s.handle}` : 'Unknown user');
+/** Their real name where the club is entitled to it, else their @handle. */
+export function memberLabel(m: ClubMember): string {
+  return m.username?.trim() || (m.handle ? `@${m.handle}` : 'Unknown user');
 }
 
-function initialsFor(s: StaffMember): string {
-  return (s.username?.trim() || s.handle || '?').slice(0, 2).toUpperCase();
-}
+// ── MemberItem ────────────────────────────────────────────────────────────────
 
-// ── StaffItem ─────────────────────────────────────────────────────────────────
-
-export function StaffItem({ member, locationId, locationName, onChanged }: {
-  member: StaffMember;
+export function MemberItem({ member, locationId, clubName, onChanged }: {
+  member: ClubMember;
   locationId: string;
-  locationName: string;
+  clubName: string;
   onChanged: () => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -54,7 +60,7 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
     setRemoving(true);
     setError(null);
     const { error: delErr } = await supabase
-      .from('location_staff')
+      .from('location_members')
       .delete()
       .eq('location_id', locationId)
       .eq('user_id', member.userId);
@@ -64,32 +70,25 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
     onChanged();
   };
 
-  const url = avatarUrl(member.avatarPath);
-
   return (
     <>
       <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-2.5 items-center shadow-md">
 
         <Avatar
-          src={url ?? undefined}
-          initials={initialsFor(member)}
+          src={avatarUrl(member.avatarPath) ?? undefined}
+          initials={(member.username?.trim() || member.handle || '?').slice(0, 2).toUpperCase()}
           size="lg"
           alt=""
           className="shrink-0"
         />
 
         <div className="flex flex-col flex-1 min-w-0">
-          <span className="font-heading text-lg text-white leading-6 truncate">{staffLabel(member)}</span>
+          <span className="font-heading text-lg text-white leading-6 truncate">{memberLabel(member)}</span>
           {/* The handle underneath, but only when the line above isn't already
               it — two identical lines would just look like a rendering fault. */}
           {member.handle && member.username?.trim() && (
             <span className="font-body text-xs text-neutral-400 leading-4 truncate">@{member.handle}</span>
           )}
-          {/* Which of the two they are. An organiser who looks like staff is
-              how a venue ends up thinking someone can see its bookings. */}
-          <span className={`font-body text-xs leading-4 ${member.role === 'organiser' ? 'text-amber-300' : 'text-primary-300'}`}>
-            {member.role === 'organiser' ? 'Organiser' : 'Staff'}
-          </span>
         </div>
 
         <Dropdown
@@ -110,27 +109,21 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
 
       </div>
 
-      <Modal open={confirmOpen} onClose={() => !removing && setConfirmOpen(false)}>
+      <Modal open={confirmOpen} onClose={() => !removing && setConfirmOpen(false)} className="max-w-xs">
         <div className="flex flex-col gap-3 p-5">
           <TrashBinMinimalistic className="w-8 h-8 text-primary-500" />
-          <h2 className="font-heading text-xl text-white">Remove Staff Member</h2>
+          <h2 className="font-heading text-xl text-white">Remove Member</h2>
           <p className="font-body text-base text-neutral-300">
-            {staffLabel(member)} will no longer see bookings at {locationName}. Their own
-            bookings and account aren’t affected.
+            {memberLabel(member)} will no longer be able to book {clubName}’s members-only
+            nights. Bookings they’ve already made are kept.
           </p>
           {error && <p className="font-body text-sm text-red-400">{error}</p>}
           <div className="flex items-center justify-end gap-3 pt-1">
-            <Button variant="ghost" size="sm" disabled={removing} onClick={() => setConfirmOpen(false)}>
+            <Button variant="ghost" color="secondary" size="sm" disabled={removing} onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button
-              color="danger"
-              size="sm"
-              loading={removing}
-              rightIcon={<ArrowRight className="w-4 h-4" />}
-              onClick={handleRemove}
-            >
-              Yes, Remove
+            <Button color="danger" size="sm" loading={removing} onClick={handleRemove}>
+              Remove
             </Button>
           </div>
         </div>
@@ -139,37 +132,28 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
   );
 }
 
-// ── AddStaffModal ─────────────────────────────────────────────────────────────
+// ── AddMemberModal ────────────────────────────────────────────────────────────
 
-/** What the lookup RPC hands back for a matched person. */
-interface FoundUser {
+/** Shape returned by lookup_user_for_venue. */
+type FoundUser = {
   user_id:  string;
   handle:   string | null;
   username: string | null;
-}
+};
 
-export function AddStaffModal({
-  open, onClose, locationId, locationName, existingIds, adminIds, onSaved, fixedRole,
-}: {
+export function AddMemberModal({ open, onClose, locationId, clubName, existingIds, onSaved }: {
   open: boolean;
   onClose: () => void;
   locationId: string;
-  locationName: string;
-  /** Already on the roster — so we can say so instead of failing on the PK. */
+  clubName: string;
+  /** Already on the roll — so we can say so instead of failing on the PK. */
   existingIds: string[];
-  /** Venue admins — already have more access than staff, so adding them is a no-op. */
-  adminIds: string[];
   onSaved: () => void;
-  /**
-   * Forces the role and hides the picker. A club's Organisers column only ever
-   * adds organisers, so asking would be offering a choice with one answer.
-   */
-  fixedRole?: VenueStaffRole;
 }) {
   const [identifier, setIdentifier] = useState('');
-  const [found,      setFound]      = useState<FoundUser | null>(null);
-  const [searched,   setSearched]   = useState(false);
   const [searching,  setSearching]  = useState(false);
+  const [searched,   setSearched]   = useState(false);
+  const [found,      setFound]      = useState<FoundUser | null>(null);
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
@@ -178,7 +162,6 @@ export function AddStaffModal({
     setIdentifier(''); setFound(null); setSearched(false); setError(null);
   }, [open]);
 
-  // A new search invalidates whatever the last one turned up.
   const handleIdentifierChange = (v: string) => {
     setIdentifier(v);
     setFound(null); setSearched(false); setError(null);
@@ -192,7 +175,7 @@ export function AddStaffModal({
     setFound(null);
 
     // Email isn't in public_profiles by design, so matching one needs the
-    // security-definer RPC. See 20260811020000.
+    // security-definer RPC — the same one the staff list uses.
     const { data, error: rpcErr } = await supabase
       .rpc('lookup_user_for_venue', { identifier: needle });
 
@@ -202,32 +185,23 @@ export function AddStaffModal({
     setFound(((data as FoundUser[] | null) ?? [])[0] ?? null);
   };
 
-  // Chosen before searching, because it changes what the modal is promising —
-  // "sees your bookings" and "runs events here" are very different offers.
-  // A column that only ever adds one kind (a club's Organisers list) fixes it
-  // instead, and the picker is hidden.
-  const [role, setRole] = useState<VenueStaffRole>(fixedRole ?? 'staff');
-  useEffect(() => { if (fixedRole) setRole(fixedRole); }, [fixedRole, open]);
-
-  const alreadyStaff = !!found && existingIds.includes(found.user_id);
-  const alreadyAdmin = !!found && adminIds.includes(found.user_id);
-  const canAdd       = !!found && !alreadyStaff && !alreadyAdmin && !saving;
+  const alreadyMember = !!found && existingIds.includes(found.user_id);
+  const canAdd        = !!found && !alreadyMember && !saving;
 
   const handleAdd = async () => {
     if (!found) return;
     setSaving(true);
     setError(null);
     const { data: { session } } = await supabase.auth.getSession();
-    const { error: insErr } = await supabase.from('location_staff').insert({
+    const { error: insErr } = await supabase.from('location_members').insert({
       location_id: locationId,
       user_id:     found.user_id,
       added_by:    session?.user?.id ?? null,
-      role,
     });
     setSaving(false);
     if (insErr) {
       setError(insErr.code === '23505'
-        ? 'They’re already on your staff list.'
+        ? 'They’re already a member.'
         : insErr.message);
       return;
     }
@@ -245,26 +219,12 @@ export function AddStaffModal({
       <div className="flex flex-col gap-4 p-5">
 
         <div className="flex flex-col gap-1">
-          <h2 className="font-heading text-xl text-white">Add Someone</h2>
+          <h2 className="font-heading text-xl text-white">Add Member</h2>
           <p className="font-body text-base text-neutral-300">
-            {role === 'organiser'
-              ? `Organisers run events at ${locationName}. They can hold tables for their night and publish a BattlePack here — and they can’t see your bookings.`
-              : `Staff can see bookings at ${locationName}. They can’t change your settings, your tables, or who works here.`}
+            Members can book {clubName}’s members-only nights. They can’t change
+            anything about the club.
           </p>
         </div>
-
-        {!fixedRole && (
-          <Select
-            label="Role"
-            options={[
-              { value: 'staff',     label: 'Staff — works the counter' },
-              { value: 'organiser', label: 'Organiser — runs events here' },
-            ]}
-            value={role}
-            disabled={searching || saving}
-            onChange={e => setRole(e.target.value as VenueStaffRole)}
-          />
-        )}
 
         <div className="flex flex-col gap-2">
           <Input
@@ -291,24 +251,17 @@ export function AddStaffModal({
           </Button>
         </div>
 
-        {searched && !searching && !found && !error && (
-          <p className="font-body text-sm text-yellow-400">
-            No BattlePlan account matches that handle or email. Check the spelling —
-            handles are exact, and the email has to be the one they signed up with.
+        {searched && !found && !error && (
+          <p className="font-body text-sm text-neutral-400">
+            No account matches that. Check the spelling, or ask them to sign up first.
           </p>
         )}
 
         {found && (
           <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-3 flex flex-col gap-1">
             <span className="font-heading text-base text-white">{label}</span>
-            {found.handle && <span className="font-body text-xs text-neutral-400">@{found.handle}</span>}
-            {alreadyAdmin && (
-              <span className="font-body text-xs text-yellow-400">
-                Already a venue admin here — they can see everything staff can and more.
-              </span>
-            )}
-            {alreadyStaff && (
-              <span className="font-body text-xs text-yellow-400">Already on your staff list.</span>
+            {alreadyMember && (
+              <span className="font-body text-sm text-amber-300">Already a member.</span>
             )}
           </div>
         )}
@@ -327,7 +280,7 @@ export function AddStaffModal({
             rightIcon={<ArrowRight className="w-4 h-4" />}
             onClick={handleAdd}
           >
-            Add Staff
+            Add Member
           </Button>
         </div>
 
