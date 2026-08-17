@@ -506,9 +506,11 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
                       label={
                         <span className="flex items-center gap-2">
                           <span>{t.name}</span>
-                          <Badge color="gray" size="sm">
-                            {t.size === 'tcg' ? 'TCG' : 'Wargaming'}
-                          </Badge>
+                          {/* Free text now, so an unlabelled table simply has
+                              no badge instead of being called Wargaming. */}
+                          {t.label?.trim() && (
+                            <Badge color="gray" size="sm">{t.label}</Badge>
+                          )}
                           {/* A disabled table takes no bookings anyway, so
                               blocking it changes nothing — say so rather than
                               let someone think they've done something. */}

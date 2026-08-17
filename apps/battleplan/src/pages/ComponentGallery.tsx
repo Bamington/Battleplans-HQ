@@ -79,8 +79,11 @@ const DEMO_TIMESLOTS: LocationTimeslot[] = [
 ];
 
 const DEMO_TABLES: StoreTable[] = [
-  { id: 'tb-1', name: 'Table 1', size: 'wargaming', enabled: true,  timeslotIds: ['ts-1', 'ts-2'] },
-  { id: 'tb-2', name: 'Table 2', size: 'tcg',       enabled: false, timeslotIds: ['ts-3'] },
+  { id: 'tb-1', name: 'Table 1', label: 'Wargaming', notes: null, enabled: true,  timeslotIds: ['ts-1', 'ts-2'] },
+  { id: 'tb-2', name: 'Table 2', label: 'TCG',       notes: 'No power socket on this side', enabled: false, timeslotIds: ['ts-3'] },
+  // No label at all — the chip is absent rather than defaulted, which is the
+  // whole point of the field being free text.
+  { id: 'tb-3', name: 'Table 3', label: null,        notes: null, enabled: true,  timeslotIds: ['ts-1'] },
 ];
 
 const DEMO_FEES: BookingFee[] = [

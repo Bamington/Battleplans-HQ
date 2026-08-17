@@ -1540,7 +1540,14 @@ export type TableSize = 'wargaming' | 'tcg';
 export interface StoreTable {
   id:          string;
   name:        string;
-  size:        TableSize;
+  /**
+   * What this table is, in the venue's own words. Free text since
+   * 20260817010000 — it replaced `size`, which allowed only 'wargaming' or
+   * 'tcg'. Null only for a row written before the backfill, which is none.
+   */
+  label:       string | null;
+  /** The venue's own note about this table. Never shown to a customer. */
+  notes:       string | null;
   enabled:     boolean;
   timeslotIds: string[];
 }
@@ -1554,14 +1561,15 @@ export function useStoreTables(locationId: string | null) {
     setLoading(true);
     supabase
       .from('store_tables')
-      .select('id, name, size, enabled, store_table_timeslots(timeslot_id)')
+      .select('id, name, label, notes, enabled, store_table_timeslots(timeslot_id)')
       .eq('location_id', locationId)
       .order('created_at')
       .then(({ data }) => {
         const rows = (data ?? []).map(r => ({
           id:          r.id as string,
           name:        r.name as string,
-          size:        r.size as TableSize,
+          label:       (r.label ?? null) as string | null,
+          notes:       (r.notes ?? null) as string | null,
           enabled:     r.enabled as boolean,
           timeslotIds: ((r.store_table_timeslots ?? []) as { timeslot_id: string }[]).map(t => t.timeslot_id),
         }));
