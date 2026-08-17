@@ -37,6 +37,8 @@ type LocationRow = {
   owner_location_id: string | null;
   /** For a club, the space it meets at — its address. */
   meets_at_id: string | null;
+  /** Hidden from the public. See the read policies in 20260811030000. */
+  is_test: boolean;
 };
 
 const KIND_OPTIONS = [
@@ -80,11 +82,12 @@ type LocationFormState = {
   owner_location_id: string;
   /** For a club only. '' = none chosen. */
   meets_at_id: string;
+  is_test: boolean;
 };
 
 const EMPTY_FORM: LocationFormState = {
   name: '', address: '', icon: '', store_email: '', admins: [], apps: [],
-  kind: 'venue', owner_location_id: '', meets_at_id: '',
+  kind: 'venue', owner_location_id: '', meets_at_id: '', is_test: false,
 };
 
 const BattlePlanLogo = () => (
@@ -236,7 +239,7 @@ function AppsField({ apps, value, onChange, disabled }: {
  * nobody can see, edit or delete. Platform admins are not stopped by the
  * insert policy the way a venue admin is, so the form is what enforces it here.
  */
-function KindField({ value, owner, owners, meetsAt, spaces, onChange, disabled }: {
+function KindField({ value, owner, owners, meetsAt, spaces, isTest, onChange, disabled }: {
   value: LocationKind;
   owner: string;
   /** Candidate owners — anything that is not itself a space. */
@@ -245,7 +248,8 @@ function KindField({ value, owner, owners, meetsAt, spaces, onChange, disabled }
   meetsAt: string;
   /** The rooms this club owns, to choose from. Empty on a club being created. */
   spaces: LocationRow[];
-  onChange: (patch: { kind?: LocationKind; owner_location_id?: string; meets_at_id?: string }) => void;
+  isTest: boolean;
+  onChange: (patch: { kind?: LocationKind; owner_location_id?: string; meets_at_id?: string; is_test?: boolean }) => void;
   disabled?: boolean;
 }) {
   return (
@@ -301,6 +305,19 @@ function KindField({ value, owner, owners, meetsAt, spaces, onChange, disabled }
             </p>
           )
         )}
+
+        {/* Hides it from the public without deleting it, which is how Test
+            Venue and Burrow Games already work. Kept with Kind because both
+            answer the same question: what this row is for. */}
+        <div className="pt-1">
+          <Checkbox
+            label="For testing"
+            helperText="Hidden from everyone except its own admins and staff. Bookings, tables and events all still work."
+            checked={isTest}
+            disabled={disabled}
+            onChange={e => onChange({ is_test: e.target.checked })}
+          />
+        </div>
       </div>
     </div>
   );
@@ -423,7 +440,7 @@ function ManageLocationsInner() {
       .from('locations')
       // Every kind, unfiltered — this is the one screen where a space is
       // supposed to be visible.
-      .select('id, name, address, icon, store_email, admins, kind, owner_location_id, meets_at_id')
+      .select('id, name, address, icon, store_email, admins, kind, owner_location_id, meets_at_id, is_test')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -458,6 +475,7 @@ function ManageLocationsInner() {
         // An ownerless space is readable by nobody, so it would sit there
         // unseeable and undeletable. The form requires an owner for a space.
         owner_location_id: addForm.kind === 'space' ? addForm.owner_location_id : null,
+        is_test: addForm.is_test,
       })
       .select()
       .single();
@@ -497,6 +515,7 @@ function ManageLocationsInner() {
       kind: loc.kind,
       owner_location_id: loc.owner_location_id ?? '',
       meets_at_id: loc.meets_at_id ?? '',
+      is_test: loc.is_test,
     });
     setEditError(null);
   }
@@ -515,6 +534,7 @@ function ManageLocationsInner() {
       owner_location_id: editForm.kind === 'space' ? editForm.owner_location_id : null,
       // Clubs only — locations_meets_at_clubs_only refuses it on anything else.
       meets_at_id: editForm.kind === 'club' ? (editForm.meets_at_id || null) : null,
+      is_test: editForm.is_test,
     };
     const { error } = await supabase
       .from('locations')
@@ -610,6 +630,12 @@ function ManageLocationsInner() {
                         <Badge variant="outline" color="gray">
                           {loc.kind === 'space' ? 'Space' : 'Club'}
                         </Badge>
+                      )}
+                      {/* Worth calling out in warning colour: a test location
+                          looks completely normal to you and is invisible to
+                          everyone else, which is easy to forget. */}
+                      {loc.is_test && (
+                        <Badge variant="outline" color="warning">Test</Badge>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
@@ -752,6 +778,7 @@ function ManageLocationsInner() {
             // A club being created owns nothing yet, so there is nowhere to
             // point at — the field explains that rather than showing an empty list.
             spaces={[]}
+            isTest={addForm.is_test}
             onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
             disabled={adding}
           />
@@ -849,6 +876,7 @@ function ManageLocationsInner() {
               owners={locations.filter(l => l.kind !== 'space' && l.id !== editTarget.id)}
               meetsAt={editForm.meets_at_id}
               spaces={locations.filter(l => l.kind === 'space' && l.owner_location_id === editTarget.id)}
+              isTest={editForm.is_test}
               onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
               disabled={saving}
             />
