@@ -115,7 +115,26 @@ function NewBookingModal({
   const { username, preferredLocationId }        = useUserProfile(userId);
   const { gameIds: recentGameIds }               = useRecentBookedGames(userId, 5);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
-  const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
+  const { kinds, available, loading: availLoading } = useTableAvailability(locationId || null, date || null, timeslotId || null);
+
+  // Which kind of table. '' means the venue's tables are unlabelled, which is
+  // stored as NULL — the same thing every booking made before labels existed.
+  const [tableLabel, setTableLabel] = useState('');
+
+  // Default to the first kind with something left, so the form opens on a
+  // choice that can actually be submitted rather than one that cannot.
+  useEffect(() => {
+    if (!kinds || kinds.length === 0) { setTableLabel(''); return; }
+    const stillOffered = kinds.some(k => (k.label ?? '') === tableLabel && k.available > 0);
+    if (stillOffered) return;
+    setTableLabel((kinds.find(k => k.available > 0) ?? kinds[0]).label ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kinds]);
+
+  /** What's left of the kind actually chosen — the number the button obeys. */
+  const chosenKindFree = kinds
+    ? (kinds.find(k => (k.label ?? '') === tableLabel)?.available ?? available ?? 0)
+    : (available ?? 0);
   // Answered as soon as a date is picked, so a closed day is called out before
   // the customer is asked for a time.
   const { hasCapacity: dayHasCapacity, loading: dayLoading } = useDayHasCapacity(locationId || null, date || null);
@@ -221,8 +240,10 @@ function NewBookingModal({
       : found !== null || (searched && identifierIsEmail);
 
   const tablesReady = locationId && date && timeslotId && !availLoading;
+  // Gated on the CHOSEN kind, not the total. With benches free but every
+  // wargaming table taken, the venue has capacity and this booking does not.
   const canSubmit   = name.trim() && locationId && date && timeslotId && tablesReady
-                      && available !== null && available > 0 && customerResolved;
+                      && available !== null && chosenKindFree > 0 && customerResolved;
 
   const resetCustomer = () => {
     setForSomeoneElse(false); setIdentifier(''); setFound(null);
@@ -281,6 +302,9 @@ function NewBookingModal({
       game_id:    gameId || null,
       location_id: locationId,
       timeslot_id: timeslotId,
+      // NULL when the venue's tables are unlabelled, which is what every
+      // booking made before this existed also says.
+      table_label: tableLabel || null,
       date,
       // Always recorded, so "who actually took this booking" is never guesswork.
       created_by_user_id:  userId,
@@ -465,16 +489,41 @@ function NewBookingModal({
           </Select>
         )}
 
+        {/* Only asked when there is a choice to make. A venue whose tables are
+            all one kind never sees this, and the booking still records that
+            kind so the counts stay comparable. */}
+        {tablesReady && !availLoading && kinds && kinds.length > 1 && (
+          <Select
+            label="Table type"
+            value={tableLabel}
+            onChange={e => setTableLabel(e.target.value)}
+          >
+            {kinds.map(k => (
+              <option key={k.label ?? ''} value={k.label ?? ''} disabled={k.available === 0}>
+                {(k.label ?? 'Any table')} — {k.available === 0 ? 'none left' : `${k.available} free`}
+              </option>
+            ))}
+          </Select>
+        )}
+
         {tablesReady && !availLoading && available !== null && (
-          available > 0 ? (
+          chosenKindFree > 0 ? (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-900/40 border border-green-700">
               <span className="font-body text-sm text-green-300">
-                {available} {available === 1 ? 'table' : 'tables'} available for this time
+                {/* Says which kind once there is more than one, because "3
+                    tables available" against a Table type of Painting bench
+                    reads as three benches when it may be three of anything. */}
+                {chosenKindFree} {chosenKindFree === 1 ? 'table' : 'tables'} available
+                {kinds && kinds.length > 1 && tableLabel ? ` — ${tableLabel}` : ''} for this time
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/40 border border-red-700">
-              <span className="font-body text-sm text-red-300">No tables available at this time</span>
+              <span className="font-body text-sm text-red-300">
+                {kinds && kinds.length > 1 && tableLabel
+                  ? `No ${tableLabel} tables available at this time`
+                  : 'No tables available at this time'}
+              </span>
             </div>
           )
         )}

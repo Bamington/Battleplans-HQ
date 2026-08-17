@@ -1497,37 +1497,56 @@ export function useBlockedDates(locationIds: string[]) {
 }
 
 // ── useTableAvailability ──────────────────────────────────────────────────────
-// Returns how many tables are free for a given location + date + timeslot.
-// null while loading, number when resolved.
+//
+// How many tables are free for a location + date + timeslot, broken down by
+// the kind of table.
+//
+// A venue with six wargaming tables and two painting benches has two
+// capacities, and one shared counter overstates both: six people book "a
+// table", the benches look untouched, and the wargaming tables are three times
+// oversubscribed. So each label is counted against its own tables.
+//
+// LEGACY BOOKINGS HAVE NO LABEL, and they are most of them. One made before a
+// venue had more than one kind took *a* table, so it is charged against the
+// pool rather than any one label — which is why each label's availability is
+// also capped by what is left overall. Without that cap, five unlabelled
+// bookings against six tables would still show two benches free.
+
+export interface TableKindAvailability {
+  /** The label, or null for a venue whose tables are unlabelled. */
+  label:     string | null;
+  available: number;
+}
 
 export function useTableAvailability(
   locationId:  string | null,
   date:        string | null,
   timeslotId:  string | null,
 ) {
-  const [available, setAvailable] = useState<number | null>(null);
-  const [loading,   setLoading]   = useState(false);
+  const [state,   setState]   = useState<{ kinds: TableKindAvailability[]; totalFree: number } | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!locationId || !date || !timeslotId) { setAvailable(null); return; }
+    if (!locationId || !date || !timeslotId) { setState(null); return; }
+    let cancelled = false;
 
     setLoading(true);
-    setAvailable(null);
+    setState(null);
 
     Promise.all([
-      // Capacity is now a SET, not a count: which enabled tables serve this
-      // timeslot. A block names tables, so the two have to be intersected
-      // rather than subtracted — a blocked table that doesn't serve this
-      // timeslot was never part of this slot's capacity to begin with.
+      // Capacity is a SET, not a count: which enabled tables serve this
+      // timeslot, and what each is called. A block names tables, so the two
+      // have to be intersected rather than subtracted — a blocked table that
+      // doesn't serve this timeslot was never part of this slot's capacity.
       supabase.from('store_table_timeslots')
-        .select('table_id, store_tables!inner(id, enabled, location_id)')
+        .select('table_id, store_tables!inner(id, enabled, location_id, label)')
         .eq('timeslot_id', timeslotId)
         .eq('store_tables.enabled', true)
         .eq('store_tables.location_id', locationId),
       // booking_occupancy, not bookings: a regular user can no longer read
       // other people's bookings, but they still need the slot's taken-count to
       // see availability. The view exposes occupancy without any identity.
-      supabase.from('booking_occupancy').select('id', { count: 'exact', head: true })
+      supabase.from('booking_occupancy').select('table_label')
         .eq('location_id', locationId)
         .eq('date', date)
         .eq('timeslot_id', timeslotId),
@@ -1539,23 +1558,61 @@ export function useTableAvailability(
         .eq('location_id', locationId)
         .or(`recurrence.neq.none,date.eq.${date}`),
     ]).then(([tablesRes, bookingsRes, blockedRes]) => {
-      const capacityIds = ((tablesRes.data as { table_id: string }[] | null) ?? [])
-        .map(r => r.table_id);
-      const bookedCount = bookingsRes.count ?? 0;
+      if (cancelled) return;
 
       const rules = (blockedRes.data ?? []).map(mapBlockCoverage);
       const { venueClosed, blockedTableIds } = blockedTablesOn(rules, date);
 
-      const effectiveTables = venueClosed
-        ? 0
-        : capacityIds.filter(id => !blockedTableIds.has(id)).length;
+      const rows = (tablesRes.data ?? []) as unknown as {
+        table_id: string; store_tables: { label: string | null } | null;
+      }[];
+      const usable = venueClosed ? [] : rows.filter(r => !blockedTableIds.has(r.table_id));
 
-      setAvailable(Math.max(0, effectiveTables - bookedCount));
+      // Tables per label, and the order they were first seen — so the picker
+      // isn't reshuffled by an unrelated edit.
+      const perLabel = new Map<string | null, number>();
+      for (const r of usable) {
+        const key = r.store_tables?.label?.trim() || null;
+        perLabel.set(key, (perLabel.get(key) ?? 0) + 1);
+      }
+
+      const booked = (bookingsRes.data ?? []) as { table_label: string | null }[];
+      const bookedPerLabel = new Map<string | null, number>();
+      for (const b of booked) {
+        const key = b.table_label?.trim() || null;
+        bookedPerLabel.set(key, (bookedPerLabel.get(key) ?? 0) + 1);
+      }
+
+      const totalFree = Math.max(0, usable.length - booked.length);
+
+      setState({
+        totalFree,
+        kinds: [...perLabel.entries()].map(([label, count]) => ({
+          label,
+          // Its own tables minus its own bookings, but never more than the venue
+          // has left overall — that second term is what stops unlabelled legacy
+          // bookings being invisible to every label.
+          available: Math.max(0, Math.min(count - (bookedPerLabel.get(label) ?? 0), totalFree)),
+        })),
+      });
       setLoading(false);
     });
+
+    return () => { cancelled = true; };
   }, [locationId, date, timeslotId]);
 
-  return { available, loading };
+  /**
+   * How many tables are free in total.
+   *
+   * NOT the sum of the per-label numbers. Each of those is capped by what is
+   * left overall, so with six wargaming tables, two benches and five
+   * unlabelled bookings they read 3 and 2 — a sum of 5 against 3 real tables.
+   * The pool is the truth; the per-label figures are what you may still ask
+   * for, which is a different question.
+   */
+  const available = state === null ? null : state.totalFree;
+
+  return { kinds: state?.kinds ?? null, available, loading };
 }
 
 // ── useLocationTimeslots ──────────────────────────────────────────────────────
