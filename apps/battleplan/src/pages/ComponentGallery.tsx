@@ -69,12 +69,13 @@ const DEMO_LOCATIONS: Location[] = [
 ];
 
 const DEMO_TIMESLOTS: LocationTimeslot[] = [
-  { id: 'ts-1', name: 'Morning',   start_time: '10:00', end_time: '13:00', availability: ['Saturday', 'Sunday'], interval_weeks: 1, anchor_date: null },
-  { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00', availability: ['Saturday', 'Sunday'], interval_weeks: 1, anchor_date: null },
-  { id: 'ts-3', name: 'Evening',   start_time: '18:00', end_time: '22:00', availability: ['Tuesday', 'Wednesday', 'Thursday'], interval_weeks: 1, anchor_date: null },
+  { id: 'ts-1', name: 'Morning',   start_time: '10:00', end_time: '13:00', availability: ['Saturday', 'Sunday'], interval_weeks: 1, anchor_date: null, audience: 'anyone' },
+  { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00', availability: ['Saturday', 'Sunday'], interval_weeks: 1, anchor_date: null, audience: 'anyone' },
+  { id: 'ts-3', name: 'Evening',   start_time: '18:00', end_time: '22:00', availability: ['Tuesday', 'Wednesday', 'Thursday'], interval_weeks: 1, anchor_date: null, audience: 'anyone' },
   // A club night rather than a shop's opening hours — the one row that shows
-  // the repeat line, which only appears when a slot isn't weekly.
-  { id: 'ts-4', name: 'Club Night', start_time: '18:00', end_time: '22:00', availability: ['Friday'], interval_weeks: 2, anchor_date: '2026-08-21' },
+  // the repeat line, which only appears when a slot isn't weekly, and the one
+  // that is members only, which is the only other line a row can grow.
+  { id: 'ts-4', name: 'Club Night', start_time: '18:00', end_time: '22:00', availability: ['Friday'], interval_weeks: 2, anchor_date: '2026-08-21', audience: 'members' },
 ];
 
 const DEMO_TABLES: StoreTable[] = [

@@ -4,7 +4,7 @@ import {
   TrashBinMinimalistic, Pen2, ArrowRight,
 } from '@battleplans/ui';
 import { formatBookingTime } from '../hooks/useBookingData';
-import type { LocationTimeslot } from '../hooks/useBookingData';
+import type { LocationTimeslot, TimeslotAudience } from '../hooks/useBookingData';
 
 // ── Icons / day helpers ───────────────────────────────────────────────────────
 
@@ -108,6 +108,11 @@ export function TimeslotItem({ timeslot, onEdit, onChanged }: {
               {timeslot.anchor_date ? `, from ${formatAnchor(timeslot.anchor_date)}` : ''}
             </span>
           )}
+          {/* Said only when it restricts. 'anyone' is the norm and labelling it
+              on every row would bury the one line that matters. */}
+          {timeslot.audience === 'members' && (
+            <span className="font-body text-sm text-amber-300 leading-5">Members only</span>
+          )}
           {days.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-0.5">
               {days.map(d => <Badge key={d} color="primary" size="sm">{d}</Badge>)}
@@ -178,12 +183,17 @@ const timeInputClass =
   'border-neutral-600 bg-neutral-700 text-white focus:ring-1 focus:ring-primary-500 ' +
   'focus:border-primary-500 focus:outline-none [color-scheme:dark]';
 
-export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved }: {
+export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved, isClub }: {
   open: boolean;
   onClose: () => void;
   locationId: string;
   editing?: LocationTimeslot | null;
   onSaved: () => void;
+  /**
+   * Clubs have members; shops do not. Offering a shop a "members only" night
+   * would give it a control whose only effect is to strand its customers.
+   */
+  isClub?: boolean;
 }) {
   const isEdit = !!editing;
 
@@ -194,6 +204,7 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
   // 1 = every week, which is what every slot meant before this existed.
   const [every,  setEvery]  = useState(1);
   const [anchor, setAnchor] = useState('');             // 'YYYY-MM-DD'
+  const [audience, setAudience] = useState<TimeslotAudience>('anyone');
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
 
@@ -206,9 +217,10 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
       setDays(editing.availability ?? []);
       setEvery(editing.interval_weeks ?? 1);
       setAnchor(editing.anchor_date ?? '');
+      setAudience(editing.audience ?? 'anyone');
     } else {
       setName(''); setStart('18:00'); setEnd('21:00'); setDays([]);
-      setEvery(1); setAnchor('');
+      setEvery(1); setAnchor(''); setAudience('anyone');
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,6 +265,7 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
       // Cleared when weekly, so a slot switched back to every week doesn't keep
       // a stale date that would confuse the next person to open this form.
       anchor_date:    needsAnchor ? anchor : null,
+      audience,
     };
 
     const { error: saveErr } = editing
@@ -349,6 +362,19 @@ export function TimeslotFormModal({ open, onClose, locationId, editing, onSaved 
             </div>
           )}
         </div>
+
+        {isClub && (
+          <Select
+            label="Who can book"
+            options={[
+              { value: 'anyone',  label: 'Anyone who can see the club' },
+              { value: 'members', label: 'Members only' },
+            ]}
+            value={audience}
+            disabled={saving}
+            onChange={e => setAudience(e.target.value as TimeslotAudience)}
+          />
+        )}
 
         {error && <p className="font-body text-sm text-red-400">{error}</p>}
 

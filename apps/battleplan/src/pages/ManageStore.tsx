@@ -429,6 +429,7 @@ export default function ManageStore() {
       />
 
       <TimeslotFormModal
+        isClub={selectedStore?.kind === 'club'}
         open={timeslotModalOpen}
         onClose={() => setTimeslotModalOpen(false)}
         locationId={selectedId}

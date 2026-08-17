@@ -258,17 +258,15 @@ export function useLocations() {
     supabase
       .from('locations')
       .select('id, name, icon, kind')
-      // VENUES ONLY, on purpose.
-      //
       // Spaces are never offered: a room a club borrows is where a booking
       // happens, not something a player picks from a list. RLS won't do that
       // for us, because whoever created the space CAN read it.
       //
-      // Clubs are excluded too, for now. A club has no tables or timeslots yet,
-      // so offering one would be a dead end — pick it and nothing is bookable.
-      // Whether a club is publicly findable at all is the per-club visibility
-      // setting, which lands with membership.
-      .eq('kind', 'venue')
+      // Clubs ARE offered, and RLS decides which ones. A club is readable by
+      // the people attached to it — its admins, organisers and members — and by
+      // nobody else, so a member finds their club here and a stranger does not
+      // see it exists. Browsing clubs to ask to join is a separate thing.
+      .neq('kind', 'space')
       .order('name')
       .then(({ data }) => {
         setLocations(data ?? []);
@@ -553,16 +551,40 @@ export function useTimeslots(locationId: string | null, date: string | null) {
 
     supabase
       .from('timeslots')
-      .select('id, name, start_time, end_time, availability, interval_weeks, anchor_date')
+      .select('id, name, start_time, end_time, availability, interval_weeks, anchor_date, audience')
       .eq('location_id', locationId)
       .contains('availability', [dayName])
       .order('start_time')
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         // The weekday is filtered in the query; the repeat rule has to be
         // applied here, because "every second Friday" is not a column Postgrest
         // can compare. Without this a member would be offered a slot on an
         // off week and told it was unavailable only after picking it.
-        setTimeslots((data ?? []).filter(s => slotRunsOn(s as DaySlot, date)));
+        const running = (data ?? []).filter(s => slotRunsOn(s as DaySlot, date));
+
+        // Members-only nights are only offered to whoever may actually book
+        // them. The database is the real gate — a restrictive policy refuses
+        // the insert either way — but being shown a night and then refused is
+        // the experience this avoids.
+        //
+        // Asked of the server rather than reimplemented here, because the rule
+        // is more than "are you a member": a club's admins, staff and
+        // organisers may book one too, and a second copy of that would drift.
+        // There are rarely more than one or two such slots on a given day.
+        const restricted = running.filter(s => (s as { audience?: string }).audience === 'members');
+        if (restricted.length === 0) {
+          setTimeslots(running);
+          setLoading(false);
+          return;
+        }
+
+        const verdicts = await Promise.all(restricted.map(s =>
+          supabase.rpc('may_book_timeslot', { slot: s.id, loc: locationId })
+            .then(({ data: ok, error }) => ({ id: s.id, ok: !error && ok === true })),
+        ));
+        const refused = new Set(verdicts.filter(v => !v.ok).map(v => v.id));
+
+        setTimeslots(running.filter(s => !refused.has(s.id)));
         setLoading(false);
       });
   }, [locationId, date]);
@@ -1429,7 +1451,12 @@ export interface LocationTimeslot {
   interval_weeks: number;
   /** Which occurrence to count the cycle from. Null when weekly. */
   anchor_date: string | null;
+  /** 'anyone' or 'members' — see 20260817000000. */
+  audience: TimeslotAudience;
 }
+
+/** Who may book a night. Venues use 'anyone' for everything. */
+export type TimeslotAudience = 'anyone' | 'members';
 
 export function useLocationTimeslots(locationId: string | null) {
   const [timeslots, setTimeslots] = useState<LocationTimeslot[]>([]);
@@ -1440,7 +1467,7 @@ export function useLocationTimeslots(locationId: string | null) {
     setLoading(true);
     supabase
       .from('timeslots')
-      .select('id, name, start_time, end_time, availability, interval_weeks, anchor_date')
+      .select('id, name, start_time, end_time, availability, interval_weeks, anchor_date, audience')
       .eq('location_id', locationId)
       .order('start_time')
       .then(({ data }) => {
