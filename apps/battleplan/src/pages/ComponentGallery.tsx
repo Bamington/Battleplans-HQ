@@ -89,12 +89,18 @@ const DEMO_TABLES: StoreTable[] = [
 
 const DEMO_FEES: BookingFee[] = [
   { id: 'fee-1', scope: 'default',  day_of_week: null,     timeslot_id: null,
-    amount_cents: 1000,
+    amount_cents: 1000, table_labels: null,
     message: 'Table booking at this store is $10 for 3 hours. If there is no other reservation, you can keep your table longer at no additional cost.' },
+  // Same target as fee-1, carved down to one table type — legal since
+  // 20260818030000, and the pair is how "$10 a table, $15 for TCG" is written.
+  { id: 'fee-4', scope: 'default',  day_of_week: null,     timeslot_id: null,
+    amount_cents: 1500, table_labels: ['TCG'],
+    message: 'Magic tables come with sleeves, counters and a playmat — $15 for the session.' },
   { id: 'fee-2', scope: 'day',      day_of_week: 'Saturday', timeslot_id: null,
-    amount_cents: 1500, message: 'Saturdays are busy — $15 holds your table for the full session.' },
+    amount_cents: 1500, table_labels: null,
+    message: 'Saturdays are busy — $15 holds your table for the full session.' },
   { id: 'fee-3', scope: 'timeslot', day_of_week: null,     timeslot_id: 'ts-1',
-    amount_cents: 500,
+    amount_cents: 500, table_labels: null,
     message: 'Morning tables are $5 for the three-hour slot. Pay at the counter when you arrive.' },
 ];
 
@@ -133,9 +139,15 @@ const DEMO_BLOCKED: BlockedDate = {
   table_scope: 'all',
   tableIds: [],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+  // The viewer's own block, so no host line — that is the common case.
+  created_by: null,
+  hostHandle: null,
 };
 
-/** A repeating rule naming the tables it covers: every second Friday, until year end. */
+/**
+ * A repeating rule naming the tables it covers: every second Friday, until year
+ * end. Held by somebody else, so it also shows the host line.
+ */
 const DEMO_BLOCKED_RECURRING: BlockedDate = {
   id: 'bd-3',
   date: '2026-08-07',
@@ -148,6 +160,8 @@ const DEMO_BLOCKED_RECURRING: BlockedDate = {
   table_scope: 'selected',
   tableIds: ['tb-1', 'tb-2'],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+  created_by: 'p-2',
+  hostHandle: 'jo-tanaka',
 };
 
 const DEMO_BOOKING: Booking = {
@@ -684,7 +698,12 @@ const ComponentGallery = () => {
             those tables actually serve. The third also repeats — a rule, not
             expanded rows, so editing it moves every future occurrence. Intervals
             count in whole weeks from the start date's week, so "every 2nd Friday"
-            stays on the same Fridays whatever day it was created.
+            stays on the same Fridays whatever day it was created. The heading is the
+            EVENT the tables are held for — this list only ever shows one venue, so its
+            name said nothing; the second row has no description and falls back to it
+            rather than rendering headless. The third was created by somebody else, so it
+            names them: a club can hold tables at a venue it doesn't own, and your own
+            blocks stay silent.
           </GalleryNote>
           <BlockNewDateModal
             open={blockOpen}
@@ -716,13 +735,19 @@ const ComponentGallery = () => {
             Rules resolve most-specific-first: a <code>timeslot</code> fee beats a{' '}
             <code>day</code> fee, which beats the venue <code>default</code>. Every rule
             carries its own message — the form won't save without one, so a $15 Saturday
-            can never inherit wording that says $10.
+            can never inherit wording that says $10. A rule can also name the table types
+            it covers, which is why the two <code>default</code> rows above can coexist:
+            within one target the type-specific rule wins, so those two read as "$10 a
+            table, $15 for TCG". The form only offers the choice where the venue has more
+            than one labelled type.
           </GalleryNote>
           <BookingFeeFormModal
             open={feeOpen}
             onClose={() => setFeeOpen(false)}
             locationId="loc-1"
             timeslots={DEMO_TIMESLOTS}
+            /* Two labelled types, so the Table Types control is offered. */
+            tables={DEMO_TABLES}
             fees={DEMO_FEES}
             onSaved={() => setFeeOpen(false)}
           />

@@ -503,6 +503,7 @@ export default function ManageStore() {
         onClose={() => setFeeModalOpen(false)}
         locationId={selectedId}
         timeslots={timeslots}
+        tables={tables}
         fees={fees}
         editing={editingFee}
         onSaved={() => { setFeeModalOpen(false); refetchFees(); }}

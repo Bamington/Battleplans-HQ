@@ -1361,6 +1361,16 @@ export interface BlockedDate {
   /** The tables this block covers. Empty when table_scope is 'all'. */
   tableIds:       string[];
   location:       { id: string; name: string; icon: string };
+  /** Who created the block. Null on rows predating 20260814050000. */
+  created_by:     string | null;
+  /**
+   * `created_by`'s public handle — but ONLY when that is somebody other than
+   * the viewer. A venue admin who blocked their own tables does not need
+   * telling who did it, so this is null for your own blocks and the line
+   * disappears. Resolved in the hook so the question is asked once per fetch
+   * rather than once per row.
+   */
+  hostHandle:     string | null;
 }
 
 /** The recurrence fields, for callers that don't need the whole row. */
@@ -1468,7 +1478,7 @@ export function useBlockedDates(locationIds: string[]) {
     supabase
       .from('blocked_dates')
       .select(`
-        id, date, description, blocked_tables,
+        id, date, description, blocked_tables, created_by,
         recurrence, interval_weeks, days_of_week, until_date,
         table_scope, blocked_date_tables(table_id),
         location:locations(id, name, icon)
@@ -1478,15 +1488,34 @@ export function useBlockedDates(locationIds: string[]) {
       // filtered on its start date. It drops off the list once it has expired.
       .or(`and(recurrence.eq.none,date.gte.${today}),and(recurrence.neq.none,or(until_date.is.null,until_date.gte.${today}))`)
       .order('date')
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         // Flatten the join rows into plain ids, so nothing downstream has to
         // know the shape Supabase returns a nested select in.
-        setBlockedDates(((data ?? []) as unknown as (Omit<BlockedDate, 'tableIds'> & {
+        const rows = ((data ?? []) as unknown as (Omit<BlockedDate, 'tableIds' | 'hostHandle'> & {
           blocked_date_tables?: { table_id: string }[] | null;
         })[]).map(r => ({
           ...r,
-          tableIds: (r.blocked_date_tables ?? []).map(t => t.table_id),
-        })));
+          tableIds:   (r.blocked_date_tables ?? []).map(t => t.table_id),
+          hostHandle: null as string | null,
+        }));
+
+        // Who else's blocks are in this list? A club or TO can hold tables at
+        // a venue it does not own, and the venue's admins are owed the name.
+        // Only for OTHER people — see hostHandle on BlockedDate.
+        const me     = (await supabase.auth.getUser()).data.user?.id ?? null;
+        const others = [...new Set(
+          rows.map(r => r.created_by).filter((id): id is string => !!id && id !== me),
+        )];
+        if (others.length > 0) {
+          // public_profiles, not user_profiles: this is somebody the viewer may
+          // have no relationship with, and the handle is the public window.
+          const { data: profiles } = await supabase
+            .from('public_profiles').select('id, handle').in('id', others);
+          const byId = new Map((profiles ?? []).map(p => [p.id as string, p.handle as string | null]));
+          rows.forEach(r => { r.hostHandle = r.created_by ? byId.get(r.created_by) ?? null : null; });
+        }
+
+        setBlockedDates(rows);
         setLoading(false);
       });
   };
@@ -1806,6 +1835,12 @@ export interface BookingFee {
   amount_cents: number;
   /** Required — every rule states its own terms. See 20260811010000. */
   message:      string;
+  /**
+   * The `store_tables.label` values this rule covers, or null for every table
+   * type. A venue can hold both — "$10 a table" plus "$15 for TCG" — and the
+   * type-specific one wins for a TCG booking. See 20260818030000.
+   */
+  table_labels: string[] | null;
 }
 
 /** 1000 → "$10", 1050 → "$10.50", 0 → "Free". */
@@ -1824,23 +1859,38 @@ export interface ResolvedFee {
 }
 
 /**
- * Pick the fee that applies to a date + timeslot. Returns null when the venue
- * has no rule that covers it (the common case — most venues charge nothing).
+ * Pick the fee that applies to a date + timeslot + table type. Returns null
+ * when the venue has no rule that covers it (the common case — most venues
+ * charge nothing).
  */
 export function resolveBookingFee(
   fees:       BookingFee[],
   date:       string | null,
   timeslotId: string | null,
+  tableLabel: string | null = null,
 ): ResolvedFee | null {
+  // A rule with no table set covers every type. One that names types covers
+  // only the type the player picked — so a booking with no type at all can
+  // only ever match the unrestricted rules.
+  const covers = (f: BookingFee) =>
+    !f.table_labels?.length || (!!tableLabel && f.table_labels.includes(tableLabel));
+
+  // Within a tier the type-specific rule wins, so a venue holding both
+  // "$10 a table" and "$15 for TCG" resolves the way that reads.
+  const best = (match: (f: BookingFee) => boolean) => {
+    const tier = fees.filter(f => match(f) && covers(f));
+    return tier.find(f => f.table_labels?.length) ?? tier[0];
+  };
+
   const byTimeslot = timeslotId
-    ? fees.find(f => f.scope === 'timeslot' && f.timeslot_id === timeslotId)
+    ? best(f => f.scope === 'timeslot' && f.timeslot_id === timeslotId)
     : undefined;
   const byDay = date
-    ? fees.find(f => f.scope === 'day' && f.day_of_week === DAY_NAMES[parseDateLocal(date).getDay()])
+    ? best(f => f.scope === 'day' && f.day_of_week === DAY_NAMES[parseDateLocal(date).getDay()])
     : undefined;
 
   // Most specific wins; the venue default catches everything else.
-  const winner = byTimeslot ?? byDay ?? fees.find(f => f.scope === 'default');
+  const winner = byTimeslot ?? byDay ?? best(f => f.scope === 'default');
   if (!winner) return null;
 
   return {
@@ -1850,7 +1900,7 @@ export function resolveBookingFee(
   };
 }
 
-const BOOKING_FEE_SELECT = 'id, scope, day_of_week, timeslot_id, amount_cents, message';
+const BOOKING_FEE_SELECT = 'id, scope, day_of_week, timeslot_id, amount_cents, message, table_labels';
 
 /** Every fee rule at a venue — for the Manage Store editor. */
 export function useLocationBookingFees(locationId: string | null) {
@@ -1884,11 +1934,13 @@ export function useBookingFee(
   locationId: string | null,
   date:       string | null,
   timeslotId: string | null,
+  /** The table type the player chose, so a type-specific fee can win. */
+  tableLabel: string | null = null,
 ) {
   const { fees, loading } = useLocationBookingFees(locationId);
   const fee = useMemo(
-    () => resolveBookingFee(fees, date, timeslotId),
-    [fees, date, timeslotId],
+    () => resolveBookingFee(fees, date, timeslotId, tableLabel),
+    [fees, date, timeslotId, tableLabel],
   );
   return { fee, loading };
 }

@@ -142,7 +142,7 @@ function NewBookingModal({
   // Same rule, asked of the calendar for every date it draws rather than of one
   // date after the fact.
   const isDayBookable = useDayBookable(locationId || null);
-  const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null);
+  const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null, tableLabel || null);
   const { roles: venueRoles }                    = useManagedLocations(userId);
 
   // You can only book for someone else at a venue you actually work at, so the
