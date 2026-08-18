@@ -473,6 +473,10 @@ export default function PackEditor() {
                  uploaded one; otherwise the game's banner stands in. */
               bannerImage={bannerUrl(pack.banner_path)}
               bannerAspect={pack.banner_aspect}
+              /* Only a club is named here. A shop is already the address in
+                 Key Info, so repeating it would say the same thing twice. */
+              clubName={venue?.kind === 'club' ? venue.name : null}
+              clubIcon={venue?.kind === 'club' ? venue.icon : null}
               /* The format reads as a second fact about the event, so it sits
                  beside the game in the same muted style rather than competing. */
               subtitle={pack.format}

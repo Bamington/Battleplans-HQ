@@ -137,9 +137,13 @@ const EventBasicsFormDemo = () => {
   const [log, setLog] = useState<string[]>([]);
 
   const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', slug: 'warhammer-40-000', icon: null, image: null }];
+  // The three states a venue's icon can be in, since the picker now shows the
+  // venue's own artwork rather than an identical map pin on every row: an
+  // emoji, nothing at all (falls back to the initial), and a club.
   const venues: LocationOption[] = [
-    { id: 'v1', name: 'Gaming Arena',      address: '2/86 Cottrell Street, Werribee, VIC' },
+    { id: 'v1', name: 'Gaming Arena',       address: '2/86 Cottrell Street, Werribee, VIC', icon: '🎲' },
     { id: 'v2', name: 'Battleground North', address: '14 High Street, Preston, VIC' },
+    { id: 'v3', name: 'Fitzroy Wargamers',  address: null, icon: '⚔️', kind: 'club' },
   ];
 
   return (
@@ -964,6 +968,24 @@ const ComponentGallery = () => {
             gameLogo={GAME_BANNERS['warhammer-40-000']}
             bannerImage={GAME_BANNERS['age-of-sigmar']}
             subtitle="1500 Points"
+          />
+        </div>
+
+        <GalleryNote>
+          A pack run by a CLUB names it first in the strip, before the game —
+          whose event it is tells a reader more than what is being played. A shop
+          is never named here: it is already the address in Key Info, and saying
+          it twice is just noise.
+        </GalleryNote>
+        <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
+          <PackHero
+            name="Alternate Fridays"
+            clubName="Fitzroy Wargamers"
+            gameName="Warhammer 40,000"
+            gameIcon={GAME_ICONS['warhammer-40-000']}
+            gameImage={GAME_BANNERS['warhammer-40-000']}
+            gameLogo={GAME_BANNERS['warhammer-40-000']}
+            subtitle="2000 Points"
           />
         </div>
       </GallerySection>

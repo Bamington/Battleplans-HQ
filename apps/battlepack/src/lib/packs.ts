@@ -160,6 +160,8 @@ export interface LocationOption {
   name: string;
   address: string | null;
   icon?: string | null;
+  /** venue | club | space — the hero names a club, not a shop. */
+  kind?: string | null;
 }
 
 /**
@@ -187,7 +189,7 @@ export async function listMyLocations(): Promise<LocationOption[]> {
   const [ownRes, nominatedRes] = await Promise.all([
     supabase
       .from('locations')
-      .select('id, name, address, icon')
+      .select('id, name, address, icon, kind')
       .contains('admins', [auth.user.id])
       // Spaces are not offered yet. Running a pack at a borrowed room is exactly
       // what they are for, but that needs the organiser to have BattlePack in the
@@ -195,7 +197,7 @@ export async function listMyLocations(): Promise<LocationOption[]> {
       .neq('kind', 'space'),
     supabase
       .from('location_staff')
-      .select('location:locations(id, name, address, icon)')
+      .select('location:locations(id, name, address, icon, kind)')
       .eq('user_id', auth.user.id)
       .eq('role', 'organiser'),
   ]);

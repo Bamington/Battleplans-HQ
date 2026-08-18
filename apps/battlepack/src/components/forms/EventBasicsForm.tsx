@@ -25,12 +25,13 @@
 
 import { useEffect, useState } from 'react';
 import {
-  BannerPicker, GAME_ICONS, PanelSection, Input, RichTextEditor, SearchSelect, Notebook, UserRounded,
+  BannerPicker, GAME_ICONS, PanelSection, Input, RichTextEditor, SearchSelect, Notebook, UserRounded, Callout,
 } from '@battleplans/ui';
 import type { PendingBanner } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
 import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
+import { useVenueHours, startTimeWarning } from '../../hooks/useVenueHours';
 import { bannerUrl, uploadPackBanner, deleteBannerObject } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
 
@@ -48,6 +49,10 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
     const next = format.trim();
     if (next !== (pack.format ?? '')) onChange({ format: next || null });
   };
+
+  // Whether this event starts outside the venue's usual bookable hours.
+  const venueHours  = useVenueHours(pack.location_id ?? null);
+  const startWarning = startTimeWarning(pack.starts_at ?? null, venueHours);
 
   // The description is markdown from a rich text editor, so it commits on a
   // debounce rather than on blur, exactly as the section categories do.
@@ -171,10 +176,24 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         onChange={e => onChange({ starts_at: e.target.value || null })}
       />
 
+      {/* Informs, never blocks. A venue can open early for a tournament, and a
+          club at a hired hall keeps its own hours — so an unusual time is worth
+          a second look, not a refusal. Silent when the venue has no timeslots,
+          because then there is no "usual" to be outside of. */}
+      {startWarning && (
+        <Callout flavour="warning">{startWarning}</Callout>
+      )}
+
+      {/* `format`, not `pack.format` — the local copy is what typing updates.
+          Bound to the row instead, every keystroke re-rendered the field back
+          to the saved value, so the box looked frozen; and because React reset
+          the DOM each time, the local state only ever caught the single most
+          recent character, which then appeared on blur. Name above has always
+          had this right. */}
       <Input
         label="Format"
         placeholder="e.g. 2000 Points, Matched Play"
-        value={pack.format ?? ''}
+        value={format}
         onChange={e => setFormat(e.target.value)}
         onBlur={commitFormat}
       />

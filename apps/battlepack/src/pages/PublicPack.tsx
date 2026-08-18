@@ -129,6 +129,10 @@ export default function PublicPack() {
             gameLogo={art.banner}
             bannerImage={bannerUrl(pack.banner_path)}
             bannerAspect={pack.banner_aspect}
+            /* Same rule as the editor: name the club, never the shop. `kind`
+               and `icon` come from battlepack_by_slug — see 20260818010000. */
+            clubName={venue?.kind === 'club' ? venue.name : null}
+            clubIcon={venue?.kind === 'club' ? venue.icon : null}
             subtitle={pack.format}
           />
 
