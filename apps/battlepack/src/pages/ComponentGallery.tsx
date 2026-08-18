@@ -129,7 +129,7 @@ const CategoryListDemo = () => {
  */
 const EventBasicsFormDemo = () => {
   const [pack, setPack] = useState<Pack>({
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -137,9 +137,13 @@ const EventBasicsFormDemo = () => {
   const [log, setLog] = useState<string[]>([]);
 
   const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', slug: 'warhammer-40-000', icon: null, image: null }];
+  // The three states a venue's icon can be in, since the picker now shows the
+  // venue's own artwork rather than an identical map pin on every row: an
+  // emoji, nothing at all (falls back to the initial), and a club.
   const venues: LocationOption[] = [
-    { id: 'v1', name: 'Gaming Arena',      address: '2/86 Cottrell Street, Werribee, VIC' },
+    { id: 'v1', name: 'Gaming Arena',       address: '2/86 Cottrell Street, Werribee, VIC', icon: '🎲' },
     { id: 'v2', name: 'Battleground North', address: '14 High Street, Preston, VIC' },
+    { id: 'v3', name: 'Fitzroy Wargamers',  address: null, icon: '⚔️', kind: 'club' },
   ];
 
   return (
@@ -210,7 +214,7 @@ const EventBasicsFormDemo = () => {
  */
 const RoundsBreaksFormDemo = () => {
   const pack: Pack = {
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -378,7 +382,7 @@ const AddCategoryModalDemo = () => {
  */
 const SectionFormDemo = () => {
   const pack: Pack = {
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -464,7 +468,7 @@ const SectionFormDemo = () => {
 
 /** The stub every list-editor demo below writes against. */
 const DEMO_PACK: Pack = {
-  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
   starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
   status: 'draft', slug: null, banner_path: null, banner_aspect: null,
   timeline: 'one-day', created_at: '', updated_at: '',
@@ -754,7 +758,7 @@ const PublishPanelDemo = () => {
   const TAKEN = ['july-rtt', 'season-6-league'];
 
   const [pack, setPack] = useState<Pack>({
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1', host_location_id: null,
     starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -964,6 +968,24 @@ const ComponentGallery = () => {
             gameLogo={GAME_BANNERS['warhammer-40-000']}
             bannerImage={GAME_BANNERS['age-of-sigmar']}
             subtitle="1500 Points"
+          />
+        </div>
+
+        <GalleryNote>
+          A pack run by a CLUB names it first in the strip, before the game —
+          whose event it is tells a reader more than what is being played. A shop
+          is never named here: it is already the address in Key Info, and saying
+          it twice is just noise.
+        </GalleryNote>
+        <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
+          <PackHero
+            name="Alternate Fridays"
+            clubName="Fitzroy Wargamers"
+            gameName="Warhammer 40,000"
+            gameIcon={GAME_ICONS['warhammer-40-000']}
+            gameImage={GAME_BANNERS['warhammer-40-000']}
+            gameLogo={GAME_BANNERS['warhammer-40-000']}
+            subtitle="2000 Points"
           />
         </div>
       </GallerySection>

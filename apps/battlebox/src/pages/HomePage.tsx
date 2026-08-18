@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
   ScrollColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
+  COLUMN_ROW,
 } from '@battleplans/ui';
 import type { ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -412,7 +413,7 @@ export default function HomePage() {
         <AppNavbar fixed={false} logo={<BattleBenchLogo />} />
 
         <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
-          <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 pb-2 scroll-px-3 md:scroll-px-9 lg:px-0 lg:pb-0">
+          <div className={`${COLUMN_ROW} pb-2 lg:pb-0`}>
             <ModelsColumn
               userId={userId} isDesktop={isDesktop}
               modelId={modelId} onOpenModel={openModel} onCloseModel={() => setModelId(null)} onOpenBox={openBox}

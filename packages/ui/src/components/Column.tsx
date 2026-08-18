@@ -24,7 +24,60 @@ import type { ColumnHeaderToggle } from './ColumnHeader';
 import Pagination from './Pagination';
 import { useAutoPageSize } from '../hooks/useAutoPageSize';
 
+// ── The row ───────────────────────────────────────────────────────────────────
+
+/**
+ * The scroller a set of columns sits in.
+ *
+ * Exported as a class string rather than a component because that is all it is —
+ * eight pages across five apps had this hand-copied, so changing how columns
+ * behave meant finding all eight. Callers add their own vertical padding, which
+ * is the only part that legitimately differs (some pages have a header above).
+ *
+ * SCROLLS AT EVERY WIDTH, including desktop. It used to be
+ * `lg:overflow-x-visible`, which was fine while columns could shrink to fit —
+ * now that they have a minimum, six of them exceed a 1440px screen and the
+ * overflow has to be reachable.
+ *
+ * Centred with auto margins rather than `justify-center`. A centred flex row
+ * that overflows puts its first item beyond the scroll origin in most browsers,
+ * so the leftmost column becomes unreachable. Auto margins on the end children
+ * centre exactly the same way when there is room, and collapse to zero when
+ * there is not.
+ */
+export const COLUMN_ROW = [
+  'flex flex-1 min-h-0 items-stretch gap-2.5',
+  'overflow-x-auto snap-x snap-mandatory lg:snap-none',
+  'px-3 md:px-9 lg:px-0 scroll-px-3 md:scroll-px-9',
+  'lg:[&>*:first-child]:ml-auto lg:[&>*:last-child]:mr-auto',
+].join(' ');
+
 // ── Shell ─────────────────────────────────────────────────────────────────────
+
+const PANEL_BASE = [
+  'bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always',
+  'w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto',
+  'flex flex-col min-h-0 shadow-md overflow-hidden transition-[max-width]',
+].join(' ');
+
+/**
+ * One column's panel, as a class string.
+ *
+ * DESKTOP COLUMNS HAVE A FLOOR. `flex-1` with only a max meant the row divided
+ * itself between however many columns existed — six on a 1440px screen left
+ * each about 230px, and a seventh squeezed them all again. The min and max now
+ * agree, so a column is 384px regardless of what it sits beside, and the row
+ * scrolls instead of compressing. Nothing gets wider than it used to; they just
+ * stop getting narrower.
+ *
+ * Exported because Manage Store builds its panels by hand rather than through
+ * `ColumnShell`, and had this hand-copied eight times. Sharing the string is
+ * what makes a change here reach the screen that has the most columns.
+ */
+export const COLUMN_PANEL = `${PANEL_BASE} lg:flex-1 lg:min-w-96 lg:max-w-sm`;
+
+/** Double width, for a two-up gallery. Same floor logic, doubled. */
+export const COLUMN_PANEL_WIDE = `${PANEL_BASE} lg:flex-[2] lg:min-w-[48rem] lg:max-w-3xl`;
 
 export interface ColumnShellProps {
   /** Double the desktop width (e.g. a two-up gallery). */
@@ -38,13 +91,7 @@ export interface ColumnShellProps {
 export function ColumnShell({ wide = false, className = '', children }: ColumnShellProps) {
   return (
     <div
-      className={[
-        'bg-neutral-900 border border-neutral-700 rounded-lg p-px shrink-0 snap-start snap-always',
-        'w-[90vw] max-w-[90vw] md:w-[40vw] md:max-w-[40vw] lg:w-auto',
-        'flex flex-col min-h-0 shadow-md overflow-hidden transition-[max-width]',
-        wide ? 'lg:flex-[2] lg:max-w-3xl' : 'lg:flex-1 lg:max-w-sm',
-        className,
-      ].filter(Boolean).join(' ')}
+      className={[wide ? COLUMN_PANEL_WIDE : COLUMN_PANEL, className].filter(Boolean).join(' ')}
     >
       <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
         {children}

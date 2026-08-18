@@ -109,7 +109,7 @@ export function BlockedDateItem({ blocked, locations, tables = [], onChanged }: 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting,    setDeleting]    = useState(false);
 
-  const { location, date, description, recurrence } = blocked;
+  const { location, date, description, recurrence, hostHandle } = blocked;
   const isUrl     = location.icon?.startsWith('http');
   const recurring = recurrence === 'weekly';
 
@@ -135,8 +135,15 @@ export function BlockedDateItem({ blocked, locations, tables = [], onChanged }: 
 
         {/* Text block */}
         <div className="flex flex-col flex-1 min-w-0">
+          {/* The event, not the venue. This list only ever shows one venue's
+              blocks, so its name on every row said nothing — while the thing
+              that actually distinguishes them, the event the tables are held
+              for, was buried at the bottom. A pack's block carries the pack
+              name here (syncPackBlocks writes it); a venue's own block carries
+              whatever reason was typed. Falls back to the venue rather than
+              rendering a headless row when neither was given. */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-heading text-lg text-white leading-6">{location.name}</span>
+            <span className="font-heading text-lg text-white leading-6">{description || location.name}</span>
             {recurring && <Badge color="primary" size="sm">Repeats</Badge>}
           </div>
           <span className="font-body text-xs text-primary-300 leading-4">{formatBlockedTables(blocked, tables)}</span>
@@ -146,7 +153,11 @@ export function BlockedDateItem({ blocked, locations, tables = [], onChanged }: 
           {recurring && date > localToday() && (
             <span className="font-body text-xs text-neutral-400 leading-4">Starting {formatDateLabel(date)}</span>
           )}
-          {description && <span className="font-body text-xs text-neutral-300 leading-4">{description}</span>}
+          {/* Who holds the tables, when that is not the person reading. A club
+              or TO can block a venue's tables for its own event, and the
+              venue's admins should be able to see whose event it is without
+              opening anything. Silent for your own blocks. */}
+          {hostHandle && <span className="font-body text-xs text-neutral-400 leading-4">@{hostHandle}</span>}
         </div>
 
         {/* 3-dot menu */}
@@ -354,7 +365,7 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
           <p className="font-body text-base text-neutral-300">
             {isEdit
               ? 'Update this block. Changes apply to every future occurrence.'
-              : 'Make a date unbookable at your venue — once, or on a repeating schedule.'}
+              : 'Make a date unbookable — once, or on a repeating schedule.'}
           </p>
         </div>
 
@@ -506,9 +517,11 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
                       label={
                         <span className="flex items-center gap-2">
                           <span>{t.name}</span>
-                          <Badge color="gray" size="sm">
-                            {t.size === 'tcg' ? 'TCG' : 'Wargaming'}
-                          </Badge>
+                          {/* Free text now, so an unlabelled table simply has
+                              no badge instead of being called Wargaming. */}
+                          {t.label?.trim() && (
+                            <Badge color="gray" size="sm">{t.label}</Badge>
+                          )}
                           {/* A disabled table takes no bookings anyway, so
                               blocking it changes nothing — say so rather than
                               let someone think they've done something. */}

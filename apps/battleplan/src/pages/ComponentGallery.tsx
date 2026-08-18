@@ -49,8 +49,9 @@ import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
 import { BookingFeeItem, BookingFeeFormModal } from '../components/BookingFees';
 import { StaffItem, AddStaffModal } from '../components/LocationStaff';
+import { PersonItem, AddMemberModal } from '../components/ClubMembers';
 import type { Battle } from '../hooks/useBattles';
-import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember } from '../hooks/useBookingData';
+import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember, ClubPerson } from '../hooks/useBookingData';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import type { IncomingBookingShare } from '@battleplans/ui';
 
@@ -69,32 +70,61 @@ const DEMO_LOCATIONS: Location[] = [
 ];
 
 const DEMO_TIMESLOTS: LocationTimeslot[] = [
-  { id: 'ts-1', name: 'Morning',   start_time: '10:00', end_time: '13:00', availability: ['Saturday', 'Sunday'] },
-  { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00', availability: ['Saturday', 'Sunday'] },
-  { id: 'ts-3', name: 'Evening',   start_time: '18:00', end_time: '22:00', availability: ['Tuesday', 'Wednesday', 'Thursday'] },
+  { id: 'ts-1', name: 'Morning',   start_time: '10:00', end_time: '13:00', availability: ['Saturday', 'Sunday'], interval_weeks: 1, anchor_date: null, audience: 'anyone' },
+  { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00', availability: ['Saturday', 'Sunday'], interval_weeks: 1, anchor_date: null, audience: 'anyone' },
+  { id: 'ts-3', name: 'Evening',   start_time: '18:00', end_time: '22:00', availability: ['Tuesday', 'Wednesday', 'Thursday'], interval_weeks: 1, anchor_date: null, audience: 'anyone' },
+  // A club night rather than a shop's opening hours — the one row that shows
+  // the repeat line, which only appears when a slot isn't weekly, and the one
+  // that is members only, which is the only other line a row can grow.
+  { id: 'ts-4', name: 'Club Night', start_time: '18:00', end_time: '22:00', availability: ['Friday'], interval_weeks: 2, anchor_date: '2026-08-21', audience: 'members' },
 ];
 
 const DEMO_TABLES: StoreTable[] = [
-  { id: 'tb-1', name: 'Table 1', size: 'wargaming', enabled: true,  timeslotIds: ['ts-1', 'ts-2'] },
-  { id: 'tb-2', name: 'Table 2', size: 'tcg',       enabled: false, timeslotIds: ['ts-3'] },
+  { id: 'tb-1', name: 'Table 1', label: 'Wargaming', notes: null, enabled: true,  timeslotIds: ['ts-1', 'ts-2'] },
+  { id: 'tb-2', name: 'Table 2', label: 'TCG',       notes: 'No power socket on this side', enabled: false, timeslotIds: ['ts-3'] },
+  // No label at all — the chip is absent rather than defaulted, which is the
+  // whole point of the field being free text.
+  { id: 'tb-3', name: 'Table 3', label: null,        notes: null, enabled: true,  timeslotIds: ['ts-1'] },
 ];
 
 const DEMO_FEES: BookingFee[] = [
   { id: 'fee-1', scope: 'default',  day_of_week: null,     timeslot_id: null,
-    amount_cents: 1000,
+    amount_cents: 1000, table_labels: null,
     message: 'Table booking at this store is $10 for 3 hours. If there is no other reservation, you can keep your table longer at no additional cost.' },
+  // Same target as fee-1, carved down to one table type — legal since
+  // 20260818030000, and the pair is how "$10 a table, $15 for TCG" is written.
+  { id: 'fee-4', scope: 'default',  day_of_week: null,     timeslot_id: null,
+    amount_cents: 1500, table_labels: ['TCG'],
+    message: 'Magic tables come with sleeves, counters and a playmat — $15 for the session.' },
   { id: 'fee-2', scope: 'day',      day_of_week: 'Saturday', timeslot_id: null,
-    amount_cents: 1500, message: 'Saturdays are busy — $15 holds your table for the full session.' },
+    amount_cents: 1500, table_labels: null,
+    message: 'Saturdays are busy — $15 holds your table for the full session.' },
   { id: 'fee-3', scope: 'timeslot', day_of_week: null,     timeslot_id: 'ts-1',
-    amount_cents: 500,
+    amount_cents: 500, table_labels: null,
     message: 'Morning tables are $5 for the three-hour slot. Pay at the counter when you arrive.' },
 ];
 
 const DEMO_STAFF: StaffMember[] = [
-  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: null },
+  { userId: 'u-1', handle: 'marcus-w', username: 'Marcus Webb', avatarPath: null, createdAt: null, role: 'staff' },
   // No real name set — the row falls back to the @handle, with no duplicate
   // line beneath it.
-  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: null },
+  { userId: 'u-2', handle: 'priya-n',  username: null,          avatarPath: null, createdAt: null, role: 'staff' },
+  // An organiser: runs events here, and cannot see the venue's bookings. The
+  // role line is the only thing distinguishing them at a glance.
+  { userId: 'u-3', handle: 'jo-tanaka', username: 'Jo Tanaka',  avatarPath: null, createdAt: null, role: 'organiser' },
+];
+
+/**
+ * A club's whole roster, strongest role first — which is the order the
+ * `club_people` RPC returns and the reason the list needs no grouping.
+ */
+const DEMO_PEOPLE: ClubPerson[] = [
+  // The viewer. Marked "(you)", and with no remove menu.
+  { userId: 'p-1', handle: 'bamington', username: 'Bam Harrison', avatarPath: null, role: 'admin' },
+  { userId: 'p-2', handle: 'jo-tanaka', username: 'Jo Tanaka',    avatarPath: null, role: 'organiser' },
+  { userId: 'p-3', handle: 'marcus-w',  username: 'Marcus Webb',  avatarPath: null, role: 'member' },
+  // No display name — falls back to the @handle, with no duplicate line under it.
+  { userId: 'p-4', handle: 'priya-n',   username: null,           avatarPath: null, role: 'member' },
 ];
 
 const DEMO_BLOCKED: BlockedDate = {
@@ -109,9 +139,15 @@ const DEMO_BLOCKED: BlockedDate = {
   table_scope: 'all',
   tableIds: [],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+  // The viewer's own block, so no host line — that is the common case.
+  created_by: null,
+  hostHandle: null,
 };
 
-/** A repeating rule naming the tables it covers: every second Friday, until year end. */
+/**
+ * A repeating rule naming the tables it covers: every second Friday, until year
+ * end. Held by somebody else, so it also shows the host line.
+ */
 const DEMO_BLOCKED_RECURRING: BlockedDate = {
   id: 'bd-3',
   date: '2026-08-07',
@@ -124,6 +160,8 @@ const DEMO_BLOCKED_RECURRING: BlockedDate = {
   table_scope: 'selected',
   tableIds: ['tb-1', 'tb-2'],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+  created_by: 'p-2',
+  hostHandle: 'jo-tanaka',
 };
 
 const DEMO_BOOKING: Booking = {
@@ -199,6 +237,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-blocked-dates',     label: 'Blocked Dates',      icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-booking-fees',      label: 'Booking Fees',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-location-staff',    label: 'Location Staff',     icon: <UsersGroupRounded className="w-5 h-5" /> },
+  { href: '#nav-club-people',       label: 'Club People',        icon: <UsersGroupRounded className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -213,6 +252,7 @@ const ComponentGallery = () => {
   const [timeslotOpen,   setTimeslotOpen]   = useState(false);
   const [feeOpen,        setFeeOpen]        = useState(false);
   const [staffOpen,      setStaffOpen]      = useState(false);
+  const [peopleOpen,     setPeopleOpen]     = useState(false);
   const [date,           setDate]           = useState('2026-08-01');
   const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
@@ -489,6 +529,22 @@ const ComponentGallery = () => {
           <div className="w-64">
             <DatePickerInput label="Date (no past dates)" value={date} min="2026-07-26" onChange={setDate} />
           </div>
+          <div className="w-64">
+            {/* A fortnightly club night: alternate Fridays only, which is the
+                case a native date input could never express. */}
+            <DatePickerInput
+              label="Date (alternate Fridays)"
+              value={date}
+              onChange={setDate}
+              isDateBookable={iso => {
+                const [y, m, d] = iso.split('-').map(Number);
+                const dt = new Date(y, m - 1, d);
+                if (dt.getDay() !== 5) return false;
+                const weeks = Math.floor((dt.getTime() - new Date(2026, 7, 21).getTime()) / 604800000);
+                return weeks % 2 === 0;
+              }}
+            />
+          </div>
           <GalleryNote>
             Selected: {date}. <code>min</code> is how the booking flow stops you
             picking a date that has already passed.
@@ -642,7 +698,12 @@ const ComponentGallery = () => {
             those tables actually serve. The third also repeats — a rule, not
             expanded rows, so editing it moves every future occurrence. Intervals
             count in whole weeks from the start date's week, so "every 2nd Friday"
-            stays on the same Fridays whatever day it was created.
+            stays on the same Fridays whatever day it was created. The heading is the
+            EVENT the tables are held for — this list only ever shows one venue, so its
+            name said nothing; the second row has no description and falls back to it
+            rather than rendering headless. The third was created by somebody else, so it
+            names them: a club can hold tables at a venue it doesn't own, and your own
+            blocks stay silent.
           </GalleryNote>
           <BlockNewDateModal
             open={blockOpen}
@@ -674,13 +735,19 @@ const ComponentGallery = () => {
             Rules resolve most-specific-first: a <code>timeslot</code> fee beats a{' '}
             <code>day</code> fee, which beats the venue <code>default</code>. Every rule
             carries its own message — the form won't save without one, so a $15 Saturday
-            can never inherit wording that says $10.
+            can never inherit wording that says $10. A rule can also name the table types
+            it covers, which is why the two <code>default</code> rows above can coexist:
+            within one target the type-specific rule wins, so those two read as "$10 a
+            table, $15 for TCG". The form only offers the choice where the venue has more
+            than one labelled type.
           </GalleryNote>
           <BookingFeeFormModal
             open={feeOpen}
             onClose={() => setFeeOpen(false)}
             locationId="loc-1"
             timeslots={DEMO_TIMESLOTS}
+            /* Two labelled types, so the Table Types control is offered. */
+            tables={DEMO_TABLES}
             fees={DEMO_FEES}
             onSaved={() => setFeeOpen(false)}
           />
@@ -716,6 +783,41 @@ const ComponentGallery = () => {
             existingIds={DEMO_STAFF.map(m => m.userId)}
             adminIds={[]}
             onSaved={() => setStaffOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-club-people" title="Club People">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          {DEMO_PEOPLE.map(p => (
+            <PersonItem
+              key={p.userId}
+              person={p}
+              locationId="loc-1"
+              clubName="Fitzroy Wargamers"
+              isYou={p.userId === 'p-1'}
+              onChanged={() => {}}
+            />
+          ))}
+          <div className="mt-2">
+            <Button onClick={() => setPeopleOpen(true)}>Open Add Member Form</Button>
+          </div>
+          <GalleryNote>
+            A club's whole roster in one list, strongest role first — admin, then
+            organiser, then member. Every row is here on purpose: the viewer's own
+            row is marked <em>(you)</em> and has no remove menu, and neither does an
+            admin, because their access comes from <code>locations.admins</code>
+            rather than this screen. Removing anyone else clears both their member
+            and organiser rows, since the organiser tick adds one on top of the
+            other. The last row has no display name, so it falls back to the @handle.
+          </GalleryNote>
+          <AddMemberModal
+            open={peopleOpen}
+            onClose={() => setPeopleOpen(false)}
+            locationId="loc-1"
+            clubName="Fitzroy Wargamers"
+            existingIds={DEMO_PEOPLE.map(p => p.userId)}
+            onSaved={() => setPeopleOpen(false)}
           />
         </div>
       </GallerySection>

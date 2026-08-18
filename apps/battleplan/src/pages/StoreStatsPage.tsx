@@ -14,9 +14,10 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { supabase, AppFooter, Select, Pagination, ColumnShell, ColumnHeader } from '@battleplans/ui';
+import { supabase, AppFooter, Select, Pagination, ColumnShell, ColumnHeader, COLUMN_ROW } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import { StoreSelector } from '../components/StoreSelector';
+import { useSelectedVenue, resolveVenue } from '../hooks/useSelectedVenue';
 import { GAME_ICONS } from '../components/gameIcons';
 import { useAdminLocations } from '../hooks/useBookingData';
 import { useStoreStats } from '../hooks/useStoreStats';
@@ -287,11 +288,12 @@ export default function StoreStatsPage() {
 
   const { adminLocations } = useAdminLocations(userId);
 
-  // Only ever a venue this user administers; defaults to their first.
-  const [venueId, setVenueId] = useState('');
-  useEffect(() => {
-    if (!venueId && adminLocations.length > 0) setVenueId(adminLocations[0].id);
-  }, [adminLocations, venueId]);
+  // Only ever a venue this user administers, and the one they were already
+  // looking at where that's possible — see useSelectedVenue. Falls back to
+  // their first without writing it back, so a fallback here doesn't silently
+  // change what the home screen shows.
+  const [storedVenueId, selectVenue] = useSelectedVenue();
+  const venueId = resolveVenue(storedVenueId, adminLocations);
 
   const { bookings, loading } = useStoreStats(venueId || null);
 
@@ -316,14 +318,14 @@ export default function StoreStatsPage() {
           <StoreSelector
             locations={adminLocations}
             selectedId={venueId}
-            onSelect={setVenueId}
+            onSelect={selectVenue}
             headerLabel="Stats for"
           />
         )}
       </AppNavbar>
 
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+        <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
           <OverviewColumn
             bookings={filtered} loading={loading}
             range={range} year={year} years={years}

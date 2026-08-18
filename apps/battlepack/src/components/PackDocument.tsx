@@ -62,13 +62,23 @@ export interface PackHeroProps {
    * to the 3:1 that pre-ratio banners were cropped to.
    */
   bannerAspect?: number | null;
+  /**
+   * The club running this, when a club is. Shown FIRST in the strip, before the
+   * game — whose event it is tells you more than what is being played, and a
+   * club's regulars recognise their own name before anything else.
+   *
+   * Absent for a shop: a venue is already the address in Key Info, and
+   * repeating it in the strip would say the same thing twice.
+   */
+  clubName?: string | null;
+  clubIcon?: string | null;
   /** Free-form line under the title, e.g. "2000 Points". */
   subtitle?: ReactNode;
   menu?: ReactNode;
 }
 
 export const PackHero = ({
-  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, subtitle, menu,
+  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, clubName, clubIcon, subtitle, menu,
 }: PackHeroProps) => {
   const custom = !!bannerImage;
   const image  = bannerImage || gameImage;
@@ -105,8 +115,18 @@ export const PackHero = ({
 
       <h1 className="font-heading text-5xl leading-[56px] text-white text-center">{name}</h1>
 
-      {/* One muted strip: icon + game, then any extra facts separated by dashes. */}
-      <div className="flex items-center justify-center gap-2.5 font-body font-bold text-sm leading-5 text-gray-300 opacity-50">
+      {/* One muted strip: the club if there is one, then icon + game, then any
+          extra facts, each separated by a dash. */}
+      <div className="flex items-center justify-center flex-wrap gap-2.5 font-body font-bold text-sm leading-5 text-gray-300 opacity-50">
+        {clubName && (
+          <>
+            <span className="flex items-center gap-1">
+              {clubIcon && <img src={clubIcon} alt="" className="w-[22px] h-[22px] rounded object-cover" />}
+              {clubName}
+            </span>
+            <span>-</span>
+          </>
+        )}
         <span className="flex items-center gap-1">
           {gameIcon && <img src={gameIcon} alt="" className="w-[22px] h-[22px] rounded object-cover" />}
           {gameName}

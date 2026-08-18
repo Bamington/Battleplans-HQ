@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -12,16 +12,18 @@ import { useOpponents, resolveOpponentIds, setBattleOpponents, type SelectedOppo
 import AppNavbar from '../components/AppNavbar';
 import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
+import { useSelectedVenue } from '../hooks/useSelectedVenue';
 import { BookingItem } from '../components/BookingItem';
 import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
   useGames, useAllGames, useLocations, useTimeslots, useUserBookings, useTableAvailability, useDayHasCapacity,
   useManagedLocations, useUpcomingBookings, useUserProfile, useSuggestedBattles,
-  useRecentBookedGames, useBookingFee, useVenueEvents,
-  formatTimeslotLabel, formatBookingTime,
+  useRecentBookedGames, useBookingFee, useVenueEvents, useLocationHasApp,
+  useIsOrganiser, useMyEvents, useDayBookable,
+  formatTimeslotLabel, formatBookingTime, orgNoun, orgNounTitle,
 } from '../hooks/useBookingData';
-import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent } from '../hooks/useBookingData';
+import type { Location, BattleSuggestion, UpcomingBooking, Booking, VenueEvent, LocationKind } from '../hooks/useBookingData';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -114,11 +116,33 @@ function NewBookingModal({
   const { username, preferredLocationId }        = useUserProfile(userId);
   const { gameIds: recentGameIds }               = useRecentBookedGames(userId, 5);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
-  const { available, loading: availLoading }     = useTableAvailability(locationId || null, date || null, timeslotId || null);
+  const { kinds, available, loading: availLoading } = useTableAvailability(locationId || null, date || null, timeslotId || null);
+
+  // Which kind of table. '' means the venue's tables are unlabelled, which is
+  // stored as NULL — the same thing every booking made before labels existed.
+  const [tableLabel, setTableLabel] = useState('');
+
+  // Default to the first kind with something left, so the form opens on a
+  // choice that can actually be submitted rather than one that cannot.
+  useEffect(() => {
+    if (!kinds || kinds.length === 0) { setTableLabel(''); return; }
+    const stillOffered = kinds.some(k => (k.label ?? '') === tableLabel && k.available > 0);
+    if (stillOffered) return;
+    setTableLabel((kinds.find(k => k.available > 0) ?? kinds[0]).label ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kinds]);
+
+  /** What's left of the kind actually chosen — the number the button obeys. */
+  const chosenKindFree = kinds
+    ? (kinds.find(k => (k.label ?? '') === tableLabel)?.available ?? available ?? 0)
+    : (available ?? 0);
   // Answered as soon as a date is picked, so a closed day is called out before
   // the customer is asked for a time.
   const { hasCapacity: dayHasCapacity, loading: dayLoading } = useDayHasCapacity(locationId || null, date || null);
-  const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null);
+  // Same rule, asked of the calendar for every date it draws rather than of one
+  // date after the fact.
+  const isDayBookable = useDayBookable(locationId || null);
+  const { fee }                                  = useBookingFee(locationId || null, date || null, timeslotId || null, tableLabel || null);
   const { roles: venueRoles }                    = useManagedLocations(userId);
 
   // You can only book for someone else at a venue you actually work at, so the
@@ -217,8 +241,10 @@ function NewBookingModal({
       : found !== null || (searched && identifierIsEmail);
 
   const tablesReady = locationId && date && timeslotId && !availLoading;
+  // Gated on the CHOSEN kind, not the total. With benches free but every
+  // wargaming table taken, the venue has capacity and this booking does not.
   const canSubmit   = name.trim() && locationId && date && timeslotId && tablesReady
-                      && available !== null && available > 0 && customerResolved;
+                      && available !== null && chosenKindFree > 0 && customerResolved;
 
   const resetCustomer = () => {
     setForSomeoneElse(false); setIdentifier(''); setFound(null);
@@ -277,6 +303,9 @@ function NewBookingModal({
       game_id:    gameId || null,
       location_id: locationId,
       timeslot_id: timeslotId,
+      // NULL when the venue's tables are unlabelled, which is what every
+      // booking made before this existed also says.
+      table_label: tableLabel || null,
       date,
       // Always recorded, so "who actually took this booking" is never guesswork.
       created_by_user_id:  userId,
@@ -424,6 +453,10 @@ function NewBookingModal({
             label="Date"
             value={date}
             min={today}
+            // Crosses out days this place never opens — a weekday it doesn't
+            // run, an off week for a fortnightly night, a closure. A full day
+            // stays selectable; the form explains that one properly.
+            isDateBookable={isDayBookable}
             onChange={handleDateChange}
           />
         )}
@@ -457,16 +490,41 @@ function NewBookingModal({
           </Select>
         )}
 
+        {/* Only asked when there is a choice to make. A venue whose tables are
+            all one kind never sees this, and the booking still records that
+            kind so the counts stay comparable. */}
+        {tablesReady && !availLoading && kinds && kinds.length > 1 && (
+          <Select
+            label="Table type"
+            value={tableLabel}
+            onChange={e => setTableLabel(e.target.value)}
+          >
+            {kinds.map(k => (
+              <option key={k.label ?? ''} value={k.label ?? ''} disabled={k.available === 0}>
+                {(k.label ?? 'Any table')} — {k.available === 0 ? 'none left' : `${k.available} free`}
+              </option>
+            ))}
+          </Select>
+        )}
+
         {tablesReady && !availLoading && available !== null && (
-          available > 0 ? (
+          chosenKindFree > 0 ? (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-900/40 border border-green-700">
               <span className="font-body text-sm text-green-300">
-                {available} {available === 1 ? 'table' : 'tables'} available for this time
+                {/* Says which kind once there is more than one, because "3
+                    tables available" against a Table type of Painting bench
+                    reads as three benches when it may be three of anything. */}
+                {chosenKindFree} {chosenKindFree === 1 ? 'table' : 'tables'} available
+                {kinds && kinds.length > 1 && tableLabel ? ` — ${tableLabel}` : ''} for this time
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/40 border border-red-700">
-              <span className="font-body text-sm text-red-300">No tables available at this time</span>
+              <span className="font-body text-sm text-red-300">
+                {kinds && kinds.length > 1 && tableLabel
+                  ? `No ${tableLabel} tables available at this time`
+                  : 'No tables available at this time'}
+              </span>
             </div>
           )
         )}
@@ -1367,12 +1425,14 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen, onTa
   );
 }
 
-function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, isVenueAdmin }: StoreColumnProps & {
+function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, isVenueAdmin, kind }: StoreColumnProps & {
   /**
    * Both footer actions are an owner's tools — venue settings and venue
    * analytics. Staff get the bookings themselves and no footer at all.
    */
   isVenueAdmin: boolean;
+  /** Words the Manage button for a club rather than a shop. */
+  kind?: LocationKind;
 }) {
   const navigate = useNavigate();
 
@@ -1403,7 +1463,7 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, is
       footer={isVenueAdmin ? (
         <div className="flex gap-3 w-full shrink-0">
           <Button variant="outline" color="primary" className="flex-1 justify-center" onClick={() => navigate('/app/manage-store')}>
-            Manage Store
+            Manage {orgNounTitle(kind)}
           </Button>
           <Button variant="outline" color="primary" leftIcon={<ChartIcon />} className="flex-1 justify-center" onClick={() => navigate('/app/store-stats')}>
             Stats
@@ -1447,7 +1507,15 @@ function formatEventHold(hold: VenueEvent['hold']): string {
   return `${hold.tableNames.join(', ')} held`;
 }
 
-function EventItem({ event }: { event: VenueEvent }) {
+function EventItem({ event, venueName }: {
+  event: VenueEvent;
+  /**
+   * Where it runs. Passed only by the organiser's own column, which spans
+   * venues; the venue's column omits it because everything in it is already
+   * at the venue you are looking at.
+   */
+  venueName?: string | null;
+}) {
   const icon = event.game?.slug ? GAME_ICONS[event.game.slug] : undefined;
   const isDraft = event.status !== 'published';
 
@@ -1465,7 +1533,7 @@ function EventItem({ event }: { event: VenueEvent }) {
       <div className="flex flex-col flex-1 min-w-0 justify-center">
         <span className="font-heading text-lg text-white leading-6 line-clamp-2">{event.name}</span>
         <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
-          {event.game?.name ?? 'No game'}
+          {venueName ?? event.game?.name ?? 'No game'}
         </span>
         <span className="font-body text-sm text-neutral-50 leading-5 truncate">
           {formatEventDates(event.starts_on, event.ends_on)}
@@ -1487,17 +1555,68 @@ function EventItem({ event }: { event: VenueEvent }) {
   );
 }
 
-function UpcomingEventsCard({ locationIds, userId }: { locationIds: string[]; userId: string | null }) {
-  const { events, loading } = useVenueEvents(locationIds, userId);
+/**
+ * The events this person is running, wherever they run them.
+ *
+ * A personal column, so it sits with My Bookings and My Battles rather than in
+ * the store view — an organiser is not attached to one venue the way staff are.
+ * Shown to anyone nominated as an organiser anywhere, even before they have
+ * written a single pack: an empty column that explains itself is how somebody
+ * just nominated finds out the feature is theirs.
+ *
+ * Scoped by OWNER, not by venue. The venue's column answers "what is coming to
+ * my room"; this answers "what am I running", which is why every row names its
+ * venue and the venue's column does not.
+ */
+function MyEventsCard({ userId }: { userId: string | null }) {
+  const isOrganiser = useIsOrganiser(userId);
+  // Don't go looking until we know they are one.
+  const { events, loading } = useMyEvents(isOrganiser ? userId : null);
+
+  if (!isOrganiser) return null;
+
+  return (
+    <ScrollColumn
+      icon={<Trophy className="w-12 h-12 text-primary-500" />}
+      title="Your Events"
+      description="BattlePacks you're running."
+      items={events}
+      loading={loading}
+      empty="Nothing yet. Events you create in BattlePack show up here."
+      getKey={e => e.id}
+      renderItem={e => <EventItem event={e} venueName={e.venueName} />}
+    />
+  );
+}
+
+/**
+ * Shown only at venues BattlePack has been switched on for.
+ *
+ * The same `location_apps` row decides this and whether the venue's admins get
+ * BattlePack in their switcher, so the two can't disagree — a shop never ends up
+ * with the column but no app, or the app but no column.
+ *
+ * The column stays even with nothing in it. A venue that has just been given
+ * BattlePack has no events yet by definition, and an empty column that explains
+ * itself is how they find out the feature is theirs.
+ */
+function UpcomingEventsCard({ locationId, userId, kind }: { locationId: string; userId: string | null; kind?: LocationKind }) {
+  const enabled = useLocationHasApp(locationId, 'battlepack');
+  // Don't go looking for a venue's events until we know it is meant to have any.
+  const { events, loading } = useVenueEvents(enabled ? [locationId] : [], userId);
+
+  // null while the answer is still unknown, so a venue that does have the app
+  // doesn't watch its column appear a moment after everything else.
+  if (!enabled) return null;
 
   return (
     <ScrollColumn
       icon={<Trophy className="w-12 h-12 text-primary-500" />}
       title="Upcoming Events"
-      description="BattlePacks running at your venue."
+      description={`BattlePacks running at your ${orgNoun(kind)}.`}
       items={events}
       loading={loading}
-      empty="No events coming up."
+      empty="Nothing booked in yet. Events you publish in BattlePack show up here."
       getKey={e => e.id}
       renderItem={e => <EventItem event={e} />}
     />
@@ -1508,11 +1627,12 @@ function UpcomingEventsCard({ locationIds, userId }: { locationIds: string[]; us
  * The store view's two booking columns. One fetch feeds both, so they can't
  * disagree and a change refreshes them together.
  */
-function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId }: {
+function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId, kind }: {
   locations: Location[];
   selectedId: string;
   isVenueAdmin: boolean;
   userId: string | null;
+  kind?: LocationKind;
 }) {
   // selectedId is chosen from the navbar venue picker; '' = all of this user's
   // venues, otherwise a single venue.
@@ -1538,7 +1658,7 @@ function StoreBookingColumns({ locations, selectedId, isVenueAdmin, userId }: {
         {...shared}
         onTakeBooking={canTakeBooking ? () => setTakingBooking(true) : undefined}
       />
-      <UpcomingBookingsCard {...shared} isVenueAdmin={isVenueAdmin} />
+      <UpcomingBookingsCard {...shared} isVenueAdmin={isVenueAdmin} kind={kind} />
 
       {/* Store mode: Details + cancel, no Invite Friends — this booking is a
           customer's, not the admin's to share. */}
@@ -1583,17 +1703,25 @@ export default function HomePage() {
 
   // What the navbar picker is pointed at. '' = "Your Profile" (the personal
   // view); anything else is one of the venues this user is attached to.
-  const [selectedVenueId, setSelectedVenueId] = useState('');
+  // Shared with Manage Store and Store Stats, so a choice here survives the
+  // trip. null means nothing has ever been chosen; '' means Your Profile,
+  // which is a choice worth keeping.
+  const [storedVenueId, selectVenue] = useSelectedVenue();
+  const selectedVenueId = storedVenueId ?? '';
 
-  // Store admins open on their first venue rather than their profile. This runs
-  // once, when the venues first arrive — a ref rather than a `selectedVenueId`
-  // check, so that later choosing "Your Profile" (which sets '') isn't
-  // immediately undone by this effect.
+  // Store admins open on their first venue rather than their profile — but only
+  // when they have never chosen. This runs once, when the venues first arrive;
+  // a ref rather than a `selectedVenueId` check, so that later choosing "Your
+  // Profile" (which sets '') isn't immediately undone by this effect.
   const venueDefaulted = useRef(false);
   useEffect(() => {
     if (venueDefaulted.current || venueLocations.length === 0) return;
     venueDefaulted.current = true;
-    setSelectedVenueId(venueLocations[0].id);
+    // A stored choice wins, including "Your Profile". Only a venue that no
+    // longer exists — or a first-ever visit — falls through to the default.
+    if (storedVenueId !== null && (storedVenueId === '' || venueLocations.some(l => l.id === storedVenueId))) return;
+    selectVenue(venueLocations[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venueLocations]);
 
   // Venue people can switch between their personal view and a single venue.
@@ -1606,6 +1734,9 @@ export default function HomePage() {
     ? venueRoles[selectedVenueId] === 'admin'
     : venueLocations.some(l => venueRoles[l.id] === 'admin');
 
+  // A club and a shop get the same screens; only the standalone words differ.
+  const selectedKind = venueLocations.find(l => l.id === selectedVenueId)?.kind;
+
   return (
     <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
@@ -1617,7 +1748,7 @@ export default function HomePage() {
           <StoreSelector
             locations={venueLocations}
             selectedId={selectedVenueId}
-            onSelect={setSelectedVenueId}
+            onSelect={selectVenue}
             emptyOption
             emptyLabel="Your Profile"
             headerLabel="Viewing"
@@ -1626,17 +1757,21 @@ export default function HomePage() {
       </AppNavbar>
 
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+        <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
           {viewingStore ? (
             <>
-              <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} />
-              {/* Staff as well as admins — see useVenueEvents. `viewingStore`
-                  guarantees a single venue, so the list is never empty. */}
-              <UpcomingEventsCard locationIds={[selectedVenueId]} userId={userId} />
+              <StoreBookingColumns locations={venueLocations} selectedId={selectedVenueId} isVenueAdmin={isVenueAdmin} userId={userId} kind={selectedKind} />
+              {/* Staff as well as admins — see useVenueEvents. Renders nothing
+                  unless this venue has BattlePack switched on. `viewingStore`
+                  guarantees a single venue is selected. */}
+              <UpcomingEventsCard locationId={selectedVenueId} userId={userId} kind={selectedKind} />
             </>
           ) : (
             <>
               <BookingCard userId={userId} />
+              {/* Renders nothing unless this person has been nominated as an
+                  organiser somewhere. */}
+              <MyEventsCard userId={userId} />
               <SuggestedBattlesCard userId={userId} onLogged={() => setBattlesVersion(v => v + 1)} />
               <MyBattlesCard userId={userId} refreshSignal={battlesVersion} />
               {/* Personal, so it belongs with the other personal columns — a

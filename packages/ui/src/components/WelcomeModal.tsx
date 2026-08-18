@@ -451,6 +451,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
         const { data: locs } = await supabase
           .from('locations')
           .select('id, name')
+          .neq('kind', 'space')   // never a home venue — see useLocations
           .order('name');
         if (!cancelled && locs) setLocations(locs as WelcomeLocation[]);
       }

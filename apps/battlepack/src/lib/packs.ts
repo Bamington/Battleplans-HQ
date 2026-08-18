@@ -36,6 +36,8 @@ export interface Pack {
   name: string;
   game_id: string;
   location_id: string | null;
+  /** The club running it, when a club is. Distinct from location_id. */
+  host_location_id: string | null;
   starts_on: string | null;
   ends_on: string | null;
   /** What time the day begins. Anchors every schedule item's clock time. */
@@ -160,6 +162,8 @@ export interface LocationOption {
   name: string;
   address: string | null;
   icon?: string | null;
+  /** venue | club | space — the hero names a club, not a shop. */
+  kind?: string | null;
 }
 
 /**
@@ -174,13 +178,83 @@ export async function listMyLocations(): Promise<LocationOption[]> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return [];
 
-  const { data, error } = await supabase
-    .from('locations')
-    .select('id, name, address, icon')
-    .contains('admins', [auth.user.id])
-    .order('name');
-  if (error) throw error;
-  return (data ?? []) as LocationOption[];
+  // Two ways to be entitled to run an event somewhere, and the picker has to
+  // offer both or a nominated organiser sees an empty list and concludes the
+  // app is broken:
+  //
+  //   - you administer the place, or
+  //   - the place nominated you as an organiser (20260814060000)
+  //
+  // Asked as two queries rather than one. PostgREST cannot express "admins
+  // contains me OR I have a row in another table", and the alternative is a
+  // view that would hide this rule somewhere less obvious than here.
+  const [ownRes, nominatedRes] = await Promise.all([
+    supabase
+      .from('locations')
+      .select('id, name, address, icon, kind')
+      .contains('admins', [auth.user.id])
+      // Spaces are not offered yet. Running a pack at a borrowed room is exactly
+      // what they are for, but that needs the organiser to have BattlePack in the
+      // first place — a separate gate that is still venue-shaped.
+      .neq('kind', 'space'),
+    supabase
+      .from('location_staff')
+      .select('location:locations(id, name, address, icon, kind)')
+      .eq('user_id', auth.user.id)
+      .eq('role', 'organiser'),
+  ]);
+  if (ownRes.error) throw ownRes.error;
+
+  const own = (ownRes.data ?? []) as LocationOption[];
+  const seen = new Set(own.map(l => l.id));
+
+  // An organiser who also administers the place would otherwise appear twice.
+  const nominated = ((nominatedRes.data ?? []) as unknown as { location: LocationOption | null }[])
+    .map(r => r.location)
+    .filter((l): l is LocationOption => !!l && !seen.has(l.id));
+
+  return [...own, ...nominated].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * The clubs this user could name as the host of an event.
+ *
+ * The same two ways in as a venue — you administer it, or it nominated you as
+ * an organiser — narrowed to clubs, because a host is who is RUNNING the event
+ * and a shop running its own event just leaves the field empty.
+ *
+ * Naming a host is not a way into somewhere new: creating a pack still requires
+ * the right to write at the VENUE, so a club cannot put an event into a shop
+ * that has not agreed to it. This only decides whose name goes on it.
+ */
+export async function listMyClubs(): Promise<LocationOption[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+
+  const [ownRes, nominatedRes] = await Promise.all([
+    supabase
+      .from('locations')
+      .select('id, name, address, icon, kind')
+      .contains('admins', [auth.user.id])
+      .eq('kind', 'club'),
+    supabase
+      .from('location_staff')
+      .select('location:locations(id, name, address, icon, kind)')
+      .eq('user_id', auth.user.id)
+      .eq('role', 'organiser'),
+  ]);
+  if (ownRes.error) throw ownRes.error;
+
+  const own = (ownRes.data ?? []) as LocationOption[];
+  const seen = new Set(own.map(l => l.id));
+
+  // The nominated side can't be filtered to clubs in the query — the filter
+  // would apply to location_staff, not the joined row — so it is done here.
+  const nominated = ((nominatedRes.data ?? []) as unknown as { location: LocationOption | null }[])
+    .map(r => r.location)
+    .filter((l): l is LocationOption => !!l && l.kind === 'club' && !seen.has(l.id));
+
+  return [...own, ...nominated].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // ── Packs ────────────────────────────────────────────────────────────────────
@@ -412,6 +486,8 @@ export interface PublicPack {
   pack?: Pack;
   game?: GameOption | null;
   venue?: LocationOption | null;
+  /** The club running it. Name and icon only — a credit line, not a directory entry. */
+  host?: { id: string; name: string; icon: string | null } | null;
   categories?: PackCategoryRow[];
   schedule?: ScheduleItem[];
 }

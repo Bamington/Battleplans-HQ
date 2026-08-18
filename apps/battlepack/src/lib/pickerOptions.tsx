@@ -12,7 +12,7 @@
  * source.
  */
 
-import { GAME_ICONS, MapPin, Widget2 } from '@battleplans/ui';
+import { GAME_ICONS, StoreIcon, Widget2 } from '@battleplans/ui';
 import type { SearchSelectOption } from '@battleplans/ui';
 import type { GameOption, LocationOption } from './packs';
 
@@ -62,10 +62,20 @@ export function gameOptions(games: GameOption[], recentIds: string[] = []): Sear
   }));
 }
 
+/**
+ * Venues, with the venue's OWN icon.
+ *
+ * Every row used to get the same map pin, so a list of shops was a column of
+ * identical markers — the one place artwork actually helps you pick. `StoreIcon`
+ * is the chip BattlePlan's venue switcher uses, and it already handles the three
+ * cases a location can be in: an uploaded image, a plain emoji, or nothing at
+ * all, which falls back to the initial. Reusing it means the two apps show a
+ * venue the same way rather than agreeing by coincidence.
+ */
 export function venueOptions(venues: LocationOption[], recentIds: string[] = []): SearchSelectOption[] {
   return recentFirst(venues, recentIds, v => ({
     value: v.id,
     label: v.name,
-    icon: <IconChip fallback={<MapPin className="w-3.5 h-3.5 text-neutral-400" />} />,
+    icon: <StoreIcon location={{ id: v.id, name: v.name, icon: v.icon ?? '' }} />,
   }));
 }
