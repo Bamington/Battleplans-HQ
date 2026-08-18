@@ -32,7 +32,8 @@ import type { CategoryFormProps } from '../../registry/categories';
 import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import { useVenueHours, startTimeWarning } from '../../hooks/useVenueHours';
-import { bannerUrl, uploadPackBanner, deleteBannerObject } from '../../lib/packs';
+import { bannerUrl, uploadPackBanner, deleteBannerObject, listMyClubs } from '../../lib/packs';
+import type { LocationOption } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
 
 const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) => {
@@ -53,6 +54,16 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
   // Whether this event starts outside the venue's usual bookable hours.
   const venueHours  = useVenueHours(pack.location_id ?? null);
   const startWarning = startTimeWarning(pack.starts_at ?? null, venueHours);
+
+  // The clubs this user could put their name on. Fetched here rather than
+  // threaded through the registry, the same way the venue's hours are — only
+  // this one form asks the question.
+  const [clubs, setClubs] = useState<LocationOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    listMyClubs().then(rows => { if (!cancelled) setClubs(rows); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // The description is markdown from a rich text editor, so it commits on a
   // debounce rather than on blur, exactly as the section categories do.
@@ -197,6 +208,23 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         onChange={e => setFormat(e.target.value)}
         onBlur={commitFormat}
       />
+
+      {/* Only shown when there is a club to choose. Someone who runs no clubs
+          would otherwise get a field whose only answer is None. Sits above
+          Location because it answers the earlier question: whose event is this,
+          before where it happens. */}
+      {clubs.length > 0 && (
+        <SearchSelect
+          label="Host"
+          placeholder="None"
+          searchPlaceholder="Search clubs…"
+          emptyLabel="No clubs match that."
+          helperText="The club running this event. Its name appears under the title."
+          value={pack.host_location_id ?? ''}
+          onChange={id => onChange({ host_location_id: id || null })}
+          options={[{ value: '', label: 'None' }, ...venueOptions(clubs)]}
+        />
+      )}
 
       <SearchSelect
         label="Location"

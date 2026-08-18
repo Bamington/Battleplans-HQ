@@ -41,6 +41,7 @@ import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
+  listMyClubs,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
@@ -159,6 +160,18 @@ export default function PackEditor() {
   const ctx: CategoryContext | null = pack ? { pack, rows, schedule, games, venues } : null;
   const game  = games.find(g => g.id === pack?.game_id) ?? null;
   const venue = venues.find(v => v.id === pack?.location_id) ?? null;
+  // The host may be a club this user administers but which is not in `venues`
+  // (that list is venues you can run events AT), so it is looked up separately.
+  const [host, setHost] = useState<LocationOption | null>(null);
+  useEffect(() => {
+    const id = pack?.host_location_id;
+    if (!id) { setHost(null); return; }
+    let cancelled = false;
+    listMyClubs()
+      .then(clubs => { if (!cancelled) setHost(clubs.find(c => c.id === id) ?? null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [pack?.host_location_id]);
 
   /**
    * Game artwork comes from the shared maps keyed by slug, with the database
@@ -473,10 +486,11 @@ export default function PackEditor() {
                  uploaded one; otherwise the game's banner stands in. */
               bannerImage={bannerUrl(pack.banner_path)}
               bannerAspect={pack.banner_aspect}
-              /* Only a club is named here. A shop is already the address in
-                 Key Info, so repeating it would say the same thing twice. */
-              clubName={venue?.kind === 'club' ? venue.name : null}
-              clubIcon={venue?.kind === 'club' ? venue.icon : null}
+              /* The host the organiser chose, not an inference from the venue.
+                 A club can run an event at a shop, which the venue field alone
+                 could never say. */
+              clubName={host?.name ?? null}
+              clubIcon={host?.icon ?? null}
               /* The format reads as a second fact about the event, so it sits
                  beside the game in the same muted style rather than competing. */
               subtitle={pack.format}

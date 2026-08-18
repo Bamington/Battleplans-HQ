@@ -75,7 +75,7 @@ export default function PublicPack() {
     );
   }
 
-  const { pack, game, venue, categories: rowList = [], schedule = [] } = data;
+  const { pack, game, venue, host, categories: rowList = [], schedule = [] } = data;
   const rows = Object.fromEntries(rowList.map(r => [r.category_key, r]));
   const categories = visibleCategories(pack.game_id, rows);
 
@@ -129,10 +129,10 @@ export default function PublicPack() {
             gameLogo={art.banner}
             bannerImage={bannerUrl(pack.banner_path)}
             bannerAspect={pack.banner_aspect}
-            /* Same rule as the editor: name the club, never the shop. `kind`
-               and `icon` come from battlepack_by_slug — see 20260818010000. */
-            clubName={venue?.kind === 'club' ? venue.name : null}
-            clubIcon={venue?.kind === 'club' ? venue.icon : null}
+            /* The chosen host, straight from battlepack_by_slug — see
+               20260818020000. Null when a venue is running its own event. */
+            clubName={host?.name ?? null}
+            clubIcon={host?.icon ?? null}
             subtitle={pack.format}
           />
 

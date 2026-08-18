@@ -129,7 +129,7 @@ const CategoryListDemo = () => {
  */
 const EventBasicsFormDemo = () => {
   const [pack, setPack] = useState<Pack>({
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -214,7 +214,7 @@ const EventBasicsFormDemo = () => {
  */
 const RoundsBreaksFormDemo = () => {
   const pack: Pack = {
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -382,7 +382,7 @@ const AddCategoryModalDemo = () => {
  */
 const SectionFormDemo = () => {
   const pack: Pack = {
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
@@ -468,7 +468,7 @@ const SectionFormDemo = () => {
 
 /** The stub every list-editor demo below writes against. */
 const DEMO_PACK: Pack = {
-  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
   starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
   status: 'draft', slug: null, banner_path: null, banner_aspect: null,
   timeline: 'one-day', created_at: '', updated_at: '',
@@ -758,7 +758,7 @@ const PublishPanelDemo = () => {
   const TAKEN = ['july-rtt', 'season-6-league'];
 
   const [pack, setPack] = useState<Pack>({
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1', host_location_id: null,
     starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day', created_at: '', updated_at: '',
