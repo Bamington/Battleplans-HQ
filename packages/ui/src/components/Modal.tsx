@@ -14,8 +14,9 @@
  *   </Modal>
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useScrollFocusIntoView } from '../hooks/useScrollFocusIntoView';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,12 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
     };
   }, [open]);
 
+  // The panel is the scrolling box for every form in a modal, so tapping a
+  // field low down should bring it into view rather than leaving the user to
+  // scroll with the keyboard already covering the screen.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useScrollFocusIntoView(panelRef, open);
+
   if (!open) return null;
 
   // Portalled to <body> so the modal escapes any ancestor that would trap it.
@@ -88,6 +95,7 @@ const Modal = ({ open, onClose, children, className = '' }: ModalProps) => {
 
       {/* Panel — full-width up to 90vw on mobile/tablet, caller's width at lg+ */}
       <div
+        ref={panelRef}
         className={[
           'relative z-10 w-full max-w-[90vw]',
           lgMaxW,

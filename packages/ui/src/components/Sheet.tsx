@@ -29,6 +29,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useScrollFocusIntoView } from '../hooks/useScrollFocusIntoView';
 
 export interface SheetProps {
   /** Whether the sheet is visible. */
@@ -94,6 +95,10 @@ const Sheet = ({ open, onClose, children, footer, className = '' }: SheetProps) 
   const scrollRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // Same reason as Modal: on a phone this is the scrolling box, and the
+  // keyboard covers the bottom half of it the moment a field is tapped.
+  useScrollFocusIntoView(scrollRef, open);
 
   // Mount on open; on close slide down first (mobile) then unmount.
   useEffect(() => {

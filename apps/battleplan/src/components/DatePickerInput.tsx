@@ -32,8 +32,22 @@
  * late for that one", and the booking form says the latter properly.
  */
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AltArrowLeft, AltArrowRight } from '@battleplans/ui';
+
+/** Panel geometry in viewport coordinates — the panel is position:fixed. */
+interface PanelPos {
+  left:      number;
+  top:       number;
+  width:     number;
+  maxHeight: number;
+}
+
+const PANEL_W = 304;   // 19rem, the width the grid is designed at
+const PANEL_H = 360;   // header + six rows + weekday labels + the note
+const GAP     = 4;     // breathing room between trigger and panel
+const EDGE    = 8;     // never touch the viewport edge
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -85,7 +99,63 @@ export default function DatePickerInput({ label, value, min, onChange, isDateBoo
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const wrapRef    = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef   = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
+
+  /*
+   * Positioned against the trigger and rendered into <body>, because an
+   * absolutely-positioned panel is clipped by any scrolling ancestor — and this
+   * lives inside a modal, which is exactly that. The calendar was being cut off
+   * at the modal's edge.
+   *
+   * PREFER, THEN CLAMP. Flipping to whichever side has more room is not enough
+   * on its own: a short viewport can have too little space on BOTH sides — 238px
+   * below and 222px above for a 339px calendar — and picking the roomier one
+   * still hangs it off the screen. So the preferred position is only a starting
+   * point, and it is then clamped into the viewport. A calendar overlapping its
+   * own trigger is worth it; one running off the bottom is not.
+   */
+  useLayoutEffect(() => {
+    if (!open) { setPanelPos(null); return; }
+
+    const place = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const r = trigger.getBoundingClientRect();
+
+      const below = window.innerHeight - r.bottom - GAP - EDGE;
+      const above = r.top - GAP - EDGE;
+
+      const width  = Math.min(PANEL_W, window.innerWidth - EDGE * 2);
+      // Shorter than the panel only on a very small screen, where the grid
+      // scrolls inside itself rather than off the edge of the world.
+      const height = Math.min(PANEL_H, window.innerHeight - EDGE * 2);
+
+      // Below unless above genuinely has more room.
+      const preferred = above > below
+        ? r.top - GAP - height
+        : r.bottom + GAP;
+
+      setPanelPos({
+        width,
+        maxHeight: height,
+        // Clamped so a trigger near the right edge doesn't push it off-screen.
+        left: Math.max(EDGE, Math.min(r.left, window.innerWidth - width - EDGE)),
+        top:  Math.max(EDGE, Math.min(preferred, window.innerHeight - height - EDGE)),
+      });
+    };
+
+    place();
+    // `true` so this also fires for scrolls inside the modal body, not just the page.
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open]);
 
   // The month on show. Follows the chosen date when there is one so reopening
   // lands where you left off, rather than always snapping back to today.
@@ -105,7 +175,12 @@ export default function DatePickerInput({ label, value, min, onChange, isDateBoo
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // The panel is in a portal, so it is NOT inside wrapRef any more —
+      // checking only the wrapper would treat every click on a day as an
+      // outside click and shut the calendar before the choice registered.
+      if (wrapRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDown);
@@ -140,6 +215,7 @@ export default function DatePickerInput({ label, value, min, onChange, isDateBoo
 
       <div className="relative w-full">
         <button
+          ref={triggerRef}
           type="button"
           aria-labelledby={`${id}-label`}
           aria-haspopup="dialog"
@@ -153,11 +229,22 @@ export default function DatePickerInput({ label, value, min, onChange, isDateBoo
           }
         </button>
 
-        {open && (
+        {/* Into <body>, so no scrolling ancestor can clip it. z-[70] rather
+            than matching the modal's z-[60]: at equal z-index the winner is
+            whichever is later in the DOM, which is not something to rely on
+            when the modal can re-render underneath. */}
+        {open && panelPos && createPortal(
           <div
+            ref={panelRef}
             role="dialog"
             aria-label="Choose a date"
-            className="absolute z-30 mt-1 w-[19rem] max-w-[calc(100vw-2rem)] rounded-lg border border-neutral-700 bg-neutral-800 p-3 shadow-lg"
+            style={{
+              left:      panelPos.left,
+              top:       panelPos.top,
+              width:     panelPos.width,
+              maxHeight: panelPos.maxHeight,
+            }}
+            className="fixed z-[70] overflow-y-auto rounded-lg border border-neutral-700 bg-neutral-800 p-3 shadow-lg"
           >
             <div className="flex items-center justify-between gap-2 mb-2">
               <button
@@ -223,7 +310,8 @@ export default function DatePickerInput({ label, value, min, onChange, isDateBoo
                 Crossed-out days are ones this place doesn’t open.
               </p>
             )}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
     </div>

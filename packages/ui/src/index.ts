@@ -233,6 +233,7 @@ export {
   isHandleAvailable,
   describeProfileSaveError,
 } from './lib/handles'
+export { useScrollFocusIntoView } from './hooks/useScrollFocusIntoView'
 export { useHandleAvailability } from './hooks/useHandleAvailability'
 export type { HandleStatus, HandleAvailability } from './hooks/useHandleAvailability'
 export {
