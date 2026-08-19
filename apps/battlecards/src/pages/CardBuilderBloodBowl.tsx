@@ -28,6 +28,8 @@ import { ModeToggle, type Mode } from '@battleplans/ui';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
 import CenterViewport from '../components/CenterViewport';
+import DeckPanelMenu from '../components/DeckPanelMenu';
+import ShareDeckSheet from '../components/ShareDeckSheet';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
@@ -226,6 +228,9 @@ const CardBuilderBloodBowl = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const deckId = searchParams.get('deckId');
+
+  // Share sheet — opened from the ⋯ menu in the card-list header.
+  const [shareOpen, setShareOpen] = useState(false);
 
   // ── Play mode toggle ─────────────────────────────────────────────────────────
   const [appMode, setAppMode] = useState<Mode>('edit');
@@ -1418,17 +1423,11 @@ const CardBuilderBloodBowl = () => {
           onCommit={commitDeckName}
           onCancelEdit={() => setEditingDeckName(false)}
           headerAction={
-            <button
-              type="button"
-              onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
-              className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
-              title={editMode ? 'Done editing' : 'Edit deck'}
-            >
-              {editMode
-                ? <CheckCircle className="w-4 h-4 text-green-400" />
-                : <Pen2 className="w-4 h-4" />
-              }
-            </button>
+            <DeckPanelMenu
+              editMode={editMode}
+              onToggleEdit={() => editMode ? handleDoneEditing() : setEditMode(true)}
+              onShare={() => setShareOpen(true)}
+            />
           }
           footer={
             <>
@@ -1735,6 +1734,15 @@ const CardBuilderBloodBowl = () => {
           </div>
         </div>
       </Modal>
+
+      {deckId && (
+        <ShareDeckSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          deckId={deckId}
+          deckName={deckName}
+        />
+      )}
       </>}
     />
   );

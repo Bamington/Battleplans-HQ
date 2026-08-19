@@ -9,6 +9,7 @@
  * - /                              → Auth-aware redirect (→ /login or /app)
  * - /login                         → Pre-login screen (sign in / sign up / Google)
  * - /gallery                       → Component gallery (dev tool — not a user-facing screen)
+ * - /d/:token                      → Read-only view of a deck shared by link (public)
  * - /app                           → App home
  * - /app/admin                      → Admin Tools hub (admin only)
  * - /app/admin/games               → Manage Games (admin only)
@@ -41,6 +42,7 @@ import PrintDeck from './pages/PrintDeck';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
 import PacksPlaceholder from './pages/PacksPlaceholder';
+import SharedDeck from './pages/SharedDeck';
 import PackEditor from './pages/PackEditor';
 import AdminTools from './pages/AdminTools';
 import ManageUsers from './pages/ManageUsers';
@@ -93,6 +95,11 @@ function App() {
 
         {/* ── Component Gallery (dev tool) ── */}
         <Route path="/gallery" element={<ComponentGallery />} />
+
+        {/* ── Shared deck — read-only view of a deck someone sent a link to.
+             Public on purpose: the recipient often won't have an account yet,
+             and only copying the deck requires one. ── */}
+        <Route path="/d/:token" element={<SharedDeck />} />
 
         {/* ── Protected routes — require a signed-in user ─────────────────
              The first guard redirects unauthenticated users to /login; the
