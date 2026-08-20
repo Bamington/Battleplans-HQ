@@ -32,8 +32,6 @@ import { bannerUrl, getPublicPack, rememberCalendarAdd } from '../lib/packs';
 import { packCalendarEvent } from '../lib/calendar';
 import type { PublicPack as PublicPackData } from '../lib/packs';
 
-declare const __APP_VERSION__: string;
-declare const __APP_BUILD_DATE__: string;
 
 /** What an unresolvable slug says, by why it did not resolve. */
 const MISSING_COPY: Record<string, { heading: string; body: string }> = {
@@ -191,7 +189,11 @@ export default function PublicPack() {
         </div>
       </main>
 
-      <AppFooter appName="BattlePack" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+      {/* A version and a build date are for us. This page is read by attendees,
+          to whom they say nothing except that they are looking at somebody's
+          internal tool. A credit line instead — to become a link when BattlePack
+          is something a reader can go and use. */}
+      <AppFooter appName="BattlePack" note="Event page created using BattlePack" />
     </div>
   );
 }

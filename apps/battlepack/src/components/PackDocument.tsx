@@ -413,17 +413,26 @@ export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
             {String(row.ordinal).padStart(2, '0')}
           </span>
 
-          <span className={`flex-1 min-w-0 font-body text-base leading-6 truncate ${style.label}`}>
-            {row.label}
-          </span>
-
-          {row.time && (
-            <span
-              className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] text-right ${style.time}`}
-            >
-              {row.time}
+          {/* THE LABEL AND THE TIME SHARE A COLUMN ON A PHONE. Side by side,
+              the time is fixed-width and the label takes what is left — which
+              at 375px is nothing, so every row read "R…  10:15 AM - 12:15 PM"
+              and the one thing a timetable is for was the part that got cut.
+              Stacked, the label gets the full width and the time sits under it.
+              At sm+ there is room for both, so it goes back to one line with
+              the time pushed right by ml-auto. */}
+          <span className="flex-1 min-w-0 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className={`min-w-0 font-body text-base leading-6 sm:truncate ${style.label}`}>
+              {row.label}
             </span>
-          )}
+
+            {row.time && (
+              <span
+                className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] sm:ml-auto sm:text-right ${style.time}`}
+              >
+                {row.time}
+              </span>
+            )}
+          </span>
         </div>
       );
     })}

@@ -23,15 +23,23 @@
 export interface AppFooterProps {
   /** Product name shown before "version" (e.g. "BattleCards"). */
   appName: string;
-  /** App version string, e.g. "0.16.0". */
-  version: string;
-  /** Build date string, e.g. "06/07/2026". */
-  buildDate: string;
+  /** App version string, e.g. "0.16.0". Unused when `note` is given. */
+  version?: string;
+  /** Build date string, e.g. "06/07/2026". Unused when `note` is given. */
+  buildDate?: string;
+  /**
+   * One line to show INSTEAD of the version and build date.
+   *
+   * For pages with an audience outside the team. BattlePack's public event page
+   * is read by attendees, and a build date tells them nothing while quietly
+   * saying they are looking at somebody's internal tool.
+   */
+  note?: string;
   /** Extra Tailwind classes merged onto the footer element. */
   className?: string;
 }
 
-const AppFooter = ({ appName, version, buildDate, className = '' }: AppFooterProps) => (
+const AppFooter = ({ appName, version, buildDate, note, className = '' }: AppFooterProps) => (
   <footer
     className={[
       'flex flex-col md:flex-row items-center justify-center',
@@ -40,10 +48,14 @@ const AppFooter = ({ appName, version, buildDate, className = '' }: AppFooterPro
       className,
     ].join(' ').trim()}
   >
-    <span>{appName} version {version}</span>
-    {/* Separator only makes sense on the single-line layout. */}
-    <span className="hidden md:inline" aria-hidden="true">–</span>
-    <span>Build date {buildDate}</span>
+    {note ? <span>{note}</span> : (
+      <>
+        <span>{appName} version {version}</span>
+        {/* Separator only makes sense on the single-line layout. */}
+        <span className="hidden md:inline" aria-hidden="true">–</span>
+        <span>Build date {buildDate}</span>
+      </>
+    )}
   </footer>
 );
 

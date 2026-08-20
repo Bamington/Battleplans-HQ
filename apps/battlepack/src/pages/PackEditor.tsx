@@ -41,10 +41,10 @@ import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
-  listMyClubs,
+  listMyClubs, calendarAudienceSize, pendingNotifyCount,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
-import { categoryBody, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
+import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
 // Still needed here, by hasContent() rather than by the document rendering.
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
@@ -72,6 +72,47 @@ const DRAWER_MQ = '(max-width: 1023px)';
 const panelsAreDrawers = () =>
   typeof window !== 'undefined' && window.matchMedia(DRAWER_MQ).matches;
 
+/**
+ * The columns whose change emails everyone holding a calendar entry.
+ *
+ * Kept next to the trigger's own list in 20260820010000 — that migration
+ * decides who is written to, and this decides who is warned first. If a fourth
+ * date column is ever added, both have to learn about it, and a warning that
+ * has not kept up is worse than none: it teaches an organiser that saving a
+ * date is safe right up until the time it is not.
+ */
+const NOTIFYING_FIELDS = ['starts_on', 'ends_on', 'starts_at'];
+
+/** "1 person" / "4 people" — the sentence reads badly with a bare count. */
+const people = (n: number) => (n === 1 ? '1 person' : `${n} people`);
+
+/** A change that would email people, held until the organiser confirms it. */
+interface PendingNotify {
+  kind: 'moved' | 'withdrawn';
+  count: number;
+  /** What the event's date becomes. Shown for a move; absent otherwise. */
+  becomes?: string;
+  run: () => Promise<void>;
+}
+
+/**
+ * The date line as it WOULD read, given a patch that has not been written.
+ *
+ * The confirmation is the only place this is visible. The date field is
+ * controlled by `pack`, which is deliberately not updated until the organiser
+ * confirms — so React restores the input to the old value the moment the modal
+ * goes up, and a dialog that did not name the new date would be asking "are you
+ * sure?" about something no longer on screen.
+ */
+const whenAfter = (pack: Pack, patch: Record<string, unknown>): string => {
+  const next   = { ...pack, ...patch } as Pack;
+  const starts = formatDate(next.starts_on);
+  const ends   = next.ends_on && next.ends_on !== next.starts_on ? formatDate(next.ends_on) : null;
+  const time   = next.starts_at ? formatTime(next.starts_at) : null;
+  return [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null]
+    .filter(Boolean).join(' ') || 'no date';
+};
+
 export default function PackEditor() {
   const { packId = '' } = useParams();
   const navigate = useNavigate();
@@ -96,6 +137,11 @@ export default function PackEditor() {
   // bins appear. Destructive controls should be asked for, not always present.
   const [editingList, setEditingList] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [pendingNotify, setPendingNotify] = useState<PendingNotify | null>(null);
+  // Separate from the modal's own state: the write runs while the modal is
+  // still up, so the button can say it is working rather than the dialog
+  // vanishing into a pause.
+  const [notifying, setNotifying] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -241,6 +287,40 @@ export default function PackEditor() {
       if (fresh) setPack(fresh);
     }
   }, [packId]);
+
+  /**
+   * The same write, with a stop in front of it when it would email people.
+   *
+   * A published pack's date is not just data once somebody has saved the event:
+   * changing it writes to every one of them (20260820010000). That consequence
+   * is invisible from the form — an organiser nudging a start time by fifteen
+   * minutes has no way of knowing they just wrote to forty people — so it is
+   * made visible before the write rather than reported after it.
+   *
+   * The count is fetched HERE, at the moment of the change, rather than held in
+   * state: the number in the sentence is the number of people about to be
+   * emailed, and one read from ten minutes ago is not that.
+   *
+   * Nothing is written until confirm, which is what makes cancelling free: the
+   * date fields render straight from `pack`, so an unconfirmed pick snaps back
+   * on the next render with nothing to undo.
+   */
+  const savePackFieldsChecked = useCallback(async (patch: Record<string, unknown>) => {
+    const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
+    if (!movesTheEvent || pack?.status !== 'published') return savePackFields(patch);
+
+    const count = await calendarAudienceSize(packId);
+    // Nobody saved it, so nobody is told, so there is nothing to warn about.
+    // Also the answer when the count itself failed — see calendarAudienceSize.
+    if (count === 0) return savePackFields(patch);
+
+    setPendingNotify({
+      kind: 'moved',
+      count,
+      becomes: pack ? whenAfter(pack, patch) : undefined,
+      run: () => savePackFields(patch),
+    });
+  }, [pack, packId, savePackFields]);
 
   async function renamePack(next: string) {
     const name = next.trim();
@@ -582,14 +662,33 @@ export default function PackEditor() {
               venueName={venue?.name}
               outstanding={outstanding}
               onSelectCategory={selectCategory}
-              onPublish={async slug => { await publishPack(pack, slug); await reload(); }}
-              onUnpublish={async () => { await unpublishPack(pack.id); await reload(); }}
+              /* The narrow one. A first publish tells nobody — nobody can have
+                 saved a pack that has never been public. A RE-publish can, if
+                 the date moved while it was down, so the count asked for here
+                 is "who is stale" rather than "who saved it": warning about
+                 forty emails before something that sends none is how a warning
+                 stops being read. */
+              onPublish={async slug => {
+                const publish = async () => { await publishPack(pack, slug); await reload(); };
+                const count = await pendingNotifyCount(pack.id);
+                if (count === 0) return publish();
+                setPendingNotify({ kind: 'moved', count, run: publish });
+              }}
+              /* Same stop as a date change, and a heavier one: taking the event
+                 down writes to EVERYONE who saved it, not just the people whose
+                 date has drifted. */
+              onUnpublish={async () => {
+                const withdraw = async () => { await unpublishPack(pack.id); await reload(); };
+                const count = await calendarAudienceSize(pack.id);
+                if (count === 0) return withdraw();
+                setPendingNotify({ kind: 'withdrawn', count, run: withdraw });
+              }}
             />
           ) : activeDefinition && ctx ? (
             <activeDefinition.Form
               {...ctx}
               categoryKey={activeDefinition.key}
-              onChange={savePackFields}
+              onChange={savePackFieldsChecked}
               reload={reload}
             />
           ) : (
@@ -622,6 +721,81 @@ export default function PackEditor() {
               </Button>
               <Button variant="outline" color="secondary" onClick={() => setConfirmRemove(null)}>
                 Keep it
+              </Button>
+            </ButtonPair>
+          </div>
+        </Modal>
+
+        {/* The one modal that is not about this pack's contents but about the
+            people reading it. Deliberately states the NUMBER: "attendees will
+            be notified" is a warning an organiser learns to click through,
+            and "12 people" is one they read. */}
+        <Modal
+          open={pendingNotify !== null}
+          onClose={() => (notifying ? undefined : setPendingNotify(null))}
+          className="max-w-sm"
+        >
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">
+              {pendingNotify?.kind === 'withdrawn'
+                ? `Tell ${people(pendingNotify.count)} it is off?`
+                : `Tell ${people(pendingNotify?.count ?? 0)} the date has changed?`}
+            </h2>
+
+            <p className="font-body text-sm text-gray-300">
+              {pendingNotify?.kind === 'withdrawn'
+                ? `${people(pendingNotify.count)} added this event to their own calendar.
+                   Taking it down emails them to say it is not going ahead.`
+                : `${people(pendingNotify?.count ?? 0)} added this event to their own calendar,
+                   and the date in there is the one you are about to change. Saving
+                   emails them the new date and a link to re-add it.`}
+            </p>
+
+            {/* What they are actually confirming. The date field is controlled
+                by `pack`, which is not written until they say yes, so the input
+                behind this dialog has already snapped back to the old value —
+                without this line the question is about a date no longer on
+                screen. */}
+            {pendingNotify?.becomes && (
+              <div className="rounded-lg bg-gray-900 px-4 py-3">
+                <p className="font-body text-xs uppercase tracking-wide text-gray-500 font-bold">
+                  New date
+                </p>
+                <p className="font-body font-medium text-base leading-6 text-gray-50">
+                  {pendingNotify.becomes}
+                </p>
+              </div>
+            )}
+
+            {/* Said plainly because organisers assume otherwise: we can write to
+                somebody, we cannot reach into their diary. */}
+            <p className="font-body text-sm text-gray-400">
+              Their calendar entry does not change by itself — the email is all we
+              can do.
+            </p>
+
+            <ButtonPair>
+              <Button
+                color={pendingNotify?.kind === 'withdrawn' ? 'danger' : 'primary'}
+                disabled={notifying}
+                onClick={async () => {
+                  const job = pendingNotify;
+                  if (!job) return;
+                  setNotifying(true);
+                  try { await job.run(); } finally { setNotifying(false); setPendingNotify(null); }
+                }}
+              >
+                {notifying
+                  ? 'Saving…'
+                  : pendingNotify?.kind === 'withdrawn' ? 'Take it down and tell them' : 'Save and tell them'}
+              </Button>
+              <Button
+                variant="outline"
+                color="secondary"
+                disabled={notifying}
+                onClick={() => setPendingNotify(null)}
+              >
+                Cancel
               </Button>
             </ButtonPair>
           </div>
