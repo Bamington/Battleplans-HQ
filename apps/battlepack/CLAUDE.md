@@ -36,8 +36,23 @@ What is already decided and should be kept to:
   is shared with this app's own routes, so every path added to `App.tsx` is
   permanently reserved against slugs. Currently reserved: `app`, `login`,
   `auth`, `gallery`. Adding another silently makes that word unusable as a slug
-  — add it to the database trigger's reserved list too, or an organiser can
-  claim a URL that will never resolve.
+  — **the list now lives in THREE places and all three have to agree**:
+  `App.tsx`, the database trigger's reserved list, and the rewrite in
+  [vercel.json](vercel.json) that sends slugs to the social-preview function.
+  Miss the last one and that route is served the preview function instead of
+  the app.
+- **The social preview is server-rendered by [api/og.ts](api/og.ts).** No
+  crawler runs JavaScript, so for a SPA the tags have to be in the HTML on
+  arrival — `vercel.json` rewrites `/<slug>` to an edge function that looks the
+  pack up, injects the tags into the real `index.html`, and returns it. The app
+  boots exactly as before. Every failure path returns the untouched shell: a
+  page without a rich preview is a disappointment, one that 500s is an outage.
+  The card is `BattlePack: <event> by <club or creator>`, the About section as
+  plain text, and the pack's banner — falling back to the game's artwork
+  through `game-art.json`, which the build emits because the artwork is bundled
+  under content hashes and all 116 rows in `games` have a null `icon` and
+  `image`. See [game-art-manifest.ts](../../tools/vite/game-art-manifest.ts);
+  it also stops Vite inlining game art, since a data URI is no use to a crawler.
 - **Anonymous readers go through `battlepack_by_slug`, never the tables.** The
   battlepack tables have no grants for `anon` and should not get any; the
   SECURITY DEFINER function is the single way in and only ever returns
