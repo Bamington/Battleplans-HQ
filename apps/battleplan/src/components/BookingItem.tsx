@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase, Button, Modal, Dropdown, DropdownItem, TrashBinMinimalistic, ArrowRight } from '@battleplans/ui';
+import { supabase, Button, Modal, Dropdown, DropdownItem, Badge, TrashBinMinimalistic, ArrowRight } from '@battleplans/ui';
 
 const MenuDotsIcon = () => (
   <svg className="w-4 h-4 text-neutral-400" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -22,7 +22,7 @@ const MenuDotsIcon = () => (
  */
 export type BookingItemVariant = 'user' | 'store';
 
-export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted, onClick }: {
+export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, tableLabel, customerName, variant = 'user', onDeleted, onClick }: {
   bookingId: string;
   gameIcon?: string;
   gameName: string;
@@ -30,6 +30,12 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
   location: string;
   date: string;
   time: string;
+  /**
+   * Which kind of table, e.g. "Wargaming". Omitted or null renders nothing —
+   * a null table_label means "any", which is every booking at a venue with
+   * only one kind of table, so a badge there would be noise.
+   */
+  tableLabel?: string | null;
   customerName?: string;
   variant?: BookingItemVariant;
   onDeleted?: () => void;
@@ -74,7 +80,17 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
             {variant === 'store' ? gameName : location}
           </span>
           <span className="font-body text-sm text-neutral-50 leading-5 truncate">{date}</span>
-          <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>
+          {/* The time never shrinks; a long free-text label truncates instead.
+              Labels are whatever the venue typed — "Wargaming - Seated" already
+              exists — and a clipped time would be worse than a clipped label. */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-body text-sm text-neutral-50 leading-5 shrink-0 whitespace-nowrap">{time}</span>
+            {tableLabel && (
+              <Badge color="gray" size="sm" className="min-w-0 overflow-hidden">
+                <span className="truncate">{tableLabel}</span>
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* 3-dot menu — top-aligned; stops propagation so it doesn't open the card. */}

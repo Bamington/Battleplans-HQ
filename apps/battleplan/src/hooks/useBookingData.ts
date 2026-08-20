@@ -62,6 +62,8 @@ export interface Booking {
   user_id:            string | null;
   /** Who took the booking. Differs from user_id when a venue booked for someone. */
   created_by_user_id: string | null;
+  /** Which kind of table, matching store_tables.label. Null means any. */
+  table_label: string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
@@ -77,6 +79,7 @@ interface RawBookingRow {
   created_by_user_id:   string | null;
   location_id:          string | null;
   timeslot_id:          string | null;
+  table_label:          string | null;
   location_name:        string | null;
   timeslot_name:        string | null;
   timeslot_start_time:  string | null;
@@ -89,7 +92,7 @@ interface RawBookingRow {
 // Columns to select for a displayable booking: the snapshot columns first, then
 // the live joins as a fallback for rows that predate the snapshot.
 const BOOKING_SELECT = `
-  id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id,
+  id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id, table_label,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
   game:game_catalogue(id, name, slug),
   location:locations(id, name, address),
@@ -106,6 +109,7 @@ function mapBookingRow(r: RawBookingRow): Booking {
     user_name: r.user_name,
     user_id:            r.user_id ?? null,
     created_by_user_id: r.created_by_user_id ?? null,
+    table_label:        r.table_label ?? null,
     game:      r.game ?? null,
     location: {
       id:      r.location?.id ?? r.location_id ?? '',
@@ -904,6 +908,8 @@ export interface UpcomingBooking {
   user_name: string | null;
   user_id:            string | null;
   created_by_user_id: string | null;
+  /** Which kind of table, matching store_tables.label. Null means any. */
+  table_label: string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
@@ -2038,6 +2044,9 @@ export function useSuggestedBattles(userId: string | null) {
         // date and game, never who booked it.
         user_id:            null,
         created_by_user_id: null,
+        // Not carried by the share view, and unused here — this shape only
+        // feeds the battle-logging nudge, which reads date and game.
+        table_label: null,
         game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
         location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
         timeslot: { id: '', name: '', start_time: '', end_time: '' },

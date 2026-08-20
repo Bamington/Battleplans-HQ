@@ -1370,6 +1370,7 @@ function renderBookingRow(row: BookingRow, onDeleted: () => void, onOpen: (b: Up
       location={b.location.name}
       date={formatBookingDate(b.date)}
       time={formatBookingTime(b.timeslot)}
+      tableLabel={b.table_label}
       customerName={b.user_name ?? undefined}
       variant="store"
       onDeleted={onDeleted}

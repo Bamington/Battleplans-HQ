@@ -173,6 +173,7 @@ const DEMO_BOOKING: Booking = {
   // Harrison". Set created_by_user_id to a DIFFERENT id to see the counter
   // variant, "Booked by {staff} on behalf of Chris Harrison".
   created_by_user_id: 'u-1',
+  table_label: 'Wargaming',
   game:     { id: 'g-1', name: 'Blood Bowl', slug: 'blood-bowl' },
   location: { id: 'loc-1', name: 'Battleground North', address: '12 Guild Street, Sheffield' },
   timeslot: { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00' },
@@ -456,6 +457,7 @@ const ComponentGallery = () => {
               location="Battleground South"
               date="2026-08-02"
               time="18:00 – 22:00"
+              tableLabel="Wargaming"
               customerName="Chris Harrison"
               variant="store"
               onClick={() => alert('Open booking')}
@@ -465,7 +467,10 @@ const ComponentGallery = () => {
         <GalleryNote>
           <code>customerName</code> is free text a customer typed at booking time —
           it is not an identity, and the store variant is the only place it
-          surfaces. Deleting calls Supabase and then fires{' '}
+          surfaces. <code>tableLabel</code> is the kind of table booked; a null
+          means "any", which is every booking at a venue with one kind of table,
+          so the chip is absent rather than defaulted (the user row above).
+          Deleting calls Supabase and then fires{' '}
           <code>onDeleted</code>; it will fail here.
         </GalleryNote>
       </GallerySection>
