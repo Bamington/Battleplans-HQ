@@ -99,6 +99,21 @@ export default function PublicPack() {
   const event = packCalendarEvent(data, window.location.origin);
   const canonicalSlug = data.display_slug ?? pack.slug ?? '';
 
+  /**
+   * The last row of the Key Info card.
+   *
+   * Recording the add is silent and best-effort: a signed-out reader writes
+   * nothing, and a failed write costs one change email rather than the button.
+   * Hence no await, no state, no error path.
+   */
+  const calendarRow = event && (
+    <AddToCalendar
+      event={event}
+      variant="row"
+      onAdd={() => { void rememberCalendarAdd(canonicalSlug); }}
+    />
+  );
+
   /** One tab's sections, paired exactly as the editor pairs them. */
   const sectionsFor = (tabId: string) =>
     groupIntoRows(categories.filter(c => c.tab === tabId)).map(group => {
@@ -118,7 +133,14 @@ export default function PublicPack() {
             <div className="flex-1 min-w-0">{sections}</div>
             <div className="flex-1 min-w-0">
               <DocumentSection categoryKey="key-info" title="Key Info">
-                {info.length > 0 && <KeyInfoCard rows={info} />}
+                {/* `|| calendarRow` so the card is not dropped when the only
+                    thing in it is the button. It cannot happen today — an
+                    event needs a start date and a start date is a Key Info row
+                    — but "render the container if it has contents" should not
+                    depend on that staying true. */}
+                {(info.length > 0 || calendarRow) && (
+                  <KeyInfoCard rows={info} footer={calendarRow} />
+                )}
               </DocumentSection>
             </div>
           </DocumentRow>
@@ -144,12 +166,6 @@ export default function PublicPack() {
             clubName={host?.name ?? null}
             clubIcon={host?.icon ?? null}
             subtitle={pack.format}
-            /* Recording the add is silent and best-effort: a signed-out reader
-               writes nothing, and a failed write costs one change email rather
-               than the button. Hence no await, no state, no error path. */
-            actions={event && (
-              <AddToCalendar event={event} onAdd={() => { void rememberCalendarAdd(canonicalSlug); }} />
-            )}
           />
 
           <div className="px-5 pt-5 pb-5">

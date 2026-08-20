@@ -42,8 +42,13 @@ What is already decided and should be kept to:
   have to change together.
 
 A reader can put a published event in their own calendar, and doing so is
-recorded. Three things about that are decided:
+recorded. Four things about that are decided:
 
+- **The button is the last row of the Key Info card**, not a control in the
+  hero. `KeyInfoCard` takes a `footer` slot for it; the editor passes nothing,
+  because saving your own draft to your own diary is not a thing anybody does.
+  The consequence is that it lives wherever About/Key Info lives — so it is on
+  one tab, not on all of them.
 - **Three destinations, one event.** [calendar.ts](src/lib/calendar.ts) shapes
   the event once; Google and Outlook take it as a URL, everyone else takes the
   .ics. Times are FLOATING — no `Z`, no TZID — because a pack stores 10am at

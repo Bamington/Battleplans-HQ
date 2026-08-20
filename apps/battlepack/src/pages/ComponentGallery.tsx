@@ -78,6 +78,7 @@ import type {
   GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem,
 } from '../lib/packs';
 import { icsForEvent, packCalendarEvent } from '../lib/calendar';
+import { keyInfoRows } from '../components/packBody';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -869,25 +870,51 @@ const AddToCalendarDemo = () => {
     },
   ];
 
+  // The public page's placement: the last row of the Key Info card. Shown
+  // against real fact rows because the whole point of the row variant is that
+  // it lands flush with them, which a demo of the row on its own would not
+  // show.
+  const inCard = CASES[0];
+  const inCardEvent = packCalendarEvent(inCard.data, 'https://battlepack.app');
+
   return (
-    <div className="w-full flex flex-col gap-6">
-      {CASES.map(({ label, note, data }) => {
-        const event = packCalendarEvent(data, 'https://battlepack.app');
-        return (
-          <div key={label} className="w-full flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
-            <div className="lg:w-72 shrink-0 flex flex-col gap-2">
-              <p className="font-body font-bold text-sm leading-5 text-gray-50">{label}</p>
-              <p className="font-body text-sm leading-5 text-gray-400">{note}</p>
-              {/* No onAdd: the gallery is not a pack page and there is nothing
-                  to record. The real page passes rememberCalendarAdd. */}
-              {event && <AddToCalendar event={event} className="self-start" />}
+    <div className="w-full flex flex-col gap-8">
+      <div className="w-full max-w-sm flex flex-col gap-2">
+        <p className="font-body font-bold text-sm leading-5 text-gray-50">In the Key Info card (the public page)</p>
+        <p className="font-body text-sm leading-5 text-gray-400">
+          Same geometry as a fact row; the accent label and the hover are what
+          say it can be pressed.
+        </p>
+        {inCardEvent && (
+          <KeyInfoCard
+            rows={keyInfoRows(inCard.data.pack!, inCard.data.venue)}
+            /* No onAdd: the gallery is not a pack page and there is nothing to
+               record. The real page passes rememberCalendarAdd. */
+            footer={<AddToCalendar event={inCardEvent} variant="row" />}
+          />
+        )}
+      </div>
+
+      <div className="w-full flex flex-col gap-6">
+        <p className="font-body font-bold text-sm leading-5 text-gray-50">
+          Standalone button, and the file each event shape produces
+        </p>
+        {CASES.map(({ label, note, data }) => {
+          const event = packCalendarEvent(data, 'https://battlepack.app');
+          return (
+            <div key={label} className="w-full flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
+              <div className="lg:w-72 shrink-0 flex flex-col gap-2">
+                <p className="font-body font-bold text-sm leading-5 text-gray-50">{label}</p>
+                <p className="font-body text-sm leading-5 text-gray-400">{note}</p>
+                {event && <AddToCalendar event={event} className="self-start" />}
+              </div>
+              <pre className="flex-1 min-w-0 font-mono text-xs leading-5 text-gray-400 bg-gray-900 rounded-lg p-3 overflow-x-auto whitespace-pre">
+                {event ? icsForEvent(event) : '(no date — the button is not rendered)'}
+              </pre>
             </div>
-            <pre className="flex-1 min-w-0 font-mono text-xs leading-5 text-gray-400 bg-gray-900 rounded-lg p-3 overflow-x-auto whitespace-pre">
-              {event ? icsForEvent(event) : '(no date — the button is not rendered)'}
-            </pre>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -39,7 +39,16 @@ export interface AddToCalendarProps {
    * value is ignored and the sheet closes regardless.
    */
   onAdd?: () => void;
-  /** Extra classes on the trigger button. */
+  /**
+   * What opens the sheet.
+   *
+   * `row` is the one the public page uses: the last row of the Key Info card,
+   * flush with the facts above it. `button` is a standalone outline button,
+   * which is what the gallery demonstrates and what any other placement would
+   * want.
+   */
+  variant?: 'button' | 'row';
+  /** Extra classes on the trigger. */
   className?: string;
 }
 
@@ -76,7 +85,7 @@ const Destination = ({ icon, label, hint, trailing, onClick }: {
   </button>
 );
 
-const AddToCalendar = ({ event, onAdd, className = '' }: AddToCalendarProps) => {
+const AddToCalendar = ({ event, onAdd, variant = 'button', className = '' }: AddToCalendarProps) => {
   const [open, setOpen] = useState(false);
 
   /**
@@ -98,15 +107,35 @@ const AddToCalendar = ({ event, onAdd, className = '' }: AddToCalendarProps) => 
 
   return (
     <>
-      <Button
-        color="primary"
-        variant="outline"
-        leftIcon={<Calendar className="w-4 h-4" />}
-        onClick={() => setOpen(true)}
-        className={className}
-      >
-        Add to Calendar
-      </Button>
+      {variant === 'row' ? (
+        /* Deliberately the same geometry as a KeyInfoCard fact row — gap-2, a
+           w-4 icon, px-4 py-3 — so it lands flush in the card rather than
+           sitting in it. What separates it from the facts is the ACCENT LABEL:
+           every row above states something about the event in gray-50, and the
+           one row you can press says so by being the colour every other action
+           in this app is. A hover state on a card whose other rows have none is
+           the second half of that. */
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`w-full flex items-center gap-2 bg-gray-900 hover:bg-gray-800 transition-colors px-4 py-3 text-left ${className}`}
+        >
+          <span className="shrink-0 text-primary-500"><Calendar className="w-4 h-4" /></span>
+          <span className="flex-1 min-w-0 font-body font-medium text-base leading-6 text-primary-500">
+            Add to Calendar
+          </span>
+        </button>
+      ) : (
+        <Button
+          color="primary"
+          variant="outline"
+          leftIcon={<Calendar className="w-4 h-4" />}
+          onClick={() => setOpen(true)}
+          className={className}
+        >
+          Add to Calendar
+        </Button>
+      )}
 
       <Sheet open={open} onClose={() => setOpen(false)} className="max-w-md">
         <div className="px-5 pt-5 pb-4 shrink-0">

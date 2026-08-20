@@ -74,20 +74,11 @@ export interface PackHeroProps {
   clubIcon?: string | null;
   /** Free-form line under the title, e.g. "2000 Points". */
   subtitle?: ReactNode;
-  /**
-   * What a reader can DO with this event, under the title — currently just
-   * "Add to Calendar" on the public page.
-   *
-   * A slot rather than a prop per action, and empty in the editor: the organiser
-   * is looking at their own draft, and saving your own event to your own diary
-   * from the editing screen is not a thing anybody does.
-   */
-  actions?: ReactNode;
   menu?: ReactNode;
 }
 
 export const PackHero = ({
-  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, clubName, clubIcon, subtitle, actions, menu,
+  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, clubName, clubIcon, subtitle, menu,
 }: PackHeroProps) => {
   const custom = !!bannerImage;
   const image  = bannerImage || gameImage;
@@ -142,11 +133,6 @@ export const PackHero = ({
         </span>
         {subtitle && <><span>-</span><span>{subtitle}</span></>}
       </div>
-
-      {/* mt-3 rather than the column's gap-1: the strip above is metadata about
-          the event and this is something to press, so it wants clear air
-          between the two rather than looking like another line of the caption. */}
-      {actions && <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
     </div>
   </header>
   );
@@ -300,8 +286,14 @@ export interface KeyInfoRow {
  *
  * Flush gray-900 rows in a rounded, clipped container — no gaps and no card
  * border, so the block reads as one table rather than a stack of cards.
+ *
+ * `footer` is one more row, and it exists for things that are not facts: the
+ * public page ends the card with "Add to Calendar". It is a slot rather than
+ * another KeyInfoRow because those are read-backs of the pack and this is
+ * something to press — the caller owns what it does, and the editor passes
+ * nothing.
  */
-export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
+export const KeyInfoCard = ({ rows, footer }: { rows: KeyInfoRow[]; footer?: ReactNode }) => (
   <div className="w-full flex flex-col rounded-xl overflow-hidden">
     {rows.map((row, i) => (
       <div key={i} className="w-full flex items-center gap-2 bg-gray-900 px-4 py-3">
@@ -311,6 +303,7 @@ export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
         </p>
       </div>
     ))}
+    {footer}
   </div>
 );
 
