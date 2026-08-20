@@ -58,6 +58,20 @@ import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } 
  */
 const PUBLISH_KEY = '__publish__';
 
+/**
+ * Below this, BuilderShell's two asides are drawers rather than columns.
+ *
+ * Kept in sync with the shell's own `lg:` breakpoint by hand — it expresses the
+ * split in Tailwind variants, which cannot be read back from JS. This is
+ * BattlePack's rule and not the shell's: BattleCards keeps its list open while
+ * you pick through cards, whereas a pack category and its form are one thing,
+ * and on a phone showing the list instead of the form means every edit costs
+ * two taps.
+ */
+const DRAWER_MQ = '(max-width: 1023px)';
+const panelsAreDrawers = () =>
+  typeof window !== 'undefined' && window.matchMedia(DRAWER_MQ).matches;
+
 export default function PackEditor() {
   const { packId = '' } = useParams();
   const navigate = useNavigate();
@@ -187,6 +201,13 @@ export default function PackEditor() {
    * The one place selection changes. Switching tab before scrolling matters:
    * the target section is not in the DOM until its tab is showing, so the
    * scroll has to wait a frame for React to commit the tab change.
+   *
+   * ON A PHONE, SELECTING IS ALSO NAVIGATING. The list closes and the form for
+   * what was picked opens in its place — picking a category is a statement of
+   * what you want to edit, and leaving the list up means a second tap on "Edit"
+   * before anything can be typed. At lg+ both panels are always-visible columns
+   * and these flags are ignored by the shell, so the swap is only ever made
+   * when it means something.
    */
   const selectCategory = useCallback((key: string) => {
     const definition = CATEGORY_BY_KEY[key];
@@ -194,7 +215,7 @@ export default function PackEditor() {
 
     setActiveKey(key);
     setActiveTab(definition.tab);
-    setLeftOpen(false);          // below lg the nav is a sheet over the document
+    if (panelsAreDrawers()) { setLeftOpen(false); setRightOpen(true); }
 
     requestAnimationFrame(() => {
       document.getElementById(sectionId(key))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -335,6 +356,11 @@ export default function PackEditor() {
             categoryKey={c.key}
             title={c.documentLabel ?? c.label}
             active={c.key === activeKey}
+            /* Tapping the pack is the other way into a category, and the one
+               that needs no aim: you point at the thing you can see is wrong.
+               It runs through selectCategory like the nav does, so on a phone
+               it brings the form up with it. */
+            onSelect={() => selectCategory(c.key)}
           >
             {bodyFor(c)}
           </DocumentSection>
@@ -350,7 +376,15 @@ export default function PackEditor() {
           <DocumentRow key="about+key-info">
             <div className="flex-1 min-w-0">{sections}</div>
             <div className="flex-1 min-w-0">
-              <DocumentSection categoryKey="key-info" title="Key Info">
+              {/* Key Info has no form of its own — every fact in it is typed
+                  into Event Basics, which is where its own empty hint sends
+                  you. So tapping it opens that, rather than being the one
+                  section on the page that does nothing when tapped. */}
+              <DocumentSection
+                categoryKey="key-info"
+                title="Key Info"
+                onSelect={() => selectCategory('event-basics')}
+              >
                 {info.length
                   ? <KeyInfoCard rows={info} />
                   : <EmptySection hint="Set the venue, dates and format in Event Basics." />}
@@ -466,13 +500,20 @@ export default function PackEditor() {
             label="Publish"
             complete={pack.status === 'published'}
             active={activeKey === PUBLISH_KEY}
-            onSelect={() => { setActiveKey(PUBLISH_KEY); setLeftOpen(false); }}
+            /* Same swap as a category — Publish is a row in this list, and a
+               row that closed the list without showing you anything would be
+               the odd one out. Not selectCategory, because it has no registry
+               entry, no tab and no section to scroll to. */
+            onSelect={() => {
+              setActiveKey(PUBLISH_KEY);
+              if (panelsAreDrawers()) { setLeftOpen(false); setRightOpen(true); }
+            }}
           />
         </ListPanel>
       }
 
       center={
-        <main className="flex-1 min-w-0 overflow-y-auto lg:order-2 p-4">
+        <main className="flex-1 min-w-0 overflow-y-auto lg:order-2 p-2 lg:p-4">
           <div className="mx-auto w-full max-w-4xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
             <PackHero
               name={pack.name}

@@ -26,8 +26,10 @@ import { useParams } from 'react-router-dom';
 import { AppFooter, GAME_BANNERS, GAME_ICONS, Notebook, Tabs } from '@battleplans/ui';
 import { PackHero, DocumentSection, DocumentRow, KeyInfoCard, sectionId } from '../components/PackDocument';
 import { categoryBody, groupIntoRows, keyInfoRows } from '../components/packBody';
+import AddToCalendar from '../components/AddToCalendar';
 import { CATEGORY_TABS, visibleCategories } from '../registry/categories';
-import { bannerUrl, getPublicPack } from '../lib/packs';
+import { bannerUrl, getPublicPack, rememberCalendarAdd } from '../lib/packs';
+import { packCalendarEvent } from '../lib/calendar';
 import type { PublicPack as PublicPackData } from '../lib/packs';
 
 declare const __APP_VERSION__: string;
@@ -89,6 +91,29 @@ export default function PublicPack() {
   const tabs = CATEGORY_TABS.filter(t => categories.some(c => c.tab === t.id));
   const info = keyInfoRows(pack, venue);
 
+  // Null when the pack has no date yet — publishable, and nothing a calendar
+  // can hold. The button is dropped rather than shown adding an event to today.
+  // window.location.origin, so a preview's link points at the preview and
+  // production's at production; the pack page is what stays right when the
+  // calendar copy does not.
+  const event = packCalendarEvent(data, window.location.origin);
+  const canonicalSlug = data.display_slug ?? pack.slug ?? '';
+
+  /**
+   * The last row of the Key Info card.
+   *
+   * Recording the add is silent and best-effort: a signed-out reader writes
+   * nothing, and a failed write costs one change email rather than the button.
+   * Hence no await, no state, no error path.
+   */
+  const calendarRow = event && (
+    <AddToCalendar
+      event={event}
+      variant="row"
+      onAdd={() => { void rememberCalendarAdd(canonicalSlug); }}
+    />
+  );
+
   /** One tab's sections, paired exactly as the editor pairs them. */
   const sectionsFor = (tabId: string) =>
     groupIntoRows(categories.filter(c => c.tab === tabId)).map(group => {
@@ -108,7 +133,14 @@ export default function PublicPack() {
             <div className="flex-1 min-w-0">{sections}</div>
             <div className="flex-1 min-w-0">
               <DocumentSection categoryKey="key-info" title="Key Info">
-                {info.length > 0 && <KeyInfoCard rows={info} />}
+                {/* `|| calendarRow` so the card is not dropped when the only
+                    thing in it is the button. It cannot happen today — an
+                    event needs a start date and a start date is a Key Info row
+                    — but "render the container if it has contents" should not
+                    depend on that staying true. */}
+                {(info.length > 0 || calendarRow) && (
+                  <KeyInfoCard rows={info} footer={calendarRow} />
+                )}
               </DocumentSection>
             </div>
           </DocumentRow>
@@ -119,7 +151,7 @@ export default function PublicPack() {
 
   return (
     <div className="min-h-dvh bg-gray-950 flex flex-col">
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-2 lg:p-4">
         <div className="mx-auto w-full max-w-4xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
           <PackHero
             name={pack.name}

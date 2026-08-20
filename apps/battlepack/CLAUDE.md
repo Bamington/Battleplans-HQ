@@ -20,6 +20,16 @@ What is already decided and should be kept to:
   creation.
 - **The editor lives at `/app/<packId>/edit`** — keyed by row id, so it is
   stable, works for drafts with no slug, and survives the slug being set.
+- **On a phone, selecting is navigating — and that is BattlePack's rule, not
+  the shell's.** Below `lg` (`panelsAreDrawers()` in
+  [PackEditor.tsx](src/pages/PackEditor.tsx)) picking a category closes the list
+  and opens its form, because a category and its form are one thing and leaving
+  the list up costs a second tap before anything can be typed. BattleCards
+  deliberately does NOT do this — you pick through cards with the list up — so
+  it lives in `selectCategory`, never in `BuilderShell`. Tapping a section of
+  the document is the same door: `DocumentSection` takes an `onSelect` the
+  editor passes and the public page does not, and it stands down for clicks on
+  links, buttons and finished text selections so the document stays readable.
 - **A published pack's public page lives at the root — `battlepack.app/<slug>`.**
   Built: [PublicPack.tsx](src/pages/PublicPack.tsx) on a catch-all `/:slug`
   route, declared LAST in `App.tsx` so the specific routes win. That namespace
@@ -40,6 +50,34 @@ What is already decided and should be kept to:
   HQ's [index.css](../hq/src/index.css) under `[data-app='battlepack']` — there
   is no way to import an `@theme` block into a scoped selector, so both copies
   have to change together.
+
+A reader can put a published event in their own calendar, and doing so is
+recorded. Four things about that are decided:
+
+- **The button is the last row of the Key Info card**, not a control in the
+  hero. `KeyInfoCard` takes a `footer` slot for it; the editor passes nothing,
+  because saving your own draft to your own diary is not a thing anybody does.
+  The consequence is that it lives wherever About/Key Info lives — so it is on
+  one tab, not on all of them.
+- **Three destinations, one event.** [calendar.ts](src/lib/calendar.ts) shapes
+  the event once; Google and Outlook take it as a URL, everyone else takes the
+  .ics. Times are FLOATING — no `Z`, no TZID — because a pack stores 10am at
+  the venue, not an instant, and we have no venue timezone to convert with.
+  The length of the day comes from the schedule item durations when there are
+  any, and three hours when there are not.
+- **The add is recorded silently, through `battlepack_remember_calendar_add`.**
+  It takes the slug and resolves the pack itself, the same narrow door
+  `battlepack_by_slug` is, so a caller cannot record against a draft or a pack
+  id it guessed. `battlepack_calendar_adds` has no INSERT policy at all — the
+  SECURITY DEFINER function is the only way a row is written. Nothing in the UI
+  mentions it and nothing reads it back.
+- **The snapshot is the point.** The row keeps the date and time AS THEY WERE
+  when the add happened, so "this person's calendar disagrees with the pack" is
+  a comparison rather than a guess.
+
+**Nothing sends those messages yet.** The table is the list of people to tell
+when an organiser moves a date or unpublishes; the job that reads it and the
+email it sends are not built. See `20260820000000`.
 
 The slug is wired through the platform: `battlepack` in `AppSlug`
 ([currentApp.ts](../../packages/ui/src/lib/currentApp.ts)) and `UpdateApp`

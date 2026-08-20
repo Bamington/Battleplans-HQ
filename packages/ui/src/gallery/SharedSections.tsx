@@ -105,6 +105,7 @@ import CloseCircle from '../icons/CloseCircle';
 import DangerCircle from '../icons/DangerCircle';
 import Diskette from '../icons/Diskette';
 import DownloadMinimalistic from '../icons/DownloadMinimalistic';
+import ExternalLink from '../icons/ExternalLink';
 import Eye from '../icons/Eye';
 import EyeClosed from '../icons/EyeClosed';
 import FileText from '../icons/FileText';
@@ -154,6 +155,7 @@ import CloseCircleBold from '../icons/bold/CloseCircle';
 import DangerCircleBold from '../icons/bold/DangerCircle';
 import DisketteBold from '../icons/bold/Diskette';
 import DownloadMinimalisticBold from '../icons/bold/DownloadMinimalistic';
+import ExternalLinkBold from '../icons/bold/ExternalLink';
 import EyeBold from '../icons/bold/Eye';
 import EyeClosedBold from '../icons/bold/EyeClosed';
 import FileTextBold from '../icons/bold/FileText';
@@ -1247,6 +1249,7 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
           { name: 'UploadMinimalistic',     outline: <UploadMinimalistic />,     solid: <UploadMinimalisticBold /> },
           { name: 'Diskette',               outline: <Diskette />,               solid: <DisketteBold /> },
           { name: 'Share',                  outline: <Share />,                  solid: <ShareBold /> },
+          { name: 'ExternalLink',           outline: <ExternalLink />,           solid: <ExternalLinkBold /> },
           { name: 'Filter',                 outline: <Filter />,                 solid: <FilterBold /> },
           { name: 'MenuDots',               outline: <MenuDots />,               solid: <MenuDotsBold /> },
           { name: 'Eye',                    outline: <Eye />,                    solid: <EyeBold /> },

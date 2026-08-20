@@ -242,12 +242,33 @@ export interface DocumentSectionProps {
   title: string;
   /** Highlights the section the left nav currently has selected. */
   active?: boolean;
+  /**
+   * Editing this section, when the reader is allowed to. The editor passes it;
+   * the public page does not, which is what keeps an attendee's copy inert.
+   */
+  onSelect?: () => void;
   children?: ReactNode;
 }
 
-export const DocumentSection = ({ categoryKey, title, active, children }: DocumentSectionProps) => (
+/**
+ * Should this click select the section, or was it meant for something inside it?
+ *
+ * A section is not a button — it holds links, link previews and FAQ toggles,
+ * and swallowing their clicks would break the document to make it selectable.
+ * So the handler stands down for anything that is itself interactive, and for a
+ * click that finished a text selection, which is how somebody copies a round
+ * time out of the page.
+ */
+const isPlainSectionClick = (target: EventTarget | null) => {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('a, button, input, textarea, select, summary, [role="button"]')) return false;
+  return !window.getSelection()?.toString();
+};
+
+export const DocumentSection = ({ categoryKey, title, active, onSelect, children }: DocumentSectionProps) => (
   <section
     id={sectionId(categoryKey)}
+    onClick={onSelect ? e => { if (isPlainSectionClick(e.target)) onSelect(); } : undefined}
     /* scroll-mt keeps the heading clear of the chrome when the nav scrolls to
        it, rather than jamming it against the top edge.
 
@@ -257,7 +278,7 @@ export const DocumentSection = ({ categoryKey, title, active, children }: Docume
        inactive, so selecting a section cannot shift the layout by 2px. */
     className={`scroll-mt-6 rounded-lg transition-colors -mx-2 px-2 py-1 border border-dashed ${
       active ? 'border-primary-500' : 'border-transparent'
-    }`}
+    } ${onSelect ? 'cursor-pointer' : ''}`}
   >
     {/* Tanker 24/32 in gray-300, sentence case — not the uppercase treatment
         the left nav and panel headers use. mb-1 is the 4px the headings were
@@ -286,8 +307,14 @@ export interface KeyInfoRow {
  *
  * Flush gray-900 rows in a rounded, clipped container — no gaps and no card
  * border, so the block reads as one table rather than a stack of cards.
+ *
+ * `footer` is one more row, and it exists for things that are not facts: the
+ * public page ends the card with "Add to Calendar". It is a slot rather than
+ * another KeyInfoRow because those are read-backs of the pack and this is
+ * something to press — the caller owns what it does, and the editor passes
+ * nothing.
  */
-export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
+export const KeyInfoCard = ({ rows, footer }: { rows: KeyInfoRow[]; footer?: ReactNode }) => (
   <div className="w-full flex flex-col rounded-xl overflow-hidden">
     {rows.map((row, i) => (
       <div key={i} className="w-full flex items-center gap-2 bg-gray-900 px-4 py-3">
@@ -297,6 +324,7 @@ export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
         </p>
       </div>
     ))}
+    {footer}
   </div>
 );
 
