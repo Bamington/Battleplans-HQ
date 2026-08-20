@@ -26,8 +26,10 @@ import { useParams } from 'react-router-dom';
 import { AppFooter, GAME_BANNERS, GAME_ICONS, Notebook, Tabs } from '@battleplans/ui';
 import { PackHero, DocumentSection, DocumentRow, KeyInfoCard, sectionId } from '../components/PackDocument';
 import { categoryBody, groupIntoRows, keyInfoRows } from '../components/packBody';
+import AddToCalendar from '../components/AddToCalendar';
 import { CATEGORY_TABS, visibleCategories } from '../registry/categories';
-import { bannerUrl, getPublicPack } from '../lib/packs';
+import { bannerUrl, getPublicPack, rememberCalendarAdd } from '../lib/packs';
+import { packCalendarEvent } from '../lib/calendar';
 import type { PublicPack as PublicPackData } from '../lib/packs';
 
 declare const __APP_VERSION__: string;
@@ -89,6 +91,14 @@ export default function PublicPack() {
   const tabs = CATEGORY_TABS.filter(t => categories.some(c => c.tab === t.id));
   const info = keyInfoRows(pack, venue);
 
+  // Null when the pack has no date yet — publishable, and nothing a calendar
+  // can hold. The button is dropped rather than shown adding an event to today.
+  // window.location.origin, so a preview's link points at the preview and
+  // production's at production; the pack page is what stays right when the
+  // calendar copy does not.
+  const event = packCalendarEvent(data, window.location.origin);
+  const canonicalSlug = data.display_slug ?? pack.slug ?? '';
+
   /** One tab's sections, paired exactly as the editor pairs them. */
   const sectionsFor = (tabId: string) =>
     groupIntoRows(categories.filter(c => c.tab === tabId)).map(group => {
@@ -134,6 +144,12 @@ export default function PublicPack() {
             clubName={host?.name ?? null}
             clubIcon={host?.icon ?? null}
             subtitle={pack.format}
+            /* Recording the add is silent and best-effort: a signed-out reader
+               writes nothing, and a failed write costs one change email rather
+               than the button. Hence no await, no state, no error path. */
+            actions={event && (
+              <AddToCalendar event={event} onAdd={() => { void rememberCalendarAdd(canonicalSlug); }} />
+            )}
           />
 
           <div className="px-5 pt-5 pb-5">

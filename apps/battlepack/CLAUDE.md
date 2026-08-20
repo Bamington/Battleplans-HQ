@@ -41,6 +41,29 @@ What is already decided and should be kept to:
   is no way to import an `@theme` block into a scoped selector, so both copies
   have to change together.
 
+A reader can put a published event in their own calendar, and doing so is
+recorded. Three things about that are decided:
+
+- **Three destinations, one event.** [calendar.ts](src/lib/calendar.ts) shapes
+  the event once; Google and Outlook take it as a URL, everyone else takes the
+  .ics. Times are FLOATING — no `Z`, no TZID — because a pack stores 10am at
+  the venue, not an instant, and we have no venue timezone to convert with.
+  The length of the day comes from the schedule item durations when there are
+  any, and three hours when there are not.
+- **The add is recorded silently, through `battlepack_remember_calendar_add`.**
+  It takes the slug and resolves the pack itself, the same narrow door
+  `battlepack_by_slug` is, so a caller cannot record against a draft or a pack
+  id it guessed. `battlepack_calendar_adds` has no INSERT policy at all — the
+  SECURITY DEFINER function is the only way a row is written. Nothing in the UI
+  mentions it and nothing reads it back.
+- **The snapshot is the point.** The row keeps the date and time AS THEY WERE
+  when the add happened, so "this person's calendar disagrees with the pack" is
+  a comparison rather than a guess.
+
+**Nothing sends those messages yet.** The table is the list of people to tell
+when an organiser moves a date or unpublishes; the job that reads it and the
+email it sends are not built. See `20260820000000`.
+
 The slug is wired through the platform: `battlepack` in `AppSlug`
 ([currentApp.ts](../../packages/ui/src/lib/currentApp.ts)) and `UpdateApp`
 ([useUpdates.ts](../../packages/ui/src/hooks/useUpdates.ts)), the bundle id

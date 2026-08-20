@@ -59,6 +59,7 @@ import AddCategoryModal from '../components/AddCategoryModal';
 import PublishPanel from '../components/PublishPanel';
 import LinkPreview from '../components/LinkPreview';
 import CategoryListItem from '../components/CategoryListItem';
+import AddToCalendar from '../components/AddToCalendar';
 import BattlepackListItem from '../components/BattlepackListItem';
 import {
   PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, ScheduleTable,
@@ -74,8 +75,9 @@ import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
 import { timeSchedule } from '../lib/packs';
 import type {
-  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem,
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem,
 } from '../lib/packs';
+import { icsForEvent, packCalendarEvent } from '../lib/calendar';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -96,6 +98,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-titled-list-form',    label: 'Prizes / Resources',   icon: <Star className="w-5 h-5" /> },
   { href: '#nav-link-preview',        label: 'Link Preview',         icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
+  { href: '#nav-add-to-calendar',     label: 'Add to Calendar',      icon: <Calendar className="w-5 h-5" /> },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -820,6 +823,76 @@ const PublishPanelDemo = () => {
 };
 
 /**
+ * The three shapes an event can take, each with the file it produces.
+ *
+ * Side by side for the same reason the list-editor demos are: the control is
+ * three rows and a new tab, and everything that can actually be wrong about it
+ * is in the output. A one-day pack with a timetable takes its length from the
+ * rounds; one without falls back to three hours; a pack with no start time is a
+ * day in the diary and must emit `DTSTART;VALUE=DATE` rather than a midnight
+ * appointment.
+ */
+const AddToCalendarDemo = () => {
+  const basePack: Pack = {
+    id: 'demo-pack', name: 'July RTT', game_id: 'g1', location_id: 'v1', host_location_id: null,
+    starts_on: '2026-07-11', ends_on: null, starts_at: '10:00:00',
+    format: '2000 Points, Matched Play', description: null, owner_id: 'u1',
+    status: 'published', slug: 'july-rtt', banner_path: null, banner_aspect: null,
+    timeline: 'one-day', created_at: '', updated_at: '',
+  };
+  const venue: LocationOption = { id: 'v1', name: 'The Gaming Arena', address: '12 Dice Lane, Leeds' };
+  const schedule: ScheduleItem[] = [
+    { id: 's1', pack_id: 'demo-pack', ordinal: 1, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's2', pack_id: 'demo-pack', ordinal: 1, kind: 'break', label: 'Lunch', duration_minutes: 45 },
+    { id: 's3', pack_id: 'demo-pack', ordinal: 2, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's4', pack_id: 'demo-pack', ordinal: 3, kind: 'round', label: null, duration_minutes: 150 },
+  ];
+
+  const CASES: { label: string; note: string; data: PublicPack }[] = [
+    {
+      label: 'Timed, with a timetable',
+      note: '10:00 for 8h 15m — the rounds and the lunch break added up.',
+      data: { state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule },
+    },
+    {
+      label: 'Timed, no timetable yet',
+      note: 'Falls back to three hours rather than guessing a whole day.',
+      data: { state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule: [] },
+    },
+    {
+      label: 'No start time',
+      note: 'An all-day entry. DTEND is the day after — every format treats it as exclusive.',
+      data: {
+        state: 'published', display_slug: 'summer-league', venue, schedule: [],
+        pack: { ...basePack, name: 'Summer League', starts_at: null, ends_on: '2026-08-30', slug: 'summer-league' },
+      },
+    },
+  ];
+
+  return (
+    <div className="w-full flex flex-col gap-6">
+      {CASES.map(({ label, note, data }) => {
+        const event = packCalendarEvent(data, 'https://battlepack.app');
+        return (
+          <div key={label} className="w-full flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
+            <div className="lg:w-72 shrink-0 flex flex-col gap-2">
+              <p className="font-body font-bold text-sm leading-5 text-gray-50">{label}</p>
+              <p className="font-body text-sm leading-5 text-gray-400">{note}</p>
+              {/* No onAdd: the gallery is not a pack page and there is nothing
+                  to record. The real page passes rememberCalendarAdd. */}
+              {event && <AddToCalendar event={event} className="self-start" />}
+            </div>
+            <pre className="flex-1 min-w-0 font-mono text-xs leading-5 text-gray-400 bg-gray-900 rounded-lg p-3 overflow-x-auto whitespace-pre">
+              {event ? icsForEvent(event) : '(no date — the button is not rendered)'}
+            </pre>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/**
  * Two paired sections whose balance can be changed on the spot, so the rule
  * that abandons the pair is watchable rather than described.
  */
@@ -1108,6 +1181,21 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-publish-panel" title="Publish Panel">
         <PublishPanelDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-add-to-calendar" title="Add to Calendar">
+        <GalleryNote>
+          The button under a published pack's title, and the sheet of
+          destinations behind it. Google and Outlook take the event as a URL and
+          open in a new tab; everyone else gets the .ics, which is the only
+          thing Apple Calendar, desktop Outlook and Android will take. The file
+          each case produces is printed beside the button, because the shape of
+          the event is the part that goes wrong: an all-day pack must emit bare
+          dates rather than a midnight appointment, an end date is EXCLUSIVE in
+          every one of these formats, and no time anywhere carries a zone — a
+          pack stores 10am at the venue, not an instant.
+        </GalleryNote>
+        <AddToCalendarDemo />
       </GallerySection>
 
     </GalleryShell>

@@ -514,6 +514,33 @@ export async function getPublicPack(slug: string): Promise<PublicPack> {
   }
 }
 
+/**
+ * Record that the signed-in reader has added this event to their calendar.
+ *
+ * SILENT, AND ONE-WAY. Nothing shows the attendee that this happened and
+ * nothing reads it back to them; the row exists so that if the organiser moves
+ * the date or takes the pack down, there is somebody to tell. Their calendar
+ * entry is a copy we cannot reach, and a copy nobody corrects is worse than no
+ * copy at all.
+ *
+ * Sends the SLUG and nothing else. `battlepack_remember_calendar_add` resolves
+ * the pack itself and snapshots its date, so the client neither chooses which
+ * pack is recorded nor what is recorded against it — the same narrow door
+ * `battlepack_by_slug` uses, for the same reason.
+ *
+ * Never throws, and its result is ignored by every caller. It runs after a
+ * button whose actual job — handing the user an event — has already succeeded,
+ * and a signed-out reader is the ordinary case rather than a failure. Losing a
+ * row means one person misses a change email; raising here would break the
+ * button for everyone.
+ */
+export async function rememberCalendarAdd(slug: string): Promise<void> {
+  if (!slug?.trim()) return;
+  try {
+    await supabase.rpc('battlepack_remember_calendar_add', { lookup: slug.trim() });
+  } catch { /* bookkeeping, not the feature */ }
+}
+
 // ── Link previews ────────────────────────────────────────────────────────────
 
 export interface LinkPreviewData {

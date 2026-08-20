@@ -74,11 +74,20 @@ export interface PackHeroProps {
   clubIcon?: string | null;
   /** Free-form line under the title, e.g. "2000 Points". */
   subtitle?: ReactNode;
+  /**
+   * What a reader can DO with this event, under the title — currently just
+   * "Add to Calendar" on the public page.
+   *
+   * A slot rather than a prop per action, and empty in the editor: the organiser
+   * is looking at their own draft, and saving your own event to your own diary
+   * from the editing screen is not a thing anybody does.
+   */
+  actions?: ReactNode;
   menu?: ReactNode;
 }
 
 export const PackHero = ({
-  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, clubName, clubIcon, subtitle, menu,
+  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, clubName, clubIcon, subtitle, actions, menu,
 }: PackHeroProps) => {
   const custom = !!bannerImage;
   const image  = bannerImage || gameImage;
@@ -133,6 +142,11 @@ export const PackHero = ({
         </span>
         {subtitle && <><span>-</span><span>{subtitle}</span></>}
       </div>
+
+      {/* mt-3 rather than the column's gap-1: the strip above is metadata about
+          the event and this is something to press, so it wants clear air
+          between the two rather than looking like another line of the caption. */}
+      {actions && <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
     </div>
   </header>
   );
