@@ -144,6 +144,14 @@ export default function PublicPack() {
           </DocumentRow>
         );
       }
+      // A lone section needs no row wrapper, and putting one round it is what
+      // made the schedule half a page wide: DocumentRow is `md:flex-row`, and
+      // a single child with no flex-1 shrinks to its own content instead of
+      // filling the width. The editor has always done this; the public page
+      // never did, which is exactly the drift these two files share code to
+      // avoid.
+      if (group.length === 1) return <div key={group[0].key}>{sections}</div>;
+
       return <DocumentRow key={group.map(c => c.key).join('+')}>{sections}</DocumentRow>;
     });
 
