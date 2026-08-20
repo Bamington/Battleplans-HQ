@@ -541,6 +541,52 @@ export async function rememberCalendarAdd(slug: string): Promise<void> {
   } catch { /* bookkeeping, not the feature */ }
 }
 
+/**
+ * How many people have this pack in their calendar.
+ *
+ * A COUNT, NEVER THE PEOPLE. It exists so the editor can say "this will email
+ * 12 people" before an organiser changes a date — a confirmation that cannot
+ * name a number is a vague warning, and a vague warning gets clicked through.
+ * Who saved an event stays private; see 20260820020000.
+ */
+export async function calendarAudienceSize(packId: string): Promise<number> {
+  return countViaRpc('battlepack_calendar_audience_size', packId);
+}
+
+/**
+ * How many people would be emailed if the pack were published as it stands.
+ *
+ * The narrower question, for the narrower door. Changing a date makes every
+ * held date wrong, so the audience size is the right number to warn with there.
+ * Publishing is different: a pack that was withdrawn, edited and put back only
+ * writes to the people whose date actually moved, which may be none of them —
+ * and warning "this emails 40 people" before something that emails nobody is
+ * how a warning stops being read.
+ */
+export async function pendingNotifyCount(packId: string): Promise<number> {
+  return countViaRpc('battlepack_pending_notify_count', packId);
+}
+
+/**
+ * Both counts, with the same failure rule.
+ *
+ * Zero on any failure — the same answer as "nobody yet", and deliberately so.
+ * A failed count must not put a modal in front of an organiser claiming emails
+ * will go out when we do not know that they will; the cost of the other
+ * direction is a warning that did not appear, which is the cost of not having
+ * built this at all.
+ */
+async function countViaRpc(fn: string, packId: string): Promise<number> {
+  if (!packId) return 0;
+  try {
+    const { data, error } = await supabase.rpc(fn, { pack: packId });
+    if (error) return 0;
+    return typeof data === 'number' ? data : 0;
+  } catch {
+    return 0;
+  }
+}
+
 // ── Link previews ────────────────────────────────────────────────────────────
 
 export interface LinkPreviewData {

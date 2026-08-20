@@ -75,9 +75,28 @@ recorded. Four things about that are decided:
   when the add happened, so "this person's calendar disagrees with the pack" is
   a comparison rather than a guess.
 
-**Nothing sends those messages yet.** The table is the list of people to tell
-when an organiser moves a date or unpublishes; the job that reads it and the
-email it sends are not built. See `20260820000000`.
+Those messages are sent by `send-pack-change-notification`, off two triggers on
+`battlepacks` (`20260820010000`). Three rules hold it together:
+
+- **The database decides who.** The trigger says only WHICH PACK CHANGED and the
+  function calls back — `battlepack_stale_calendar_adds` for a move,
+  `battlepack_calendar_audience` for a withdrawal. Rebuilding "is this the same
+  date" in TypeScript would be one rule in two languages.
+- **Deletion is the exception**, because the pack row is gone and the adds
+  cascade with it. That is a BEFORE DELETE trigger which puts the recipients in
+  the payload.
+- **`notified_signature` is suppression, not a claim about anyone's diary.** The
+  snapshot columns still mean "the date they added"; being told a date moved is
+  not the same as having fixed your calendar.
+
+**Every path that sends mail asks first**, and the confirmation names a number —
+`battlepack_calendar_audience_size` for a date change or a withdrawal,
+`battlepack_pending_notify_count` before a re-publish, where the answer may be
+nobody. Both are counts and there is deliberately no sibling that returns the
+people. A path that sends without asking is the bug to watch for: if a fourth
+date column is ever added, `NOTIFYING_FIELDS` in
+[PackEditor.tsx](src/pages/PackEditor.tsx) and the trigger's own column list
+both have to learn about it.
 
 The slug is wired through the platform: `battlepack` in `AppSlug`
 ([currentApp.ts](../../packages/ui/src/lib/currentApp.ts)) and `UpdateApp`

@@ -23,7 +23,7 @@ import {
 import AppNavbar from '../components/AppNavbar';
 import BattlepackListItem from '../components/BattlepackListItem';
 import NewPackModal from '../components/NewPackModal';
-import { deletePack, listPacks } from '../lib/packs';
+import { calendarAudienceSize, deletePack, listPacks } from '../lib/packs';
 import type { PackSummary } from '../lib/packs';
 
 declare const __APP_VERSION__: string;
@@ -54,6 +54,27 @@ export default function HomePage() {
   // destroy — "Delete this pack?" is exactly the prompt people click through.
   const [pendingDelete, setPendingDelete] = useState<PackSummary | null>(null);
   const [deleting,      setDeleting]      = useState(false);
+
+  /**
+   * How many people have the pack being deleted in their calendar.
+   *
+   * Deleting emails all of them (20260820010000), and that is the least
+   * reversible thing in this app — so the dialog says the number before the
+   * button is pressed rather than after. Fetched when the dialog opens rather
+   * than for every row in the list: it is one question about one pack, asked at
+   * the moment it matters.
+   *
+   * Starts at 0 on each open, so a slow answer shows the dialog without the
+   * sentence rather than with a stale count from the last pack.
+   */
+  const [deleteAudience, setDeleteAudience] = useState(0);
+  useEffect(() => {
+    setDeleteAudience(0);
+    if (!pendingDelete) return;
+    let cancelled = false;
+    calendarAudienceSize(pendingDelete.id).then(n => { if (!cancelled) setDeleteAudience(n); });
+    return () => { cancelled = true; };
+  }, [pendingDelete]);
 
   // Store-admin status lives in locations.admins rather than on the profile, so
   // it has to be looked up against the signed-in user.
@@ -254,6 +275,18 @@ export default function HomePage() {
             <p className="font-body text-sm text-gray-300">
               It is published, so its public link will stop working. That address
               is retired for good and cannot be given to another pack.
+            </p>
+          )}
+          {/* Only when there is somebody. A warning about emails that are not
+              going to be sent teaches an organiser to ignore the ones that are. */}
+          {deleteAudience > 0 && (
+            <p className="font-body text-sm text-gray-300">
+              <strong className="text-white">
+                {deleteAudience === 1 ? '1 person has' : `${deleteAudience} people have`}
+              </strong>{' '}
+              this event in their calendar. Deleting emails{' '}
+              {deleteAudience === 1 ? 'them' : 'all of them'} to say it is not going
+              ahead — their calendar entry stays until they remove it themselves.
             </p>
           )}
           <ButtonPair>
