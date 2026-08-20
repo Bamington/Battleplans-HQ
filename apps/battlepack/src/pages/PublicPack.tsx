@@ -151,7 +151,7 @@ export default function PublicPack() {
 
   return (
     <div className="min-h-dvh bg-gray-950 flex flex-col">
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-2 lg:p-4">
         <div className="mx-auto w-full max-w-4xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
           <PackHero
             name={pack.name}

@@ -20,6 +20,16 @@ What is already decided and should be kept to:
   creation.
 - **The editor lives at `/app/<packId>/edit`** — keyed by row id, so it is
   stable, works for drafts with no slug, and survives the slug being set.
+- **On a phone, selecting is navigating — and that is BattlePack's rule, not
+  the shell's.** Below `lg` (`panelsAreDrawers()` in
+  [PackEditor.tsx](src/pages/PackEditor.tsx)) picking a category closes the list
+  and opens its form, because a category and its form are one thing and leaving
+  the list up costs a second tap before anything can be typed. BattleCards
+  deliberately does NOT do this — you pick through cards with the list up — so
+  it lives in `selectCategory`, never in `BuilderShell`. Tapping a section of
+  the document is the same door: `DocumentSection` takes an `onSelect` the
+  editor passes and the public page does not, and it stands down for clicks on
+  links, buttons and finished text selections so the document stays readable.
 - **A published pack's public page lives at the root — `battlepack.app/<slug>`.**
   Built: [PublicPack.tsx](src/pages/PublicPack.tsx) on a catch-all `/:slug`
   route, declared LAST in `App.tsx` so the specific routes win. That namespace
