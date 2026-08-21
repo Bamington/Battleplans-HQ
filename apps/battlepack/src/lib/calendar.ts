@@ -17,18 +17,7 @@
  * the components come back out as wall-clock digits.
  */
 
-import type { PublicPack, ScheduleItem } from './packs';
-
-/**
- * How long an event is assumed to last when its schedule is empty.
- *
- * Most packs have rounds and breaks, and their durations add up to the real
- * length of the day — that is preferred whenever it exists. This is only the
- * floor for a pack published before the timetable was filled in. Three hours
- * blocks out a recognisable evening or morning without swallowing the whole
- * day, which a nine-hour guess would.
- */
-const DEFAULT_DURATION_MINUTES = 180;
+import type { Pack, PublicPack } from './packs';
 
 /** A calendar event, in the only terms all three destinations share. */
 export interface CalendarEvent {
@@ -44,6 +33,8 @@ export interface CalendarEvent {
   allDay: boolean;
   /** Wall-clock start, as [y, m, d, hour, minute]; hour/minute 0 when allDay. */
   start: WallClock;
+  /** RRULE body for a repeating event, without the `RRULE:` prefix. */
+  rrule?: string | null;
   /**
    * Wall-clock end. For an all-day event this is the day AFTER the last one —
    * every calendar format treats an all-day end as exclusive, and an event
@@ -79,6 +70,14 @@ const addMinutes = (ms: number, minutes: number) => ms + minutes * 60_000;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** '2026-09-19' → '19 Sep 2026', for the round list inside a league's entry. */
+const formatDayLabel = (iso: string): string => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return y && m && d ? `${d} ${MONTHS[m - 1]} ${y}` : iso;
+};
+
 /** `20260906` — the date half, shared by every format. */
 const ymd = ([y, m, d]: WallClock) => `${y}${pad(m)}${pad(d)}`;
 
@@ -90,66 +89,164 @@ const isoish = (w: WallClock) => `${w[0]}-${pad(w[1])}-${pad(w[2])}T${pad(w[3])}
 
 // ── The event ────────────────────────────────────────────────────────────────
 
-/** Total length of the day as the timetable describes it, or null if empty. */
-const scheduledMinutes = (schedule: ScheduleItem[]): number | null => {
-  const total = schedule.reduce((sum, i) => sum + (i.duration_minutes || 0), 0);
-  return total > 0 ? total : null;
+/**
+ * Which day of the week an RRULE means, in the two letters ICS uses.
+ */
+const ICS_DAYS: Record<string, string> = {
+  Monday: 'MO', Tuesday: 'TU', Wednesday: 'WE', Thursday: 'TH',
+  Friday: 'FR', Saturday: 'SA', Sunday: 'SU',
 };
 
 /**
- * A published pack as a calendar event, or null when there is no date to add.
+ * A repeating event's rule, or null when it happens once.
  *
- * A pack with no start date is publishable — an organiser can put the format
- * and the rules up while the date is still being agreed — and there is nothing
- * to put in a calendar until it has one. The button is hidden in that case
- * rather than adding an event to today.
+ * UNTIL rather than COUNT. RFC 5545 requires UNTIL to have the same value type
+ * as DTSTART, and this file's DTSTARTs are floating — so a floating UNTIL is
+ * both legal and required, and no occurrences have to be counted to write it.
+ * COUNT would have meant reimplementing the weekday and week-of-month
+ * arithmetic that BattlePlan already owns, in a second place, to produce a
+ * number the rule can express directly.
+ */
+function recurrenceRule(pack: Pack, allDay: boolean): string | null {
+  if (!pack.recurrence || pack.recurrence === 'none') return null;
+
+  const days = (pack.days_of_week ?? [])
+    .map((d: string) => ICS_DAYS[d])
+    .filter(Boolean);
+  if (days.length === 0) return null;
+
+  // An until_date is mandatory for a recurring pack, so an unbounded series is
+  // a state the database refuses rather than one to guess a horizon for.
+  if (!pack.until_date) return null;
+
+  // THE LAST MOMENT OF THE LAST DAY, not that day at some start time. UNTIL is
+  // inclusive of instants at or before it, so a rule ending "18 Dec at 10:00"
+  // drops an occurrence that starts at 18:00 on the 18th — the series would end
+  // a fortnight early and nothing would say so. 23:59 covers any start time,
+  // and matching a floating DTSTART with a floating UNTIL is what the spec
+  // requires anyway.
+  const until = toClock(pack.until_date, allDay ? null : '23:59');
+  const untilPart = allDay ? ymd(fromClock(until)) : ymdhms(fromClock(until));
+
+  if (pack.recurrence === 'monthly') {
+    // BYDAY carries the ordinal for a monthly rule: 1FR is the first Friday,
+    // -1FR the last. Same -1-is-last convention as blocked_dates.
+    const nth = pack.week_of_month ?? 1;
+    return `FREQ=MONTHLY;BYDAY=${days.map(d => `${nth}${d}`).join(',')};UNTIL=${untilPart}`;
+  }
+
+  const interval = (pack.interval_weeks ?? 1) > 1 ? `INTERVAL=${pack.interval_weeks};` : '';
+  return `FREQ=WEEKLY;${interval}BYDAY=${days.join(',')};UNTIL=${untilPart}`;
+}
+
+/**
+ * A published pack as calendar events — one per day, or one for a league.
+ *
+ * ONE VEVENT PER SEGMENT is the rule for `days`, because a two-day tournament
+ * is two entries in a diary and not one block spanning the night between them.
+ * Each is timed from its own day, so day two starting earlier than day one is
+ * expressible — which is the thing a single pack-level start time never was.
+ *
+ * A LEAGUE IS ONE EVENT, settled with Chris: an all-day span for the whole
+ * thing, with the rounds listed in the description. Six diary entries for a
+ * self-organised league is more noise than help, and only the league's own
+ * start date is worth an email, so one entry is also the honest shape.
+ *
+ * A pack with no dated segment returns nothing. A pack is publishable before
+ * its dates are agreed, and there is nothing to put in a calendar until it has
+ * one — the button is dropped rather than adding an event to today.
  *
  * `origin` is passed in rather than read from `window` so this stays a pure
  * function: it is the only part that depends on where the page is served from,
  * and a test should not have to fake a location to check the rest.
  */
-export function packCalendarEvent(data: PublicPack, origin: string): CalendarEvent | null {
-  const { pack, venue, host, schedule = [] } = data;
-  if (!pack?.starts_on) return null;
+export function packCalendarEvents(data: PublicPack, origin: string): CalendarEvent[] {
+  const { pack, venue, host, segments = [] } = data;
+  if (!pack) return [];
 
-  const slug    = data.display_slug ?? pack.slug ?? '';
-  const url     = `${origin.replace(/\/$/, '')}/${slug}`;
-  const allDay  = !pack.starts_at;
-  const lastDay = pack.ends_on && pack.ends_on > pack.starts_on ? pack.ends_on : pack.starts_on;
-
-  // An all-day event runs whole days and ends the morning after the last one.
-  // A timed event runs from the start time for as long as the timetable says,
-  // landing on the final day when the pack spans several.
-  const startMs = toClock(pack.starts_on, pack.starts_at);
-  const endMs   = allDay
-    ? addMinutes(toClock(lastDay), 24 * 60)
-    : addMinutes(toClock(lastDay, pack.starts_at), scheduledMinutes(schedule) ?? DEFAULT_DURATION_MINUTES);
+  const slug = data.display_slug ?? pack.slug ?? '';
+  const url  = `${origin.replace(/\/$/, '')}/${slug}`;
 
   // Deliberately not the pack's description: a blurb is markdown, is often
   // several paragraphs, and renders as a wall of asterisks in a calendar
   // popup. What belongs here is the handful of facts somebody re-reads from
   // the diary entry, and a link to the page that has the rest — and stays
   // right when this copy does not.
-  const description = [
+  const baseDescription = [
     pack.format,
     host?.name ? `Hosted by ${host.name}` : null,
     venue?.name ? `At ${venue.name}` : null,
-    url,
-  ].filter(Boolean).join('\n');
+  ].filter(Boolean);
 
-  return {
-    // The pack id, not the slug: a stable UID is what makes a second add
-    // update the existing entry instead of leaving two events in the diary.
-    uid: `battlepack-${pack.id}@battlepack.app`,
-    title: pack.name,
-    location: [venue?.name, venue?.address].filter(Boolean).join(', '),
-    description,
-    url,
-    allDay,
-    start: fromClock(startMs),
-    end: fromClock(endMs),
-  };
+  const location = [venue?.name, venue?.address].filter(Boolean).join(', ');
+  const ordered  = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+  const dated    = ordered.filter(s => s.starts_on);
+
+  if (dated.length === 0) return [];
+
+  // ── A league: one span, rounds in the description ──────────────────────────
+  if (pack.schedule_shape === 'periods') {
+    const first = dated[0];
+    const last  = dated[dated.length - 1];
+    const lastDay = last.ends_on && last.ends_on > (last.starts_on ?? '')
+      ? last.ends_on
+      : last.starts_on!;
+
+    const rounds = dated.map((s, i) => {
+      const when = formatDayLabel(s.starts_on!);
+      return s.label?.trim() ? `${s.label.trim()} — ${when}` : `Round ${i + 1} — ${when}`;
+    });
+
+    return [{
+      uid: `battlepack-${pack.id}@battlepack.app`,
+      title: pack.name,
+      location,
+      description: [...baseDescription, '', ...rounds, '', url].join('\n'),
+      url,
+      allDay: true,
+      // Exclusive end, as every format here treats an all-day end.
+      start: fromClock(toClock(first.starts_on!)),
+      end: fromClock(addMinutes(toClock(lastDay), 24 * 60)),
+      rrule: null,
+    }];
+  }
+
+  // ── Days: one event each ───────────────────────────────────────────────────
+  const many = dated.length > 1;
+
+  return dated.map((segment, index) => {
+    // Both times or neither — the database enforces that an end needs a start,
+    // and a day with no times is a marker rather than an appointment.
+    const timed  = !!(segment.starts_at && segment.ends_at);
+    const allDay = !timed;
+    const lastDay = segment.ends_on && segment.ends_on > segment.starts_on!
+      ? segment.ends_on
+      : segment.starts_on!;
+
+    const start = toClock(segment.starts_on!, timed ? segment.starts_at : null);
+    const end   = timed
+      ? toClock(lastDay, segment.ends_at)
+      : addMinutes(toClock(lastDay), 24 * 60);
+
+    const dayName = segment.label?.trim() || `Day ${index + 1}`;
+
+    return {
+      // The segment id, not the index: a stable UID is what makes a second add
+      // correct the existing entry rather than leaving two, and an index would
+      // shift the moment a day is inserted before another.
+      uid: `battlepack-${pack.id}-${segment.id}@battlepack.app`,
+      title: many ? `${pack.name} — ${dayName}` : pack.name,
+      location,
+      description: [...baseDescription, url].join('\n'),
+      url,
+      allDay,
+      start: fromClock(start),
+      end: fromClock(end),
+      rrule: recurrenceRule(pack, allDay),
+    };
+  });
 }
+
 
 // ── ICS ──────────────────────────────────────────────────────────────────────
 
@@ -195,7 +292,8 @@ const utcStamp = (d: Date) =>
   `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
 
 /** One VEVENT in a VCALENDAR, ready to be handed to any calendar app. */
-export function icsForEvent(event: CalendarEvent): string {
+/** One VEVENT block, without the calendar wrapper. */
+function veventLines(event: CalendarEvent): string[] {
   // VALUE=DATE for an all-day event. A DTSTART of `20260906` and one of
   // `20260906T000000` are different things: the first is a day in the diary,
   // the second is a midnight appointment.
@@ -203,27 +301,46 @@ export function icsForEvent(event: CalendarEvent): string {
     ? [`DTSTART;VALUE=DATE:${ymd(event.start)}`, `DTEND;VALUE=DATE:${ymd(event.end)}`]
     : [`DTSTART:${ymdhms(event.start)}`, `DTEND:${ymdhms(event.end)}`];
 
+  return [
+    'BEGIN:VEVENT',
+    `UID:${event.uid}`,
+    `DTSTAMP:${utcStamp(new Date())}`,
+    dtstart,
+    dtend,
+    ...(event.rrule ? [`RRULE:${event.rrule}`] : []),
+    `SUMMARY:${icsEscape(event.title)}`,
+    ...(event.location    ? [`LOCATION:${icsEscape(event.location)}`]       : []),
+    ...(event.description ? [`DESCRIPTION:${icsEscape(event.description)}`] : []),
+    `URL:${event.url}`,
+    'END:VEVENT',
+  ];
+}
+
+/**
+ * A calendar file holding every day of an event.
+ *
+ * A VCALENDAR is a container, which is the whole reason a multi-day pack can
+ * be added in one click here and cannot through Google's or Outlook's URL:
+ * those are pre-filled compose forms with room for exactly one event.
+ */
+export function icsForEvents(events: CalendarEvent[]): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Battleplans//BattlePack//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    `UID:${event.uid}`,
-    `DTSTAMP:${utcStamp(new Date())}`,
-    dtstart,
-    dtend,
-    `SUMMARY:${icsEscape(event.title)}`,
-    ...(event.location    ? [`LOCATION:${icsEscape(event.location)}`]       : []),
-    ...(event.description ? [`DESCRIPTION:${icsEscape(event.description)}`] : []),
-    `URL:${event.url}`,
-    'END:VEVENT',
+    ...events.flatMap(veventLines),
     'END:VCALENDAR',
   ];
 
   // CRLF, not \n. The spec says so and the strict parsers mean it.
   return lines.map(fold).join('\r\n') + '\r\n';
+}
+
+/** One event's file. Kept for the single-day case and the gallery. */
+export function icsForEvent(event: CalendarEvent): string {
+  return icsForEvents([event]);
 }
 
 /**
@@ -243,12 +360,15 @@ export const icsFilename = (event: CalendarEvent) =>
  * is synchronous, so by the time the timeout runs the browser has taken the
  * bytes and the URL is only holding memory.
  */
-export function downloadIcs(event: CalendarEvent): void {
-  const blob = new Blob([icsForEvent(event)], { type: 'text/calendar;charset=utf-8' });
+export function downloadIcs(events: CalendarEvent[]): void {
+  if (events.length === 0) return;
+  const blob = new Blob([icsForEvents(events)], { type: 'text/calendar;charset=utf-8' });
   const href = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = href;
-  link.download = icsFilename(event);
+  // Named for the event, not for the day: a two-day tournament downloads one
+  // file, and "july-rtt-day-1.ics" would be a lie about what is inside it.
+  link.download = icsFilename(events[0]);
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -276,6 +396,9 @@ export function googleCalendarUrl(event: CalendarEvent): string {
     dates,
     details:  event.description,
     location: event.location,
+    // Google's template URL is the one of the two that understands repetition,
+    // so a recurring event arrives as a series rather than a single occurrence.
+    ...(event.rrule ? { recur: `RRULE:${event.rrule}` } : {}),
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }

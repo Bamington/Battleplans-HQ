@@ -77,7 +77,7 @@ import { timeSchedule } from '../lib/packs';
 import type {
   GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem, ScheduleSegment,
 } from '../lib/packs';
-import { icsForEvent, packCalendarEvent } from '../lib/calendar';
+import { icsForEvents, packCalendarEvents } from '../lib/calendar';
 import { keyInfoRows } from '../components/packBody';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
@@ -145,7 +145,9 @@ const EventBasicsFormDemo = () => {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
   });
   const [log, setLog] = useState<string[]>([]);
 
@@ -232,7 +234,9 @@ const RoundsBreaksFormDemo = () => {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
@@ -402,7 +406,9 @@ const SectionFormDemo = () => {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
   };
 
   const [which, setWhich] = useState('faq');
@@ -490,7 +496,9 @@ const DEMO_PACK: Pack = {
   id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
   starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
   status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-  timeline: 'one-day', created_at: '', updated_at: '',
+  timeline: 'one-day',
+  schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+  days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
 };
 
 /**
@@ -786,7 +794,9 @@ const PublishPanelDemo = () => {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1', host_location_id: null,
     starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
   });
   const [blocked, setBlocked] = useState(true);
 
@@ -860,7 +870,9 @@ const AddToCalendarDemo = () => {
     starts_on: '2026-07-11', ends_on: null, starts_at: '10:00:00',
     format: '2000 Points, Matched Play', description: null, owner_id: 'u1',
     status: 'published', slug: 'july-rtt', banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
   };
   const venue: LocationOption = { id: 'v1', name: 'The Gaming Arena', address: '12 Dice Lane, Leeds' };
   const schedule: ScheduleItem[] = [
@@ -870,23 +882,65 @@ const AddToCalendarDemo = () => {
     { id: 's4', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 3, kind: 'round', label: null, duration_minutes: 150 },
   ];
 
+  const seg = (
+    id: string, ordinal: number, starts_on: string | null,
+    starts_at: string | null, ends_at: string | null,
+    extra: Partial<ScheduleSegment> = {},
+  ): ScheduleSegment =>
+    ({ id, pack_id: 'demo-pack', ordinal, starts_on, ends_on: null, starts_at, ends_at, label: null, ...extra });
+
   const CASES: { label: string; note: string; data: PublicPack }[] = [
     {
-      label: 'Timed, with a timetable',
-      note: '10:00 for 8h 15m — the rounds and the lunch break added up.',
-      data: { state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule },
+      label: 'One day',
+      note: 'The day’s own start and end — not the sum of its rounds, so adding a round cannot move anybody’s diary entry.',
+      data: {
+        state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule,
+        segments: [seg('sg-1', 1, '2026-07-11', '10:00:00', '18:15:00')],
+      },
     },
     {
-      label: 'Timed, no timetable yet',
-      note: 'Falls back to three hours rather than guessing a whole day.',
-      data: { state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule: [] },
+      label: 'Two days',
+      note: 'One VEVENT each, in one file. Day two starts earlier than day one — the thing a single pack-level start time could never say.',
+      data: {
+        state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule,
+        segments: [
+          seg('sg-1', 1, '2026-07-11', '10:00:00', '18:15:00'),
+          seg('sg-2', 2, '2026-07-12', '09:00:00', '16:00:00'),
+        ],
+      },
     },
     {
-      label: 'No start time',
-      note: 'An all-day entry. DTEND is the day after — every format treats it as exclusive.',
+      label: 'No times set',
+      note: 'An all-day marker. DTEND is the day after — every format here treats an all-day end as exclusive.',
+      data: {
+        state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule: [],
+        segments: [seg('sg-1', 1, '2026-07-11', null, null)],
+      },
+    },
+    {
+      label: 'Recurring, fortnightly',
+      note: 'One event with an RRULE rather than a row per occurrence. UNTIL is floating to match a floating DTSTART, which is what the spec requires.',
+      data: {
+        state: 'published', display_slug: 'friday-night', venue, schedule: [],
+        pack: {
+          ...basePack, name: 'Friday Night Hobby', slug: 'friday-night',
+          recurrence: 'weekly', interval_weeks: 2,
+          days_of_week: ['Friday'], until_date: '2026-12-18',
+        },
+        segments: [seg('sg-1', 1, '2026-07-10', '18:00:00', '22:00:00')],
+      },
+    },
+    {
+      label: 'League',
+      note: 'ONE entry spanning the whole thing, with the rounds listed in the description. Six diary entries for a self-organised league is more noise than help.',
       data: {
         state: 'published', display_slug: 'summer-league', venue, schedule: [],
-        pack: { ...basePack, name: 'Summer League', starts_at: null, ends_on: '2026-08-30', slug: 'summer-league' },
+        pack: { ...basePack, name: 'Summer League', slug: 'summer-league', schedule_shape: 'periods' },
+        segments: [
+          seg('sg-1', 1, '2026-07-06', null, null, { ends_on: '2026-07-12', label: 'Round 1' }),
+          seg('sg-2', 2, '2026-07-13', null, null, { ends_on: '2026-07-19', label: 'Round 2' }),
+          seg('sg-3', 3, '2026-07-20', null, null, { ends_on: '2026-07-26', label: 'Break Week' }),
+        ],
       },
     },
   ];
@@ -896,7 +950,7 @@ const AddToCalendarDemo = () => {
   // it lands flush with them, which a demo of the row on its own would not
   // show.
   const inCard = CASES[0];
-  const inCardEvent = packCalendarEvent(inCard.data, 'https://battlepack.app');
+  const inCardEvents = packCalendarEvents(inCard.data, 'https://battlepack.app');
 
   return (
     <div className="w-full flex flex-col gap-8">
@@ -906,12 +960,12 @@ const AddToCalendarDemo = () => {
           Same geometry as a fact row; the accent label and the hover are what
           say it can be pressed.
         </p>
-        {inCardEvent && (
+        {inCardEvents.length > 0 && (
           <KeyInfoCard
             rows={keyInfoRows(inCard.data.pack!, inCard.data.venue)}
             /* No onAdd: the gallery is not a pack page and there is nothing to
                record. The real page passes rememberCalendarAdd. */
-            footer={<AddToCalendar event={inCardEvent} variant="row" />}
+            footer={<AddToCalendar events={inCardEvents} variant="row" />}
           />
         )}
       </div>
@@ -921,16 +975,16 @@ const AddToCalendarDemo = () => {
           Standalone button, and the file each event shape produces
         </p>
         {CASES.map(({ label, note, data }) => {
-          const event = packCalendarEvent(data, 'https://battlepack.app');
+          const events = packCalendarEvents(data, 'https://battlepack.app');
           return (
             <div key={label} className="w-full flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
               <div className="lg:w-72 shrink-0 flex flex-col gap-2">
                 <p className="font-body font-bold text-sm leading-5 text-gray-50">{label}</p>
                 <p className="font-body text-sm leading-5 text-gray-400">{note}</p>
-                {event && <AddToCalendar event={event} className="self-start" />}
+                {events.length > 0 && <AddToCalendar events={events} className="self-start" />}
               </div>
               <pre className="flex-1 min-w-0 font-mono text-xs leading-5 text-gray-400 bg-gray-900 rounded-lg p-3 overflow-x-auto whitespace-pre">
-                {event ? icsForEvent(event) : '(no date — the button is not rendered)'}
+                {events.length > 0 ? icsForEvents(events) : '(no date — the button is not rendered)'}
               </pre>
             </div>
           );

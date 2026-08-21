@@ -17,8 +17,26 @@ import type { PendingBanner } from '@battleplans/ui';
 
 export type PackStatus = 'draft' | 'published' | 'unpublished';
 
-/** The shape of the event, chosen once at creation. */
+/**
+ * The shape of the event, chosen once at creation.
+ *
+ * SUPERSEDED by `schedule_shape` + `recurrence`, which say the two things this
+ * one enum conflated. Still on the row and still written by the create flow
+ * until that is rewritten; see 20260821030000.
+ */
 export type PackTimeline = 'one-day' | 'multi-day' | 'league';
+
+/**
+ * How a pack's schedule is laid out.
+ *
+ * `days` covers one-day and multi-day alike — the difference is how many
+ * segments there are, not what kind of event it is. `periods` is a league's
+ * labelled date ranges, which have no clock times.
+ */
+export type ScheduleShape = 'days' | 'periods';
+
+/** How often the whole event happens. Same vocabulary as `blocked_dates`. */
+export type PackRecurrence = 'none' | 'weekly' | 'monthly';
 
 /**
  * What a schedule row is.
@@ -62,6 +80,25 @@ export interface Pack {
    * schedule can span dates.
    */
   timeline: PackTimeline;
+  /**
+   * How the schedule is laid out — `days` (one-day and multi-day alike) or
+   * `periods` (a league). One-day is not a value: it is `days` with a single
+   * segment. Replaces the layout half of `timeline`, which is on its way out.
+   */
+  schedule_shape: ScheduleShape;
+  /**
+   * How often the whole event happens. The rule columns below are only
+   * meaningful when this is not 'none', and the database enforces that.
+   */
+  recurrence: PackRecurrence;
+  /** Weekly only: 1 every week, 2 fortnightly. */
+  interval_weeks: number;
+  /** Full day names, matching blocked_dates and timeslots.availability. */
+  days_of_week: string[];
+  /** Monthly only: 1-4 for first through fourth, -1 for the last. */
+  week_of_month: number | null;
+  /** Last day the series can run. Required when recurring. */
+  until_date: string | null;
   owner_id: string;
   status: PackStatus;
   slug: string | null;

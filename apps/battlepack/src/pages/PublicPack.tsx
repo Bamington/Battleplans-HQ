@@ -29,7 +29,7 @@ import { categoryBody, groupIntoRows, keyInfoRows } from '../components/packBody
 import AddToCalendar from '../components/AddToCalendar';
 import { CATEGORY_TABS, visibleCategories } from '../registry/categories';
 import { bannerUrl, getPublicPack, rememberCalendarAdd } from '../lib/packs';
-import { packCalendarEvent } from '../lib/calendar';
+import { packCalendarEvents } from '../lib/calendar';
 import type { PublicPack as PublicPackData } from '../lib/packs';
 
 
@@ -94,7 +94,7 @@ export default function PublicPack() {
   // window.location.origin, so a preview's link points at the preview and
   // production's at production; the pack page is what stays right when the
   // calendar copy does not.
-  const event = packCalendarEvent(data, window.location.origin);
+  const events = packCalendarEvents(data, window.location.origin);
   const canonicalSlug = data.display_slug ?? pack.slug ?? '';
 
   /**
@@ -104,9 +104,9 @@ export default function PublicPack() {
    * nothing, and a failed write costs one change email rather than the button.
    * Hence no await, no state, no error path.
    */
-  const calendarRow = event && (
+  const calendarRow = events.length > 0 && (
     <AddToCalendar
-      event={event}
+      events={events}
       variant="row"
       onAdd={() => { void rememberCalendarAdd(canonicalSlug); }}
     />

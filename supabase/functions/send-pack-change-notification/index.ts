@@ -16,6 +16,10 @@
  *
  * Contract — POST one of:
  *   { event: 'moved',     pack_id }        who is stale is looked up
+ *   { event: 'extended',  pack_id }        a recurring series gained dates —
+ *                                          same audience as a move, different
+ *                                          words, because nothing they already
+ *                                          hold has become wrong
  *   { event: 'withdrawn', pack_id }        everyone who saved it
  *   { event: 'deleted',   pack: {…}, recipients: [user_id] }
  *                                          the row is GONE and the adds
@@ -113,7 +117,7 @@ const SEND_CONCURRENCY = 5;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ChangeEvent = 'moved' | 'withdrawn' | 'deleted';
+type ChangeEvent = 'moved' | 'extended' | 'withdrawn' | 'deleted';
 
 interface PackData {
   id:        string;
@@ -131,12 +135,54 @@ interface Recipient {
   held_starts_at: string | null;
   /** Only on the 'moved' path: the pack's current date, as the query saw it. */
   signature?:     string;
+  /** Both sides whole, so the email can name the days that differ. */
+  held_schedule?:    ScheduleEntry[];
+  current_schedule?: ScheduleEntry[];
 }
 
 // ── Email ─────────────────────────────────────────────────────────────────────
 
+/** One day of a schedule, as the signature stores it. */
+interface ScheduleEntry { on: string | null; at: string | null }
+
+/** A day whose date or time is not what this person has in their calendar. */
+interface DayChange { label: string; from: string; to: string }
+
 /**
- * One layout, three messages.
+ * Which days differ, and how.
+ *
+ * Compared position by position: the segments are ordered, so day two is day
+ * two on both sides. A day added to the end shows as an addition rather than
+ * being silently dropped, and a day removed shows as a removal — either is
+ * something an attendee's diary is now wrong about.
+ */
+function changedDays(held: ScheduleEntry[], current: ScheduleEntry[]): DayChange[] {
+  const many = Math.max(held.length, current.length) > 1;
+  const out: DayChange[] = [];
+
+  for (let i = 0; i < Math.max(held.length, current.length); i++) {
+    const was = held[i];
+    const now = current[i];
+    const label = many ? `Day ${i + 1}` : 'The event';
+
+    if (was && now) {
+      if (was.on === now.on && was.at === now.at) continue;
+      out.push({
+        label,
+        from: whenLine(was.on, null, was.at),
+        to:   whenLine(now.on, null, now.at),
+      });
+    } else if (was && !now) {
+      out.push({ label, from: whenLine(was.on, null, was.at), to: 'no longer happening' });
+    } else if (!was && now) {
+      out.push({ label, from: 'not previously scheduled', to: whenLine(now.on, null, now.at) });
+    }
+  }
+  return out;
+}
+
+/**
+ * One layout, four messages.
  *
  * DELIBERATELY NOT AN .ics ATTACHMENT. The obvious idea is to attach a
  * corrected event and let the calendar update itself — the UID is stable
@@ -147,27 +193,45 @@ interface Recipient {
  * links to the pack, where "Add to Calendar" re-adds through the same client
  * that made the original entry and updates it in place — and re-adding also
  * refreshes what we believe they are holding, which closes the loop.
+ *
+ * 'extended' IS NOT A MOVE, and gets its own words for that reason. Every date
+ * already in somebody's calendar is still correct; the series simply runs
+ * longer. Telling them their date changed would be wrong as well as alarming,
+ * and keeping the green accent rather than the red one is part of saying so.
  */
 function renderEmail(opts: {
   event: ChangeEvent;
   pack: PackData;
   heldWhen: string | null;
+  changes: DayChange[];
 }): { subject: string; html: string; text: string } {
-  const { event, pack, heldWhen } = opts;
+  const { event, pack, heldWhen, changes } = opts;
 
-  const url     = pack.slug ? `${SITE}/${pack.slug}` : null;
-  const newWhen = whenLine(pack.starts_on, pack.ends_on, pack.starts_at);
-  const off     = event !== 'moved';
+  const url = pack.slug ? `${SITE}/${pack.slug}` : null;
+  const off = event === 'withdrawn' || event === 'deleted';
 
-  const accent  = off ? '#b91c1c' : '#059669';
-  const title   = off ? '❌ Event Cancelled' : '📅 The Date Has Changed';
-  const subject = off
-    ? `Cancelled: ${pack.name}`
-    : `Date changed: ${pack.name} is now ${formatDate(pack.starts_on)}`;
+  const accent = off ? '#b91c1c' : '#059669';
+
+  const title = off ? '❌ Event Cancelled'
+    : event === 'extended' ? '📅 More Dates Added'
+    : '📅 The Date Has Changed';
+
+  const subject = off ? `Cancelled: ${pack.name}`
+    : event === 'extended' ? `More dates added: ${pack.name}`
+    : `Date changed: ${pack.name}`;
 
   const lead = off
     ? `${esc(pack.name)} is no longer going ahead.`
-    : `The organiser has moved ${esc(pack.name)}.`;
+    : event === 'extended'
+      ? `${esc(pack.name)} is running for longer.`
+      : `The organiser has moved ${esc(pack.name)}.`;
+
+  /** The old-to-new rows, which are the whole point of the moved email. */
+  const changeRows = changes.map(c => `
+        <div class="detail now">
+          <div class="label">${esc(c.label)}</div>
+          <div class="value"><span style="color:#6b7280;text-decoration:line-through">${esc(c.from)}</span> &rarr; <strong>${esc(c.to)}</strong></div>
+        </div>`).join('');
 
   const body = off
     ? `
@@ -183,18 +247,22 @@ function renderEmail(opts: {
         <p><strong>Your calendar still has it.</strong> Nothing we do can remove
            an entry from your diary, so you will want to delete it yourself.</p>
       `
-    : `
+    : event === 'extended'
+      ? `
+        <p>You added this event to your calendar. The organiser has added more
+           dates to the end of it — <strong>nothing already in your calendar has
+           changed</strong>, so there is nothing to correct.</p>
+        <p>Open the event page and press <em>Add to Calendar</em> again to pick
+           up the new dates.</p>
+      `
+      : `
         <p>You added this event to your calendar, and the date it is in there
            for is no longer the date it is happening.</p>
-        ${heldWhen ? `
+        ${changeRows || (heldWhen ? `
         <div class="detail was">
           <div class="label">In your calendar</div>
           <div class="value">${esc(heldWhen)}</div>
-        </div>` : ''}
-        <div class="detail now">
-          <div class="label">Now happening</div>
-          <div class="value">${esc(newWhen)}</div>
-        </div>
+        </div>` : '')}
         <p><strong>Your calendar has not updated itself.</strong> Open the event
            page and press <em>Add to Calendar</em> again — your calendar will
            recognise it as the same event and correct the entry rather than
@@ -202,7 +270,11 @@ function renderEmail(opts: {
       `;
 
   const button = url
-    ? `<p style="margin:24px 0"><a class="btn" href="${esc(url)}">${off ? 'View the event page' : 'Open the event and re-add it'}</a></p>`
+    ? `<p style="margin:24px 0"><a class="btn" href="${esc(url)}">${
+        off ? 'View the event page'
+        : event === 'extended' ? 'Open the event and add the new dates'
+        : 'Open the event and re-add it'
+      }</a></p>`
     : '';
 
   const html = `
@@ -246,6 +318,8 @@ function renderEmail(opts: {
 </html>
   `;
 
+  const plainChanges = changes.map(c => `- ${c.label}: ${c.from} -> ${c.to}`).join('\n');
+
   const text = off
     ? `${pack.name} is no longer going ahead.
 
@@ -257,10 +331,16 @@ Your calendar still has it — nothing we do can remove an entry from your diary
 so you will want to delete it yourself.
 ${url ? `\n${url}\n` : ''}
 You are getting this because you added this event to your calendar from BattlePack.`
-    : `The organiser has moved ${pack.name}.
-${heldWhen ? `\nIn your calendar: ${heldWhen}` : ''}
-Now happening: ${newWhen}
+    : event === 'extended'
+      ? `${pack.name} is running for longer.
 
+The organiser has added more dates to the end of it. Nothing already in your
+calendar has changed, so there is nothing to correct — open the event page and
+press "Add to Calendar" again to pick up the new dates.
+${url ? `\n${url}\n` : ''}
+You are getting this because you added this event to your calendar from BattlePack.`
+      : `The organiser has moved ${pack.name}.
+${plainChanges ? `\n${plainChanges}\n` : heldWhen ? `\nIn your calendar: ${heldWhen}\n` : ''}
 Your calendar has not updated itself. Open the event page and press
 "Add to Calendar" again — your calendar will recognise it as the same event and
 correct the entry rather than adding a second one.
@@ -269,6 +349,7 @@ You are getting this because you added this event to your calendar from BattlePa
 
   return { subject, html, text };
 }
+
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -296,7 +377,7 @@ serve(async (req) => {
 
     const payload = await req.json().catch(() => ({}));
     const event = payload.event as ChangeEvent;
-    if (!['moved', 'withdrawn', 'deleted'].includes(event)) {
+    if (!['moved', 'extended', 'withdrawn', 'deleted'].includes(event)) {
       return json({ success: false, error: `Unknown event: ${event}` }, 400);
     }
 
@@ -325,7 +406,7 @@ serve(async (req) => {
       if (error || !data) throw new Error(`Failed to fetch pack: ${error?.message ?? 'not found'}`);
       pack = data as PackData;
 
-      if (event === 'moved') {
+      if (event === 'moved' || event === 'extended') {
         const { data: stale, error: staleErr } = await supabase
           .rpc('battlepack_stale_calendar_adds', { pack: packId });
         if (staleErr) throw new Error(`Failed to fetch recipients: ${staleErr.message}`);
@@ -382,7 +463,13 @@ serve(async (req) => {
       const heldWhen = r.held_starts_on
         ? whenLine(r.held_starts_on, r.held_ends_on, r.held_starts_at)
         : null;
-      const { subject, html, text } = renderEmail({ event, pack, heldWhen });
+      // Empty for a withdrawal or a deletion, where nothing moved — and empty
+      // when the query did not return both sides, which falls the email back to
+      // the single held line rather than saying nothing.
+      const changes = r.held_schedule && r.current_schedule
+        ? changedDays(r.held_schedule, r.current_schedule)
+        : [];
+      const { subject, html, text } = renderEmail({ event, pack, heldWhen, changes });
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -403,7 +490,7 @@ serve(async (req) => {
     }
 
     // ── Mark, but only what actually went ────────────────────────────────────
-    if (event === 'moved' && signature && delivered.length > 0) {
+    if ((event === 'moved' || event === 'extended') && signature && delivered.length > 0) {
       const { error: markErr } = await supabase.rpc('battlepack_mark_calendar_notified', {
         pack: pack.id, who: delivered, sig: signature,
       });
