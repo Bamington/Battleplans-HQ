@@ -18,6 +18,7 @@ import {
   MarkdownBody, AltArrowDown, Calendar, InfoCircle, ListCheck, MapPin, Play, Trophy,
 } from '@battleplans/ui';
 import { EmptySection, ScheduleTable } from './PackDocument';
+import { recurrencePattern } from '../lib/recurrence';
 import LinkPreview from './LinkPreview';
 import { readChecklist } from './forms/ChecklistSectionForm';
 import { readFaq } from './forms/FaqSectionForm';
@@ -83,9 +84,30 @@ export function keyInfoRows(pack: Pack, venue?: LocationOption | null): KeyInfoR
   const ends   = formatDate(pack.ends_on);
   const time   = pack.starts_at ? formatTime(pack.starts_at) : null;
 
-  const when = starts
-    ? [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null].filter(Boolean).join(' ')
-    : null;
+  /**
+   * A REPEATING EVENT IS NOT A LONG ONE, and the envelope alone cannot tell
+   * them apart: a Friday night that runs until December stores the same
+   * starts_on and ends_on as a five-month festival. So a recurring pack says
+   * its rule instead — "Every Friday at 6:00 PM, 11/07/2026 – 18/12/2026" —
+   * because a bare "11/07 – 18/12" is the one reading of those two columns
+   * that is actively wrong here.
+   *
+   * The pattern, not the organiser's occurrence count: someone reading this is
+   * deciding whether they are free on Friday, and "17 events" answers a
+   * question only the person running it asked.
+   */
+  const repeat = recurrencePattern(pack);
+
+  const when = repeat
+    // Both bounds, because a series that has not started yet is a real thing to
+    // read: "every Friday" alone cannot say the first one is in September.
+    ? [
+        [repeat, time ? `at ${time}` : null].filter(Boolean).join(' '),
+        starts && ends ? `${starts} – ${ends}` : starts,
+      ].filter(Boolean).join(', ')
+    : starts
+      ? [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null].filter(Boolean).join(' ')
+      : null;
 
   return [
     ...(venue ? [{
@@ -109,13 +131,6 @@ export interface CategoryBodyArgs {
 }
 
 /**
- * What a day calls itself.
- *
- * The organiser's own label wins. Failing that, "Day 1" for a tournament and
- * the date range for a league period — a league's weeks are identified by when
- * they are, and numbering them again would say the same thing twice.
- */
-/**
  * When a league round runs, as one line.
  *
  * Sits where a day shows its clock times, because it answers the same question
@@ -130,6 +145,13 @@ export function periodRange(segment: ScheduleSegment): string {
   return to ? `${from} - ${to}` : from;
 }
 
+/**
+ * What a day calls itself.
+ *
+ * The organiser's own label wins. Failing that, "Day 1" for a tournament and
+ * the date range for a league period — a league's weeks are identified by when
+ * they are, and numbering them again would say the same thing twice.
+ */
 export function segmentLabel(segment: ScheduleSegment, index: number): string {
   if (segment.label?.trim()) return segment.label.trim();
 

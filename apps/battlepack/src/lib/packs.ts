@@ -357,6 +357,21 @@ export async function getPack(id: string): Promise<Pack | null> {
 }
 
 /**
+ * The five recurrence columns, which are only ever written together.
+ *
+ * Snake case because it is a patch: this goes straight into an insert or an
+ * update, and renaming in one more place is one more place they can drift from
+ * the constraints that check them.
+ */
+export interface RecurrenceFields {
+  recurrence: PackRecurrence;
+  interval_weeks: number;
+  days_of_week: string[];
+  week_of_month: number | null;
+  until_date: string | null;
+}
+
+/**
  * Create a pack. Name and game only — everything else is filled in afterwards.
  *
  * The game is required here and nowhere else, because it is fixed at creation:
@@ -372,6 +387,15 @@ export async function createPack(fields: {
   format?: string | null;
   /** Omitted means the column's default, 'one-day'. */
   timeline?: PackTimeline;
+  /**
+   * Day one's date and start time. THEY GO ON THE SEGMENT, not on the pack —
+   * see below; the caller hands them over rather than writing them itself so
+   * that a multi-day pack's second day can be placed after a dated first one.
+   */
+  startsOn?: string | null;
+  startsAt?: string | null;
+  /** How often the whole thing happens. Omitted means it does not repeat. */
+  recurrence?: RecurrenceFields | null;
 }): Promise<Pack> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('You need to be signed in to create a pack.');
@@ -389,6 +413,9 @@ export async function createPack(fields: {
       // from one answer here, so they cannot disagree — and when timeline goes,
       // only this line does.
       ...(fields.timeline ? { schedule_shape: shapeForTimeline(fields.timeline) } : {}),
+      // All five or none: the database checks the rule as a whole, so a
+      // recurrence without its weekdays and end date is rejected outright.
+      ...(fields.recurrence ?? {}),
       owner_id: auth.user.id,
     })
     .select('*')
@@ -397,12 +424,26 @@ export async function createPack(fields: {
 
   const pack = data as Pack;
 
-  // A trigger has already given it day one. A multi-day event needs a second to
-  // be multi-day at all — the count IS the fact, so creating one with a single
-  // day would make the answer they just gave untrue.
+  // A trigger has already given it day one, undated. THE DATE GOES THERE, not
+  // on the pack: since 20260821050000 the pack's own starts_on / starts_at are
+  // a cache the database recomputes from the segments, so a date written to the
+  // pack would show in the document, be missing from every form that reads the
+  // day, and vanish the first time anything touched a segment.
+  const [first] = await getSegments(pack.id);
+  if (first && (fields.startsOn || fields.startsAt)) {
+    await updateSegment(first.id, {
+      ...(fields.startsOn ? { starts_on: fields.startsOn } : {}),
+      ...(fields.startsAt ? { starts_at: fields.startsAt } : {}),
+    });
+  }
+
+  // A multi-day event needs a second day to be multi-day at all — the count IS
+  // the fact, so creating one with a single day would make the answer they just
+  // gave untrue. AFTER day one is dated, so day two lands the day after it
+  // rather than joining as another undated day.
   if (fields.timeline === 'multi-day') {
-    const [first] = await getSegments(pack.id);
-    await addSegment(pack.id, first ?? null);
+    const [dated] = await getSegments(pack.id);
+    await addSegment(pack.id, dated ?? null);
   }
 
   return pack;

@@ -216,6 +216,13 @@ const EventBasicsFormDemo = () => {
           would empty the left nav, the document heading and the home row at
           once. Game is deliberately read-only — it is fixed at creation, which
           is what lets game-specific categories resolve exactly once.
+          {' '}
+          Repeats is the exception to save-on-change: a series is rejected by the
+          database until it names a weekday and an end date, so the rule is held
+          here until it is whole — switch it to Weekly and watch the write log
+          stay empty until the end date is picked. The weekday is guessed from
+          the start date, and for a multi-day event it is not a question at all:
+          its days ARE its weekdays.
         </GalleryNote>
 
         {/* The end date is not a field you can toggle in the panel — it depends
@@ -1044,6 +1051,22 @@ const AddToCalendarDemo = () => {
           days_of_week: ['Friday'], until_date: '2026-12-18',
         },
         segments: [seg('sg-1', 1, '2026-07-10', '18:00:00', '22:00:00')],
+      },
+    },
+    {
+      label: 'Recurring weekender',
+      note: 'EACH DAY REPEATS ON ITS OWN WEEKDAY — Saturday BYDAY=SA, Sunday BYDAY=SU. Handing both days the pack’s whole list instead would put Saturday’s timetable on Sunday as well, turning a fortnightly weekender into four events.',
+      data: {
+        state: 'published', display_slug: 'monthly-weekender', venue, schedule: [],
+        pack: {
+          ...basePack, name: 'Fortnightly Weekender', slug: 'monthly-weekender',
+          recurrence: 'weekly', interval_weeks: 2,
+          days_of_week: ['Saturday', 'Sunday'], until_date: '2026-11-08',
+        },
+        segments: [
+          seg('sg-1', 1, '2026-09-12', '10:00:00', '18:00:00'),
+          seg('sg-2', 2, '2026-09-13', '09:00:00', '17:00:00'),
+        ],
       },
     },
     {

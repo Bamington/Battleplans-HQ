@@ -45,6 +45,7 @@ import {
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
+import { describeRecurrence } from '../lib/recurrence';
 // Still needed here, by hasContent() rather than by the document rendering.
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
@@ -88,6 +89,23 @@ const panelsAreDrawers = () =>
  */
 const NOTIFYING_FIELDS = ['starts_on', 'starts_at'];
 
+/**
+ * The PACK columns whose change emails everyone holding a calendar entry.
+ *
+ * The recurrence rule, all five of it, matching the watch list on
+ * `battlepacks_notify_recurrence` (20260821060000) column for column. Changing
+ * when a series repeats changes dates people already hold, so it goes through
+ * the same stop the segment dates do.
+ *
+ * The database decides which email — a rule that only runs LONGER is an
+ * extension rather than a move — and that judgement is deliberately not
+ * repeated here. This list answers a narrower question: would saving this write
+ * to anybody at all.
+ */
+const NOTIFYING_PACK_FIELDS = [
+  'recurrence', 'interval_weeks', 'days_of_week', 'week_of_month', 'until_date',
+];
+
 /** "1 person" / "4 people" — the sentence reads badly with a bare count. */
 const people = (n: number) => (n === 1 ? '1 person' : `${n} people`);
 
@@ -101,7 +119,7 @@ interface ConfirmDays {
 
 /** A change that would email people, held until the organiser confirms it. */
 interface PendingNotify {
-  kind: 'moved' | 'withdrawn';
+  kind: 'moved' | 'rule' | 'withdrawn';
   count: number;
   /** What the event's date becomes. Shown for a move; absent otherwise. */
   becomes?: string;
@@ -127,19 +145,24 @@ const whenAfterDay = (day: ScheduleSegment, patch: Partial<ScheduleSegment>): st
 };
 
 /**
- * The same, for a patch to the pack row itself.
+ * The same, for a patch to the pack row itself — which now means the rule.
  *
- * Nothing on the pack notifies any more — dates moved to segments — but the
- * confirmation path is kept whole rather than half-removed, so a notifying pack
- * column added later finds the machinery still here.
+ * The organiser's full sentence, count and all, because this is the one moment
+ * the count matters most: "6 events, the last on 18/12/2026" is what they are
+ * about to write to other people's diaries.
+ *
+ * The pack's own date columns are a cache a trigger recomputes, so a patch
+ * touching the rule cannot be shown as a date range — `ends_on` will not be
+ * what it says until after the write.
  */
 const whenAfter = (pack: Pack, patch: Record<string, unknown>): string => {
-  const next   = { ...pack, ...patch } as Pack;
-  const starts = formatDate(next.starts_on);
-  const ends   = next.ends_on && next.ends_on !== next.starts_on ? formatDate(next.ends_on) : null;
-  const time   = next.starts_at ? formatTime(next.starts_at) : null;
-  return [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null]
-    .filter(Boolean).join(' ') || 'no date';
+  const next = { ...pack, ...patch } as Pack;
+
+  if (next.recurrence === 'none') {
+    const day = formatDate(next.starts_on);
+    return day ? `Happens once, on ${day}` : 'Happens once';
+  }
+  return describeRecurrence(next.starts_on, next) ?? 'A repeating event';
 };
 
 export default function PackEditor() {
@@ -341,17 +364,17 @@ export default function PackEditor() {
    * on the next render with nothing to undo.
    */
   const savePackFieldsChecked = useCallback(async (patch: Record<string, unknown>) => {
-    // Dates moved to segments, so nothing reaching this path can notify — but
-    // the guard stays, because a pack column that notifies could be added back
-    // and a warning that quietly stopped applying is the worst outcome.
-    const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
+    // The dates themselves moved to segments; what is left on the pack that can
+    // reach people is the recurrence rule, which decides every date after the
+    // first one.
+    const movesTheEvent = NOTIFYING_PACK_FIELDS.some(f => f in patch);
     if (!movesTheEvent || pack?.status !== 'published') return savePackFields(patch);
 
     const count = await calendarAudienceSize(packId);
     if (count === 0) return savePackFields(patch);
 
     setPendingNotify({
-      kind: 'moved',
+      kind: 'rule',
       count,
       becomes: pack ? whenAfter(pack, patch) : undefined,
       run: () => savePackFields(patch),
@@ -869,16 +892,22 @@ export default function PackEditor() {
             <h2 className="font-heading text-xl text-white">
               {pendingNotify?.kind === 'withdrawn'
                 ? `Tell ${people(pendingNotify.count)} it is off?`
-                : `Tell ${people(pendingNotify?.count ?? 0)} the date has changed?`}
+                : pendingNotify?.kind === 'rule'
+                  ? `Tell ${people(pendingNotify.count)} when it runs has changed?`
+                  : `Tell ${people(pendingNotify?.count ?? 0)} the date has changed?`}
             </h2>
 
             <p className="font-body text-sm text-gray-300">
               {pendingNotify?.kind === 'withdrawn'
                 ? `${people(pendingNotify.count)} added this event to their own calendar.
                    Taking it down emails them to say it is not going ahead.`
-                : `${people(pendingNotify?.count ?? 0)} added this event to their own calendar,
-                   and the date in there is the one you are about to change. Saving
-                   emails them the new date and a link to re-add it.`}
+                : pendingNotify?.kind === 'rule'
+                  ? `${people(pendingNotify.count)} added this event to their own calendar, and
+                     the repeat they saved is the one you are about to change. Saving
+                     emails them the new pattern and a link to re-add it.`
+                  : `${people(pendingNotify?.count ?? 0)} added this event to their own calendar,
+                     and the date in there is the one you are about to change. Saving
+                     emails them the new date and a link to re-add it.`}
             </p>
 
             {/* What they are actually confirming. The date field is controlled
@@ -889,7 +918,7 @@ export default function PackEditor() {
             {pendingNotify?.becomes && (
               <div className="rounded-lg bg-gray-900 px-4 py-3">
                 <p className="font-body text-xs uppercase tracking-wide text-gray-500 font-bold">
-                  New date
+                  {pendingNotify?.kind === 'rule' ? 'New schedule' : 'New date'}
                 </p>
                 <p className="font-body font-medium text-base leading-6 text-gray-50">
                   {pendingNotify.becomes}

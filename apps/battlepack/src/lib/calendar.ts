@@ -18,6 +18,7 @@
  */
 
 import type { Pack, PublicPack } from './packs';
+import { weekdayNameOf } from './recurrence';
 
 /** A calendar event, in the only terms all three destinations share. */
 export interface CalendarEvent {
@@ -107,12 +108,22 @@ const ICS_DAYS: Record<string, string> = {
  * arithmetic that BattlePlan already owns, in a second place, to produce a
  * number the rule can express directly.
  */
-function recurrenceRule(pack: Pack, allDay: boolean): string | null {
+function recurrenceRule(pack: Pack, allDay: boolean, onDay: string | null): string | null {
   if (!pack.recurrence || pack.recurrence === 'none') return null;
 
-  const days = (pack.days_of_week ?? [])
-    .map((d: string) => ICS_DAYS[d])
-    .filter(Boolean);
+  // ONE VEVENT REPEATS ON ITS OWN WEEKDAY, not on the pack's whole list.
+  //
+  // The two readings only diverge for a multi-day event, and there the pack's
+  // list is the days it RUNS ON — Saturday and Sunday for a weekender. Handing
+  // that list to both days' events would repeat Saturday's timetable on Sunday
+  // as well, doubling a fortnightly weekender into four events. Each day
+  // repeats on the day it is, which is what BYDAY means once DTSTART is fixed.
+  //
+  // A single-day pack keeps the full list, because there the list is a real
+  // answer: a club running Friday AND Saturday nights is one event repeating
+  // on both, and one VEVENT is where that belongs.
+  const names = onDay ? [onDay] : (pack.days_of_week ?? []);
+  const days = names.map((d: string) => ICS_DAYS[d]).filter(Boolean);
   if (days.length === 0) return null;
 
   // An until_date is mandatory for a recurring pack, so an unbounded series is
@@ -242,7 +253,8 @@ export function packCalendarEvents(data: PublicPack, origin: string): CalendarEv
       allDay,
       start: fromClock(start),
       end: fromClock(end),
-      rrule: recurrenceRule(pack, allDay),
+      // Its own weekday once there is more than one day; see recurrenceRule.
+      rrule: recurrenceRule(pack, allDay, many ? weekdayNameOf(segment.starts_on!) : null),
     };
   });
 }
