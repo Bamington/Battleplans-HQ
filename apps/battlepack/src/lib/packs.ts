@@ -811,6 +811,62 @@ export async function updateSegment(
   if (error) throw error;
 }
 
+/**
+ * Add a day to the end of the event.
+ *
+ * Dated the day after the last one that has a date, because consecutive is what
+ * "add a day" means to a tournament organiser far more often than not — and a
+ * date they have to correct is less work than a date they have to invent. Times
+ * are copied from the previous day for the same reason.
+ *
+ * Returns the new segment so the caller can select it: adding a day and then
+ * having to find it would be two steps where the organiser meant one.
+ */
+export async function addSegment(packId: string, after: ScheduleSegment | null): Promise<ScheduleSegment> {
+  const nextDay = (iso: string | null): string | null => {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + 1));
+    return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  const { data, error } = await supabase
+    .from('battlepack_schedule_segments')
+    .insert({
+      pack_id:   packId,
+      ordinal:   (after?.ordinal ?? 0) + 1,
+      starts_on: nextDay(after?.starts_on ?? null),
+      starts_at: after?.starts_at ?? null,
+      ends_at:   after?.ends_at ?? null,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as ScheduleSegment;
+}
+
+/**
+ * Remove a day, and everything scheduled inside it.
+ *
+ * The rounds go with it — the foreign key cascades — which is why the caller
+ * asks first when the day has any. There is no way back: unlike hiding a
+ * category, this does not keep what was written.
+ */
+export async function deleteSegment(segmentId: string): Promise<void> {
+  const { error } = await supabase
+    .from('battlepack_schedule_segments')
+    .delete()
+    .eq('id', segmentId);
+  if (error) throw error;
+}
+
+/** Renumber days after one is removed, so the sequence has no holes. */
+export async function reorderSegments(segments: ScheduleSegment[]): Promise<void> {
+  await Promise.all(segments.map((s, i) =>
+    supabase.from('battlepack_schedule_segments').update({ ordinal: i + 1 }).eq('id', s.id),
+  ));
+}
+
 export async function getSchedule(packId: string): Promise<ScheduleItem[]> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
@@ -828,11 +884,15 @@ export async function addScheduleItem(
   ordinal: number,
   label?: string,
   durationMinutes?: number,
+  segmentId?: string,
 ): Promise<ScheduleItem> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
     .insert({
       pack_id: packId,
+      // Omitted means the pack's first day, which a database trigger fills in
+      // (20260821010000). Named explicitly once the editor knows which day.
+      ...(segmentId ? { segment_id: segmentId } : {}),
       kind,
       ordinal,
       label: label ?? null,

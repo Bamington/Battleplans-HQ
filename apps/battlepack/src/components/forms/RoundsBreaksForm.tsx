@@ -27,11 +27,12 @@ import {
   AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
-import type { ScheduleItem } from '../../lib/packs';
+import type { ScheduleItem, ScheduleSegment } from '../../lib/packs';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import type { SaveSection } from './SectionForm';
 import {
   addScheduleItem, deleteScheduleItem, reorderSchedule, updateScheduleItem, timeSchedule,
+  addSegment, updateSegment, deleteSegment, reorderSegments,
   saveCategoryContent,
 } from '../../lib/packs';
 
@@ -46,10 +47,16 @@ const KIND_OPTIONS = [
  * memory. The ordering logic is the part most worth being able to exercise.
  */
 export interface ScheduleOps {
-  add: (packId: string, kind: ScheduleItem['kind'], ordinal: number, label: string, duration: number) => Promise<unknown>;
+  add: (packId: string, kind: ScheduleItem['kind'], ordinal: number, label: string, duration: number, segmentId?: string) => Promise<unknown>;
   update: (id: string, patch: Partial<ScheduleItem>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   reorder: (items: ScheduleItem[]) => Promise<void>;
+  /** Day operations. Separate from the item ones: a different table, and one
+   *  of them can email everybody holding a calendar entry. */
+  addDay: (packId: string, after: ScheduleSegment | null) => Promise<ScheduleSegment>;
+  updateDay: (id: string, patch: Partial<ScheduleSegment>) => Promise<void>;
+  removeDay: (id: string) => Promise<void>;
+  reorderDays: (segments: ScheduleSegment[]) => Promise<void>;
 }
 
 const LIVE_OPS: ScheduleOps = {
@@ -57,6 +64,10 @@ const LIVE_OPS: ScheduleOps = {
   update: updateScheduleItem,
   remove: deleteScheduleItem,
   reorder: reorderSchedule,
+  addDay: addSegment,
+  updateDay: updateSegment,
+  removeDay: deleteSegment,
+  reorderDays: reorderSegments,
 };
 
 /** What a new row is called, so the organiser rarely has to type a label. */
@@ -80,14 +91,30 @@ export function readScheduleNotes(content: unknown): string {
 }
 
 const RoundsBreaksForm = ({
-  pack, schedule, rows, categoryKey, reload, ops = LIVE_OPS,
+  pack, schedule, segments, rows, categoryKey, reload, ops = LIVE_OPS,
   save: saveFn = saveCategoryContent,
 }: CategoryFormProps & { ops?: ScheduleOps; save?: SaveSection }) => {
-  const [items, setItems] = useState<ScheduleItem[]>(schedule);
+  const [allItems, setAllItems] = useState<ScheduleItem[]>(schedule);
   const [error, setError] = useState<string | null>(null);
   const [busy,  setBusy]  = useState(false);
 
-  useEffect(() => { setItems(schedule); }, [schedule]);
+  /**
+   * Which day the round list below is editing.
+   *
+   * Held by id rather than by index so it survives a day being removed above
+   * it — an index would quietly start editing a different day.
+   */
+  const [dayId, setDayId] = useState<string | null>(null);
+
+  useEffect(() => { setAllItems(schedule); }, [schedule]);
+
+  const days = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+  // Falls back to the first day whenever the selection no longer exists, which
+  // is what happens the moment the selected day is deleted.
+  const day = days.find(d => d.id === dayId) ?? days[0] ?? null;
+  const many = days.length > 1;
+
+  const items = day ? allItems.filter(i => i.segment_id === day.id) : [];
 
   // Prose, so it commits on a debounce rather than on blur — a rich text editor
   // loses focus for ordinary reasons like reaching for the bold button.
@@ -112,7 +139,7 @@ const RoundsBreaksForm = ({
   };
 
   // Clock times, derived here exactly as the document derives them.
-  const timed = timeSchedule(items, pack.starts_at);
+  const timed = timeSchedule(items, day?.starts_at ?? null);
 
   async function persist(work: () => Promise<void>) {
     setBusy(true);
@@ -129,7 +156,12 @@ const RoundsBreaksForm = ({
   }
 
   const add = (kind: ScheduleItem['kind']) =>
-    persist(() => ops.add(pack.id, kind, items.length, defaultLabel(kind, items), defaultDuration(kind)).then(() => {}));
+    persist(() => ops
+      // Numbered within the day, and added to the day being edited. Without the
+      // segment a database trigger would file it under day one, which is right
+      // for an older client and wrong for this one.
+      .add(pack.id, kind, items.length, defaultLabel(kind, items), defaultDuration(kind), day?.id)
+      .then(() => {}));
 
   const remove = (item: ScheduleItem) =>
     persist(async () => {
@@ -144,14 +176,68 @@ const RoundsBreaksForm = ({
     if (target < 0 || target >= items.length) return;
     const next = [...items];
     [next[index], next[target]] = [next[target], next[index]];
-    setItems(next);                                  // optimistic
+    // Optimistic, and only within this day: the visible order comes from
+    // allItems, so each of this day's slots takes the next reordered row while
+    // every other day is left exactly where it was.
+    setAllItems(prev => {
+      const queue = [...next];
+      return prev.map(i => (i.segment_id === day?.id ? queue.shift() ?? i : i));
+    });
     persist(() => ops.reorder(next));
   };
 
   const patch = (item: ScheduleItem, p: Partial<ScheduleItem>) => {
-    setItems(prev => prev.map(i => (i.id === item.id ? { ...i, ...p } : i)));
+    setAllItems(prev => prev.map(i => (i.id === item.id ? { ...i, ...p } : i)));
     persist(() => ops.update(item.id, p));
   };
+
+  /**
+   * Change a day.
+   *
+   * NOT optimistic, unlike the rows above. A day's date is what the pack's own
+   * envelope is recomputed from and what the notification signature is hashed
+   * from, so the result of this write is decided by triggers — guessing it
+   * locally would mean guessing what the database is about to do.
+   */
+  const patchDay = (p: Partial<ScheduleSegment>) => {
+    if (!day) return;
+    persist(() => ops.updateDay(day.id, p));
+  };
+
+  const addDay = () =>
+    persist(async () => {
+      const created = await ops.addDay(pack.id, days[days.length - 1] ?? null);
+      // Select it: adding a day and then having to find it would be two steps
+      // where the organiser meant one.
+      setDayId(created.id);
+    });
+
+  const removeDay = (target: ScheduleSegment) =>
+    persist(async () => {
+      await ops.removeDay(target.id);
+      // Renumber so the sequence has no holes — "Day 1, Day 3" would be a lie
+      // about how many days there are.
+      await ops.reorderDays(days.filter(d => d.id !== target.id));
+      setDayId(null);
+    });
+
+  /**
+   * By how many minutes the timetable runs past the day's stated end.
+   *
+   * The day's end is the organiser's, not the timetable's — that separation is
+   * what stops a round being added from moving somebody's diary entry. So when
+   * the two disagree this warns rather than correcting: only the organiser
+   * knows whether the rounds are wrong or the end time is.
+   */
+  const overrunsBy = (() => {
+    if (!day?.starts_at || !day.ends_at || items.length === 0) return null;
+    const mins = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    const over = mins(day.starts_at) + items.reduce((n, i) => n + i.duration_minutes, 0) - mins(day.ends_at);
+    return over > 0 ? over : null;
+  })();
 
   return (
     <PanelSection
@@ -160,6 +246,112 @@ const RoundsBreaksForm = ({
     >
 
       {error && <Callout flavour="bad" onDismiss={() => setError(null)}>{error}</Callout>}
+
+      {/* ── The days ───────────────────────────────────────────────────────
+          A one-day event shows only the button, because a chip labelled "Day 1"
+          over the only day names a distinction that does not exist. The moment
+          there are two, the strip appears and the fields below it belong to
+          whichever is selected. */}
+      <div className="flex flex-col gap-2">
+        {many && (
+          <>
+            <span className="block font-body text-sm font-medium text-white">Days</span>
+            <div className="flex flex-wrap gap-1.5">
+              {days.map((d, i) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={d.id === day?.id}
+                  onClick={() => setDayId(d.id)}
+                  className={[
+                    'px-3 py-1.5 rounded-lg font-body text-sm font-medium transition-colors',
+                    d.id === day?.id
+                      ? 'bg-primary-900 text-primary-200 border border-primary-700'
+                      : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white',
+                  ].join(' ')}
+                >
+                  {d.label?.trim() || `Day ${i + 1}`}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {day && many && (
+          <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-800 border border-gray-700">
+            <Input
+              size="sm"
+              label="Date"
+              type="date"
+              value={day.starts_on ?? ''}
+              onChange={e => patchDay({ starts_on: e.target.value || null })}
+            />
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <Input
+                  size="sm"
+                  label="Starts"
+                  type="time"
+                  value={(day.starts_at ?? '').slice(0, 5)}
+                  onChange={e => patchDay({ starts_at: e.target.value || null })}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Input
+                  size="sm"
+                  label="Ends"
+                  type="time"
+                  value={(day.ends_at ?? '').slice(0, 5)}
+                  onChange={e => patchDay({ ends_at: e.target.value || null })}
+                />
+              </div>
+            </div>
+            <Input
+              size="sm"
+              label="Name (optional)"
+              placeholder={`Day ${days.indexOf(day) + 1}`}
+              defaultValue={day.label ?? ''}
+              onBlur={e => {
+                const label = e.target.value.trim();
+                if (label !== (day.label ?? '')) patchDay({ label: label || null });
+              }}
+            />
+
+            {/* The one thing the day's end time is for, said where it is set.
+                It informs rather than blocks: a day that runs past its stated
+                end is a timetable to fix or an end time to correct, and only
+                the organiser knows which. */}
+            {overrunsBy !== null && (
+              <Callout flavour="warning">
+                The rounds below run {overrunsBy} minutes past this day&rsquo;s end time.
+              </Callout>
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              color="danger"
+              disabled={busy || days.length <= 1}
+              onClick={() => removeDay(day)}
+            >
+              Remove this day
+            </Button>
+          </div>
+        )}
+
+        <Button
+          size="sm"
+          variant="outline"
+          color="secondary"
+          disabled={busy}
+          leftIcon={<AddCircle className="w-4 h-4" />}
+          onClick={addDay}
+        >
+          {many ? 'Add another day' : 'Make this a multi-day event'}
+        </Button>
+      </div>
+
 
       {/* Above the rows, because that is where it lands in the document and the
           panel should not disagree with what it is editing. Optional: most days

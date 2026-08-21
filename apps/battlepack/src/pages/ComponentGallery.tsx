@@ -248,6 +248,8 @@ const RoundsBreaksFormDemo = () => {
   const [nextId, setNextId] = useState(1);
   const [problem, setProblem] = useState<string | null>(null);
 
+  const [demoDays, setDemoDays] = useState<ScheduleSegment[]>(DEMO_SEGMENTS);
+
   /** Same invariant the database holds, checked in the demo so bugs surface. */
   const assertContiguous = (next: ScheduleItem[]) => {
     const ordinals = next.map(i => i.ordinal).sort((x, y) => x - y);
@@ -272,6 +274,29 @@ const RoundsBreaksFormDemo = () => {
       setItems(renumbered);
       assertContiguous(renumbered);
     },
+    // The day operations run against the same in-memory store, so the demo can
+    // exercise adding and removing days without a session — which is the half
+    // of this form that is hardest to reason about on paper.
+    addDay: async (_packId, after) => {
+      const created: ScheduleSegment = {
+        id: `sg-new-${nextId}`, pack_id: 'demo-pack', ordinal: (after?.ordinal ?? 0) + 1,
+        starts_on: null, ends_on: null,
+        starts_at: after?.starts_at ?? null, ends_at: after?.ends_at ?? null, label: null,
+      };
+      setNextId(n => n + 1);
+      setDemoDays(prev => [...prev, created]);
+      return created;
+    },
+    updateDay: async (id, patch) => {
+      setDemoDays(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
+    },
+    removeDay: async (id) => {
+      setDemoDays(prev => prev.filter(d => d.id !== id));
+      setItems(prev => prev.filter(i => i.segment_id !== id));
+    },
+    reorderDays: async (ordered) => {
+      setDemoDays(ordered.map((d, i) => ({ ...d, ordinal: i + 1 })));
+    },
   };
 
   return (
@@ -281,7 +306,7 @@ const RoundsBreaksFormDemo = () => {
           pack={pack}
           rows={{}}
           schedule={items}
-          segments={DEMO_SEGMENTS}
+          segments={demoDays}
           onSegmentChange={() => {}}
           games={[]}
           venues={[]}
