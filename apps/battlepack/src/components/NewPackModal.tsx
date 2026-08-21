@@ -29,7 +29,7 @@ import {
   recentIdsFrom, minutesToTime, savePackBanner,
 } from '../lib/packs';
 import { describeRecurrence, shortDate, weekOfMonthOf, weekdayNameOf } from '../lib/recurrence';
-import { addDays } from '../lib/leagues';
+import { ROUND_LENGTH_WEEKS, addDays, weeksLabel } from '../lib/leagues';
 import { BANNER_MIN_ASPECT } from './PackDocument';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
 import type {
@@ -189,7 +189,9 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const leagueSummary = (() => {
     if (rounds < 1) return 'Add at least one round — a league with none has nothing to play.';
     const weeks = rounds * roundWeeks;
-    const span  = `${rounds} round${rounds === 1 ? '' : 's'} of ${roundWeeks === 1 ? 'a week' : `${roundWeeks} weeks`} — ${weeks} week${weeks === 1 ? '' : 's'} in all`;
+    // The numeral both times — "3 rounds of a week" reads as an approximation
+    // of something that is exactly one week long.
+    const span  = `${rounds} round${rounds === 1 ? '' : 's'} of ${weeksLabel(roundWeeks)} — ${weeksLabel(weeks)} in all`;
     if (!startDate) return `${span}. Give it a start date and the rounds will lay themselves out.`;
     return `${span}, finishing ${shortDate(addDays(startDate, weeks * 7 - 1))}.`;
   })();
@@ -533,10 +535,8 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                   value={String(roundWeeks)}
                   onChange={e => setRoundWeeks(Number(e.target.value))}
                 >
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={String(i + 1)}>
-                      {i === 0 ? '1 week' : `${i + 1} weeks`}
-                    </option>
+                  {ROUND_LENGTH_WEEKS.map(w => (
+                    <option key={w} value={String(w)}>{weeksLabel(w)}</option>
                   ))}
                 </Select>
               ) : (

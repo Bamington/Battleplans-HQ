@@ -35,7 +35,7 @@ import {
   addSegment, updateSegment, deleteSegment, reorderSegments, syncLeagueDates,
   saveCategoryContent,
 } from '../../lib/packs';
-import { addDays as afterDays, leagueLabels } from '../../lib/leagues';
+import { ROUND_LENGTH_WEEKS, addDays as afterDays, leagueLabels, weeksLabel } from '../../lib/leagues';
 import { formatDate, periodRange } from '../packBody';
 
 const KIND_OPTIONS = [
@@ -82,10 +82,10 @@ const LIVE_OPS: ScheduleOps = {
   syncLeague: syncLeagueDates,
 };
 
-/** One to twelve weeks a round. Beyond that it is a season, not a round. */
-const ROUND_WEEK_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
-  value: String(i + 1),
-  label: i === 0 ? '1 week' : `${i + 1} weeks`,
+/** The same four the create flow offers — see ROUND_LENGTH_WEEKS. */
+const ROUND_WEEK_OPTIONS = ROUND_LENGTH_WEEKS.map(w => ({
+  value: String(w),
+  label: weeksLabel(w),
 }));
 
 /** What a new row is called, so the organiser rarely has to type a label. */
