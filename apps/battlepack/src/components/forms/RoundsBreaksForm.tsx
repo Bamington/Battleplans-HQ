@@ -27,14 +27,16 @@ import {
   AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
-import type { ScheduleItem, ScheduleSegment } from '../../lib/packs';
+import type { ScheduleItem, ScheduleSegment, SegmentKind } from '../../lib/packs';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import type { SaveSection } from './SectionForm';
 import {
   addScheduleItem, deleteScheduleItem, reorderSchedule, updateScheduleItem, timeSchedule,
-  addSegment, updateSegment, deleteSegment, reorderSegments,
+  addSegment, updateSegment, deleteSegment, reorderSegments, syncLeagueDates,
   saveCategoryContent,
 } from '../../lib/packs';
+import { addDays as afterDays, leagueLabels } from '../../lib/leagues';
+import { formatDate, periodRange } from '../packBody';
 
 const KIND_OPTIONS = [
   { value: 'round', label: 'Round' },
@@ -53,10 +55,19 @@ export interface ScheduleOps {
   reorder: (items: ScheduleItem[]) => Promise<void>;
   /** Day operations. Separate from the item ones: a different table, and one
    *  of them can email everybody holding a calendar entry. */
-  addDay: (packId: string, after: ScheduleSegment | null, shape?: 'days' | 'periods') => Promise<ScheduleSegment>;
+  addDay: (packId: string, after: ScheduleSegment | null, shape?: 'days' | 'periods', kind?: SegmentKind) => Promise<ScheduleSegment>;
   updateDay: (id: string, patch: Partial<ScheduleSegment>) => Promise<void>;
   removeDay: (id: string) => Promise<void>;
   reorderDays: (segments: ScheduleSegment[]) => Promise<void>;
+  /**
+   * Re-date a league's rounds after anything that shifts the sequence.
+   *
+   * Its own op rather than something the writes above do quietly, because it
+   * is the one operation whose result is not a property of the row it was
+   * called about: adding round four re-dates nothing, but adding an Event
+   * between rounds one and two moves everything behind it.
+   */
+  syncLeague: (segments: ScheduleSegment[], startsOn: string | null, weeks: number) => Promise<ScheduleSegment[]>;
 }
 
 const LIVE_OPS: ScheduleOps = {
@@ -68,7 +79,14 @@ const LIVE_OPS: ScheduleOps = {
   updateDay: updateSegment,
   removeDay: deleteSegment,
   reorderDays: reorderSegments,
+  syncLeague: syncLeagueDates,
 };
+
+/** One to twelve weeks a round. Beyond that it is a season, not a round. */
+const ROUND_WEEK_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: i === 0 ? '1 week' : `${i + 1} weeks`,
+}));
 
 /** What a new row is called, so the organiser rarely has to type a label. */
 function defaultLabel(kind: ScheduleItem['kind'], existing: ScheduleItem[]): string {
@@ -91,7 +109,7 @@ export function readScheduleNotes(content: unknown): string {
 }
 
 const RoundsBreaksForm = ({
-  pack, schedule, segments, rows, categoryKey, reload, ops = LIVE_OPS,
+  pack, schedule, segments, rows, categoryKey, reload, onChange, ops = LIVE_OPS,
   save: saveFn = saveCategoryContent,
 }: CategoryFormProps & { ops?: ScheduleOps; save?: SaveSection }) => {
   const [allItems, setAllItems] = useState<ScheduleItem[]>(schedule);
@@ -121,6 +139,45 @@ const RoundsBreaksForm = ({
   const periods = pack.schedule_shape === 'periods';
   const unit    = periods ? 'round' : 'day';
   const Unit    = periods ? 'Round' : 'Day';
+
+  /**
+   * Where the league begins, and the anchor everything is measured from.
+   *
+   * The FIRST SEGMENT'S start, not `pack.starts_on` — the pack's copy is a
+   * cache a trigger recomputes from these rows, so during the moment between a
+   * write and its reload it is the old answer. Event Basics writes to the same
+   * segment, which is what makes the date entered there the league's start.
+   */
+  const leagueStart = days[0]?.starts_on ?? null;
+  const roundWeeks  = pack.round_length_weeks || 1;
+
+  /** Rounds numbered among themselves, so an Event never takes a number. */
+  const names = leagueLabels(days);
+  const segmentName = (segment: ScheduleSegment, index: number) =>
+    (periods ? names.get(segment.id) : null) ?? segment.label?.trim() ?? `${Unit} ${index + 1}`;
+
+  const isEvent  = day?.kind === 'event';
+  // What the thing being edited is called, which is not always the unit: a
+  // league's strip holds rounds AND events, and "Remove this round" on a
+  // painting week would be describing something else.
+  const thisUnit = isEvent ? 'event' : unit;
+
+  /** Where the segment before this one finishes, so an Event cannot overlap it. */
+  const previousEnds = (() => {
+    const index = day ? days.indexOf(day) : -1;
+    if (index <= 0) return null;
+    const before = days[index - 1];
+    return before.ends_on ?? before.starts_on ?? null;
+  })();
+  const afterDay = (iso: string) => afterDays(iso, 1);
+
+  /** When the league finishes, as it would read after the current layout. */
+  const leagueEnds = (() => {
+    if (!periods) return null;
+    const last = days[days.length - 1];
+    const end  = last?.ends_on ?? last?.starts_on ?? null;
+    return end ? formatDate(end) : null;
+  })();
 
   const items = day ? allItems.filter(i => i.segment_id === day.id) : [];
 
@@ -209,15 +266,49 @@ const RoundsBreaksForm = ({
    */
   const patchDay = (p: Partial<ScheduleSegment>) => {
     if (!day) return;
-    persist(() => ops.updateDay(day.id, p));
+    persist(async () => {
+      await ops.updateDay(day.id, p);
+      // Only an Event's dates are editable in a league, and moving one moves
+      // every round behind it. The local copy is patched first so the layout
+      // runs against what was just written rather than what was on screen.
+      await relayout(days.map(d => (d.id === day.id ? { ...d, ...p } : d)));
+    });
   };
 
-  const addDay = () =>
+  /**
+   * Re-date a league after something moved.
+   *
+   * Silent for a tournament: a day is where the organiser put it, and laying
+   * days out end to end would take that away from them.
+   */
+  const relayout = async (next: ScheduleSegment[]) => {
+    if (!periods) return;
+    const anchor = [...next].sort((a, b) => a.ordinal - b.ordinal)[0]?.starts_on ?? leagueStart;
+    await ops.syncLeague(next, anchor, roundWeeks);
+  };
+
+  const addDay = (kind: SegmentKind = 'round') =>
     persist(async () => {
-      const created = await ops.addDay(pack.id, days[days.length - 1] ?? null, pack.schedule_shape);
+      const created = await ops.addDay(pack.id, days[days.length - 1] ?? null, pack.schedule_shape, kind);
+      // The new one has no dates of its own yet — a league's rounds get theirs
+      // from the layout, which is also what moves the league's end date.
+      await relayout([...days, created]);
       // Select it: adding a day and then having to find it would be two steps
       // where the organiser meant one.
       setDayId(created.id);
+    });
+
+  /**
+   * Change how long every round runs for.
+   *
+   * Two writes and they belong together: the number is the pack's, and the
+   * dates it implies are the segments'. Between them the league would say a
+   * round is three weeks while its rounds were still a week long.
+   */
+  const changeRoundLength = (weeks: number) =>
+    persist(async () => {
+      onChange({ round_length_weeks: weeks });
+      await ops.syncLeague(days, leagueStart, weeks);
     });
 
   /**
@@ -229,10 +320,13 @@ const RoundsBreaksForm = ({
    */
   const removeDay = (target: ScheduleSegment) =>
     persist(async () => {
+      const left = days.filter(d => d.id !== target.id);
       await ops.removeDay(target.id);
       // Renumber so the sequence has no holes — "Day 1, Day 3" would be a lie
       // about how many days there are.
-      await ops.reorderDays(days.filter(d => d.id !== target.id));
+      await ops.reorderDays(left);
+      // Everything behind what went closes up, and the league finishes earlier.
+      await relayout(left.map((d, i) => ({ ...d, ordinal: i + 1 })));
       setDayId(null);
     });
 
@@ -265,13 +359,37 @@ const RoundsBreaksForm = ({
 
       {error && <Callout flavour="bad" onDismiss={() => setError(null)}>{error}</Callout>}
 
-      {/* ── The days ───────────────────────────────────────────────────────
+      {/* ── The days, or the league's timeline ─────────────────────────────
           A one-day event shows only the button, because a chip labelled "Day 1"
           over the only day names a distinction that does not exist. The moment
           there are two, the strip appears and the fields below it belong to
-          whichever is selected. */}
+          whichever is selected.
+
+          A LEAGUE ALWAYS SHOWS ITS STRIP, even with one round, because the
+          strip is where Events are added and where the round length lives. */}
       <div className="flex flex-col gap-2">
-        {many && (
+
+        {/* ── How long a round is ──────────────────────────────────────────
+            ONE NUMBER FOR THE WHOLE LEAGUE. Chris's call, and it is what a
+            league organiser actually means: rounds are a fortnight each, not a
+            fortnight for round one and three weeks for round two. Changing it
+            re-dates every round and moves the league's end, which is why the
+            sentence underneath says where it now finishes. */}
+        {periods && (
+          <Select
+            size="sm"
+            label="Round Length"
+            value={String(roundWeeks)}
+            disabled={busy}
+            helperText={leagueEnds
+              ? `Every round runs the same length. The league finishes ${leagueEnds}.`
+              : 'Every round runs the same length.'}
+            onChange={e => changeRoundLength(Number(e.target.value))}
+            options={ROUND_WEEK_OPTIONS}
+          />
+        )}
+
+        {(many || periods) && (
           <>
             <span className="block font-body text-sm font-medium text-white">{periods ? 'Rounds' : 'Days'}</span>
             <div className="flex flex-wrap gap-1.5">
@@ -286,64 +404,137 @@ const RoundsBreaksForm = ({
                     'px-3 py-1.5 rounded-lg font-body text-sm font-medium transition-colors',
                     d.id === day?.id
                       ? 'bg-primary-900 text-primary-200 border border-primary-700'
-                      : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white',
+                      : d.kind === 'event'
+                        // An Event is not play, and the strip says so before it
+                        // is opened — otherwise a break week is indistinguishable
+                        // from the round beside it.
+                        ? 'bg-gray-800 text-gray-400 border border-dashed border-gray-600 hover:text-white'
+                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white',
                   ].join(' ')}
                 >
-                  {d.label?.trim() || `${Unit} ${i + 1}`}
+                  {segmentName(d, i)}
                 </button>
               ))}
             </div>
           </>
         )}
 
+        {/* Directly under the chips it extends, rather than below the editor
+            for whichever one is open — the button adds to the strip, so it
+            belongs with the strip. */}
+        {(many || periods) && (
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              color="secondary"
+              disabled={busy}
+              leftIcon={<AddCircle className="w-4 h-4" />}
+              onClick={() => addDay('round')}
+            >
+              {`Add another ${unit}`}
+            </Button>
+
+            {/* A LEAGUE'S ONE PIECE OF AUTHORED TIME. Everything else lays
+                itself out; this is the painting week, the launch night, the
+                fortnight the shop is shut — and it PUSHES the rounds after it
+                later, because it occupies that stretch of the calendar. */}
+            {periods && (
+              <Button
+                size="sm"
+                variant="outline"
+                color="secondary"
+                disabled={busy}
+                leftIcon={<AddCircle className="w-4 h-4" />}
+                onClick={() => addDay('event')}
+              >
+                Add an Event
+              </Button>
+            )}
+          </div>
+        )}
+
         {day && (many || periods) && (
           <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-800 border border-gray-700">
-            <Input
-              size="sm"
-              label={periods ? 'Starts' : 'Date'}
-              type="date"
-              value={day.starts_on ?? ''}
-              onChange={e => patchDay({ starts_on: e.target.value || null })}
-            />
 
-            {/* A ROUND SPANS DATES; A DAY SPANS HOURS. Both are "when does this
-                part run", and the two never appear together — a league keeps no
-                clock, because players arrange their own games inside the week. */}
-            {periods ? (
-              <Input
-                size="sm"
-                label="Ends"
-                type="date"
-                value={day.ends_on ?? ''}
-                min={day.starts_on ?? undefined}
-                onChange={e => patchDay({ ends_on: e.target.value || null })}
-              />
-            ) : (
-              <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <Input
-                    size="sm"
-                    label="Starts"
-                    type="time"
-                    value={(day.starts_at ?? '').slice(0, 5)}
-                    onChange={e => patchDay({ starts_at: e.target.value || null })}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Input
-                    size="sm"
-                    label="Ends"
-                    type="time"
-                    value={(day.ends_at ?? '').slice(0, 5)}
-                    onChange={e => patchDay({ ends_at: e.target.value || null })}
-                  />
-                </div>
+            {/* ── When it runs ─────────────────────────────────────────────
+                A ROUND IS NOT DATED BY HAND. Its dates fall out of the
+                league's start, the round length and everything ahead of it —
+                so an input here would be a second answer to a question already
+                settled, and the two would disagree the moment a round was
+                added above it. Shown, not asked.
+
+                An EVENT is the exception, and the only one: it answers to
+                something outside the league — the shop being shut, a painting
+                competition already in the diary — so its dates are the
+                organiser's, and the rounds behind it move to fit. */}
+            {periods && !isEvent ? (
+              <div className="flex flex-col gap-1">
+                <span className="block font-body text-sm font-medium text-white">When</span>
+                <p className="font-body text-sm text-gray-400">
+                  {day.starts_on
+                    ? `${periodRange(day)} — set by the league's start date and the round length.`
+                    : 'Give the league a start date in Event Basics and the rounds will lay themselves out.'}
+                </p>
               </div>
+            ) : periods ? (
+              <>
+                <Input
+                  size="sm"
+                  label="Starts"
+                  type="date"
+                  value={day.starts_on ?? ''}
+                  min={previousEnds ? afterDay(previousEnds) : undefined}
+                  onChange={e => patchDay({ starts_on: e.target.value || null })}
+                />
+                <Input
+                  size="sm"
+                  label="Ends"
+                  type="date"
+                  value={day.ends_on ?? ''}
+                  min={day.starts_on ?? undefined}
+                  onChange={e => patchDay({ ends_on: e.target.value || null })}
+                />
+                <p className="font-body text-xs text-gray-500">
+                  The rounds after this one start again once it finishes.
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  size="sm"
+                  label="Date"
+                  type="date"
+                  value={day.starts_on ?? ''}
+                  onChange={e => patchDay({ starts_on: e.target.value || null })}
+                />
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      size="sm"
+                      label="Starts"
+                      type="time"
+                      value={(day.starts_at ?? '').slice(0, 5)}
+                      onChange={e => patchDay({ starts_at: e.target.value || null })}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      size="sm"
+                      label="Ends"
+                      type="time"
+                      value={(day.ends_at ?? '').slice(0, 5)}
+                      onChange={e => patchDay({ ends_at: e.target.value || null })}
+                    />
+                  </div>
+                </div>
+              </>
             )}
+
             <Input
               size="sm"
               label="Name (optional)"
-              placeholder={`${Unit} ${days.indexOf(day) + 1}`}
+              placeholder={segmentName(day, days.indexOf(day))}
               defaultValue={day.label ?? ''}
               onBlur={e => {
                 const label = e.target.value.trim();
@@ -365,13 +556,13 @@ const RoundsBreaksForm = ({
               <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-900 border border-red-900">
                 <p className="font-body text-sm text-gray-300">
                   {items.length > 0
-                    ? `Remove this ${unit}? The ${items.length} ${items.length === 1 ? 'row' : 'rows'} scheduled in it go too.`
-                    : `Remove this ${unit}?`}
+                    ? `Remove this ${thisUnit}? The ${items.length} ${items.length === 1 ? 'row' : 'rows'} scheduled in it go too.`
+                    : `Remove this ${thisUnit}?`}
                   {' '}This cannot be undone.
                 </p>
                 <ButtonPair>
                   <Button size="sm" color="danger" disabled={busy} onClick={() => { setConfirmRemoveDay(null); removeDay(day); }}>
-                    {`Remove the ${unit}`}
+                    {`Remove the ${thisUnit}`}
                   </Button>
                   <Button size="sm" variant="outline" color="secondary" onClick={() => setConfirmRemoveDay(null)}>
                     Keep it
@@ -383,26 +574,13 @@ const RoundsBreaksForm = ({
                 size="sm"
                 variant="outline"
                 color="danger"
-                disabled={busy || days.length <= 1}
+                disabled={busy || (days.length <= 1 && !isEvent)}
                 onClick={() => setConfirmRemoveDay(day)}
               >
-                {`Remove this ${unit}`}
+                {`Remove this ${thisUnit}`}
               </Button>
             )}
           </div>
-        )}
-
-        {(many || periods) && (
-          <Button
-            size="sm"
-            variant="outline"
-            color="secondary"
-            disabled={busy}
-            leftIcon={<AddCircle className="w-4 h-4" />}
-            onClick={addDay}
-          >
-            {`Add another ${unit}`}
-          </Button>
         )}
       </div>
 

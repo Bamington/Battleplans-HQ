@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '@battleplans/ui';
+import { layOutLeague, withLeagueDates } from './leagues';
 import type { PendingBanner } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -37,6 +38,14 @@ export type ScheduleShape = 'days' | 'periods';
 
 /** How often the whole event happens. Same vocabulary as `blocked_dates`. */
 export type PackRecurrence = 'none' | 'weekly' | 'monthly';
+
+/**
+ * Play, or one of the gaps between.
+ *
+ * Only a league has both. See `ScheduleSegment.kind`, and [leagues.ts](leagues.ts)
+ * for what the difference does to the dates.
+ */
+export type SegmentKind = 'round' | 'event';
 
 /**
  * What a schedule row is.
@@ -99,6 +108,14 @@ export interface Pack {
   week_of_month: number | null;
   /** Last day the series can run. Required when recurring. */
   until_date: string | null;
+  /**
+   * How many weeks each of a LEAGUE's rounds runs for.
+   *
+   * One number for the whole league: every round is the same length, and
+   * changing it re-dates all of them. Meaningless for a tournament, where it
+   * keeps its default of 1 and nothing reads it.
+   */
+  round_length_weeks: number;
   owner_id: string;
   status: PackStatus;
   slug: string | null;
@@ -139,6 +156,17 @@ export interface ScheduleSegment {
   ends_at: string | null;
   /** "Day 1", "Week 3 — Break Week". Null falls back to a derived label. */
   label: string | null;
+  /**
+   * What this segment IS, and only meaningful for a league.
+   *
+   * `round` is play, and its dates are computed — laid end to end from the
+   * league's start, every round the same length. `event` is a painting week,
+   * a launch night, a break: no round number, the organiser's own dates, and it
+   * PUSHES the rounds after it later because it occupies that stretch of the
+   * calendar. A tournament day is always `round`; there is nothing else for a
+   * day to be.
+   */
+  kind: SegmentKind;
 }
 
 export interface ScheduleItem {
@@ -396,6 +424,26 @@ export async function createPack(fields: {
   startsAt?: string | null;
   /** How often the whole thing happens. Omitted means it does not repeat. */
   recurrence?: RecurrenceFields | null;
+  /**
+   * How many DAYS a multi-day event runs for, always consecutive from the
+   * first. The count is the fact — nothing stores "this is a three-day event" —
+   * so this is how many segments to make, not a property to save.
+   */
+  days?: number;
+  /** A league's rounds: how many, and how many weeks each one runs. */
+  rounds?: number;
+  roundLengthWeeks?: number;
+  /**
+   * The generated timetable, given to EVERY day.
+   *
+   * Chris's call: the round lengths and breaks entered at creation describe how
+   * this event runs, and a three-day tournament running the same shape of day
+   * three times is the normal case. An organiser who wants day three different
+   * changes day three, which is a smaller job than building all three.
+   *
+   * A league gets none of this: its rounds are weeks, not a timetable.
+   */
+  schedule?: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[];
 }): Promise<Pack> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('You need to be signed in to create a pack.');
@@ -416,6 +464,7 @@ export async function createPack(fields: {
       // All five or none: the database checks the rule as a whole, so a
       // recurrence without its weekdays and end date is rejected outright.
       ...(fields.recurrence ?? {}),
+      ...(fields.roundLengthWeeks ? { round_length_weeks: fields.roundLengthWeeks } : {}),
       owner_id: auth.user.id,
     })
     .select('*')
@@ -437,13 +486,36 @@ export async function createPack(fields: {
     });
   }
 
-  // A multi-day event needs a second day to be multi-day at all — the count IS
-  // the fact, so creating one with a single day would make the answer they just
-  // gave untrue. AFTER day one is dated, so day two lands the day after it
-  // rather than joining as another undated day.
-  if (fields.timeline === 'multi-day') {
-    const [dated] = await getSegments(pack.id);
-    await addSegment(pack.id, dated ?? null);
+  const league = fields.timeline === 'league';
+
+  // ── The rest of the days, or the rest of the rounds ──────────────────────
+  //
+  // Sequentially, not in parallel: each one is placed relative to the one
+  // before it, and `(pack_id, ordinal)` is unique — concurrent inserts would
+  // race for the same number.
+  const wanted = league ? Math.max(1, fields.rounds ?? 1) : Math.max(1, fields.days ?? 1);
+  let previous = (await getSegments(pack.id))[0] ?? null;
+  for (let i = 1; i < wanted; i++) {
+    previous = await addSegment(pack.id, previous, league ? 'periods' : 'days');
+  }
+
+  // A league's rounds are all the same length and run end to end, so their
+  // dates are laid out rather than carried forward one from another.
+  if (league) {
+    await syncLeagueDates(
+      await getSegments(pack.id),
+      fields.startsOn ?? null,
+      fields.roundLengthWeeks ?? 1,
+    );
+  }
+
+  // EVERY DAY GETS THE TIMETABLE, which is the point of asking for it once.
+  // Written per segment rather than left to the bridge trigger's default,
+  // because that trigger puts everything on day one.
+  if (!league && fields.schedule?.length) {
+    for (const segment of await getSegments(pack.id)) {
+      await insertSchedule(pack.id, fields.schedule, segment.id);
+    }
   }
 
   return pack;
@@ -894,19 +966,13 @@ export async function addSegment(
   packId: string,
   after: ScheduleSegment | null,
   shape: ScheduleShape = 'days',
+  kind: SegmentKind = 'round',
 ): Promise<ScheduleSegment> {
   const nextDay = (iso: string | null): string | null => {
     if (!iso) return null;
     const [y, m, d] = iso.split('-').map(Number);
     const t = new Date(Date.UTC(y, m - 1, d + 1));
     return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
-  };
-
-  /** How many days a period covers, so the next one is the same length. */
-  const spanDays = (from: string | null, to: string | null): number => {
-    if (!from || !to) return 0;
-    const ms = Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`);
-    return Math.max(0, Math.round(ms / 86_400_000));
   };
 
   const shiftDays = (iso: string | null, by: number): string | null => {
@@ -916,15 +982,20 @@ export async function addSegment(
     return out;
   };
 
-  // A DAY follows the day before it. A PERIOD follows the END of the one before
-  // it and keeps its length: a weekly league running Mon-Sun wants the next
-  // round to be the following Mon-Sun, not the following Tuesday.
+  // A DAY follows the day before it.
+  //
+  // A LEAGUE SEGMENT GETS NO DATES HERE, which is the difference from how this
+  // worked before rounds became uniform. Where it lands is not a property of
+  // the one in front of it any more — it depends on the round length, on every
+  // Event ahead of it, and on the league's own start. `syncLeagueDates` lays
+  // the whole sequence out afterwards, and picking a date here would only be a
+  // guess for it to overwrite.
   const previousEnd = after?.ends_on ?? after?.starts_on ?? null;
   const startsOn = shape === 'periods'
-    ? nextDay(previousEnd)
+    ? (kind === 'event' ? nextDay(previousEnd) : null)
     : nextDay(after?.starts_on ?? null);
   const endsOn = shape === 'periods'
-    ? shiftDays(startsOn, spanDays(after?.starts_on ?? null, after?.ends_on ?? null))
+    ? (kind === 'event' ? shiftDays(nextDay(previousEnd), 6) : null)
     : null;
 
   const { data, error } = await supabase
@@ -937,6 +1008,7 @@ export async function addSegment(
       // A league keeps no clock, so a period never carries one forward.
       starts_at: shape === 'periods' ? null : after?.starts_at ?? null,
       ends_at:   shape === 'periods' ? null : after?.ends_at ?? null,
+      kind,
     })
     .select('*')
     .single();
@@ -951,6 +1023,42 @@ export async function addSegment(
  * asks first when the day has any. There is no way back: unlike hiding a
  * category, this does not keep what was written.
  */
+/**
+ * Re-date a league's rounds, and write only what moved.
+ *
+ * Called after ANYTHING that can shift the sequence: the league's start date,
+ * the round length, adding or removing a round, moving one, or editing an
+ * Event's dates. The layout itself is in [leagues.ts](leagues.ts) — this is the
+ * half that talks to the database.
+ *
+ * Returns the segments as they now are, so a caller can render without a second
+ * round trip. The pack's own `ends_on` is NOT written here: it is a cache the
+ * envelope trigger recomputes from these rows, so the league's end date follows
+ * from the last round moving, which is exactly what "dynamically update the end
+ * date" means.
+ */
+export async function syncLeagueDates(
+  segments: ScheduleSegment[],
+  startsOn: string | null,
+  roundLengthWeeks: number,
+): Promise<ScheduleSegment[]> {
+  const moves = layOutLeague(segments, startsOn, roundLengthWeeks);
+  if (moves.length === 0) return segments;
+
+  // One at a time rather than an upsert: an upsert would need every column of
+  // every row, and sending a full segment back is how a stale copy overwrites
+  // something else's edit.
+  await Promise.all(moves.map(m =>
+    supabase
+      .from('battlepack_schedule_segments')
+      .update({ starts_on: m.starts_on, ends_on: m.ends_on })
+      .eq('id', m.id)
+      .then(({ error }) => { if (error) throw error; }),
+  ));
+
+  return withLeagueDates(segments, startsOn, roundLengthWeeks);
+}
+
 export async function deleteSegment(segmentId: string): Promise<void> {
   const { error } = await supabase
     .from('battlepack_schedule_segments')
@@ -1066,11 +1174,19 @@ export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' 
 export async function insertSchedule(
   packId: string,
   items: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[],
+  segmentId?: string,
 ): Promise<void> {
   if (items.length === 0) return;
+  // Omitted leaves it to the bridge trigger, which puts everything on day one.
+  // That is right for a single-day pack and wrong for every other day of a
+  // multi-day one, which is why the day is named when there is more than one.
   const { error } = await supabase
     .from('battlepack_schedule_items')
-    .insert(items.map(i => ({ ...i, pack_id: packId })));
+    .insert(items.map(i => ({
+      ...i,
+      pack_id: packId,
+      ...(segmentId ? { segment_id: segmentId } : {}),
+    })));
   if (error) throw error;
 }
 

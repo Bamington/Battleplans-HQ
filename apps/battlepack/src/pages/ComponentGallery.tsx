@@ -74,8 +74,10 @@ import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
 import { timeSchedule } from '../lib/packs';
+import { leagueLabels, withLeagueDates } from '../lib/leagues';
 import type {
-  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem, ScheduleSegment,
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack,
+  ScheduleItem, ScheduleKind, ScheduleSegment,
 } from '../lib/packs';
 import { icsForEvents, packCalendarEvents } from '../lib/calendar';
 import { keyInfoRows, periodRange } from '../components/packBody';
@@ -108,7 +110,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
  */
 const DEMO_SEGMENTS: ScheduleSegment[] = [
   { id: 'sg-1', pack_id: 'demo-pack', ordinal: 1, starts_on: '2026-07-11',
-    ends_on: null, starts_at: '10:00:00', ends_at: '18:15:00', label: null },
+    ends_on: null, starts_at: '10:00:00', ends_at: '18:15:00', label: null, kind: 'round' },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -147,7 +149,7 @@ const EventBasicsFormDemo = () => {
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day',
     schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
-    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   });
   const [log, setLog] = useState<string[]>([]);
 
@@ -160,7 +162,7 @@ const EventBasicsFormDemo = () => {
    */
   const [demoSegments, setDemoSegments] = useState<ScheduleSegment[]>([
     { id: 'd1', pack_id: 'demo', ordinal: 1, starts_on: '2026-07-11',
-      ends_on: null, starts_at: '10:00:00', ends_at: '18:00:00', label: null },
+      ends_on: null, starts_at: '10:00:00', ends_at: '18:00:00', label: null, kind: 'round' },
   ]);
 
   const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', slug: 'warhammer-40-000', icon: null, image: null }];
@@ -269,6 +271,9 @@ const RoundsBreaksFormDemo = () => {
    * switched between them rather than showing one and describing the other.
    */
   const [shape, setShape] = useState<'days' | 'periods'>('days');
+  // Stateful, so the Round Length control actually re-dates the rounds here
+  // rather than looking like it might.
+  const [roundWeeks, setRoundWeeks] = useState(1);
 
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
@@ -276,7 +281,8 @@ const RoundsBreaksFormDemo = () => {
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day',
     schedule_shape: shape, recurrence: 'none', interval_weeks: 1,
-    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
+    days_of_week: [], week_of_month: null, until_date: null,
+    round_length_weeks: roundWeeks, created_at: '', updated_at: '',
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
@@ -317,29 +323,28 @@ const RoundsBreaksFormDemo = () => {
     // The day operations run against the same in-memory store, so the demo can
     // exercise adding and removing days without a session — which is the half
     // of this form that is hardest to reason about on paper.
-    addDay: async (_packId, after, addShape) => {
-      // Mirrors addSegment: a DAY follows the day before it; a PERIOD follows
-      // the END of the one before and keeps its length, so a Mon–Sun round is
-      // followed by the next Mon–Sun. Without this the demo would show an empty
-      // date and hide the behaviour worth looking at.
+    addDay: async (_packId, after, addShape, addKind = 'round') => {
+      // Mirrors addSegment: a DAY follows the day before it, while a LEAGUE
+      // segment arrives undated and is placed by the layout below — which is
+      // the behaviour worth looking at, since a round's dates are not a
+      // property of the round.
       const shift = (iso: string | null, by: number): string | null => {
         if (!iso) return null;
         const [y, m, d] = iso.split('-').map(Number);
         return new Date(Date.UTC(y, m - 1, d + by)).toISOString().slice(0, 10);
       };
       const asPeriod = addShape === 'periods';
-      const span = asPeriod && after?.starts_on && after?.ends_on
-        ? Math.round((Date.parse(after.ends_on) - Date.parse(after.starts_on)) / 86_400_000)
-        : 0;
-      const startsOn = shift(
-        asPeriod ? after?.ends_on ?? after?.starts_on ?? null : after?.starts_on ?? null,
-        1,
-      );
+      const previousEnd = after?.ends_on ?? after?.starts_on ?? null;
 
       const created: ScheduleSegment = {
         id: `sg-new-${nextId}`, pack_id: 'demo-pack', ordinal: (after?.ordinal ?? 0) + 1,
-        starts_on: startsOn,
-        ends_on: asPeriod ? shift(startsOn, span) : null,
+        kind: addKind,
+        // An Event lands behind what precedes it and runs a week; a round waits
+        // for the layout. A tournament day follows the day before it.
+        starts_on: asPeriod
+          ? (addKind === 'event' ? shift(previousEnd, 1) : null)
+          : shift(after?.starts_on ?? null, 1),
+        ends_on: asPeriod && addKind === 'event' ? shift(previousEnd, 7) : null,
         starts_at: asPeriod ? null : after?.starts_at ?? null,
         ends_at:   asPeriod ? null : after?.ends_at ?? null,
         label: null,
@@ -347,6 +352,14 @@ const RoundsBreaksFormDemo = () => {
       setNextId(n => n + 1);
       setDemoDays(prev => [...prev, created]);
       return created;
+    },
+    // THE REAL LAYOUT, not a stand-in. It is a pure function of the segments,
+    // so the demo can run the actual one — which is the only way the strip
+    // here shows what the editor would really do.
+    syncLeague: async (segs, startsOn, weeks) => {
+      const laid = withLeagueDates(segs, startsOn, weeks);
+      setDemoDays(laid);
+      return laid;
     },
     updateDay: async (id, patch) => {
       setDemoDays(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
@@ -393,7 +406,10 @@ const RoundsBreaksFormDemo = () => {
           games={[]}
           venues={[]}
           categoryKey="rounds-breaks"
-          onChange={() => {}}
+          onChange={patch => {
+            // The only pack field this form writes is the round length.
+            if (typeof patch.round_length_weeks === 'number') setRoundWeeks(patch.round_length_weeks);
+          }}
           reload={async () => {}}
           ops={ops}
         />
@@ -409,14 +425,20 @@ const RoundsBreaksFormDemo = () => {
               has no items to time: its rounds ARE the rows, dated rather than
               clocked, which is why the two shapes read so differently here. */}
           {shape === 'periods'
-            ? <ScheduleTable
-                rows={[...demoDays].sort((a, b) => a.ordinal - b.ordinal).map((seg, i) => ({
-                  ordinal: seg.ordinal,
-                  kind: 'round' as const,
-                  label: seg.label?.trim() || `Round ${i + 1}`,
-                  time: periodRange(seg),
-                }))}
-              />
+            ? (() => {
+                const ordered = [...demoDays].sort((a, b) => a.ordinal - b.ordinal);
+                // The real labeller, so an Event never takes a round number
+                // here either.
+                const names = leagueLabels(ordered);
+                return <ScheduleTable
+                  rows={ordered.map(seg => ({
+                    ordinal: seg.ordinal,
+                    kind: (seg.kind === 'event' ? 'event' : 'round') as ScheduleKind,
+                    label: names.get(seg.id) ?? 'Round',
+                    time: periodRange(seg),
+                  }))}
+                />;
+              })()
             : <ScheduleTable
                 rows={timeSchedule(items, pack.starts_at).map(i => ({
                   ordinal: i.ordinal,
@@ -428,6 +450,18 @@ const RoundsBreaksFormDemo = () => {
         </div>
 
         {problem && <Callout flavour="bad">{problem}</Callout>}
+
+        <GalleryNote>
+          Switch to League rounds and the strip stops being a list of days you
+          date and becomes a sequence that dates itself: rounds run end to end
+          from the league's start, every one the same length, so their dates are
+          shown rather than asked for. Add an Event — a painting week, a launch
+          night — and everything behind it moves, because it occupies that
+          stretch of the calendar; that is what makes a break week expressible.
+          An Event keeps its length wherever it lands, and its own start date
+          only when the rounds have not already run past it. Change the round
+          length and watch the finish date at the top move with it.
+        </GalleryNote>
 
         <GalleryNote>
           Reordering renumbers the whole day in one write rather than shuffling
@@ -527,7 +561,7 @@ const SectionFormDemo = () => {
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day',
     schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
-    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   };
 
   const [which, setWhich] = useState('faq');
@@ -618,7 +652,7 @@ const DEMO_PACK: Pack = {
   status: 'draft', slug: null, banner_path: null, banner_aspect: null,
   timeline: 'one-day',
   schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
-  days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
+  days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
 };
 
 /**
@@ -919,7 +953,7 @@ const PublishPanelDemo = () => {
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day',
     schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
-    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   });
   const [blocked, setBlocked] = useState(true);
 
@@ -995,7 +1029,7 @@ const AddToCalendarDemo = () => {
     status: 'published', slug: 'july-rtt', banner_path: null, banner_aspect: null,
     timeline: 'one-day',
     schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
-    days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   };
   const venue: LocationOption = { id: 'v1', name: 'The Gaming Arena', address: '12 Dice Lane, Leeds' };
   const schedule: ScheduleItem[] = [
@@ -1010,7 +1044,7 @@ const AddToCalendarDemo = () => {
     starts_at: string | null, ends_at: string | null,
     extra: Partial<ScheduleSegment> = {},
   ): ScheduleSegment =>
-    ({ id, pack_id: 'demo-pack', ordinal, starts_on, ends_on: null, starts_at, ends_at, label: null, ...extra });
+    ({ id, pack_id: 'demo-pack', ordinal, starts_on, ends_on: null, starts_at, ends_at, label: null, kind: 'round', ...extra });
 
   const CASES: { label: string; note: string; data: PublicPack }[] = [
     {

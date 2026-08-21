@@ -19,6 +19,7 @@ import {
 } from '@battleplans/ui';
 import { EmptySection, ScheduleTable } from './PackDocument';
 import { recurrencePattern } from '../lib/recurrence';
+import { leagueLabels } from '../lib/leagues';
 import LinkPreview from './LinkPreview';
 import { readChecklist } from './forms/ChecklistSectionForm';
 import { readFaq } from './forms/FaqSectionForm';
@@ -181,16 +182,23 @@ export function categoryBody({ category: c, pack, rows, segments, schedule }: Ca
     // clock times, so the two read as the same kind of thing.
     if (pack.schedule_shape === 'periods') {
       const periods = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+      // ROUNDS ARE NUMBERED AMONG THEMSELVES. A painting week between rounds
+      // two and three does not make the next one Round 4 — it is still the
+      // third round of play, and everyone standing in the shop will call it
+      // that whatever the pack says.
+      const names = leagueLabels(periods);
       const table = periods.length === 0
         ? <EmptySection hint="No rounds yet." />
-        : <ScheduleTable rows={periods.map((s, i) => ({
+        : <ScheduleTable rows={periods.map(s => ({
             ordinal: s.ordinal,
-            // Every period is a round: a segment has no kind, and inferring
-            // "break" from a label would be guessing at the organiser's words.
-            kind: 'round' as ScheduleKind,
-            label: s.label?.trim() || `Round ${i + 1}`,
+            // An Event is not play, and the row says so: it takes the same
+            // recessive styling a break does on a tournament day.
+            kind: (s.kind === 'event' ? 'event' : 'round') as ScheduleKind,
+            label: names.get(s.id) ?? 'Round',
             time: periodRange(s),
-            icon: <ListCheck className="w-4 h-4" />,
+            icon: s.kind === 'event'
+              ? <Trophy className="w-4 h-4" />
+              : <ListCheck className="w-4 h-4" />,
           }))} />;
 
       return notes
