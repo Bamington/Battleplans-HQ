@@ -159,10 +159,15 @@ easy to undo by accident:
   out once the app stops reading it.
 - **Repeats is not a fourth card.** It sits below the dates in Event Basics and
   in the create flow as a property OF the event, because "multi-day" and
-  "repeats monthly" answer different questions and a weekender has to give
-  both.
-- **A league never repeats.** The database refuses the pairing: its periods ARE
-  its schedule. Both forms drop the control entirely rather than disabling it.
+  "repeats monthly" answer different questions. The database keeps both axes
+  for that reason.
+- **Only a ONE-DAY event may repeat**, which is narrower than the database
+  allows and deliberately so. A league is refused outright — its periods ARE
+  its schedule — and a repeating multi-day event, though expressible, asks
+  several questions nobody has answered (which day anchors the series, what an
+  edit to day two means for the copies). Switching type asks before turning a
+  repeat off; it is never dropped silently, because the repeat is not visible
+  from the tile being clicked.
 - **The rule is written whole or not at all.** A repeating pack must name a
   weekday and an end date, so [EventBasicsForm](src/components/forms/EventBasicsForm.tsx)
   holds a half-made rule in state and saves the moment it is complete — and
@@ -170,6 +175,41 @@ easy to undo by accident:
   back. Changing the rule on a published pack emails everyone holding it, which
   is why the five columns are in `NOTIFYING_PACK_FIELDS` and why that list
   matches `battlepacks_notify_recurrence` column for column.
+
+## A league dates itself
+
+A league is a start date, a round length in whole weeks, and a sequence of
+segments. The organiser controls the ORDER, the LENGTH and where the Events go
+— never a round's dates. Four rules, and [leagues.ts](src/lib/leagues.ts) is
+where they live:
+
+- **Rounds are computed; Events are authored.** Rounds run end to end from the
+  league's start, every one `round_length_weeks` long. The form shows a
+  round's dates instead of asking for them, because an input there would be a
+  second answer to a question the length and the order already settled.
+- **An Event occupies the calendar.** A painting week between rounds two and
+  three pushes round three later — that is what makes "week three is the break
+  week" sayable at all. An Event keeps its LENGTH wherever it lands, and its
+  own start only when the rounds have not already run past it: pinning it
+  earlier would have it happen during a round, which is reachable just by
+  changing the round length. Later is honoured, and leaves a deliberate gap.
+- **Rounds are numbered among themselves.** An Event takes no number, so the
+  round after a painting week is still Round 3. Everyone standing in the shop
+  will call it that whatever the pack says.
+- **The end date is never asked for.** It follows from the last segment through
+  the envelope trigger, so adding a round, removing one, or lengthening them
+  all moves it — which is why every mutation calls `syncLeagueDates`, and why
+  Event Basics does too: the league's start IS day one's start.
+
+The layout is WRITTEN to the segments rather than derived on read, because the
+envelope, the public page, the calendar file and the change emails all already
+read segment dates.
+
+The create flow asks a league two numbers — how many rounds, how many weeks
+each — and no start time, because players arrange their own games. A multi-day
+tournament asks for a day count instead, and gives every day the same generated
+timetable: three days running the same shape is the normal case, and an
+organiser who wants day three different changes day three.
 
 Three things then have to agree about what a rule MEANS, and they agree by
 copying rather than by each computing the same Fridays:

@@ -19,6 +19,7 @@
 
 import type { Pack, PublicPack } from './packs';
 import { weekdayNameOf } from './recurrence';
+import { leagueLabels } from './leagues';
 
 /** A calendar event, in the only terms all three destinations share. */
 export interface CalendarEvent {
@@ -203,10 +204,10 @@ export function packCalendarEvents(data: PublicPack, origin: string): CalendarEv
       ? last.ends_on
       : last.starts_on!;
 
-    const rounds = dated.map((s, i) => {
-      const when = formatDayLabel(s.starts_on!);
-      return s.label?.trim() ? `${s.label.trim()} — ${when}` : `Round ${i + 1} — ${when}`;
-    });
+    // The same labeller the page and the editor use, so an Event in the
+    // description is not numbered as a round it is not.
+    const names  = leagueLabels(dated);
+    const rounds = dated.map(s => `${names.get(s.id) ?? 'Round'} — ${formatDayLabel(s.starts_on!)}`);
 
     return [{
       uid: `battlepack-${pack.id}@battlepack.app`,

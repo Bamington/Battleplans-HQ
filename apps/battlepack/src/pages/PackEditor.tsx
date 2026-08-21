@@ -42,6 +42,7 @@ import {
   getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
   listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment, addSegment, deleteSegment,
+  syncLeagueDates,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
@@ -402,6 +403,14 @@ export default function PackEditor() {
       setSaveError(null);
       try {
         await updateSegment(day.id, patch);
+        // THE LEAGUE'S START IS DAY ONE'S START, so moving it moves every round
+        // behind it. Here rather than in the form because Event Basics writes
+        // this same segment, and a league whose first round moved while the
+        // rest stayed would be the bug either place forgetting it.
+        if (pack?.schedule_shape === 'periods') {
+          const next = segments.map(sg => (sg.id === day.id ? { ...sg, ...patch } : sg));
+          await syncLeagueDates(next, next[0]?.starts_on ?? null, pack.round_length_weeks || 1);
+        }
         await reload();
       } catch (e) {
         setSaveError(e instanceof Error ? e.message : 'Could not save that change.');
@@ -417,7 +426,7 @@ export default function PackEditor() {
     if (count === 0) return run();
 
     setPendingNotify({ kind: 'moved', count, becomes: whenAfterDay(day, patch), run });
-  }, [segments, pack?.status, packId, reload]);
+  }, [segments, pack?.status, pack?.schedule_shape, pack?.round_length_weeks, packId, reload]);
 
   /**
    * Change what kind of event this is.
@@ -435,6 +444,19 @@ export default function PackEditor() {
     if (!pack) return;
     const days = [...segments].sort((a, b) => a.ordinal - b.ordinal);
 
+    /**
+     * A repeat only survives on a one-day event.
+     *
+     * Cleared as part of the same write rather than left for a constraint to
+     * refuse: only a league is refused by the database, and a repeating
+     * multi-day pack is a state the app has deliberately stopped offering. All
+     * five columns, because the rule is checked as a whole.
+     */
+    const stopRepeating = next !== 'one-day' && pack.recurrence !== 'none';
+    const clearRepeat = stopRepeating
+      ? { recurrence: 'none', interval_weeks: 1, days_of_week: [], week_of_month: null, until_date: null }
+      : {};
+
     const apply = async () => {
       setSaveError(null);
       try {
@@ -442,9 +464,12 @@ export default function PackEditor() {
           // A league has no clock: players arrange their own games, so a start
           // time would be a promise nobody made.
           await Promise.all(days.map(d => updateSegment(d.id, { starts_at: null, ends_at: null })));
-          await updatePack(pack.id, { schedule_shape: 'periods', timeline: 'league' } as Partial<Pack>);
+          await updatePack(pack.id, { schedule_shape: 'periods', timeline: 'league', ...clearRepeat } as Partial<Pack>);
+          // Its rounds are all the same length and run end to end, so the dates
+          // it was carrying as days are laid out again as rounds.
+          await syncLeagueDates(days, days[0]?.starts_on ?? null, pack.round_length_weeks || 1);
         } else if (next === 'multi-day') {
-          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'multi-day' } as Partial<Pack>);
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'multi-day', ...clearRepeat } as Partial<Pack>);
           // The count is the fact, so becoming multi-day means having a second
           // day rather than being labelled as though you do.
           if (days.length < 2) await addSegment(pack.id, days[days.length - 1] ?? null);
@@ -465,6 +490,19 @@ export default function PackEditor() {
         title: `Drop ${losing === 1 ? 'the second day' : `${losing} days`}?`,
         body: `Becoming a one-day event removes ${losing === 1 ? 'it' : 'them'} and everything scheduled inside. That cannot be undone.`,
         confirmLabel: 'Make it one day',
+        run: apply,
+      });
+      return;
+    }
+
+    // ASKED, NEVER SILENT. A repeat is not visible from the tile they just
+    // clicked, so switching type would otherwise take a setting away without
+    // anything on screen mentioning it. Same stop the lost days get.
+    if (stopRepeating) {
+      setConfirmDays({
+        title: 'Stop it repeating?',
+        body: `${describeRecurrence(pack.starts_on, pack) ?? 'This event repeats.'} Only a one-day event can repeat, so becoming ${next === 'league' ? 'a league' : 'a multi-day event'} turns that off.`,
+        confirmLabel: 'Change it anyway',
         run: apply,
       });
       return;

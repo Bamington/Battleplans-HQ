@@ -25,10 +25,11 @@ import {
 } from '@battleplans/ui';
 import type { PendingBanner } from '@battleplans/ui';
 import {
-  buildSchedule, createPack, insertSchedule, listGames, listPacks,
+  buildSchedule, createPack, listGames, listPacks,
   recentIdsFrom, minutesToTime, savePackBanner,
 } from '../lib/packs';
-import { describeRecurrence, weekOfMonthOf, weekdayNameOf } from '../lib/recurrence';
+import { describeRecurrence, shortDate, weekOfMonthOf, weekdayNameOf } from '../lib/recurrence';
+import { addDays } from '../lib/leagues';
 import { BANNER_MIN_ASPECT } from './PackDocument';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
 import type {
@@ -93,6 +94,13 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [repeats,   setRepeats]   = useState<PackRecurrence>('none');
   const [untilDate, setUntilDate] = useState('');
   const [rounds,       setRounds]       = useState(3);
+  // Consecutive from the first, so the count is the whole question. Two,
+  // because a multi-day event with one day is not one.
+  const [dayCount,     setDayCount]     = useState(2);
+  // A LEAGUE MEASURES ITS ROUNDS IN WEEKS, not hours. "Two weeks a round" is
+  // what the organiser says, and the hours-and-minutes control below is asking
+  // about a timetable a league does not have.
+  const [roundWeeks,   setRoundWeeks]   = useState(1);
   // Held as hours and minutes because that is how they are asked for. The two
   // are the source of truth and the stored duration is derived — going the
   // other way (deriving the fields from a minutes total) makes clearing the
@@ -116,6 +124,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     setTimeline('one-day'); setStartDate(''); setStartTime('10:00');
     setRepeats('none'); setUntilDate('');
     setRounds(3); setRoundHours(2); setRoundMins(0); setBreakMinutes(10);
+    setDayCount(2); setRoundWeeks(1);
     setError(null);
 
     Promise.all([listGames(), listPacks()])
@@ -152,6 +161,9 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
    */
   const recurrence = useMemo<RecurrenceFields | null>(() => {
     if (repeats === 'none' || !startDate || !untilDate) return null;
+    // Belt and braces: the control is hidden for the other two, and a stale
+    // answer from before the type was switched must not survive.
+    if (timeline !== 'one-day') return null;
     return {
       recurrence:     repeats,
       interval_weeks: 1,
@@ -159,9 +171,28 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
       week_of_month:  repeats === 'monthly' ? weekOfMonthOf(startDate) : null,
       until_date:     untilDate,
     };
-  }, [repeats, startDate, untilDate]);
+  }, [repeats, startDate, untilDate, timeline]);
 
   const step1Valid = name.trim().length > 0 && gameId !== '' && locationId !== '';
+
+  /** A league is the one shape that measures in weeks and keeps no clock. */
+  const league = timeline === 'league';
+
+  /**
+   * What a league's two numbers add up to, and when it therefore finishes.
+   *
+   * The end date is the thing being decided here and the thing nobody can work
+   * out in their head — six rounds of a fortnight is not a number you multiply
+   * while looking at a calendar. It is also not asked for anywhere: a league's
+   * end follows from its rounds, which is why adding one later moves it.
+   */
+  const leagueSummary = (() => {
+    if (rounds < 1) return 'Add at least one round — a league with none has nothing to play.';
+    const weeks = rounds * roundWeeks;
+    const span  = `${rounds} round${rounds === 1 ? '' : 's'} of ${roundWeeks === 1 ? 'a week' : `${roundWeeks} weeks`} — ${weeks} week${weeks === 1 ? '' : 's'} in all`;
+    if (!startDate) return `${span}. Give it a start date and the rounds will lay themselves out.`;
+    return `${span}, finishing ${shortDate(addDays(startDate, weeks * 7 - 1))}.`;
+  })();
 
   /**
    * A repeat that has been asked for but cannot be built yet.
@@ -170,7 +201,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
    * picked "Weekly" and left would get a one-off event, having told us
    * otherwise, and nothing on screen would have said so.
    */
-  const repeatIncomplete = repeats !== 'none' && !recurrence;
+  const repeatIncomplete = timeline === 'one-day' && repeats !== 'none' && !recurrence;
 
   /**
    * Create the pack, and the generated day unless it was skipped.
@@ -189,14 +220,17 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
       const pack = await createPack({
         name, gameId, locationId, description, format, timeline,
         startsOn: startDate || null,
-        startsAt: startTime || null,
+        // A league keeps no clock: players arrange their own games inside a
+        // round, so there is no time of day for one to start at.
+        startsAt: league ? null : startTime || null,
         recurrence,
+        // The count IS the fact for both — nothing stores "three-day event".
+        ...(timeline === 'multi-day' ? { days: dayCount } : {}),
+        ...(league ? { rounds, roundLengthWeeks: roundWeeks } : {}),
+        // EVERY DAY GETS IT, which is the point of asking once. A league gets
+        // none: its rounds are weeks, not a timetable.
+        schedule: withSchedule && !league ? preview : [],
       });
-      if (withSchedule && preview.length > 0) {
-        await insertSchedule(pack.id, preview).catch(() => {
-          // Non-fatal: the pack is made, and Rounds & Breaks can be filled in.
-        });
-      }
       // Same bargain as the schedule: the upload can only run now that there is
       // a pack id for the storage path, and losing the pack because an image
       // failed would be the worse outcome. Re-uploadable from Event Basics.
@@ -341,28 +375,53 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
               <div className="flex items-end gap-1.5">
                 <div className="flex-1 min-w-0">
                   <Input
-                    label="Start Date"
+                    label={league ? 'League Starts' : 'Start Date'}
                     type="date"
                     leftIcon={<Calendar className="w-4 h-4" />}
                     value={startDate}
                     onChange={e => setStartDate(e.target.value)}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <Input
-                    label="Start Time"
-                    type="time"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                  />
-                </div>
+
+                {/* A LEAGUE KEEPS NO CLOCK. Players arrange their own games
+                    inside a round, so there is no time of day for one to
+                    start at — and asking would be asking for a time nobody
+                    keeps. A multi-day event asks once and gives it to every
+                    day; where they differ is settled in the editor. */}
+                {!league && (
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      label={timeline === 'multi-day' ? 'Each Day Starts' : 'Start Time'}
+                      type="time"
+                      value={startTime}
+                      onChange={e => setStartTime(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {/* CONSECUTIVE FROM THE FIRST, so the count is the whole
+                    question. Nothing stores "this is a three-day event" —
+                    three days is three days. */}
+                {timeline === 'multi-day' && (
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      label="Number of Days"
+                      type="number"
+                      min={2}
+                      max={14}
+                      value={dayCount}
+                      onChange={e => setDayCount(Math.max(2, Math.min(14, Number(e.target.value) || 2)))}
+                      helperText="Consecutive"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Not a fourth card, on purpose: "multi-day" and "repeats
                   monthly" answer different questions, and a monthly weekender
                   has to be able to give both. Absent for a league, whose
                   rounds ARE its schedule — the database refuses that pairing.  */}
-              {timeline !== 'league' && (
+              {timeline === 'one-day' && (
                 <div className="flex items-end gap-1.5">
                   <div className="flex-1 min-w-0">
                     <Select
@@ -397,7 +456,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                   end date are each easy to read and impossible to multiply in
                   your head — "every second Friday until 18 December" is either
                   five events or six. */}
-              {repeats !== 'none' && (
+              {timeline === 'one-day' && repeats !== 'none' && (
                 repeatIncomplete ? (
                   <Callout flavour="warning">
                     {!startDate
@@ -414,7 +473,9 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <h3 className="font-heading text-xl leading-7 text-white">Round Defaults</h3>
+              <h3 className="font-heading text-xl leading-7 text-white">
+                {league ? 'Rounds' : 'Round Defaults'}
+              </h3>
 
               <div className="flex items-start gap-1.5">
                 <div className="flex-1 min-w-0">
@@ -427,23 +488,45 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                     onChange={e => setRounds(Math.max(0, Math.min(20, Number(e.target.value) || 0)))}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <Input
-                    label="Time Between"
-                    type="number"
-                    min={0}
-                    step={5}
-                    value={breakMinutes}
-                    onChange={e => setBreakMinutes(Math.max(0, Number(e.target.value) || 0))}
-                    helperText="Minutes"
-                  />
-                </div>
+                {/* A LEAGUE HAS NO GAPS TO SIZE. Its rounds run end to end —
+                    week one, then week two — so "time between rounds" is a
+                    question about a timetable it does not have. A break is
+                    added as an Event in the editor, which pushes the rounds
+                    after it later. */}
+                {!league && (
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      label="Time Between"
+                      type="number"
+                      min={0}
+                      step={5}
+                      value={breakMinutes}
+                      onChange={e => setBreakMinutes(Math.max(0, Number(e.target.value) || 0))}
+                      helperText="Minutes"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Two inputs rather than one box of minutes: a round is hours
-                  long, and "120" is a number you have to convert in your head
-                  before you can check it. Its own row because four fields
-                  across a max-w-xl modal leaves each about 130px. */}
+              {/* WEEKS FOR A LEAGUE, HOURS FOR A DAY, and they are not the
+                  same question wearing different units: a league round is a
+                  stretch of the calendar players arrange their own games in,
+                  and a tournament round is a slot in a timetable. Every round
+                  in a league is the same length, and changing it later re-dates
+                  all of them. */}
+              {league ? (
+                <Select
+                  label="Round Length"
+                  value={String(roundWeeks)}
+                  onChange={e => setRoundWeeks(Number(e.target.value))}
+                >
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={String(i + 1)}>
+                      {i === 0 ? '1 week' : `${i + 1} weeks`}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
               <div className="flex flex-col gap-1.5">
                 <span className="block font-body text-sm font-medium text-neutral-100">
                   Round Length
@@ -474,13 +557,16 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* What those three numbers actually produce. Cheaper to read than
-                  to picture, and it is the whole point of the step. */}
+              {/* What those numbers actually produce. Cheaper to read than to
+                  picture, and it is the whole point of the step. */}
               <p className="font-body text-sm text-neutral-400">
-                {preview.length === 0
-                  ? 'No rounds will be added — you can build the day yourself in the editor.'
-                  : `Creates ${rounds} round${rounds === 1 ? '' : 's'} from ${startTime}, finishing at ${finishTime}.`}
+                {league
+                  ? leagueSummary
+                  : preview.length === 0
+                    ? 'No rounds will be added — you can build the day yourself in the editor.'
+                    : `Creates ${rounds} round${rounds === 1 ? '' : 's'} from ${startTime}${timeline === 'multi-day' ? ' on each of the ' + dayCount + ' days' : ''}, finishing at ${finishTime}.`}
               </p>
             </div>
           </div>

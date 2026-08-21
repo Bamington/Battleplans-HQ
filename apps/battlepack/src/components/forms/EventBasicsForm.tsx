@@ -201,27 +201,12 @@ const EventBasicsForm = ({
   const repeats = rule.recurrence !== 'none';
   const monthly = rule.recurrence === 'monthly';
 
-  /**
-   * The weekdays a multi-day event runs on are not a question — they are its
-   * days. Asking would let an organiser say a two-day weekender repeats on
-   * Mondays, which is either a contradiction or a second answer to something
-   * the dates already settled.
-   */
-  const daysAreDerived = multiDay;
-  const derivedDays = [...new Set(
-    segments.map(s => s.starts_on).filter((d): d is string => !!d).map(weekdayNameOf),
-  )];
-  const ruleDays = daysAreDerived ? derivedDays : rule.days_of_week;
-
-  const ruleReady = !repeats || (ruleDays.length > 0 && !!rule.until_date);
+  const ruleReady = !repeats || (rule.days_of_week.length > 0 && !!rule.until_date);
 
   /** Save it, but only once it is a rule the database would accept. */
   const commitRule = (next: RecurrenceRule) => {
-    const days = daysAreDerived && next.recurrence !== 'none' ? derivedDays : next.days_of_week;
-    const whole = { ...next, days_of_week: days };
-
-    if (next.recurrence !== 'none' && (days.length === 0 || !next.until_date)) {
-      setPending(whole);
+    if (next.recurrence !== 'none' && (next.days_of_week.length === 0 || !next.until_date)) {
+      setPending(next);
       return;
     }
 
@@ -231,7 +216,7 @@ const EventBasicsForm = ({
       // Weeks are not how a monthly rule counts, and a stale interval is a
       // constraint violation rather than a harmless leftover.
       interval_weeks: next.recurrence === 'weekly' ? next.interval_weeks : 1,
-      days_of_week:   next.recurrence === 'none' ? [] : days,
+      days_of_week:   next.recurrence === 'none' ? [] : next.days_of_week,
       week_of_month:  next.recurrence === 'monthly' ? (next.week_of_month ?? 1) : null,
       until_date:     next.recurrence === 'none' ? null : next.until_date,
     });
@@ -400,7 +385,13 @@ const EventBasicsForm = ({
           Absent for a league, because the database refuses the combination: a
           league's rounds ARE its schedule, and a league that also repeats
           fortnightly is not a thing anybody means. */}
-      {!league && (
+      {/* ONE-DAY ONLY, and narrower than the database allows on purpose.
+          Chris's call: a repeating multi-day event is expressible — the two
+          axes were split so it could be — but every part of it is a second
+          question (which day of the weekend anchors the series, what a change
+          to day two means for the copies) and none of them has been answered.
+          A league never repeats at all; its rounds ARE its schedule. */}
+      {eventType === 'one-day' && (
         <div className="flex flex-col gap-1.5">
           <Select
             label="Repeats"
@@ -441,18 +432,8 @@ const EventBasicsForm = ({
 
               <div className="flex flex-col gap-2">
                 <span className="block font-body text-sm font-medium text-white">Days</span>
-                {daysAreDerived ? (
-                  /* Read-only, for the reason in `daysAreDerived`: a multi-day
-                     event's weekdays are its days, and a second editor for
-                     them would be a way to make the two disagree. */
-                  <p className="font-body text-sm text-gray-400">
-                    {derivedDays.length > 0
-                      ? `${derivedDays.join(', ')} — the days your event runs on. Change them by moving the days in Schedule.`
-                      : 'Give your days dates in Schedule and the series will follow them.'}
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {WEEK_DAYS.map(d => {
+                <div className="flex flex-wrap gap-2">
+                  {WEEK_DAYS.map(d => {
                       const on = rule.days_of_week.includes(d);
                       return (
                         <button
@@ -471,8 +452,7 @@ const EventBasicsForm = ({
                         </button>
                       );
                     })}
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* REQUIRED, not optional — and the one field here that cannot be
@@ -493,14 +473,14 @@ const EventBasicsForm = ({
                   until 18 December" is either five events or six. */}
               {ruleReady ? (
                 <p className="font-body text-sm text-white border-t border-gray-700 pt-3">
-                  {describeRecurrence(day?.starts_on ?? null, { ...rule, days_of_week: ruleDays })
+                  {describeRecurrence(day?.starts_on ?? null, rule)
                     ?? 'Give the event a start date and this will say how many times it runs.'}
                 </p>
               ) : (
                 /* Nothing has been written yet, and saying so is the point:
                    this is the one place in the editor where a change waits. */
                 <Callout flavour="warning">
-                  {ruleDays.length === 0
+                  {rule.days_of_week.length === 0
                     ? 'Pick at least one day — a series with none never happens.'
                     : 'Choose when it ends. A repeating event needs a last date, and nothing is saved until it has one.'}
                 </Callout>
