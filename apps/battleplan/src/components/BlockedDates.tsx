@@ -67,6 +67,20 @@ function ordinalPrefix(n: number): string {
   return `${n}${suffix} `;
 }
 
+/**
+ * Which occurrence of a weekday a monthly rule means.
+ *
+ * -1 is "last", not "fifth". A fifth Friday exists in some months and not
+ * others, so a rule counting to five would skip most of the year, while "last"
+ * is what a club actually means and always resolves.
+ */
+const WEEK_OF_MONTH_LABELS: Record<number, string> = {
+  1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth', [-1]: 'Last',
+};
+
+/** The picker's own order — "Last" belongs at the end, not before "First". */
+const WEEK_OF_MONTH_OPTIONS = [1, 2, 3, 4, -1] as const;
+
 /** '2026-08-15' → '15/08/26', for the compact end-date suffix. */
 function shortDate(iso: string): string {
   const [y, m, d] = iso.split('-');
@@ -82,9 +96,10 @@ export function describeBlockSchedule(b: {
   recurrence: string;
   interval_weeks: number;
   days_of_week: string[];
+  week_of_month?: number | null;
   until_date: string | null;
 }): string {
-  if (b.recurrence !== 'weekly') return formatDateLabel(b.date);
+  if (b.recurrence !== 'weekly' && b.recurrence !== 'monthly') return formatDateLabel(b.date);
 
   const days = WEEK_DAYS.filter(d => b.days_of_week.includes(d));
   const list =
@@ -92,8 +107,13 @@ export function describeBlockSchedule(b: {
   : days.length === 1 ? days[0]
   : `${days.slice(0, -1).join(', ')} & ${days[days.length - 1]}`;
 
-  const every = `Every ${ordinalPrefix(b.interval_weeks)}${list}`;
-  return b.until_date ? `${every}, until ${shortDate(b.until_date)}` : every;
+  // "First Friday of the month" reads as the whole pattern, so it does not take
+  // the "Every ___" opening the weekly rule needs.
+  const pattern = b.recurrence === 'monthly'
+    ? `${WEEK_OF_MONTH_LABELS[b.week_of_month ?? 1] ?? 'First'} ${list} of the month`
+    : `Every ${ordinalPrefix(b.interval_weeks)}${list}`;
+
+  return b.until_date ? `${pattern}, until ${shortDate(b.until_date)}` : pattern;
 }
 
 // ── BlockedDateItem ───────────────────────────────────────────────────────────
@@ -111,7 +131,7 @@ export function BlockedDateItem({ blocked, locations, tables = [], onChanged }: 
 
   const { location, date, description, recurrence, hostHandle } = blocked;
   const isUrl     = location.icon?.startsWith('http');
-  const recurring = recurrence === 'weekly';
+  const recurring = recurrence !== 'none';
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -254,6 +274,7 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
   const [recurrence, setRecurrence] = useState<BlockRecurrence>('none');
   const [interval,   setInterval]   = useState('1');
   const [days,       setDays]       = useState<string[]>([]);
+  const [weekOfMonth, setWeekOfMonth] = useState('1');
   const [untilDate,  setUntilDate]  = useState('');
 
   const today = localToday();
@@ -271,6 +292,7 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
       setRecurrence(editing.recurrence ?? 'none');
       setInterval(String(editing.interval_weeks ?? 1));
       setDays(editing.days_of_week ?? []);
+      setWeekOfMonth(String(editing.week_of_month ?? 1));
       setUntilDate(editing.until_date ?? '');
     } else {
       setLocationId(initialLocationId);
@@ -289,7 +311,8 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
   const toggleTable = (id: string) =>
     setTableIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
 
-  const repeats  = recurrence === 'weekly';
+  const repeats  = recurrence !== 'none';
+  const monthly  = recurrence === 'monthly';
   // A weekly rule with no days would block nothing while looking like it does,
   // so it can't be saved. The database refuses it too.
   const daysOk   = !repeats || days.length > 0;
@@ -325,8 +348,12 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
       // Kept consistent with the scope: a one-off carries no schedule, so
       // switching a rule back to "does not repeat" clears its pattern rather
       // than leaving orphaned days behind for the next edit to resurrect.
-      interval_weeks: repeats ? Math.max(1, Number(interval) || 1) : 1,
+      // Weeks are how a weekly rule counts and not how a monthly one does, so
+      // a monthly rule pins this to 1 rather than carrying a number nothing
+      // reads. The database refuses anything else.
+      interval_weeks: recurrence === 'weekly' ? Math.max(1, Number(interval) || 1) : 1,
       days_of_week:   repeats ? WEEK_DAYS.filter(d => days.includes(d)) : [],
+      week_of_month:  monthly ? Number(weekOfMonth) : null,
       until_date:     repeats && untilDate ? untilDate : null,
     };
     // The block row first — its id is what the table rows hang off.
@@ -412,21 +439,40 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
         >
           <option value="none">Does not repeat</option>
           <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
         </Select>
 
         {repeats && (
           <div className="flex flex-col gap-3 p-3 rounded-lg bg-neutral-800 border border-neutral-700">
 
-            <Select
-              label="How Often"
-              value={interval}
-              onChange={e => setInterval(e.target.value)}
-            >
-              <option value="1">Every week</option>
-              <option value="2">Every 2nd week</option>
-              <option value="3">Every 3rd week</option>
-              <option value="4">Every 4th week</option>
-            </Select>
+            {monthly ? (
+              /* Which occurrence of the chosen weekday, not which date. "The
+                 12th" drifts across the week and is almost never what a club
+                 night means. */
+              <Select
+                label="Which Week"
+                value={weekOfMonth}
+                onChange={e => setWeekOfMonth(e.target.value)}
+              >
+                {/* Bare ordinals, not "First of the month" — that reads as the
+                    1st. The summary below spells the whole rule out once the
+                    day is picked, which is where the ambiguity actually goes. */}
+                {WEEK_OF_MONTH_OPTIONS.map(n => (
+                  <option key={n} value={String(n)}>{WEEK_OF_MONTH_LABELS[n]}</option>
+                ))}
+              </Select>
+            ) : (
+              <Select
+                label="How Often"
+                value={interval}
+                onChange={e => setInterval(e.target.value)}
+              >
+                <option value="1">Every week</option>
+                <option value="2">Every 2nd week</option>
+                <option value="3">Every 3rd week</option>
+                <option value="4">Every 4th week</option>
+              </Select>
+            )}
 
             <div className="flex flex-col gap-2">
               <label className="block text-sm font-medium font-body text-white">Days</label>
@@ -473,6 +519,23 @@ export function BlockNewDateModal({ open, onClose, locations, tables = [], editi
             {untilOk && !untilDate && (
               <p className="font-body text-xs text-neutral-400">
                 Leave blank to repeat until you delete this block.
+              </p>
+            )}
+
+            {/* The rule in one sentence, from the same function the saved block
+                is described by — so what is confirmed here is exactly what the
+                list will say afterwards. It is also where "First" stops being
+                ambiguous, because the day is named alongside it. */}
+            {daysOk && (
+              <p className="font-body text-sm text-white border-t border-neutral-700 pt-3">
+                {describeBlockSchedule({
+                  date,
+                  recurrence,
+                  interval_weeks: Number(interval) || 1,
+                  days_of_week:   days,
+                  week_of_month:  monthly ? Number(weekOfMonth) : null,
+                  until_date:     untilDate || null,
+                })}
               </p>
             )}
 
