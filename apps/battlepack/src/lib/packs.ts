@@ -849,7 +849,11 @@ export async function updateSegment(
  * Returns the new segment so the caller can select it: adding a day and then
  * having to find it would be two steps where the organiser meant one.
  */
-export async function addSegment(packId: string, after: ScheduleSegment | null): Promise<ScheduleSegment> {
+export async function addSegment(
+  packId: string,
+  after: ScheduleSegment | null,
+  shape: ScheduleShape = 'days',
+): Promise<ScheduleSegment> {
   const nextDay = (iso: string | null): string | null => {
     if (!iso) return null;
     const [y, m, d] = iso.split('-').map(Number);
@@ -857,14 +861,41 @@ export async function addSegment(packId: string, after: ScheduleSegment | null):
     return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
   };
 
+  /** How many days a period covers, so the next one is the same length. */
+  const spanDays = (from: string | null, to: string | null): number => {
+    if (!from || !to) return 0;
+    const ms = Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`);
+    return Math.max(0, Math.round(ms / 86_400_000));
+  };
+
+  const shiftDays = (iso: string | null, by: number): string | null => {
+    if (!iso) return null;
+    let out = iso;
+    for (let i = 0; i < by; i++) out = nextDay(out)!;
+    return out;
+  };
+
+  // A DAY follows the day before it. A PERIOD follows the END of the one before
+  // it and keeps its length: a weekly league running Mon-Sun wants the next
+  // round to be the following Mon-Sun, not the following Tuesday.
+  const previousEnd = after?.ends_on ?? after?.starts_on ?? null;
+  const startsOn = shape === 'periods'
+    ? nextDay(previousEnd)
+    : nextDay(after?.starts_on ?? null);
+  const endsOn = shape === 'periods'
+    ? shiftDays(startsOn, spanDays(after?.starts_on ?? null, after?.ends_on ?? null))
+    : null;
+
   const { data, error } = await supabase
     .from('battlepack_schedule_segments')
     .insert({
       pack_id:   packId,
       ordinal:   (after?.ordinal ?? 0) + 1,
-      starts_on: nextDay(after?.starts_on ?? null),
-      starts_at: after?.starts_at ?? null,
-      ends_at:   after?.ends_at ?? null,
+      starts_on: startsOn,
+      ends_on:   endsOn,
+      // A league keeps no clock, so a period never carries one forward.
+      starts_at: shape === 'periods' ? null : after?.starts_at ?? null,
+      ends_at:   shape === 'periods' ? null : after?.ends_at ?? null,
     })
     .select('*')
     .single();

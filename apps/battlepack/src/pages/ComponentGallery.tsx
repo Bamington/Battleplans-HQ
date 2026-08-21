@@ -256,12 +256,19 @@ const EventBasicsFormDemo = () => {
  * shows up here as a thrown error rather than silently.
  */
 const RoundsBreaksFormDemo = () => {
+  /**
+   * The form asks for different things depending on the pack's shape — a day
+   * has clock times, a league round has a span of dates — so the demo can be
+   * switched between them rather than showing one and describing the other.
+   */
+  const [shape, setShape] = useState<'days' | 'periods'>('days');
+
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
     timeline: 'one-day',
-    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    schedule_shape: shape, recurrence: 'none', interval_weeks: 1,
     days_of_week: [], week_of_month: null, until_date: null, created_at: '', updated_at: '',
   };
 
@@ -303,11 +310,32 @@ const RoundsBreaksFormDemo = () => {
     // The day operations run against the same in-memory store, so the demo can
     // exercise adding and removing days without a session — which is the half
     // of this form that is hardest to reason about on paper.
-    addDay: async (_packId, after) => {
+    addDay: async (_packId, after, addShape) => {
+      // Mirrors addSegment: a DAY follows the day before it; a PERIOD follows
+      // the END of the one before and keeps its length, so a Mon–Sun round is
+      // followed by the next Mon–Sun. Without this the demo would show an empty
+      // date and hide the behaviour worth looking at.
+      const shift = (iso: string | null, by: number): string | null => {
+        if (!iso) return null;
+        const [y, m, d] = iso.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d + by)).toISOString().slice(0, 10);
+      };
+      const asPeriod = addShape === 'periods';
+      const span = asPeriod && after?.starts_on && after?.ends_on
+        ? Math.round((Date.parse(after.ends_on) - Date.parse(after.starts_on)) / 86_400_000)
+        : 0;
+      const startsOn = shift(
+        asPeriod ? after?.ends_on ?? after?.starts_on ?? null : after?.starts_on ?? null,
+        1,
+      );
+
       const created: ScheduleSegment = {
         id: `sg-new-${nextId}`, pack_id: 'demo-pack', ordinal: (after?.ordinal ?? 0) + 1,
-        starts_on: null, ends_on: null,
-        starts_at: after?.starts_at ?? null, ends_at: after?.ends_at ?? null, label: null,
+        starts_on: startsOn,
+        ends_on: asPeriod ? shift(startsOn, span) : null,
+        starts_at: asPeriod ? null : after?.starts_at ?? null,
+        ends_at:   asPeriod ? null : after?.ends_at ?? null,
+        label: null,
       };
       setNextId(n => n + 1);
       setDemoDays(prev => [...prev, created]);
@@ -326,6 +354,26 @@ const RoundsBreaksFormDemo = () => {
   };
 
   return (
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant={shape === 'days' ? 'filled' : 'outline'}
+          color={shape === 'days' ? 'primary' : 'secondary'}
+          onClick={() => setShape('days')}
+        >
+          Tournament days
+        </Button>
+        <Button
+          size="sm"
+          variant={shape === 'periods' ? 'filled' : 'outline'}
+          color={shape === 'periods' ? 'primary' : 'secondary'}
+          onClick={() => setShape('periods')}
+        >
+          League rounds
+        </Button>
+      </div>
+
     <div className="w-full flex flex-col gap-3 lg:flex-row">
       <div className="w-full lg:w-72 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
         <RoundsBreaksForm
@@ -373,6 +421,7 @@ const RoundsBreaksFormDemo = () => {
           shouts if it breaks.
         </GalleryNote>
       </div>
+    </div>
     </div>
   );
 };

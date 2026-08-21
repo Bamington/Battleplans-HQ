@@ -35,6 +35,7 @@ import { useVenueHours, startTimeWarning } from '../../hooks/useVenueHours';
 import { bannerUrl, uploadPackBanner, deleteBannerObject, listMyClubs } from '../../lib/packs';
 import type { LocationOption, PackTimeline } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
+import { formatDate } from '../packBody';
 
 /**
  * The three shapes, in the create flow's own words.
@@ -230,13 +231,18 @@ const EventBasicsForm = ({
       {/* A league runs to a date; a tournament runs to a time. The two never
           appear together, because a league has no clock and a day has no span. */}
       {league ? (
-        <Input
-          label="League Ends"
-          type="date"
-          value={day?.ends_on ?? ''}
-          min={day?.starts_on ?? undefined}
-          onChange={e => onSegmentChange({ ends_on: e.target.value || null })}
-        />
+        /* READ-ONLY, and that is the fix rather than an omission. A league's
+           end is the last round's end, so an input here would be a second
+           editor for a value Schedule owns — and the two would disagree the
+           moment a round moved. */
+        <div className="flex flex-col gap-1.5">
+          <span className="block font-body text-sm font-medium text-white">League Ends</span>
+          <p className="font-body text-sm text-gray-400">
+            {pack.ends_on
+              ? `${formatDate(pack.ends_on)} — the end of the last round.`
+              : 'Set by the rounds in Schedule.'}
+          </p>
+        </div>
       ) : (
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">

@@ -53,7 +53,7 @@ export interface ScheduleOps {
   reorder: (items: ScheduleItem[]) => Promise<void>;
   /** Day operations. Separate from the item ones: a different table, and one
    *  of them can email everybody holding a calendar entry. */
-  addDay: (packId: string, after: ScheduleSegment | null) => Promise<ScheduleSegment>;
+  addDay: (packId: string, after: ScheduleSegment | null, shape?: 'days' | 'periods') => Promise<ScheduleSegment>;
   updateDay: (id: string, patch: Partial<ScheduleSegment>) => Promise<void>;
   removeDay: (id: string) => Promise<void>;
   reorderDays: (segments: ScheduleSegment[]) => Promise<void>;
@@ -113,6 +113,14 @@ const RoundsBreaksForm = ({
   // is what happens the moment the selected day is deleted.
   const day = days.find(d => d.id === dayId) ?? days[0] ?? null;
   const many = days.length > 1;
+  /**
+   * A league's segments are PERIODS, not days: a span of dates with a name, and
+   * no clock at all. Players arrange their own games inside one, so asking when
+   * it starts would be asking for a time nobody keeps.
+   */
+  const periods = pack.schedule_shape === 'periods';
+  const unit    = periods ? 'round' : 'day';
+  const Unit    = periods ? 'Round' : 'Day';
 
   const items = day ? allItems.filter(i => i.segment_id === day.id) : [];
 
@@ -206,7 +214,7 @@ const RoundsBreaksForm = ({
 
   const addDay = () =>
     persist(async () => {
-      const created = await ops.addDay(pack.id, days[days.length - 1] ?? null);
+      const created = await ops.addDay(pack.id, days[days.length - 1] ?? null, pack.schedule_shape);
       // Select it: adding a day and then having to find it would be two steps
       // where the organiser meant one.
       setDayId(created.id);
@@ -239,6 +247,7 @@ const RoundsBreaksForm = ({
    * knows whether the rounds are wrong or the end time is.
    */
   const overrunsBy = (() => {
+    if (periods) return null;
     if (!day?.starts_at || !day.ends_at || items.length === 0) return null;
     const mins = (t: string) => {
       const [h, m] = t.split(':').map(Number);
@@ -250,7 +259,7 @@ const RoundsBreaksForm = ({
 
   return (
     <PanelSection
-      title="The Day"
+      title={periods ? "Rounds" : "The Day"}
       action={notesState === 'saving' ? 'Saving…' : notesState === 'error' ? 'Not saved' : ''}
     >
 
@@ -264,7 +273,7 @@ const RoundsBreaksForm = ({
       <div className="flex flex-col gap-2">
         {many && (
           <>
-            <span className="block font-body text-sm font-medium text-white">Days</span>
+            <span className="block font-body text-sm font-medium text-white">{periods ? 'Rounds' : 'Days'}</span>
             <div className="flex flex-wrap gap-1.5">
               {days.map((d, i) => (
                 <button
@@ -280,46 +289,61 @@ const RoundsBreaksForm = ({
                       : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white',
                   ].join(' ')}
                 >
-                  {d.label?.trim() || `Day ${i + 1}`}
+                  {d.label?.trim() || `${Unit} ${i + 1}`}
                 </button>
               ))}
             </div>
           </>
         )}
 
-        {day && many && (
+        {day && (many || periods) && (
           <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-800 border border-gray-700">
             <Input
               size="sm"
-              label="Date"
+              label={periods ? 'Starts' : 'Date'}
               type="date"
               value={day.starts_on ?? ''}
               onChange={e => patchDay({ starts_on: e.target.value || null })}
             />
-            <div className="flex items-start gap-2">
-              <div className="flex-1 min-w-0">
-                <Input
-                  size="sm"
-                  label="Starts"
-                  type="time"
-                  value={(day.starts_at ?? '').slice(0, 5)}
-                  onChange={e => patchDay({ starts_at: e.target.value || null })}
-                />
+
+            {/* A ROUND SPANS DATES; A DAY SPANS HOURS. Both are "when does this
+                part run", and the two never appear together — a league keeps no
+                clock, because players arrange their own games inside the week. */}
+            {periods ? (
+              <Input
+                size="sm"
+                label="Ends"
+                type="date"
+                value={day.ends_on ?? ''}
+                min={day.starts_on ?? undefined}
+                onChange={e => patchDay({ ends_on: e.target.value || null })}
+              />
+            ) : (
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <Input
+                    size="sm"
+                    label="Starts"
+                    type="time"
+                    value={(day.starts_at ?? '').slice(0, 5)}
+                    onChange={e => patchDay({ starts_at: e.target.value || null })}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Input
+                    size="sm"
+                    label="Ends"
+                    type="time"
+                    value={(day.ends_at ?? '').slice(0, 5)}
+                    onChange={e => patchDay({ ends_at: e.target.value || null })}
+                  />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <Input
-                  size="sm"
-                  label="Ends"
-                  type="time"
-                  value={(day.ends_at ?? '').slice(0, 5)}
-                  onChange={e => patchDay({ ends_at: e.target.value || null })}
-                />
-              </div>
-            </div>
+            )}
             <Input
               size="sm"
               label="Name (optional)"
-              placeholder={`Day ${days.indexOf(day) + 1}`}
+              placeholder={`${Unit} ${days.indexOf(day) + 1}`}
               defaultValue={day.label ?? ''}
               onBlur={e => {
                 const label = e.target.value.trim();
@@ -341,13 +365,13 @@ const RoundsBreaksForm = ({
               <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-900 border border-red-900">
                 <p className="font-body text-sm text-gray-300">
                   {items.length > 0
-                    ? `Remove this day? The ${items.length} ${items.length === 1 ? 'row' : 'rows'} scheduled in it go too.`
-                    : 'Remove this day?'}
+                    ? `Remove this ${unit}? The ${items.length} ${items.length === 1 ? 'row' : 'rows'} scheduled in it go too.`
+                    : `Remove this ${unit}?`}
                   {' '}This cannot be undone.
                 </p>
                 <ButtonPair>
                   <Button size="sm" color="danger" disabled={busy} onClick={() => { setConfirmRemoveDay(null); removeDay(day); }}>
-                    Remove the day
+                    {`Remove the ${unit}`}
                   </Button>
                   <Button size="sm" variant="outline" color="secondary" onClick={() => setConfirmRemoveDay(null)}>
                     Keep it
@@ -362,13 +386,13 @@ const RoundsBreaksForm = ({
                 disabled={busy || days.length <= 1}
                 onClick={() => setConfirmRemoveDay(day)}
               >
-                Remove this day
+                {`Remove this ${unit}`}
               </Button>
             )}
           </div>
         )}
 
-        {many && (
+        {(many || periods) && (
           <Button
             size="sm"
             variant="outline"
@@ -377,7 +401,7 @@ const RoundsBreaksForm = ({
             leftIcon={<AddCircle className="w-4 h-4" />}
             onClick={addDay}
           >
-            Add another day
+            {`Add another ${unit}`}
           </Button>
         )}
       </div>
@@ -395,16 +419,22 @@ const RoundsBreaksForm = ({
         />
       </div>
 
-      {!pack.starts_at && items.length > 0 && (
+      {/* Silent for a league, which keeps no clock — and it asks about the DAY
+          being edited rather than the pack, whose start time is now only a
+          derived cache of the first one. */}
+      {!periods && day && !day.starts_at && items.length > 0 && (
         <Callout flavour="warning">
-          Set a start time in Event Basics and the day will lay itself out.
+          {many
+            ? 'Give this day a start time above and it will lay itself out.'
+            : 'Set a start time in Event Basics and the day will lay itself out.'}
         </Callout>
       )}
 
       {items.length === 0 && (
         <p className="font-body text-sm text-gray-500">
-          Nothing scheduled yet. Not every event has rounds — a narrative or
-          campaign day may have none at all, and this category can be removed.
+          {periods
+            ? 'Nothing fixed inside this round — which is usual for a league, where players arrange their own games. Add something only if there is a set time everyone should know about.'
+            : 'Nothing scheduled yet. Not every event has rounds — a narrative or campaign day may have none at all, and this category can be removed.'}
         </p>
       )}
 
