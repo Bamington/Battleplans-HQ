@@ -23,7 +23,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Button, PanelSection, EditableListItem, Input, Select, Callout, RichTextEditor,
+  Button, ButtonPair, PanelSection, EditableListItem, Input, Select, Callout, RichTextEditor,
   AddCircle,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
@@ -212,6 +212,13 @@ const RoundsBreaksForm = ({
       setDayId(created.id);
     });
 
+  /**
+   * Remove a day, once it has been confirmed.
+   *
+   * ALWAYS asked, unlike removing a round. A category that is hidden gives its
+   * content back and a round can be added again in seconds; a day takes its
+   * whole timetable with it and there is no way back.
+   */
   const removeDay = (target: ScheduleSegment) =>
     persist(async () => {
       await ops.removeDay(target.id);
@@ -220,6 +227,8 @@ const RoundsBreaksForm = ({
       await ops.reorderDays(days.filter(d => d.id !== target.id));
       setDayId(null);
     });
+
+  const [confirmRemoveDay, setConfirmRemoveDay] = useState<ScheduleSegment | null>(null);
 
   /**
    * By how many minutes the timetable runs past the day's stated end.
@@ -328,28 +337,49 @@ const RoundsBreaksForm = ({
               </Callout>
             )}
 
-            <Button
-              size="sm"
-              variant="outline"
-              color="danger"
-              disabled={busy || days.length <= 1}
-              onClick={() => removeDay(day)}
-            >
-              Remove this day
-            </Button>
+            {confirmRemoveDay?.id === day.id ? (
+              <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-900 border border-red-900">
+                <p className="font-body text-sm text-gray-300">
+                  {items.length > 0
+                    ? `Remove this day? The ${items.length} ${items.length === 1 ? 'row' : 'rows'} scheduled in it go too.`
+                    : 'Remove this day?'}
+                  {' '}This cannot be undone.
+                </p>
+                <ButtonPair>
+                  <Button size="sm" color="danger" disabled={busy} onClick={() => { setConfirmRemoveDay(null); removeDay(day); }}>
+                    Remove the day
+                  </Button>
+                  <Button size="sm" variant="outline" color="secondary" onClick={() => setConfirmRemoveDay(null)}>
+                    Keep it
+                  </Button>
+                </ButtonPair>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                color="danger"
+                disabled={busy || days.length <= 1}
+                onClick={() => setConfirmRemoveDay(day)}
+              >
+                Remove this day
+              </Button>
+            )}
           </div>
         )}
 
-        <Button
-          size="sm"
-          variant="outline"
-          color="secondary"
-          disabled={busy}
-          leftIcon={<AddCircle className="w-4 h-4" />}
-          onClick={addDay}
-        >
-          {many ? 'Add another day' : 'Make this a multi-day event'}
-        </Button>
+        {many && (
+          <Button
+            size="sm"
+            variant="outline"
+            color="secondary"
+            disabled={busy}
+            leftIcon={<AddCircle className="w-4 h-4" />}
+            onClick={addDay}
+          >
+            Add another day
+          </Button>
+        )}
       </div>
 
 

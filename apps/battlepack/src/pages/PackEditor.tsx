@@ -41,7 +41,7 @@ import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
-  listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment,
+  listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment, addSegment, deleteSegment,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
@@ -50,7 +50,7 @@ import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
 import PublishPanel from '../components/PublishPanel';
 import type {
-  GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleSegment,
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem, ScheduleSegment,
 } from '../lib/packs';
 
 /**
@@ -90,6 +90,14 @@ const NOTIFYING_FIELDS = ['starts_on', 'starts_at'];
 
 /** "1 person" / "4 people" — the sentence reads badly with a bare count. */
 const people = (n: number) => (n === 1 ? '1 person' : `${n} people`);
+
+/** Something that would destroy days, held until the organiser confirms it. */
+interface ConfirmDays {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  run: () => Promise<void>;
+}
 
 /** A change that would email people, held until the organiser confirms it. */
 interface PendingNotify {
@@ -166,6 +174,8 @@ export default function PackEditor() {
   // still up, so the button can say it is working rather than the dialog
   // vanishing into a pause.
   const [notifying, setNotifying] = useState(false);
+  /** A day-destroying change, held until confirmed. See ConfirmDays. */
+  const [confirmDays, setConfirmDays] = useState<ConfirmDays | null>(null);
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -385,6 +395,60 @@ export default function PackEditor() {
 
     setPendingNotify({ kind: 'moved', count, becomes: whenAfterDay(day, patch), run });
   }, [segments, pack?.status, packId, reload]);
+
+  /**
+   * Change what kind of event this is.
+   *
+   * Several writes, so it lives here rather than in the form: the shape column,
+   * and then whatever has to happen to the days for the answer to be true. A
+   * multi-day event with one day is not multi-day, and a league with clock
+   * times is not a league.
+   *
+   * The only lossy direction is multi-day → one-day, which throws away days and
+   * every round inside them. That one asks first; the rest are reversible by
+   * choosing again.
+   */
+  const changeEventType = useCallback(async (next: PackTimeline) => {
+    if (!pack) return;
+    const days = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+
+    const apply = async () => {
+      setSaveError(null);
+      try {
+        if (next === 'league') {
+          // A league has no clock: players arrange their own games, so a start
+          // time would be a promise nobody made.
+          await Promise.all(days.map(d => updateSegment(d.id, { starts_at: null, ends_at: null })));
+          await updatePack(pack.id, { schedule_shape: 'periods', timeline: 'league' } as Partial<Pack>);
+        } else if (next === 'multi-day') {
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'multi-day' } as Partial<Pack>);
+          // The count is the fact, so becoming multi-day means having a second
+          // day rather than being labelled as though you do.
+          if (days.length < 2) await addSegment(pack.id, days[days.length - 1] ?? null);
+        } else {
+          await Promise.all(days.slice(1).map(d => deleteSegment(d.id)));
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'one-day' } as Partial<Pack>);
+        }
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not change the event type.');
+        await reload();
+      }
+    };
+
+    const losing = next === 'one-day' ? days.length - 1 : 0;
+    if (losing > 0) {
+      setConfirmDays({
+        title: `Drop ${losing === 1 ? 'the second day' : `${losing} days`}?`,
+        body: `Becoming a one-day event removes ${losing === 1 ? 'it' : 'them'} and everything scheduled inside. That cannot be undone.`,
+        confirmLabel: 'Make it one day',
+        run: apply,
+      });
+      return;
+    }
+
+    await apply();
+  }, [pack, segments, reload]);
 
   async function renamePack(next: string) {
     const name = next.trim();
@@ -754,6 +818,7 @@ export default function PackEditor() {
               categoryKey={activeDefinition.key}
               onChange={savePackFieldsChecked}
               onSegmentChange={saveSegmentChecked}
+              onTypeChange={changeEventType}
               reload={reload}
             />
           ) : (
@@ -861,6 +926,36 @@ export default function PackEditor() {
                 onClick={() => setPendingNotify(null)}
               >
                 Cancel
+              </Button>
+            </ButtonPair>
+          </div>
+        </Modal>
+
+        {/* Losing a day is not like hiding a category, which gives its content
+            back. This takes the day and every round inside it, so it is always
+            asked — whether it came from the day list or from becoming a one-day
+            event. */}
+        <Modal
+          open={confirmDays !== null}
+          onClose={() => setConfirmDays(null)}
+          className="max-w-sm"
+        >
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">{confirmDays?.title}</h2>
+            <p className="font-body text-sm text-gray-300">{confirmDays?.body}</p>
+            <ButtonPair>
+              <Button
+                color="danger"
+                onClick={() => {
+                  const job = confirmDays;
+                  setConfirmDays(null);
+                  if (job) void job.run();
+                }}
+              >
+                {confirmDays?.confirmLabel ?? 'Remove'}
+              </Button>
+              <Button variant="outline" color="secondary" onClick={() => setConfirmDays(null)}>
+                Keep it
               </Button>
             </ButtonPair>
           </div>

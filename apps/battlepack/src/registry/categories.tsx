@@ -42,7 +42,9 @@ import {
   Bookmark, Clipboard, FileText, Folder, InfoCircle, ListCheck,
   Notebook, QuestionCircle, Star, UserPlusRounded,
 } from '@battleplans/ui';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleSegment } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem, ScheduleSegment,
+} from '../lib/packs';
 import SectionForm from '../components/forms/SectionForm';
 import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
 import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
@@ -120,6 +122,14 @@ export interface CategoryFormProps extends CategoryContext {
    * two write to different tables and only this one can email people.
    */
   onSegmentChange: (patch: Partial<ScheduleSegment>) => void;
+  /**
+   * Change what KIND of event this is.
+   *
+   * The only control that changes the pack's shape rather than its contents,
+   * and the only one that can destroy days — so the editor owns it, asks before
+   * anything is lost, and does the several writes it takes in one place.
+   */
+  onTypeChange: (next: PackTimeline) => void;
   /**
    * Re-read the pack's data from the database.
    *

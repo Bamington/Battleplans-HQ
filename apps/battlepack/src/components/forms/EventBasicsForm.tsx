@@ -25,7 +25,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  BannerPicker, GAME_ICONS, PanelSection, Input, RichTextEditor, SearchSelect, Notebook, UserRounded, Callout,
+  BannerPicker, GAME_ICONS, PanelSection, PickerTile, Input, RichTextEditor, SearchSelect, Notebook, UserRounded, Callout,
 } from '@battleplans/ui';
 import type { PendingBanner } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
@@ -33,10 +33,25 @@ import { venueOptions } from '../../lib/pickerOptions';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import { useVenueHours, startTimeWarning } from '../../hooks/useVenueHours';
 import { bannerUrl, uploadPackBanner, deleteBannerObject, listMyClubs } from '../../lib/packs';
-import type { LocationOption } from '../../lib/packs';
+import type { LocationOption, PackTimeline } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
 
-const EventBasicsForm = ({ pack, games, venues, segments, onChange, onSegmentChange }: CategoryFormProps) => {
+/**
+ * The three shapes, in the create flow's own words.
+ *
+ * Deliberately the same copy as NewPackModal's cards: it is the same question,
+ * and an organiser who answered it wrongly at creation should recognise it
+ * rather than have to work out that these are the same three things.
+ */
+const EVENT_TYPES: { id: PackTimeline; title: string; description: string }[] = [
+  { id: 'one-day',   title: 'One Day',   description: 'Starts and finishes on the same day.' },
+  { id: 'multi-day', title: 'Multi-Day', description: 'Two or more days, each with its own timetable.' },
+  { id: 'league',    title: 'League',    description: 'Games organised by players over weeks.' },
+];
+
+const EventBasicsForm = ({
+  pack, games, venues, segments, onChange, onSegmentChange, onTypeChange,
+}: CategoryFormProps) => {
   /**
    * The event's first day. Dates and times live on a SEGMENT now, not on the
    * pack — the pack's copies are a derived envelope, and writing to them would
@@ -44,6 +59,22 @@ const EventBasicsForm = ({ pack, games, venues, segments, onChange, onSegmentCha
    * this is only null for a moment during the first render.
    */
   const day = segments[0] ?? null;
+
+  /**
+   * Which of the three the pack currently is.
+   *
+   * Derived rather than stored, because it already is: a league is
+   * `schedule_shape === 'periods'`, and the difference between one-day and
+   * multi-day is how many segments there are. Storing a fourth copy of that
+   * would be a fourth thing to keep in step with the other three.
+   */
+  const eventType: PackTimeline =
+    pack.schedule_shape === 'periods' ? 'league'
+    : segments.length > 1 ? 'multi-day'
+    : 'one-day';
+
+  const league   = eventType === 'league';
+  const multiDay = eventType === 'multi-day';
   // Local copy so typing is not fighting a round trip on every keystroke.
   // Re-synced whenever the row changes underneath — a rename from the left
   // panel's inline editor has to show up here too.
@@ -165,34 +196,86 @@ const EventBasicsForm = ({ pack, games, venues, segments, onChange, onSegmentCha
           these values back, so this is the one place they are entered. */}
       {/* Stacked rather than side by side — full-width date inputs give the
           native picker room, and two half-width ones were the tightest thing
+      {/* ── What kind of event ─────────────────────────────────────────────
+          The same three choices the create flow offers, in the same words,
+          because they are the same question — and an organiser who picked
+          wrongly at creation should not have to start again. It is the only
+          control here that changes the SHAPE of the pack rather than its
+          contents, which is why it sits above the dates it governs. */}
+      <div className="flex flex-col gap-1.5">
+        <span className="block font-body text-sm font-medium text-white">Event Type</span>
+        <div role="radiogroup" aria-label="Event type" className="flex items-stretch gap-1.5">
+          {EVENT_TYPES.map(t => (
+            <PickerTile
+              key={t.id}
+              title={t.title}
+              description={t.description}
+              selected={eventType === t.id}
+              onSelect={() => onTypeChange(t.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Stacked rather than side by side — full-width date inputs give the
+          native picker room, and two half-width ones were the tightest thing
           in the panel. */}
       <Input
-        label="Start Date"
+        label={league ? 'League Starts' : 'Start Date'}
         type="date"
         value={day?.starts_on ?? ''}
         onChange={e => onSegmentChange({ starts_on: e.target.value || null })}
       />
 
-      {/* A one-day event has no end date, so it is not offered. An empty field
-          under "leave blank for a single day" asks the organiser to answer a
-          question the flow has already answered — and invites them to fill it
-          in wrongly. Shown for the other two, which by definition span dates. */}
-      {pack.timeline !== 'one-day' && (
+      {/* A league runs to a date; a tournament runs to a time. The two never
+          appear together, because a league has no clock and a day has no span. */}
+      {league ? (
         <Input
-          label="End Date"
+          label="League Ends"
           type="date"
           value={day?.ends_on ?? ''}
           min={day?.starts_on ?? undefined}
           onChange={e => onSegmentChange({ ends_on: e.target.value || null })}
         />
+      ) : (
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <Input
+              label={multiDay ? 'Day 1 Starts' : 'Start Time'}
+              type="time"
+              value={(day?.starts_at ?? '').slice(0, 5)}
+              onChange={e => onSegmentChange({ starts_at: e.target.value || null })}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            {/* THE DAY'S OWN END, and the reason it is asked for here rather
+                than derived from the rounds: it is what goes in an attendee's
+                calendar, so adding a round must not be able to move it. */}
+            <Input
+              label={multiDay ? 'Day 1 Ends' : 'End Time'}
+              type="time"
+              value={(day?.ends_at ?? '').slice(0, 5)}
+              onChange={e => onSegmentChange({ ends_at: e.target.value || null })}
+            />
+          </div>
+        </div>
       )}
 
-      <Input
-        label="Start Time"
-        type="time"
-        value={(day?.starts_at ?? '').slice(0, 5)}
-        onChange={e => onSegmentChange({ starts_at: e.target.value || null })}
-      />
+      {multiDay && (
+        <Callout>
+          {segments.length > 1
+            ? `${segments.length} days. The rest of them, and every day's timetable, are in Schedule.`
+            : 'Add the other days in Schedule.'}
+        </Callout>
+      )}
+
+      {league && (
+        <Callout>
+          Rounds are periods rather than days — set them up in Schedule. A league
+          has no start time; players arrange their own games.
+        </Callout>
+      )}
+
 
       {/* Informs, never blocks. A venue can open early for a tournament, and a
           club at a hired hall keeps its own hours — so an unusual time is worth

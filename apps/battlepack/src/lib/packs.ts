@@ -385,12 +385,39 @@ export async function createPack(fields: {
       description: fields.description?.trim() || null,
       format: fields.format?.trim() || null,
       ...(fields.timeline ? { timeline: fields.timeline } : {}),
+      // Both, while `timeline` is still on its way out. The two are derived
+      // from one answer here, so they cannot disagree — and when timeline goes,
+      // only this line does.
+      ...(fields.timeline ? { schedule_shape: shapeForTimeline(fields.timeline) } : {}),
       owner_id: auth.user.id,
     })
     .select('*')
     .single();
   if (error) throw error;
-  return data as Pack;
+
+  const pack = data as Pack;
+
+  // A trigger has already given it day one. A multi-day event needs a second to
+  // be multi-day at all — the count IS the fact, so creating one with a single
+  // day would make the answer they just gave untrue.
+  if (fields.timeline === 'multi-day') {
+    const [first] = await getSegments(pack.id);
+    await addSegment(pack.id, first ?? null);
+  }
+
+  return pack;
+}
+
+/**
+ * The layout half of the old `timeline` answer.
+ *
+ * One-day and multi-day are both `days` and differ only in how many segments
+ * there are; a league is the one that is a different shape. Kept as a function
+ * rather than inlined because the create flow and Event Basics both map the
+ * same three choices, and two copies would eventually disagree.
+ */
+export function shapeForTimeline(timeline: PackTimeline): ScheduleShape {
+  return timeline === 'league' ? 'periods' : 'days';
 }
 
 /**

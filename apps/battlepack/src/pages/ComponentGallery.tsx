@@ -151,6 +151,18 @@ const EventBasicsFormDemo = () => {
   });
   const [log, setLog] = useState<string[]>([]);
 
+  /**
+   * Days, so the type switch is real rather than described.
+   *
+   * The three variants differ by what they ASK FOR — a league wants an end date
+   * and no clock, a multi-day event labels its times "Day 1" — and a demo that
+   * could not switch between them would show one third of the form.
+   */
+  const [demoSegments, setDemoSegments] = useState<ScheduleSegment[]>([
+    { id: 'd1', pack_id: 'demo', ordinal: 1, starts_on: '2026-07-11',
+      ends_on: null, starts_at: '10:00:00', ends_at: '18:00:00', label: null },
+  ]);
+
   const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', slug: 'warhammer-40-000', icon: null, image: null }];
   // The three states a venue's icon can be in, since the picker now shows the
   // venue's own artwork rather than an identical map pin on every row: an
@@ -168,8 +180,22 @@ const EventBasicsFormDemo = () => {
           pack={pack}
           rows={{}}
           schedule={[]}
-            segments={DEMO_SEGMENTS}
-            onSegmentChange={() => {}}
+          segments={demoSegments}
+          onSegmentChange={patch => setDemoSegments(prev => prev.map((d, i) => (i === 0 ? { ...d, ...patch } : d)))}
+          onTypeChange={next => {
+            // The same three moves the editor makes, in memory: a league loses
+            // its clock, a multi-day event gains a second day, one-day drops
+            // back to a single one.
+            setPack(prev => ({ ...prev, timeline: next, schedule_shape: next === 'league' ? 'periods' : 'days' }));
+            setDemoSegments(prev => {
+              if (next === 'league') return prev.map(d => ({ ...d, starts_at: null, ends_at: null }));
+              if (next === 'multi-day' && prev.length < 2) {
+                return [...prev, { ...prev[0], id: 'd2', ordinal: 2, starts_on: '2026-07-12' }];
+              }
+              if (next === 'one-day') return prev.slice(0, 1);
+              return prev;
+            });
+          }}
           games={games}
           venues={venues}
           categoryKey="event-basics"
@@ -308,6 +334,7 @@ const RoundsBreaksFormDemo = () => {
           schedule={items}
           segments={demoDays}
           onSegmentChange={() => {}}
+          onTypeChange={() => {}}
           games={[]}
           venues={[]}
           categoryKey="rounds-breaks"
@@ -483,6 +510,7 @@ const SectionFormDemo = () => {
             schedule={[]}
             segments={DEMO_SEGMENTS}
             onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey={which}
@@ -568,6 +596,7 @@ const ChecklistSectionFormDemo = () => {
             schedule={[]}
             segments={DEMO_SEGMENTS}
             onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey="what-to-bring"
@@ -651,6 +680,7 @@ const FaqSectionFormDemo = () => {
             schedule={[]}
             segments={DEMO_SEGMENTS}
             onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey="faq"
@@ -760,6 +790,7 @@ const TitledListFormDemo = () => {
             schedule={[]}
             segments={DEMO_SEGMENTS}
             onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey={which}

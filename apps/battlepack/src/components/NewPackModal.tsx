@@ -44,15 +44,19 @@ export interface NewPackModalProps {
 }
 
 /**
- * The shape of the event. Only one-day is buildable today — the other two need
- * a schedule spread across dates, which the schedule table models per-time and
- * not per-day, so they are shown (the choice is real and worth signalling) but
- * cannot be picked.
+ * The shape of the event, and the last thing about it that cannot be changed
+ * casually later.
+ *
+ * All three are buildable now that the schedule hangs off dated segments rather
+ * than one pack-level date. One-day and multi-day are the same shape and differ
+ * only in how many days there are, so moving between them is adding or removing
+ * a day; a league is genuinely different and switching to it drops the clock
+ * times, which is why Event Basics asks before doing it.
  */
 const TIMELINES: { id: PackTimeline; title: string; description: string; enabled: boolean }[] = [
-  { id: 'one-day',   title: 'One-Day Tournament',   description: 'Event starts and finishes on the same day.', enabled: true },
-  { id: 'multi-day', title: 'Multi-Day Tournament', description: 'Multiple Rounds over Multiple Days.',        enabled: false },
-  { id: 'league',    title: 'League',               description: 'Rounds happen across many days.',            enabled: false },
+  { id: 'one-day',   title: 'One-Day Tournament',   description: 'Starts and finishes on the same day.',        enabled: true },
+  { id: 'multi-day', title: 'Multi-Day Tournament', description: 'Rounds across two or more days, each with its own timetable.', enabled: true },
+  { id: 'league',    title: 'League',               description: 'Games organised by players over weeks.',      enabled: true },
 ];
 
 const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewPackModalProps) => {
