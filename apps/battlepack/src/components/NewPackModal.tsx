@@ -371,9 +371,22 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
               </div>
 
               {/* Input renders its own label/wrapper, so the flex sizing has to
-                  go on a div around it rather than on the <input>. */}
-              <div className="flex items-end gap-1.5">
-                <div className="flex-1 min-w-0">
+                  go on a div around it rather than on the <input>.
+
+                  ALIGNED AT THE TOP, NOT THE BOTTOM. Each field is a label, a
+                  box and sometimes a line of helper text, and aligning the
+                  bottoms makes the tallest field's helper push its own box —
+                  and its label — above the others. Tops line the LABELS up,
+                  which is the row a reader actually reads across, and lets the
+                  helper hang below where it belongs. Round Defaults underneath
+                  has always done it this way.
+
+                  Wrapping, because three fields across a max-w-xl modal leaves
+                  each about 130px and "dd/mm/yyyy" beside a calendar icon does
+                  not fit in it. The day count takes only what a two-digit
+                  number needs and drops to its own line when it has to. */}
+              <div className="flex flex-wrap items-start gap-1.5">
+                <div className="flex-1 min-w-[10rem]">
                   <Input
                     label={league ? 'League Starts' : 'Start Date'}
                     type="date"
@@ -389,7 +402,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                     keeps. A multi-day event asks once and gives it to every
                     day; where they differ is settled in the editor. */}
                 {!league && (
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-[8rem]">
                     <Input
                       label={timeline === 'multi-day' ? 'Each Day Starts' : 'Start Time'}
                       type="time"
@@ -403,7 +416,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                     question. Nothing stores "this is a three-day event" —
                     three days is three days. */}
                 {timeline === 'multi-day' && (
-                  <div className="flex-1 min-w-0">
+                  <div className="w-28 shrink-0">
                     <Input
                       label="Number of Days"
                       type="number"
@@ -422,7 +435,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                   has to be able to give both. Absent for a league, whose
                   rounds ARE its schedule — the database refuses that pairing.  */}
               {timeline === 'one-day' && (
-                <div className="flex items-end gap-1.5">
+                <div className="flex flex-wrap items-start gap-1.5">
                   <div className="flex-1 min-w-0">
                     <Select
                       label="Repeats"
