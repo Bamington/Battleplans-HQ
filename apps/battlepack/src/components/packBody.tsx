@@ -115,6 +115,21 @@ export interface CategoryBodyArgs {
  * the date range for a league period — a league's weeks are identified by when
  * they are, and numbering them again would say the same thing twice.
  */
+/**
+ * When a league round runs, as one line.
+ *
+ * Sits where a day shows its clock times, because it answers the same question
+ * — when is this part of the event — with the only precision a league has.
+ */
+export function periodRange(segment: ScheduleSegment): string {
+  const from = formatDate(segment.starts_on);
+  const to   = segment.ends_on && segment.ends_on !== segment.starts_on
+    ? formatDate(segment.ends_on)
+    : null;
+  if (!from) return 'Dates to be confirmed';
+  return to ? `${from} - ${to}` : from;
+}
+
 export function segmentLabel(segment: ScheduleSegment, index: number): string {
   if (segment.label?.trim()) return segment.label.trim();
 
@@ -136,6 +151,36 @@ export function categoryBody({ category: c, pack, rows, segments, schedule }: Ca
     // One table per day. A pack with a single segment gets exactly what it got
     // before — no heading, one table — because a heading over the only day is
     // a label for a distinction that does not exist.
+    // ── A league is a list of periods, not a timetable ─────────────────────
+    //
+    // A round IS the stretch of time — week three is the break week — so there
+    // is nothing inside one to lay out. Rendered as rows through the same
+    // ScheduleTable the days use, with the date range where a day would show
+    // clock times, so the two read as the same kind of thing.
+    if (pack.schedule_shape === 'periods') {
+      const periods = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+      const table = periods.length === 0
+        ? <EmptySection hint="No rounds yet." />
+        : <ScheduleTable rows={periods.map((s, i) => ({
+            ordinal: s.ordinal,
+            // Every period is a round: a segment has no kind, and inferring
+            // "break" from a label would be guessing at the organiser's words.
+            kind: 'round' as ScheduleKind,
+            label: s.label?.trim() || `Round ${i + 1}`,
+            time: periodRange(s),
+            icon: <ListCheck className="w-4 h-4" />,
+          }))} />;
+
+      return notes
+        ? (
+          <div className="flex flex-col gap-3">
+            <MarkdownBody className="text-base leading-6 text-gray-300">{notes}</MarkdownBody>
+            {table}
+          </div>
+        )
+        : table;
+    }
+
     // The database guarantees at least one segment, so `days` is only ever
     // empty if a caller passed none. Falling back to one unnamed day timed from
     // the pack keeps a timetable on screen; the alternative is a silently blank

@@ -78,7 +78,7 @@ import type {
   GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem, ScheduleSegment,
 } from '../lib/packs';
 import { icsForEvents, packCalendarEvents } from '../lib/calendar';
-import { keyInfoRows } from '../components/packBody';
+import { keyInfoRows, periodRange } from '../components/packBody';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -398,15 +398,26 @@ const RoundsBreaksFormDemo = () => {
             As the document renders it
           </p>
           {/* Times worked out from the pack's start and each length, exactly as
-              the document does it — nothing here reads a stored time. */}
-          <ScheduleTable
-            rows={timeSchedule(items, pack.starts_at).map(i => ({
-              ordinal: i.ordinal,
-              kind: i.kind,
-              label: i.label ?? (i.kind === 'round' ? 'Round' : 'Break'),
-              time: `${i.startsAt.slice(0, 5)} - ${i.endsAt.slice(0, 5)}`,
-            }))}
-          />
+              the document does it — nothing here reads a stored time. A league
+              has no items to time: its rounds ARE the rows, dated rather than
+              clocked, which is why the two shapes read so differently here. */}
+          {shape === 'periods'
+            ? <ScheduleTable
+                rows={[...demoDays].sort((a, b) => a.ordinal - b.ordinal).map((seg, i) => ({
+                  ordinal: seg.ordinal,
+                  kind: 'round' as const,
+                  label: seg.label?.trim() || `Round ${i + 1}`,
+                  time: periodRange(seg),
+                }))}
+              />
+            : <ScheduleTable
+                rows={timeSchedule(items, pack.starts_at).map(i => ({
+                  ordinal: i.ordinal,
+                  kind: i.kind,
+                  label: i.label ?? (i.kind === 'round' ? 'Round' : 'Break'),
+                  time: `${i.startsAt.slice(0, 5)} - ${i.endsAt.slice(0, 5)}`,
+                }))}
+              />}
         </div>
 
         {problem && <Callout flavour="bad">{problem}</Callout>}

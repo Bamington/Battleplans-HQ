@@ -264,7 +264,12 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     // Default rather than mandatory because a narrative or campaign event may
     // genuinely have no rounds — which is exactly why visibility has to live on
     // battlepack_categories and not on a content row this category doesn't own.
-    isComplete: ({ schedule }) => schedule.length > 0,
+    // A league has no items at all — its rounds ARE the periods of time — so
+    // asking for schedule rows would make one impossible to publish. It is
+    // complete once its rounds are dated.
+    isComplete: ({ pack, schedule, segments }) => pack.schedule_shape === 'periods'
+      ? segments.some(s => s.starts_on)
+      : schedule.length > 0,
     Form: RoundsBreaksForm,
   },
   {

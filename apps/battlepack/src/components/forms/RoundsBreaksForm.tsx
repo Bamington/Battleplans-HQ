@@ -259,7 +259,7 @@ const RoundsBreaksForm = ({
 
   return (
     <PanelSection
-      title={periods ? "Rounds" : "The Day"}
+      title={periods ? "The League" : "The Day"}
       action={notesState === 'saving' ? 'Saving…' : notesState === 'error' ? 'Not saved' : ''}
     >
 
@@ -430,113 +430,128 @@ const RoundsBreaksForm = ({
         </Callout>
       )}
 
-      {items.length === 0 && (
+      {/* A LEAGUE ROUND HOLDS NOTHING. It IS the period of time — week three
+          is the break week — so there is no timetable inside it to fill in,
+          and offering Add Round inside Round 3 would be offering a round
+          within a round. Tournament days keep the whole list. */}
+      {periods && days.length === 0 && (
         <p className="font-body text-sm text-gray-500">
-          {periods
-            ? 'Nothing fixed inside this round — which is usual for a league, where players arrange their own games. Add something only if there is a set time everyone should know about.'
-            : 'Nothing scheduled yet. Not every event has rounds — a narrative or campaign day may have none at all, and this category can be removed.'}
+          No rounds yet. A league's rounds are stretches of time — a week each,
+          usually — and players arrange their own games inside them.
         </p>
       )}
 
-      {items.map((item, index) => (
-        <EditableListItem
-          key={item.id}
-          index={index}
-          count={items.length}
-          disabled={busy}
-          removeLabel={`Remove ${item.label ?? 'item'}`}
-          onMove={delta => move(index, delta)}
-          onRemove={() => remove(item)}
-          header={
+      {!periods && (
+        <>
+        {items.length === 0 && (
+          <p className="font-body text-sm text-gray-500">
+            {periods
+              ? 'Nothing fixed inside this round — which is usual for a league, where players arrange their own games. Add something only if there is a set time everyone should know about.'
+              : 'Nothing scheduled yet. Not every event has rounds — a narrative or campaign day may have none at all, and this category can be removed.'}
+          </p>
+        )}
+
+        {items.map((item, index) => (
+          <EditableListItem
+            key={item.id}
+            index={index}
+            count={items.length}
+            disabled={busy}
+            removeLabel={`Remove ${item.label ?? 'item'}`}
+            onMove={delta => move(index, delta)}
+            onRemove={() => remove(item)}
+            header={
+              <div className="flex items-center gap-2">
+                <span className="font-body font-bold text-xs text-gray-500 tabular-nums w-6 shrink-0">
+                  {String(index).padStart(2, '0')}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={item.kind}
+                    onChange={e => patch(item, { kind: e.target.value as ScheduleItem['kind'] })}
+                    options={KIND_OPTIONS}
+                  />
+                </div>
+              </div>
+            }
+          >
+
+            <Input
+              size="sm"
+              placeholder={
+                item.kind === 'round' ? 'Round 1'
+                  : item.kind === 'event' ? 'Prizegiving'
+                  : 'Lunch'
+              }
+              defaultValue={item.label ?? ''}
+              onBlur={e => {
+                const label = e.target.value.trim();
+                if (label !== (item.label ?? '')) patch(item, { label: label || null });
+              }}
+            />
+
             <div className="flex items-center gap-2">
-              <span className="font-body font-bold text-xs text-gray-500 tabular-nums w-6 shrink-0">
-                {String(index).padStart(2, '0')}
-              </span>
               <div className="flex-1 min-w-0">
-                <Select
-                  value={item.kind}
-                  onChange={e => patch(item, { kind: e.target.value as ScheduleItem['kind'] })}
-                  options={KIND_OPTIONS}
+                <Input
+                  size="sm"
+                  type="number"
+                  min={0}
+                  step={5}
+                  aria-label="Length in minutes"
+                  value={item.duration_minutes}
+                  onChange={e => patch(item, { duration_minutes: Math.max(0, Number(e.target.value) || 0) })}
                 />
               </div>
-            </div>
-          }
-        >
+              <span className="font-body text-xs text-gray-500 shrink-0">minutes</span>
 
-          <Input
+              {/* Read-only: worked out from the day's start and everything above. */}
+              {timed[index] && (
+                <span className="shrink-0 font-body text-xs text-gray-400 tabular-nums">
+                  {timed[index].startsAt.slice(0, 5)}–{timed[index].endsAt.slice(0, 5)}
+                </span>
+              )}
+            </div>
+          </EditableListItem>
+        ))}
+
+        {/* Stacked: the labels are long enough that side by side truncates them
+            in a 256px panel. */}
+        <div className="flex flex-col gap-2">
+          <Button
             size="sm"
-            placeholder={
-              item.kind === 'round' ? 'Round 1'
-                : item.kind === 'event' ? 'Prizegiving'
-                : 'Lunch'
-            }
-            defaultValue={item.label ?? ''}
-            onBlur={e => {
-              const label = e.target.value.trim();
-              if (label !== (item.label ?? '')) patch(item, { label: label || null });
-            }}
-          />
-
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0">
-              <Input
-                size="sm"
-                type="number"
-                min={0}
-                step={5}
-                aria-label="Length in minutes"
-                value={item.duration_minutes}
-                onChange={e => patch(item, { duration_minutes: Math.max(0, Number(e.target.value) || 0) })}
-              />
-            </div>
-            <span className="font-body text-xs text-gray-500 shrink-0">minutes</span>
-
-            {/* Read-only: worked out from the day's start and everything above. */}
-            {timed[index] && (
-              <span className="shrink-0 font-body text-xs text-gray-400 tabular-nums">
-                {timed[index].startsAt.slice(0, 5)}–{timed[index].endsAt.slice(0, 5)}
-              </span>
-            )}
-          </div>
-        </EditableListItem>
-      ))}
-
-      {/* Stacked: the labels are long enough that side by side truncates them
-          in a 256px panel. */}
-      <div className="flex flex-col gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full"
-          leftIcon={<AddCircle className="w-4 h-4" />}
-          disabled={busy}
-          onClick={() => add('round')}
-        >
-          Add Round
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          color="secondary"
-          className="w-full"
-          leftIcon={<AddCircle className="w-4 h-4" />}
-          disabled={busy}
-          onClick={() => add('break')}
-        >
-          Add Break
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          color="secondary"
-          className="w-full"
-          leftIcon={<AddCircle className="w-4 h-4" />}
-          disabled={busy}
-          onClick={() => add('event')}
-        >
-          Add Event
-        </Button>
-      </div>
+            variant="outline"
+            className="w-full"
+            leftIcon={<AddCircle className="w-4 h-4" />}
+            disabled={busy}
+            onClick={() => add('round')}
+          >
+            Add Round
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            color="secondary"
+            className="w-full"
+            leftIcon={<AddCircle className="w-4 h-4" />}
+            disabled={busy}
+            onClick={() => add('break')}
+          >
+            Add Break
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            color="secondary"
+            className="w-full"
+            leftIcon={<AddCircle className="w-4 h-4" />}
+            disabled={busy}
+            onClick={() => add('event')}
+          >
+            Add Event
+          </Button>
+        </div>
+        </>
+      )}
     </PanelSection>
   );
 };
