@@ -275,9 +275,9 @@ async function loadHaloRules(client: SupabaseClient, deckId: string) {
     const loaded: PrintableRule[] = (data as unknown as DeckRuleRow[])
       .filter(dr => dr.rules != null)
       .map(dr => ({
-        id: dr.rules.id,
-        title: dr.rules.title,
-        description: dr.rules.description ?? '',
+        id: dr.rules!.id,
+        title: dr.rules!.title,
+        description: dr.rules!.description ?? '',
       }));
 
     return loaded;

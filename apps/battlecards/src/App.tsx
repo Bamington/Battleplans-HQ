@@ -28,7 +28,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useSearchParams } from 'react-router-dom';
 import { supabase } from '@battleplans/ui';
 import ComponentGallery from './pages/ComponentGallery';
 import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
@@ -74,6 +74,21 @@ function RootRedirect() {
   return <Navigate to={target} replace />;
 }
 
+// ── OAuth callback ──────────────────────────────────────────────────────────
+//
+// Sign-in normally ends at /app, but someone who started from a shared deck
+// link carries a `next` through the OAuth round-trip so they come back to the
+// deck they were looking at. Only same-site absolute paths are honoured, so
+// the parameter can't bounce a freshly signed-in user off-site.
+
+function AuthCallbackRoute() {
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get('next');
+  const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
+
+  return <AuthCallback redirectTo={safe} />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -88,7 +103,7 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* ── OAuth callback — handles Google redirect ── */}
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallbackRoute />} />
 
         {/* ── Password reset — where the "lost password" email lands ── */}
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-gray-950" />} />

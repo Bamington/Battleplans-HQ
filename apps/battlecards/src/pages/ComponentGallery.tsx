@@ -36,6 +36,8 @@ import AppNavbar from '../components/AppNavbar';
 import ZoomControls from '../components/ZoomControls';
 import UnitListEntry from '../components/UnitListEntry';
 import DeckCardList from '../components/DeckCardList';
+import DeckPanelMenu from '../components/DeckPanelMenu';
+import ShareDeckSheet from '../components/ShareDeckSheet';
 import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
@@ -278,6 +280,77 @@ const ZoomControlsGalleryDemo = () => {
   );
 };
 
+// ── DeckPanelMenuGalleryDemo ─────────────────────────────────────────────────
+
+/** Both states of the card-list header action: the ⋯ menu at rest, and the
+ *  tick button it becomes while the deck is being edited. Stateful so the
+ *  swap between them is demonstrable. */
+const DeckPanelMenuGalleryDemo = () => {
+  const [editMode, setEditMode] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-6 items-center">
+        <div className="flex flex-col gap-1 items-center">
+          <DeckPanelMenu
+            editMode={editMode}
+            onToggleEdit={() => setEditMode(m => !m)}
+            onShare={() => {}}
+          />
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+            {editMode ? 'Editing — tick to finish' : 'At rest — ⋯ menu'}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1 items-center">
+          <DeckPanelMenu
+            editMode={false}
+            onToggleEdit={() => {}}
+            onShare={() => {}}
+            editLabel="Reorder warriors"
+          />
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+            Custom editLabel (RYG)
+          </p>
+        </div>
+      </div>
+
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Open the ⋯ menu and pick the edit entry to see it swap to the tick.
+      </p>
+    </div>
+  );
+};
+
+// ── ShareDeckSheetGalleryDemo ────────────────────────────────────────────────
+
+/** The share sheet reads its state from the deck it's given, so a gallery demo
+ *  can only show the shape — pointed at an id that doesn't exist, it renders
+ *  the "couldn't check" path. The shared and not-yet-shared states need a real
+ *  deck, in a builder. */
+const ShareDeckSheetGalleryDemo = () => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Button size="sm" className="self-start" onClick={() => setOpen(true)}>
+        Open share sheet
+      </Button>
+      <ShareDeckSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        deckId="00000000-0000-0000-0000-000000000000"
+        deckName="Imperial Nobility 11's Team"
+      />
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Bound to a placeholder deck id, so this shows the error state. Its real
+        states — "create share link" and a live link with copy / stop sharing —
+        appear on a deck you own, via ⋯ → Share in any builder.
+      </p>
+    </div>
+  );
+};
+
 // ── BuilderShellDemo ──────────────────────────────────────────────────────────
 
 /** Inline preview of <CenterViewport> in its real setting — the shared
@@ -405,6 +478,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-card-forms',            label: 'Card Forms',            icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-addon-forms',           label: 'Addon Forms',           icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-deck-panel-menu',       label: 'Deck Panel Menu',       icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-share-deck-sheet',      label: 'Share Deck Sheet',      icon: <Gallery className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -2373,6 +2448,17 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-ryg-forms" title="Addon Forms / Repent Ye Foolish Gods">
         <AddonFormHarness forms={RYG_ADDON_FORMS} />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          DECK SHARING
+          ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-deck-panel-menu" title="Deck Panel Menu">
+        <DeckPanelMenuGalleryDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-share-deck-sheet" title="Share Deck Sheet">
+        <ShareDeckSheetGalleryDemo />
       </GallerySection>
 
     </GalleryShell>

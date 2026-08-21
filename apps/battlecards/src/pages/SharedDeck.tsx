@@ -287,7 +287,9 @@ const SharedDeck = () => {
     if (!token) return;
 
     if (!signedIn) {
-      navigate('/login');
+      // Come back here afterwards — someone who followed a link to a deck
+      // shouldn't be dumped on the home screen for the crime of signing in.
+      navigate(`/login?next=${encodeURIComponent(`/d/${token}`)}`);
       return;
     }
 
