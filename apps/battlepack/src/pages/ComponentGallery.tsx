@@ -167,6 +167,7 @@ const EventBasicsFormDemo = () => {
           rows={{}}
           schedule={[]}
             segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
           games={games}
           venues={venues}
           categoryKey="event-basics"
@@ -277,6 +278,7 @@ const RoundsBreaksFormDemo = () => {
           rows={{}}
           schedule={items}
           segments={DEMO_SEGMENTS}
+          onSegmentChange={() => {}}
           games={[]}
           venues={[]}
           categoryKey="rounds-breaks"
@@ -449,6 +451,7 @@ const SectionFormDemo = () => {
             rows={rows}
             schedule={[]}
             segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey={which}
@@ -531,6 +534,7 @@ const ChecklistSectionFormDemo = () => {
             rows={rows}
             schedule={[]}
             segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey="what-to-bring"
@@ -613,6 +617,7 @@ const FaqSectionFormDemo = () => {
             rows={rows}
             schedule={[]}
             segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey="faq"
@@ -721,6 +726,7 @@ const TitledListFormDemo = () => {
             rows={rows}
             schedule={[]}
             segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey={which}

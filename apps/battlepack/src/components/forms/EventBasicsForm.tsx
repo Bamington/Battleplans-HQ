@@ -36,7 +36,14 @@ import { bannerUrl, uploadPackBanner, deleteBannerObject, listMyClubs } from '..
 import type { LocationOption } from '../../lib/packs';
 import { BANNER_MIN_ASPECT } from '../PackDocument';
 
-const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) => {
+const EventBasicsForm = ({ pack, games, venues, segments, onChange, onSegmentChange }: CategoryFormProps) => {
+  /**
+   * The event's first day. Dates and times live on a SEGMENT now, not on the
+   * pack — the pack's copies are a derived envelope, and writing to them would
+   * be overwritten by the next sync. Every pack has at least one segment, so
+   * this is only null for a moment during the first render.
+   */
+  const day = segments[0] ?? null;
   // Local copy so typing is not fighting a round trip on every keystroke.
   // Re-synced whenever the row changes underneath — a rename from the left
   // panel's inline editor has to show up here too.
@@ -53,7 +60,7 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
 
   // Whether this event starts outside the venue's usual bookable hours.
   const venueHours  = useVenueHours(pack.location_id ?? null);
-  const startWarning = startTimeWarning(pack.starts_at ?? null, venueHours);
+  const startWarning = startTimeWarning(segments[0]?.starts_at ?? null, venueHours);
 
   // The clubs this user could put their name on. Fetched here rather than
   // threaded through the registry, the same way the venue's hours are — only
@@ -162,8 +169,8 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
       <Input
         label="Start Date"
         type="date"
-        value={pack.starts_on ?? ''}
-        onChange={e => onChange({ starts_on: e.target.value || null })}
+        value={day?.starts_on ?? ''}
+        onChange={e => onSegmentChange({ starts_on: e.target.value || null })}
       />
 
       {/* A one-day event has no end date, so it is not offered. An empty field
@@ -174,17 +181,17 @@ const EventBasicsForm = ({ pack, games, venues, onChange }: CategoryFormProps) =
         <Input
           label="End Date"
           type="date"
-          value={pack.ends_on ?? ''}
-          min={pack.starts_on ?? undefined}
-          onChange={e => onChange({ ends_on: e.target.value || null })}
+          value={day?.ends_on ?? ''}
+          min={day?.starts_on ?? undefined}
+          onChange={e => onSegmentChange({ ends_on: e.target.value || null })}
         />
       )}
 
       <Input
         label="Start Time"
         type="time"
-        value={(pack.starts_at ?? '').slice(0, 5)}
-        onChange={e => onChange({ starts_at: e.target.value || null })}
+        value={(day?.starts_at ?? '').slice(0, 5)}
+        onChange={e => onSegmentChange({ starts_at: e.target.value || null })}
       />
 
       {/* Informs, never blocks. A venue can open early for a tournament, and a

@@ -41,7 +41,7 @@ import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
   getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
-  listMyClubs, calendarAudienceSize, pendingNotifyCount,
+  listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
@@ -75,15 +75,18 @@ const panelsAreDrawers = () =>
   typeof window !== 'undefined' && window.matchMedia(DRAWER_MQ).matches;
 
 /**
- * The columns whose change emails everyone holding a calendar entry.
+ * The SEGMENT columns whose change emails everyone holding a calendar entry.
  *
- * Kept next to the trigger's own list in 20260820010000 — that migration
- * decides who is written to, and this decides who is warned first. If a fourth
- * date column is ever added, both have to learn about it, and a warning that
- * has not kept up is worse than none: it teaches an organiser that saving a
- * date is safe right up until the time it is not.
+ * These are what `battlepack_schedule_signature` hashes, and the two lists have
+ * to say the same thing: the signature decides who is written to, and this
+ * decides who is warned first. A warning that has not kept up is worse than
+ * none, because it teaches an organiser that saving a date is safe right up
+ * until the time it is not.
+ *
+ * A day's `ends_at` is deliberately absent from both — settled with Chris, on
+ * the grounds that people block out the whole day anyway.
  */
-const NOTIFYING_FIELDS = ['starts_on', 'ends_on', 'starts_at'];
+const NOTIFYING_FIELDS = ['starts_on', 'starts_at'];
 
 /** "1 person" / "4 people" — the sentence reads badly with a bare count. */
 const people = (n: number) => (n === 1 ? '1 person' : `${n} people`);
@@ -98,13 +101,29 @@ interface PendingNotify {
 }
 
 /**
- * The date line as it WOULD read, given a patch that has not been written.
+ * A day's date line as it WOULD read, given a patch that has not been written.
  *
  * The confirmation is the only place this is visible. The date field is
- * controlled by `pack`, which is deliberately not updated until the organiser
- * confirms — so React restores the input to the old value the moment the modal
- * goes up, and a dialog that did not name the new date would be asking "are you
- * sure?" about something no longer on screen.
+ * controlled by the segment, which is deliberately not updated until the
+ * organiser confirms — so React restores the input to the old value the moment
+ * the modal goes up, and a dialog that did not name the new date would be
+ * asking "are you sure?" about something no longer on screen.
+ */
+const whenAfterDay = (day: ScheduleSegment, patch: Partial<ScheduleSegment>): string => {
+  const next   = { ...day, ...patch };
+  const starts = formatDate(next.starts_on);
+  const ends   = next.ends_on && next.ends_on !== next.starts_on ? formatDate(next.ends_on) : null;
+  const time   = next.starts_at ? formatTime(next.starts_at) : null;
+  return [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null]
+    .filter(Boolean).join(' ') || 'no date';
+};
+
+/**
+ * The same, for a patch to the pack row itself.
+ *
+ * Nothing on the pack notifies any more — dates moved to segments — but the
+ * confirmation path is kept whole rather than half-removed, so a notifying pack
+ * column added later finds the machinery still here.
  */
 const whenAfter = (pack: Pack, patch: Record<string, unknown>): string => {
   const next   = { ...pack, ...patch } as Pack;
@@ -312,12 +331,13 @@ export default function PackEditor() {
    * on the next render with nothing to undo.
    */
   const savePackFieldsChecked = useCallback(async (patch: Record<string, unknown>) => {
+    // Dates moved to segments, so nothing reaching this path can notify — but
+    // the guard stays, because a pack column that notifies could be added back
+    // and a warning that quietly stopped applying is the worst outcome.
     const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
     if (!movesTheEvent || pack?.status !== 'published') return savePackFields(patch);
 
     const count = await calendarAudienceSize(packId);
-    // Nobody saved it, so nobody is told, so there is nothing to warn about.
-    // Also the answer when the count itself failed — see calendarAudienceSize.
     if (count === 0) return savePackFields(patch);
 
     setPendingNotify({
@@ -327,6 +347,44 @@ export default function PackEditor() {
       run: () => savePackFields(patch),
     });
   }, [pack, packId, savePackFields]);
+
+  /**
+   * The write path for a day's dates and times.
+   *
+   * Separate from savePackFields because it writes a different table and is the
+   * one that can email people: `battlepack_schedule_segments` is what the
+   * notification signature is computed from, so a date change here is what
+   * reaches everyone holding a calendar entry.
+   *
+   * NOT optimistic, unlike the pack write. The pack's own date columns are a
+   * cache the database recomputes from this, so guessing the result locally
+   * would mean guessing what a trigger is about to do — a reload is one round
+   * trip and is certain.
+   */
+  const saveSegmentChecked = useCallback(async (patch: Partial<ScheduleSegment>) => {
+    const day = segments[0];
+    if (!day) return;
+
+    const run = async () => {
+      setSaveError(null);
+      try {
+        await updateSegment(day.id, patch);
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not save that change.');
+      }
+    };
+
+    const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
+    if (!movesTheEvent || pack?.status !== 'published') return run();
+
+    const count = await calendarAudienceSize(packId);
+    // Nobody saved it, so nobody is told, so there is nothing to warn about.
+    // Also the answer when the count itself failed — see calendarAudienceSize.
+    if (count === 0) return run();
+
+    setPendingNotify({ kind: 'moved', count, becomes: whenAfterDay(day, patch), run });
+  }, [segments, pack?.status, packId, reload]);
 
   async function renamePack(next: string) {
     const name = next.trim();
@@ -695,6 +753,7 @@ export default function PackEditor() {
               {...ctx}
               categoryKey={activeDefinition.key}
               onChange={savePackFieldsChecked}
+              onSegmentChange={saveSegmentChecked}
               reload={reload}
             />
           ) : (

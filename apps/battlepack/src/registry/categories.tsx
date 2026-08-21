@@ -112,6 +112,15 @@ export interface CategoryFormProps extends CategoryContext {
    */
   onChange: (patch: Record<string, unknown>) => void;
   /**
+   * Persist a change to the event's FIRST day.
+   *
+   * Dates and times live on a segment, not on the pack — `pack.starts_on` and
+   * friends are a cache the database recomputes, so writing to them through
+   * `onChange` would be silently undone. Separate from `onChange` because the
+   * two write to different tables and only this one can email people.
+   */
+  onSegmentChange: (patch: Partial<ScheduleSegment>) => void;
+  /**
    * Re-read the pack's data from the database.
    *
    * Forms that write outside the pack row do their own writes (they know their

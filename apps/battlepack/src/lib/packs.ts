@@ -753,6 +753,27 @@ export function groupBySegment(
     }));
 }
 
+/**
+ * Change one day's dates, times or label.
+ *
+ * THE PACK'S OWN starts_on / ends_on / starts_at ARE NOT WRITABLE ANY MORE.
+ * They are a cache the database recomputes from the segments — writing to them
+ * would be undone by the next sync, and silently. This is where a date changes.
+ *
+ * A trigger notifies everyone holding a calendar entry, so the caller is
+ * expected to have asked first; see PackEditor.
+ */
+export async function updateSegment(
+  segmentId: string,
+  patch: Partial<Pick<ScheduleSegment, 'starts_on' | 'ends_on' | 'starts_at' | 'ends_at' | 'label'>>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('battlepack_schedule_segments')
+    .update(patch)
+    .eq('id', segmentId);
+  if (error) throw error;
+}
+
 export async function getSchedule(packId: string): Promise<ScheduleItem[]> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
