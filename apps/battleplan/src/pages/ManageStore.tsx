@@ -275,6 +275,7 @@ export default function ManageStore() {
                     location={b.location.name}
                     date={formatDateLabel(b.date)}
                     time={formatBookingTime(b.timeslot)}
+                    tableLabel={b.table_label}
                     customerName={b.user_name ?? undefined}
                     variant="store"
                     onDeleted={refetchDateBookings}
