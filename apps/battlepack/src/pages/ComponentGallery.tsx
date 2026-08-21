@@ -75,7 +75,7 @@ import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
 import { timeSchedule } from '../lib/packs';
 import type {
-  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem,
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack, ScheduleItem, ScheduleSegment,
 } from '../lib/packs';
 import { icsForEvent, packCalendarEvent } from '../lib/calendar';
 import { keyInfoRows } from '../components/packBody';
@@ -100,6 +100,15 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-link-preview',        label: 'Link Preview',         icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
   { href: '#nav-add-to-calendar',     label: 'Add to Calendar',      icon: <Calendar className="w-5 h-5" /> },
+];
+
+/**
+ * One demo day. Every pack has at least one segment, so a form fixture without
+ * one would be a state the database cannot produce.
+ */
+const DEMO_SEGMENTS: ScheduleSegment[] = [
+  { id: 'sg-1', pack_id: 'demo-pack', ordinal: 1, starts_on: '2026-07-11',
+    ends_on: null, starts_at: '10:00:00', ends_at: '18:15:00', label: null },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -157,6 +166,7 @@ const EventBasicsFormDemo = () => {
           pack={pack}
           rows={{}}
           schedule={[]}
+            segments={DEMO_SEGMENTS}
           games={games}
           venues={venues}
           categoryKey="event-basics"
@@ -225,10 +235,10 @@ const RoundsBreaksFormDemo = () => {
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
-    { id: 'a', pack_id: 'demo', ordinal: 0, kind: 'break', label: 'Registration', duration_minutes: 30 },
-    { id: 'b', pack_id: 'demo', ordinal: 1, kind: 'round', label: 'Round 1',      duration_minutes: 30 },
-    { id: 'c', pack_id: 'demo', ordinal: 2, kind: 'break', label: 'Lunch',        duration_minutes: 30 },
-    { id: 'd', pack_id: 'demo', ordinal: 3, kind: 'round', label: 'Round 2',      duration_minutes: 30 },
+    { id: 'a', pack_id: 'demo', segment_id: 'sg-1', ordinal: 0, kind: 'break', label: 'Registration', duration_minutes: 30 },
+    { id: 'b', pack_id: 'demo', segment_id: 'sg-1', ordinal: 1, kind: 'round', label: 'Round 1',      duration_minutes: 30 },
+    { id: 'c', pack_id: 'demo', segment_id: 'sg-1', ordinal: 2, kind: 'break', label: 'Lunch',        duration_minutes: 30 },
+    { id: 'd', pack_id: 'demo', segment_id: 'sg-1', ordinal: 3, kind: 'round', label: 'Round 2',      duration_minutes: 30 },
   ]);
   const [nextId, setNextId] = useState(1);
   const [problem, setProblem] = useState<string | null>(null);
@@ -244,7 +254,7 @@ const RoundsBreaksFormDemo = () => {
     add: async (_packId, kind, ordinal, label) => {
       const id = `new-${nextId}`;
       setNextId(n => n + 1);
-      setItems(prev => [...prev, { id, pack_id: 'demo', ordinal, kind, label, duration_minutes: kind === 'round' ? 120 : 10 }]);
+      setItems(prev => [...prev, { id, pack_id: 'demo', segment_id: 'sg-1', ordinal, kind, label, duration_minutes: kind === 'round' ? 120 : 10 }]);
     },
     update: async (id, patch) => {
       setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
@@ -266,6 +276,7 @@ const RoundsBreaksFormDemo = () => {
           pack={pack}
           rows={{}}
           schedule={items}
+          segments={DEMO_SEGMENTS}
           games={[]}
           venues={[]}
           categoryKey="rounds-breaks"
@@ -437,6 +448,7 @@ const SectionFormDemo = () => {
             pack={pack}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
             games={[]}
             venues={[]}
             categoryKey={which}
@@ -518,6 +530,7 @@ const ChecklistSectionFormDemo = () => {
             pack={DEMO_PACK}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
             games={[]}
             venues={[]}
             categoryKey="what-to-bring"
@@ -599,6 +612,7 @@ const FaqSectionFormDemo = () => {
             pack={DEMO_PACK}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
             games={[]}
             venues={[]}
             categoryKey="faq"
@@ -706,6 +720,7 @@ const TitledListFormDemo = () => {
             pack={DEMO_PACK}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
             games={[]}
             venues={[]}
             categoryKey={which}
@@ -843,10 +858,10 @@ const AddToCalendarDemo = () => {
   };
   const venue: LocationOption = { id: 'v1', name: 'The Gaming Arena', address: '12 Dice Lane, Leeds' };
   const schedule: ScheduleItem[] = [
-    { id: 's1', pack_id: 'demo-pack', ordinal: 1, kind: 'round', label: null, duration_minutes: 150 },
-    { id: 's2', pack_id: 'demo-pack', ordinal: 1, kind: 'break', label: 'Lunch', duration_minutes: 45 },
-    { id: 's3', pack_id: 'demo-pack', ordinal: 2, kind: 'round', label: null, duration_minutes: 150 },
-    { id: 's4', pack_id: 'demo-pack', ordinal: 3, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's1', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 1, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's2', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 1, kind: 'break', label: 'Lunch', duration_minutes: 45 },
+    { id: 's3', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 2, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's4', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 3, kind: 'round', label: null, duration_minutes: 150 },
   ];
 
   const CASES: { label: string; note: string; data: PublicPack }[] = [

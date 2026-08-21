@@ -39,7 +39,7 @@ import {
 } from '../registry/categories';
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
-  getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
+  getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
   listMyClubs, calendarAudienceSize, pendingNotifyCount,
 } from '../lib/packs';
@@ -49,7 +49,9 @@ import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared 
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
 import PublishPanel from '../components/PublishPanel';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleSegment,
+} from '../lib/packs';
 
 /**
  * The left nav's Publish row. Deliberately not a registry key — Publish has no
@@ -120,6 +122,9 @@ export default function PackEditor() {
   const [pack,     setPack]     = useState<Pack | null>(null);
   const [rows,     setRows]     = useState<Record<string, PackCategoryRow>>({});
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  // Always at least one — the database guarantees it, so the document never has
+  // to draw a pack with no days.
+  const [segments, setSegments] = useState<ScheduleSegment[]>([]);
   const [games,    setGames]    = useState<GameOption[]>([]);
   const [venues,   setVenues]   = useState<LocationOption[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -150,13 +155,13 @@ export default function PackEditor() {
     let cancelled = false;
     (async () => {
       try {
-        const [p, r, s, g, l] = await Promise.all([
+        const [p, r, s, g, l, sg] = await Promise.all([
           getPack(packId), getCategoryRows(packId), getSchedule(packId),
-          listGames(), listMyLocations(),
+          listGames(), listMyLocations(), getSegments(packId),
         ]);
         if (cancelled) return;
         if (!p) { setError('That pack does not exist, or you cannot open it.'); return; }
-        setPack(p); setRows(r); setSchedule(s); setGames(g); setVenues(l);
+        setPack(p); setRows(r); setSchedule(s); setGames(g); setVenues(l); setSegments(sg);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the pack.');
       } finally {
@@ -172,12 +177,13 @@ export default function PackEditor() {
    * which of its slices changed.
    */
   const reload = useCallback(async () => {
-    const [p, r, s] = await Promise.all([
-      getPack(packId), getCategoryRows(packId), getSchedule(packId),
+    const [p, r, s, sg] = await Promise.all([
+      getPack(packId), getCategoryRows(packId), getSchedule(packId), getSegments(packId),
     ]);
     if (p) setPack(p);
     setRows(r);
     setSchedule(s);
+    setSegments(sg);
   }, [packId]);
 
   const categories = useMemo(
@@ -217,7 +223,7 @@ export default function PackEditor() {
     if (!activeKey && categories.length) setActiveKey(categories[0].key);
   }, [categories, activeKey]);
 
-  const ctx: CategoryContext | null = pack ? { pack, rows, schedule, games, venues } : null;
+  const ctx: CategoryContext | null = pack ? { pack, rows, segments, schedule, games, venues } : null;
   const game  = games.find(g => g.id === pack?.game_id) ?? null;
   const venue = venues.find(v => v.id === pack?.location_id) ?? null;
   // The host may be a club this user administers but which is not in `venues`
@@ -411,7 +417,7 @@ export default function PackEditor() {
   /** What one category contributes to the document — shared with the public
    *  page at /:slug, so the organiser and the attendee see one document. */
   const bodyFor = (c: typeof categories[number]) =>
-    categoryBody({ category: c, pack, rows, schedule });
+    categoryBody({ category: c, pack, rows, segments, schedule });
 
   /**
    * The tab's sections, with paired ones sharing a row.

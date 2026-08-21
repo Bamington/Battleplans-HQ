@@ -42,7 +42,7 @@ import {
   Bookmark, Clipboard, FileText, Folder, InfoCircle, ListCheck,
   Notebook, QuestionCircle, Star, UserPlusRounded,
 } from '@battleplans/ui';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleSegment } from '../lib/packs';
 import SectionForm from '../components/forms/SectionForm';
 import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
 import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
@@ -83,6 +83,11 @@ export interface CategoryContext {
   rows: Record<string, PackCategoryRow>;
   /** Rounds & Breaks, already ordered. */
   schedule: ScheduleItem[];
+  /**
+   * The days or periods the schedule hangs off. Always at least one — the
+   * database guarantees it, so no form has to handle a pack with no days.
+   */
+  segments: ScheduleSegment[];
   /**
    * The lookups the editor has already loaded. They live on the context rather
    * than being fetched per form because more than one category needs them —

@@ -77,9 +77,38 @@ export interface PackCategoryRow {
   content: unknown;
 }
 
+/**
+ * One part of an event with dates of its own.
+ *
+ * A day of a multi-day tournament, or a period of a league. EVERY PACK HAS AT
+ * LEAST ONE, including the one-day packs that predate the idea — which is what
+ * makes "one-day" a count rather than a type, and growing a one-dayer into a
+ * two-dayer an insert rather than a conversion. See 20260821010000.
+ */
+export interface ScheduleSegment {
+  id: string;
+  pack_id: string;
+  /** Position in the event, and the ONLY ordering — a segment may have no date. */
+  ordinal: number;
+  starts_on: string | null;
+  /** Set for a league period spanning days; null for a single day. */
+  ends_on: string | null;
+  /**
+   * The DAY's own start and end, as the organiser states them — not as the
+   * timetable implies. What an attendee puts in a calendar is this, so adding a
+   * round must not be able to move somebody's diary entry.
+   */
+  starts_at: string | null;
+  ends_at: string | null;
+  /** "Day 1", "Week 3 — Break Week". Null falls back to a derived label. */
+  label: string | null;
+}
+
 export interface ScheduleItem {
   id: string;
   pack_id: string;
+  /** The day or period this sits in. See ScheduleSegment. */
+  segment_id: string;
   ordinal: number;
   kind: ScheduleKind;
   label: string | null;
@@ -489,7 +518,11 @@ export interface PublicPack {
   /** The club running it. Name and icon only — a credit line, not a directory entry. */
   host?: { id: string; name: string; icon: string | null } | null;
   categories?: PackCategoryRow[];
+  /** The days or periods the schedule hangs off. See ScheduleSegment. */
+  segments?: ScheduleSegment[];
   schedule?: ScheduleItem[];
+  /** The creator's display name, for the byline when no club is hosting. */
+  creator?: { name: string | null } | null;
 }
 
 /**
@@ -677,6 +710,49 @@ export async function saveCategoryContent(
 
 // ── Schedule ─────────────────────────────────────────────────────────────────
 
+/**
+ * The pack's days or periods, in order.
+ *
+ * By `ordinal`, never by date. A segment may have no date yet — a pack is
+ * publishable before its dates are agreed — and day two still has to follow
+ * day one.
+ */
+export async function getSegments(packId: string): Promise<ScheduleSegment[]> {
+  const { data, error } = await supabase
+    .from('battlepack_schedule_segments')
+    .select('*')
+    .eq('pack_id', packId)
+    .order('ordinal');
+  if (error) throw error;
+  return (data ?? []) as ScheduleSegment[];
+}
+
+/**
+ * Split a pack's items across its segments, in segment order.
+ *
+ * Returned as pairs rather than a lookup because the caller always wants both
+ * halves together: the segment supplies the clock the items are timed against,
+ * and an empty segment is still a day that has to be drawn.
+ *
+ * An item whose segment is missing from the list is dropped rather than shown
+ * under the wrong day — the database makes that impossible (segment_id is NOT
+ * NULL with a foreign key), and silently reassigning it would be worse than
+ * losing it.
+ */
+export function groupBySegment(
+  segments: ScheduleSegment[],
+  items: ScheduleItem[],
+): { segment: ScheduleSegment; items: ScheduleItem[] }[] {
+  return [...segments]
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .map(segment => ({
+      segment,
+      items: items
+        .filter(i => i.segment_id === segment.id)
+        .sort((a, b) => a.ordinal - b.ordinal),
+    }));
+}
+
 export async function getSchedule(packId: string): Promise<ScheduleItem[]> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
@@ -744,9 +820,9 @@ export interface RoundDefaults {
  * Returned rather than written so the caller can show the day before committing
  * to it, and so this can be checked without a database.
  */
-export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' | 'pack_id'>[] {
+export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[] {
   const { rounds, roundMinutes, breakMinutes } = defaults;
-  const items: Omit<ScheduleItem, 'id' | 'pack_id'>[] = [];
+  const items: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[] = [];
 
   for (let i = 0; i < rounds; i++) {
     items.push({
@@ -772,7 +848,7 @@ export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' 
 /** Write a generated day to a pack. Used by the create flow's round defaults. */
 export async function insertSchedule(
   packId: string,
-  items: Omit<ScheduleItem, 'id' | 'pack_id'>[],
+  items: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[],
 ): Promise<void> {
   if (items.length === 0) return;
   const { error } = await supabase

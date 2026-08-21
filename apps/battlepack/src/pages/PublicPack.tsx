@@ -75,7 +75,7 @@ export default function PublicPack() {
     );
   }
 
-  const { pack, game, venue, host, categories: rowList = [], schedule = [] } = data;
+  const { pack, game, venue, host, categories: rowList = [], segments = [], schedule = [] } = data;
   const rows = Object.fromEntries(rowList.map(r => [r.category_key, r]));
   const categories = visibleCategories(pack.game_id, rows);
 
@@ -118,7 +118,7 @@ export default function PublicPack() {
       const sections = group.map(c => (
         <div key={c.key} className={group.length > 1 ? 'flex-1 min-w-0' : ''}>
           <DocumentSection categoryKey={c.key} title={c.documentLabel ?? c.label}>
-            {categoryBody({ category: c, pack, rows, schedule })}
+            {categoryBody({ category: c, pack, rows, segments, schedule })}
           </DocumentSection>
         </div>
       ));

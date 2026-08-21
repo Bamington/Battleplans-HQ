@@ -23,8 +23,10 @@ import { readChecklist } from './forms/ChecklistSectionForm';
 import { readFaq } from './forms/FaqSectionForm';
 import { readScheduleNotes } from './forms/RoundsBreaksForm';
 import { readTitledList } from './forms/TitledListForm';
-import { timeSchedule } from '../lib/packs';
-import type { LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleKind } from '../lib/packs';
+import { groupBySegment, timeSchedule } from '../lib/packs';
+import type {
+  LocationOption, Pack, PackCategoryRow, ScheduleItem, ScheduleKind, ScheduleSegment,
+} from '../lib/packs';
 import type { CategoryDefinition } from '../registry/categories';
 
 // ── Formatting ───────────────────────────────────────────────────────────────
@@ -101,26 +103,80 @@ export interface CategoryBodyArgs {
   category: CategoryDefinition;
   pack: Pack;
   rows: Record<string, PackCategoryRow>;
+  /** The days or periods. Always at least one — see ScheduleSegment. */
+  segments: ScheduleSegment[];
   schedule: ScheduleItem[];
 }
 
+/**
+ * What a day calls itself.
+ *
+ * The organiser's own label wins. Failing that, "Day 1" for a tournament and
+ * the date range for a league period — a league's weeks are identified by when
+ * they are, and numbering them again would say the same thing twice.
+ */
+export function segmentLabel(segment: ScheduleSegment, index: number): string {
+  if (segment.label?.trim()) return segment.label.trim();
+
+  if (segment.ends_on && segment.ends_on !== segment.starts_on) {
+    const from = formatDate(segment.starts_on);
+    const to   = formatDate(segment.ends_on);
+    if (from && to) return `${from} – ${to}`;
+  }
+
+  const day = formatDate(segment.starts_on);
+  return day ? `Day ${index + 1} — ${day}` : `Day ${index + 1}`;
+}
+
 /** What one category contributes to the document. */
-export function categoryBody({ category: c, pack, rows, schedule }: CategoryBodyArgs): ReactNode {
+export function categoryBody({ category: c, pack, rows, segments, schedule }: CategoryBodyArgs): ReactNode {
   if (c.key === 'rounds-breaks') {
-    // Times are worked out here rather than read from the row — an item stores
-    // how long it lasts and nothing else, so a reorder cannot leave the clock
-    // disagreeing with the order.
-    const timed = timeSchedule(schedule, pack.starts_at);
     const notes = readScheduleNotes(rows[c.key]?.content);
-    const table = schedule.length
-      ? <ScheduleTable rows={schedule.map((s, i) => ({
-          ordinal: s.ordinal,
-          kind: s.kind,
-          label: s.label ?? SCHEDULE_FALLBACK[s.kind]?.label(s.ordinal) ?? 'Break',
-          time: timed[i] ? formatTimeRange(timed[i].startsAt, timed[i].endsAt) : `${s.duration_minutes} min`,
-          icon: SCHEDULE_FALLBACK[s.kind]?.icon ?? <ListCheck className="w-4 h-4" />,
-        }))} />
-      : <EmptySection hint="No rounds or breaks yet." />;
+
+    // One table per day. A pack with a single segment gets exactly what it got
+    // before — no heading, one table — because a heading over the only day is
+    // a label for a distinction that does not exist.
+    // The database guarantees at least one segment, so `days` is only ever
+    // empty if a caller passed none. Falling back to one unnamed day timed from
+    // the pack keeps a timetable on screen; the alternative is a silently blank
+    // section, which looks like the organiser wrote nothing.
+    const days = segments.length > 0
+      ? groupBySegment(segments, schedule)
+      : [{ segment: { id: 'pack', starts_at: pack.starts_at } as ScheduleSegment, items: schedule }];
+    const named = days.length > 1;
+
+    const table = days.every(d => d.items.length === 0)
+      ? <EmptySection hint="No rounds or breaks yet." />
+      : (
+        <div className="flex flex-col gap-5">
+          {days.map((day, dayIndex) => {
+            // Times are worked out here rather than read from the row — an item
+            // stores how long it lasts and nothing else, so a reorder cannot
+            // leave the clock disagreeing with the order. Each day is timed
+            // from ITS OWN start, not the pack's: day two rarely starts when
+            // day one did.
+            const timed = timeSchedule(day.items, day.segment.starts_at);
+            return (
+              <div key={day.segment.id} className="flex flex-col gap-2">
+                {named && (
+                  <h3 className="font-heading text-lg leading-6 text-gray-300">
+                    {segmentLabel(day.segment, dayIndex)}
+                  </h3>
+                )}
+                {day.items.length === 0
+                  ? <EmptySection hint="Nothing scheduled for this day yet." />
+                  : <ScheduleTable rows={day.items.map((s, i) => ({
+                      ordinal: s.ordinal,
+                      kind: s.kind,
+                      label: s.label ?? SCHEDULE_FALLBACK[s.kind]?.label(s.ordinal) ?? 'Break',
+                      time: timed[i] ? formatTimeRange(timed[i].startsAt, timed[i].endsAt) : `${s.duration_minutes} min`,
+                      icon: SCHEDULE_FALLBACK[s.kind]?.icon ?? <ListCheck className="w-4 h-4" />,
+                    }))} />}
+              </div>
+            );
+          })}
+        </div>
+      );
 
     // Notes sit between the heading and the table — anything that applies to
     // the whole day is read before the day itself, not discovered under it.
