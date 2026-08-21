@@ -66,6 +66,22 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((parseLocal(to).getTime() - parseLocal(from).getTime()) / DAY) + 1;
 }
 
+/**
+ * How long a round may run for, in weeks.
+ *
+ * ONE TO FOUR, Chris's call. A round longer than a month is a season, and the
+ * longer options were offering a shape nobody runs. The database still allows
+ * up to twelve — a permissive superset costs nothing, and tightening it would
+ * be a breaking change against a deployed app that still offers them.
+ *
+ * Here rather than in either form, because the create flow and the Schedule
+ * panel ask the same question and two lists would eventually disagree.
+ */
+export const ROUND_LENGTH_WEEKS = [1, 2, 3, 4];
+
+/** "1 week" / "2 weeks". Always the numeral — "a week" reads as vaguer. */
+export const weeksLabel = (weeks: number) => `${weeks} week${weeks === 1 ? '' : 's'}`;
+
 /** How long an Event runs, in days. A week when it has not been dated yet. */
 const DEFAULT_EVENT_DAYS = 7;
 
