@@ -29,11 +29,11 @@ import type { CalendarEvent } from '../lib/calendar';
 
 export interface AddToCalendarProps {
   /**
-   * The event to add. Non-null: a pack with no date has no event, and the
-   * caller drops the whole button rather than passing nothing — there is no
-   * useful "Add to Calendar" for an event with no date.
+   * The days to add — one per segment, or a single entry for a one-day event
+   * or a league. Never empty: a pack with no dated day has nothing to put in a
+   * calendar, and the caller drops the whole button rather than passing none.
    */
-  event: CalendarEvent;
+  events: CalendarEvent[];
   /**
    * Called once after a destination is chosen. Fire-and-forget: the return
    * value is ignored and the sheet closes regardless.
@@ -85,8 +85,13 @@ const Destination = ({ icon, label, hint, trailing, onClick }: {
   </button>
 );
 
-const AddToCalendar = ({ event, onAdd, variant = 'button', className = '' }: AddToCalendarProps) => {
+const AddToCalendar = ({ events, onAdd, variant = 'button', className = '' }: AddToCalendarProps) => {
   const [open, setOpen] = useState(false);
+
+  // One day is the ordinary case, and it keeps the sheet to three rows. More
+  // than one changes the shape rather than the wording — see the sheet below.
+  const single = events.length === 1;
+  const first  = events[0];
 
   /**
    * Do the thing, then close, then record.
@@ -140,40 +145,72 @@ const AddToCalendar = ({ event, onAdd, variant = 'button', className = '' }: Add
       <Sheet open={open} onClose={() => setOpen(false)} className="max-w-md">
         <div className="px-5 pt-5 pb-4 shrink-0">
           <h2 className="font-heading text-xl leading-7 text-white">Add to Calendar</h2>
-          <p className="font-body text-sm leading-5 text-gray-400 mt-1">{event.title}</p>
+          <p className="font-body text-sm leading-5 text-gray-400 mt-1">
+            {single ? first.title : `${events.length} days`}
+          </p>
         </div>
 
-        <div className="px-5 pb-5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+        <div className="px-5 pb-5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto flex flex-col gap-4">
+          {/* The file first when there is more than one day, because it is the
+              only destination that can take them all. Google and Outlook are
+              pre-filled compose forms with room for exactly one event — there
+              is no URL that adds a second day — so they are offered per day
+              rather than hidden or quietly adding a fraction of what was
+              asked for. */}
           <div className="flex flex-col gap-px rounded-xl overflow-hidden">
             <Destination
-              icon={<Calendar className="w-5 h-5" />}
-              label="Google Calendar"
-              hint="Opens in a new tab"
-              trailing={<AltArrowRight className="w-4 h-4" />}
-              onClick={pick(openTab(googleCalendarUrl(event)))}
-            />
-            <Destination
-              icon={<Calendar className="w-5 h-5" />}
-              label="Outlook"
-              hint="Outlook.com and Microsoft 365"
-              trailing={<AltArrowRight className="w-4 h-4" />}
-              onClick={pick(openTab(outlookCalendarUrl(event)))}
-            />
-            <Destination
-              /* Calendar in the accent column like the other two — the leading
-                 icon says what these rows ARE. What differs is where the row
-                 goes, and that is the trailing glyph's job: a chevron leaves,
-                 an arrow lands in the downloads folder. */
               icon={<Calendar className="w-5 h-5" />}
               /* Short enough to stay on one line at 375px. The hint carries
                  the rest — the file is what Apple Calendar, desktop Outlook,
                  Android and Thunderbird all accept. */
               label="Apple Calendar & others"
-              hint="Downloads an .ics file"
+              hint={single ? 'Downloads an .ics file' : `Downloads all ${events.length} days as one file`}
               trailing={<DownloadMinimalistic className="w-4 h-4" />}
-              onClick={pick(() => downloadIcs(event))}
+              onClick={pick(() => downloadIcs(events))}
             />
+            {single && (
+              <>
+                <Destination
+                  icon={<Calendar className="w-5 h-5" />}
+                  label="Google Calendar"
+                  hint="Opens in a new tab"
+                  trailing={<AltArrowRight className="w-4 h-4" />}
+                  onClick={pick(openTab(googleCalendarUrl(first)))}
+                />
+                <Destination
+                  icon={<Calendar className="w-5 h-5" />}
+                  label="Outlook"
+                  hint="Outlook.com and Microsoft 365"
+                  trailing={<AltArrowRight className="w-4 h-4" />}
+                  onClick={pick(openTab(outlookCalendarUrl(first)))}
+                />
+              </>
+            )}
           </div>
+
+          {!single && events.map(event => (
+            <div key={event.uid} className="flex flex-col gap-1.5">
+              <p className="font-body font-bold text-xs uppercase tracking-wide text-gray-500">
+                {event.title}
+              </p>
+              <div className="flex flex-col gap-px rounded-xl overflow-hidden">
+                <Destination
+                  icon={<Calendar className="w-5 h-5" />}
+                  label="Google Calendar"
+                  hint="Adds this day only"
+                  trailing={<AltArrowRight className="w-4 h-4" />}
+                  onClick={pick(openTab(googleCalendarUrl(event)))}
+                />
+                <Destination
+                  icon={<Calendar className="w-5 h-5" />}
+                  label="Outlook"
+                  hint="Adds this day only"
+                  trailing={<AltArrowRight className="w-4 h-4" />}
+                  onClick={pick(openTab(outlookCalendarUrl(event)))}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </Sheet>
     </>

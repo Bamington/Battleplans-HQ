@@ -18,16 +18,21 @@
  * tables, or null when the scope is 'all'. Writing a block without it silently
  * changes what the venue can sell.
  *
- * THE SHAPE IS BUILT FOR MULTI-DAY, though only one date is used today. Every
- * write goes through `syncPackBlocks`, which reconciles the pack's blocks
- * against a SET of dates from `packBlockDates`. Today that set is one date;
- * when multi-day and recurring events land, only `packBlockDates` changes —
- * or it starts emitting a recurrence rule instead, which the reconcile can
- * absorb without callers moving.
+ * A RECURRING PACK IS ONE ROW, NOT MANY. `blocked_dates` has carried a
+ * recurrence rule of its own since 20260812020000, and monthly since
+ * 20260821000000 — the same columns, the same weekday names, the same -1-is-
+ * last convention as a pack. So a Friday night that runs until December writes
+ * one recurring block rather than seventeen dated ones, and the two stay in
+ * step because they are the same rule copied across, not two calculations of
+ * the same Fridays.
+ *
+ * A LEAGUE HOLDS NOTHING. Chris's call: its games are self-organised over
+ * weeks, so closing the venue for the whole span would take out every table
+ * for months to hold them for nobody in particular.
  */
 
 import { supabase } from '@battleplans/ui';
-import type { Pack } from './packs';
+import type { Pack, PackRecurrence } from './packs';
 
 /** BattlePlan's own vocabulary — 'all' or a named subset. */
 export type BlockTableScope = 'all' | 'selected';
@@ -56,20 +61,81 @@ export interface BlockSelection {
 
 export const NO_BLOCK: BlockSelection = { enabled: false, scope: 'all', tableIds: [] };
 
+/** The columns a `blocked_dates` row needs to say when it applies. */
+export interface BlockWhen {
+  date: string;
+  recurrence: PackRecurrence;
+  interval_weeks: number;
+  days_of_week: string[];
+  week_of_month: number | null;
+  until_date: string | null;
+}
+
+/** A pack whose table hold can be worked out. The envelope, plus the rule. */
+export type BlockablePack = Pick<Pack,
+  'starts_on' | 'ends_on' | 'schedule_shape' |
+  'recurrence' | 'interval_weeks' | 'days_of_week' | 'week_of_month' | 'until_date'>;
+
 /**
- * Which dates a pack occupies its venue on.
+ * When a pack occupies its venue — as `blocked_dates` rows, not as dates.
  *
- * ONE DATE TODAY. This is the seam the whole file is arranged around: a
- * multi-day event returns each of its days, and a Saturday league eventually
- * returns its occurrences — or is replaced by a recurrence rule, which is the
- * open question. Callers never assume a count, so that decision stays cheap.
+ * Three answers, and which one it is matters more than the count:
+ *
+ * - **A league: nothing.** See the file header.
+ * - **A recurring pack: one recurring row**, its rule copied straight across.
+ *   Never an expanded list of dates — the venue admin looking at their blocked
+ *   dates should see "every Friday until December", which is what it is, and a
+ *   pack that later runs a fortnight longer should move one row.
+ * - **Anything else: one row per day it runs**, which is one for a one-day
+ *   event and several for a tournament that spans a weekend.
  *
  * A pack with no start date occupies nothing. Blocking a venue on a date the
  * organiser has not chosen is worse than not blocking at all.
  */
-export function packBlockDates(pack: Pick<Pack, 'starts_on' | 'ends_on' | 'timeline'>): string[] {
+export function packBlockWhen(pack: BlockablePack): BlockWhen[] {
   if (!pack.starts_on) return [];
-  return [pack.starts_on];
+  if (pack.schedule_shape === 'periods') return [];
+
+  if (pack.recurrence !== 'none') {
+    return [{
+      date:           pack.starts_on,
+      recurrence:     pack.recurrence,
+      interval_weeks: pack.interval_weeks,
+      days_of_week:   pack.days_of_week,
+      week_of_month:  pack.week_of_month,
+      until_date:     pack.until_date,
+    }];
+  }
+
+  return packBlockDates(pack).map(date => ({
+    date,
+    recurrence: 'none' as PackRecurrence,
+    interval_weeks: 1,
+    days_of_week: [] as string[],
+    week_of_month: null,
+    until_date: null,
+  }));
+}
+
+/**
+ * The days a NON-recurring pack runs on, first to last.
+ *
+ * Every day of a multi-day event, because a tournament that spans a weekend
+ * occupies the venue on both — the envelope's two ends are the same two ends
+ * the days have. Capped, so a pack whose end date was typed as 2027 cannot
+ * write a year of blocks.
+ */
+export function packBlockDates(pack: Pick<Pack, 'starts_on' | 'ends_on'>): string[] {
+  if (!pack.starts_on) return [];
+  if (!pack.ends_on || pack.ends_on <= pack.starts_on) return [pack.starts_on];
+
+  const out: string[] = [];
+  const last = new Date(`${pack.ends_on}T12:00:00`);
+  for (let d = new Date(`${pack.starts_on}T12:00:00`); d <= last && out.length < 31; d.setDate(d.getDate() + 1)) {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    out.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+  }
+  return out;
 }
 
 /**
@@ -145,7 +211,7 @@ export async function readSelection(packId: string): Promise<BlockSelection> {
  * would save a handful of rows and risk exactly that.
  */
 export async function syncPackBlocks(
-  pack: Pick<Pack, 'id' | 'name' | 'location_id' | 'starts_on' | 'ends_on' | 'timeline'>,
+  pack: BlockablePack & Pick<Pack, 'id' | 'name' | 'location_id'>,
   selection: BlockSelection,
 ): Promise<void> {
   if (!pack.location_id) return;
@@ -159,8 +225,8 @@ export async function syncPackBlocks(
 
   if (!selection.enabled) return;
 
-  const dates = packBlockDates(pack);
-  if (dates.length === 0) return;
+  const when = packBlockWhen(pack);
+  if (when.length === 0) return;
 
   const selecting = selection.scope === 'selected';
   // Nothing ticked is not a block. Writing scope 'selected' with no tables
@@ -175,21 +241,17 @@ export async function syncPackBlocks(
   const { data: auth } = await supabase.auth.getUser();
   const createdBy = auth.user?.id ?? null;
 
-  const rows = dates.map(date => ({
+  const rows = when.map(w => ({
     location_id: pack.location_id,
     created_by: createdBy,
-    date,
     // The venue admin sees this in BattlePlan's blocked-dates list, where a
     // bare date with no reason is the thing this integration must not create.
     description: pack.name,
     table_scope: selection.scope,
     // Legacy mirror — production capacity still reads it. See the file header.
     blocked_tables: selecting ? selection.tableIds.length : null,
-    recurrence: 'none',
-    interval_weeks: 1,
-    days_of_week: [] as string[],
-    until_date: null,
     battlepack_id: pack.id,
+    ...w,
   }));
 
   const { data: inserted, error: insertError } = await supabase

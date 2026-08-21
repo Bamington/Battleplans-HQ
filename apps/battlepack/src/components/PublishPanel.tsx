@@ -28,11 +28,12 @@ import {
   Input, Select, Rocket,
 } from '@battleplans/ui';
 import {
-  NO_BLOCK, listStoreTables, locationUsesBattlePlan, packBlockDates,
+  NO_BLOCK, listStoreTables, locationUsesBattlePlan, packBlockWhen,
   readSelection, syncPackBlocks,
 } from '../lib/tableBlocks';
 import type { BlockSelection, BlockTableScope, StoreTableOption } from '../lib/tableBlocks';
 import { isSlugAvailable, suggestSlugs } from '../lib/packs';
+import { recurrencePattern } from '../lib/recurrence';
 import type { Pack } from '../lib/packs';
 import type { CategoryDefinition } from '../registry/categories';
 
@@ -96,9 +97,31 @@ const PublishPanel = ({
   const [blockState, setBlockState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [blockBusy, setBlockBusy]   = useState(false);
 
-  // The date a block would land on. One today; packBlockDates is where
-  // multi-day and recurring events will change this without touching the panel.
-  const blockDate = packBlockDates(pack)[0] ?? null;
+  /**
+   * WHEN the hold lands, said the way the pack actually runs.
+   *
+   * One date for a one-day event, a range for a tournament across a weekend,
+   * and the repeat pattern for a series — because a checkbox promising to hold
+   * tables "on 11/07/2026" for something that runs every Friday until December
+   * would be describing a fraction of what it does.
+   *
+   * Null means nothing can be held: no start date, or a league, which holds
+   * nothing by design.
+   */
+  const blockWhen = (() => {
+    const rules = packBlockWhen(pack);
+    if (rules.length === 0) return null;
+    const repeat = recurrencePattern(pack);
+    if (repeat) {
+      return pack.until_date
+        ? `${repeat.toLowerCase()} until ${formatBlockDate(pack.until_date)}`
+        : repeat.toLowerCase();
+    }
+    const days = rules.map(r => r.date);
+    return days.length > 1
+      ? `on ${formatBlockDate(days[0])} – ${formatBlockDate(days[days.length - 1])}`
+      : `on ${formatBlockDate(days[0])}`;
+  })();
 
   useEffect(() => {
     let stale = false;
@@ -366,10 +389,10 @@ const PublishPanel = ({
           />
 
           <div className="flex flex-col gap-2">
-            {blockDate ? (
+            {blockWhen ? (
               <>
                 <Checkbox
-                  label={`Hold tables at ${venueName ?? 'this venue'} on ${formatBlockDate(blockDate)}`}
+                  label={`Hold tables at ${venueName ?? 'this venue'} ${blockWhen}`}
                   checked={selection.enabled}
                   onChange={e => applySelection({ ...selection, enabled: e.target.checked })}
                   disabled={blockBusy}
@@ -424,8 +447,11 @@ const PublishPanel = ({
               </>
             ) : (
               <p className="font-body text-sm text-gray-500">
-                Set a start date in Event Basics and you can hold the venue's tables
-                for it.
+                {pack.schedule_shape === 'periods'
+                  ? `A league's games are arranged by the players over weeks, so there is
+                     no single day to hold — the venue stays bookable throughout.`
+                  : `Set a start date in Event Basics and you can hold the venue's tables
+                     for it.`}
               </p>
             )}
           </div>

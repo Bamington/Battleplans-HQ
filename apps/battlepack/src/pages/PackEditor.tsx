@@ -39,17 +39,20 @@ import {
 } from '../registry/categories';
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
-  getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
+  getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
-  listMyClubs, calendarAudienceSize, pendingNotifyCount,
+  listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment, addSegment, deleteSegment,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
+import { describeRecurrence } from '../lib/recurrence';
 // Still needed here, by hasContent() rather than by the document rendering.
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
 import PublishPanel from '../components/PublishPanel';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem, ScheduleSegment,
+} from '../lib/packs';
 
 /**
  * The left nav's Publish row. Deliberately not a registry key — Publish has no
@@ -73,22 +76,50 @@ const panelsAreDrawers = () =>
   typeof window !== 'undefined' && window.matchMedia(DRAWER_MQ).matches;
 
 /**
- * The columns whose change emails everyone holding a calendar entry.
+ * The SEGMENT columns whose change emails everyone holding a calendar entry.
  *
- * Kept next to the trigger's own list in 20260820010000 — that migration
- * decides who is written to, and this decides who is warned first. If a fourth
- * date column is ever added, both have to learn about it, and a warning that
- * has not kept up is worse than none: it teaches an organiser that saving a
- * date is safe right up until the time it is not.
+ * These are what `battlepack_schedule_signature` hashes, and the two lists have
+ * to say the same thing: the signature decides who is written to, and this
+ * decides who is warned first. A warning that has not kept up is worse than
+ * none, because it teaches an organiser that saving a date is safe right up
+ * until the time it is not.
+ *
+ * A day's `ends_at` is deliberately absent from both — settled with Chris, on
+ * the grounds that people block out the whole day anyway.
  */
-const NOTIFYING_FIELDS = ['starts_on', 'ends_on', 'starts_at'];
+const NOTIFYING_FIELDS = ['starts_on', 'starts_at'];
+
+/**
+ * The PACK columns whose change emails everyone holding a calendar entry.
+ *
+ * The recurrence rule, all five of it, matching the watch list on
+ * `battlepacks_notify_recurrence` (20260821060000) column for column. Changing
+ * when a series repeats changes dates people already hold, so it goes through
+ * the same stop the segment dates do.
+ *
+ * The database decides which email — a rule that only runs LONGER is an
+ * extension rather than a move — and that judgement is deliberately not
+ * repeated here. This list answers a narrower question: would saving this write
+ * to anybody at all.
+ */
+const NOTIFYING_PACK_FIELDS = [
+  'recurrence', 'interval_weeks', 'days_of_week', 'week_of_month', 'until_date',
+];
 
 /** "1 person" / "4 people" — the sentence reads badly with a bare count. */
 const people = (n: number) => (n === 1 ? '1 person' : `${n} people`);
 
+/** Something that would destroy days, held until the organiser confirms it. */
+interface ConfirmDays {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  run: () => Promise<void>;
+}
+
 /** A change that would email people, held until the organiser confirms it. */
 interface PendingNotify {
-  kind: 'moved' | 'withdrawn';
+  kind: 'moved' | 'rule' | 'withdrawn';
   count: number;
   /** What the event's date becomes. Shown for a move; absent otherwise. */
   becomes?: string;
@@ -96,21 +127,42 @@ interface PendingNotify {
 }
 
 /**
- * The date line as it WOULD read, given a patch that has not been written.
+ * A day's date line as it WOULD read, given a patch that has not been written.
  *
  * The confirmation is the only place this is visible. The date field is
- * controlled by `pack`, which is deliberately not updated until the organiser
- * confirms — so React restores the input to the old value the moment the modal
- * goes up, and a dialog that did not name the new date would be asking "are you
- * sure?" about something no longer on screen.
+ * controlled by the segment, which is deliberately not updated until the
+ * organiser confirms — so React restores the input to the old value the moment
+ * the modal goes up, and a dialog that did not name the new date would be
+ * asking "are you sure?" about something no longer on screen.
  */
-const whenAfter = (pack: Pack, patch: Record<string, unknown>): string => {
-  const next   = { ...pack, ...patch } as Pack;
+const whenAfterDay = (day: ScheduleSegment, patch: Partial<ScheduleSegment>): string => {
+  const next   = { ...day, ...patch };
   const starts = formatDate(next.starts_on);
   const ends   = next.ends_on && next.ends_on !== next.starts_on ? formatDate(next.ends_on) : null;
   const time   = next.starts_at ? formatTime(next.starts_at) : null;
   return [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null]
     .filter(Boolean).join(' ') || 'no date';
+};
+
+/**
+ * The same, for a patch to the pack row itself — which now means the rule.
+ *
+ * The organiser's full sentence, count and all, because this is the one moment
+ * the count matters most: "6 events, the last on 18/12/2026" is what they are
+ * about to write to other people's diaries.
+ *
+ * The pack's own date columns are a cache a trigger recomputes, so a patch
+ * touching the rule cannot be shown as a date range — `ends_on` will not be
+ * what it says until after the write.
+ */
+const whenAfter = (pack: Pack, patch: Record<string, unknown>): string => {
+  const next = { ...pack, ...patch } as Pack;
+
+  if (next.recurrence === 'none') {
+    const day = formatDate(next.starts_on);
+    return day ? `Happens once, on ${day}` : 'Happens once';
+  }
+  return describeRecurrence(next.starts_on, next) ?? 'A repeating event';
 };
 
 export default function PackEditor() {
@@ -120,6 +172,9 @@ export default function PackEditor() {
   const [pack,     setPack]     = useState<Pack | null>(null);
   const [rows,     setRows]     = useState<Record<string, PackCategoryRow>>({});
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  // Always at least one — the database guarantees it, so the document never has
+  // to draw a pack with no days.
+  const [segments, setSegments] = useState<ScheduleSegment[]>([]);
   const [games,    setGames]    = useState<GameOption[]>([]);
   const [venues,   setVenues]   = useState<LocationOption[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -142,6 +197,8 @@ export default function PackEditor() {
   // still up, so the button can say it is working rather than the dialog
   // vanishing into a pause.
   const [notifying, setNotifying] = useState(false);
+  /** A day-destroying change, held until confirmed. See ConfirmDays. */
+  const [confirmDays, setConfirmDays] = useState<ConfirmDays | null>(null);
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -150,13 +207,13 @@ export default function PackEditor() {
     let cancelled = false;
     (async () => {
       try {
-        const [p, r, s, g, l] = await Promise.all([
+        const [p, r, s, g, l, sg] = await Promise.all([
           getPack(packId), getCategoryRows(packId), getSchedule(packId),
-          listGames(), listMyLocations(),
+          listGames(), listMyLocations(), getSegments(packId),
         ]);
         if (cancelled) return;
         if (!p) { setError('That pack does not exist, or you cannot open it.'); return; }
-        setPack(p); setRows(r); setSchedule(s); setGames(g); setVenues(l);
+        setPack(p); setRows(r); setSchedule(s); setGames(g); setVenues(l); setSegments(sg);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the pack.');
       } finally {
@@ -172,12 +229,13 @@ export default function PackEditor() {
    * which of its slices changed.
    */
   const reload = useCallback(async () => {
-    const [p, r, s] = await Promise.all([
-      getPack(packId), getCategoryRows(packId), getSchedule(packId),
+    const [p, r, s, sg] = await Promise.all([
+      getPack(packId), getCategoryRows(packId), getSchedule(packId), getSegments(packId),
     ]);
     if (p) setPack(p);
     setRows(r);
     setSchedule(s);
+    setSegments(sg);
   }, [packId]);
 
   const categories = useMemo(
@@ -217,7 +275,7 @@ export default function PackEditor() {
     if (!activeKey && categories.length) setActiveKey(categories[0].key);
   }, [categories, activeKey]);
 
-  const ctx: CategoryContext | null = pack ? { pack, rows, schedule, games, venues } : null;
+  const ctx: CategoryContext | null = pack ? { pack, rows, segments, schedule, games, venues } : null;
   const game  = games.find(g => g.id === pack?.game_id) ?? null;
   const venue = venues.find(v => v.id === pack?.location_id) ?? null;
   // The host may be a club this user administers but which is not in `venues`
@@ -306,21 +364,114 @@ export default function PackEditor() {
    * on the next render with nothing to undo.
    */
   const savePackFieldsChecked = useCallback(async (patch: Record<string, unknown>) => {
-    const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
+    // The dates themselves moved to segments; what is left on the pack that can
+    // reach people is the recurrence rule, which decides every date after the
+    // first one.
+    const movesTheEvent = NOTIFYING_PACK_FIELDS.some(f => f in patch);
     if (!movesTheEvent || pack?.status !== 'published') return savePackFields(patch);
 
     const count = await calendarAudienceSize(packId);
-    // Nobody saved it, so nobody is told, so there is nothing to warn about.
-    // Also the answer when the count itself failed — see calendarAudienceSize.
     if (count === 0) return savePackFields(patch);
 
     setPendingNotify({
-      kind: 'moved',
+      kind: 'rule',
       count,
       becomes: pack ? whenAfter(pack, patch) : undefined,
       run: () => savePackFields(patch),
     });
   }, [pack, packId, savePackFields]);
+
+  /**
+   * The write path for a day's dates and times.
+   *
+   * Separate from savePackFields because it writes a different table and is the
+   * one that can email people: `battlepack_schedule_segments` is what the
+   * notification signature is computed from, so a date change here is what
+   * reaches everyone holding a calendar entry.
+   *
+   * NOT optimistic, unlike the pack write. The pack's own date columns are a
+   * cache the database recomputes from this, so guessing the result locally
+   * would mean guessing what a trigger is about to do — a reload is one round
+   * trip and is certain.
+   */
+  const saveSegmentChecked = useCallback(async (patch: Partial<ScheduleSegment>) => {
+    const day = segments[0];
+    if (!day) return;
+
+    const run = async () => {
+      setSaveError(null);
+      try {
+        await updateSegment(day.id, patch);
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not save that change.');
+      }
+    };
+
+    const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
+    if (!movesTheEvent || pack?.status !== 'published') return run();
+
+    const count = await calendarAudienceSize(packId);
+    // Nobody saved it, so nobody is told, so there is nothing to warn about.
+    // Also the answer when the count itself failed — see calendarAudienceSize.
+    if (count === 0) return run();
+
+    setPendingNotify({ kind: 'moved', count, becomes: whenAfterDay(day, patch), run });
+  }, [segments, pack?.status, packId, reload]);
+
+  /**
+   * Change what kind of event this is.
+   *
+   * Several writes, so it lives here rather than in the form: the shape column,
+   * and then whatever has to happen to the days for the answer to be true. A
+   * multi-day event with one day is not multi-day, and a league with clock
+   * times is not a league.
+   *
+   * The only lossy direction is multi-day → one-day, which throws away days and
+   * every round inside them. That one asks first; the rest are reversible by
+   * choosing again.
+   */
+  const changeEventType = useCallback(async (next: PackTimeline) => {
+    if (!pack) return;
+    const days = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+
+    const apply = async () => {
+      setSaveError(null);
+      try {
+        if (next === 'league') {
+          // A league has no clock: players arrange their own games, so a start
+          // time would be a promise nobody made.
+          await Promise.all(days.map(d => updateSegment(d.id, { starts_at: null, ends_at: null })));
+          await updatePack(pack.id, { schedule_shape: 'periods', timeline: 'league' } as Partial<Pack>);
+        } else if (next === 'multi-day') {
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'multi-day' } as Partial<Pack>);
+          // The count is the fact, so becoming multi-day means having a second
+          // day rather than being labelled as though you do.
+          if (days.length < 2) await addSegment(pack.id, days[days.length - 1] ?? null);
+        } else {
+          await Promise.all(days.slice(1).map(d => deleteSegment(d.id)));
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'one-day' } as Partial<Pack>);
+        }
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not change the event type.');
+        await reload();
+      }
+    };
+
+    const losing = next === 'one-day' ? days.length - 1 : 0;
+    if (losing > 0) {
+      setConfirmDays({
+        title: `Drop ${losing === 1 ? 'the second day' : `${losing} days`}?`,
+        body: `Becoming a one-day event removes ${losing === 1 ? 'it' : 'them'} and everything scheduled inside. That cannot be undone.`,
+        confirmLabel: 'Make it one day',
+        run: apply,
+      });
+      return;
+    }
+
+    await apply();
+  }, [pack, segments, reload]);
 
   async function renamePack(next: string) {
     const name = next.trim();
@@ -411,7 +562,7 @@ export default function PackEditor() {
   /** What one category contributes to the document — shared with the public
    *  page at /:slug, so the organiser and the attendee see one document. */
   const bodyFor = (c: typeof categories[number]) =>
-    categoryBody({ category: c, pack, rows, schedule });
+    categoryBody({ category: c, pack, rows, segments, schedule });
 
   /**
    * The tab's sections, with paired ones sharing a row.
@@ -689,6 +840,8 @@ export default function PackEditor() {
               {...ctx}
               categoryKey={activeDefinition.key}
               onChange={savePackFieldsChecked}
+              onSegmentChange={saveSegmentChecked}
+              onTypeChange={changeEventType}
               reload={reload}
             />
           ) : (
@@ -739,16 +892,22 @@ export default function PackEditor() {
             <h2 className="font-heading text-xl text-white">
               {pendingNotify?.kind === 'withdrawn'
                 ? `Tell ${people(pendingNotify.count)} it is off?`
-                : `Tell ${people(pendingNotify?.count ?? 0)} the date has changed?`}
+                : pendingNotify?.kind === 'rule'
+                  ? `Tell ${people(pendingNotify.count)} when it runs has changed?`
+                  : `Tell ${people(pendingNotify?.count ?? 0)} the date has changed?`}
             </h2>
 
             <p className="font-body text-sm text-gray-300">
               {pendingNotify?.kind === 'withdrawn'
                 ? `${people(pendingNotify.count)} added this event to their own calendar.
                    Taking it down emails them to say it is not going ahead.`
-                : `${people(pendingNotify?.count ?? 0)} added this event to their own calendar,
-                   and the date in there is the one you are about to change. Saving
-                   emails them the new date and a link to re-add it.`}
+                : pendingNotify?.kind === 'rule'
+                  ? `${people(pendingNotify.count)} added this event to their own calendar, and
+                     the repeat they saved is the one you are about to change. Saving
+                     emails them the new pattern and a link to re-add it.`
+                  : `${people(pendingNotify?.count ?? 0)} added this event to their own calendar,
+                     and the date in there is the one you are about to change. Saving
+                     emails them the new date and a link to re-add it.`}
             </p>
 
             {/* What they are actually confirming. The date field is controlled
@@ -759,7 +918,7 @@ export default function PackEditor() {
             {pendingNotify?.becomes && (
               <div className="rounded-lg bg-gray-900 px-4 py-3">
                 <p className="font-body text-xs uppercase tracking-wide text-gray-500 font-bold">
-                  New date
+                  {pendingNotify?.kind === 'rule' ? 'New schedule' : 'New date'}
                 </p>
                 <p className="font-body font-medium text-base leading-6 text-gray-50">
                   {pendingNotify.becomes}
@@ -796,6 +955,36 @@ export default function PackEditor() {
                 onClick={() => setPendingNotify(null)}
               >
                 Cancel
+              </Button>
+            </ButtonPair>
+          </div>
+        </Modal>
+
+        {/* Losing a day is not like hiding a category, which gives its content
+            back. This takes the day and every round inside it, so it is always
+            asked — whether it came from the day list or from becoming a one-day
+            event. */}
+        <Modal
+          open={confirmDays !== null}
+          onClose={() => setConfirmDays(null)}
+          className="max-w-sm"
+        >
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">{confirmDays?.title}</h2>
+            <p className="font-body text-sm text-gray-300">{confirmDays?.body}</p>
+            <ButtonPair>
+              <Button
+                color="danger"
+                onClick={() => {
+                  const job = confirmDays;
+                  setConfirmDays(null);
+                  if (job) void job.run();
+                }}
+              >
+                {confirmDays?.confirmLabel ?? 'Remove'}
+              </Button>
+              <Button variant="outline" color="secondary" onClick={() => setConfirmDays(null)}>
+                Keep it
               </Button>
             </ButtonPair>
           </div>

@@ -42,7 +42,9 @@ import {
   Bookmark, Clipboard, FileText, Folder, InfoCircle, ListCheck,
   Notebook, QuestionCircle, Star, UserPlusRounded,
 } from '@battleplans/ui';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem, ScheduleSegment,
+} from '../lib/packs';
 import SectionForm from '../components/forms/SectionForm';
 import ChecklistSectionForm, { readChecklist } from '../components/forms/ChecklistSectionForm';
 import FaqSectionForm, { readFaq } from '../components/forms/FaqSectionForm';
@@ -84,6 +86,11 @@ export interface CategoryContext {
   /** Rounds & Breaks, already ordered. */
   schedule: ScheduleItem[];
   /**
+   * The days or periods the schedule hangs off. Always at least one — the
+   * database guarantees it, so no form has to handle a pack with no days.
+   */
+  segments: ScheduleSegment[];
+  /**
    * The lookups the editor has already loaded. They live on the context rather
    * than being fetched per form because more than one category needs them —
    * Event Basics picks the venue, Key Info renders its address — and a fetch
@@ -106,6 +113,23 @@ export interface CategoryFormProps extends CategoryContext {
    * then call `reload`.
    */
   onChange: (patch: Record<string, unknown>) => void;
+  /**
+   * Persist a change to the event's FIRST day.
+   *
+   * Dates and times live on a segment, not on the pack — `pack.starts_on` and
+   * friends are a cache the database recomputes, so writing to them through
+   * `onChange` would be silently undone. Separate from `onChange` because the
+   * two write to different tables and only this one can email people.
+   */
+  onSegmentChange: (patch: Partial<ScheduleSegment>) => void;
+  /**
+   * Change what KIND of event this is.
+   *
+   * The only control that changes the pack's shape rather than its contents,
+   * and the only one that can destroy days — so the editor owns it, asks before
+   * anything is lost, and does the several writes it takes in one place.
+   */
+  onTypeChange: (next: PackTimeline) => void;
   /**
    * Re-read the pack's data from the database.
    *
@@ -240,7 +264,12 @@ export const CATEGORY_REGISTRY: CategoryDefinition[] = [
     // Default rather than mandatory because a narrative or campaign event may
     // genuinely have no rounds — which is exactly why visibility has to live on
     // battlepack_categories and not on a content row this category doesn't own.
-    isComplete: ({ schedule }) => schedule.length > 0,
+    // A league has no items at all — its rounds ARE the periods of time — so
+    // asking for schedule rows would make one impossible to publish. It is
+    // complete once its rounds are dated.
+    isComplete: ({ pack, schedule, segments }) => pack.schedule_shape === 'periods'
+      ? segments.some(s => s.starts_on)
+      : schedule.length > 0,
     Form: RoundsBreaksForm,
   },
   {

@@ -20,17 +20,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Modal, Input, SearchSelect, Button, Callout, StepProgress, PickerTile, RichTextEditor,
+  Modal, Input, SearchSelect, Select, Button, Callout, StepProgress, PickerTile, RichTextEditor,
   BannerPicker, ArrowRight, ArrowLeft, Calendar, CloseCircle,
 } from '@battleplans/ui';
 import type { PendingBanner } from '@battleplans/ui';
 import {
   buildSchedule, createPack, insertSchedule, listGames, listPacks,
-  recentIdsFrom, updatePack, minutesToTime, savePackBanner,
+  recentIdsFrom, minutesToTime, savePackBanner,
 } from '../lib/packs';
+import { describeRecurrence, weekOfMonthOf, weekdayNameOf } from '../lib/recurrence';
 import { BANNER_MIN_ASPECT } from './PackDocument';
 import { gameOptions, venueOptions } from '../lib/pickerOptions';
-import type { GameOption, LocationOption, PackTimeline } from '../lib/packs';
+import type {
+  GameOption, LocationOption, PackRecurrence, PackTimeline, RecurrenceFields,
+} from '../lib/packs';
 
 export interface NewPackModalProps {
   open: boolean;
@@ -44,15 +47,19 @@ export interface NewPackModalProps {
 }
 
 /**
- * The shape of the event. Only one-day is buildable today — the other two need
- * a schedule spread across dates, which the schedule table models per-time and
- * not per-day, so they are shown (the choice is real and worth signalling) but
- * cannot be picked.
+ * The shape of the event, and the last thing about it that cannot be changed
+ * casually later.
+ *
+ * All three are buildable now that the schedule hangs off dated segments rather
+ * than one pack-level date. One-day and multi-day are the same shape and differ
+ * only in how many days there are, so moving between them is adding or removing
+ * a day; a league is genuinely different and switching to it drops the clock
+ * times, which is why Event Basics asks before doing it.
  */
 const TIMELINES: { id: PackTimeline; title: string; description: string; enabled: boolean }[] = [
-  { id: 'one-day',   title: 'One-Day Tournament',   description: 'Event starts and finishes on the same day.', enabled: true },
-  { id: 'multi-day', title: 'Multi-Day Tournament', description: 'Multiple Rounds over Multiple Days.',        enabled: false },
-  { id: 'league',    title: 'League',               description: 'Rounds happen across many days.',            enabled: false },
+  { id: 'one-day',   title: 'One-Day Tournament',   description: 'Starts and finishes on the same day.',        enabled: true },
+  { id: 'multi-day', title: 'Multi-Day Tournament', description: 'Rounds across two or more days, each with its own timetable.', enabled: true },
+  { id: 'league',    title: 'League',               description: 'Games organised by players over weeks.',      enabled: true },
 ];
 
 const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewPackModalProps) => {
@@ -75,6 +82,16 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
   const [timeline,     setTimeline]     = useState<PackTimeline>('one-day');
   const [startDate,    setStartDate]    = useState('');
   const [startTime,    setStartTime]    = useState('10:00');
+  // ── Does it happen again ──────────────────────────────────────────────────
+  //
+  // TWO QUESTIONS, NOT SIX. Everything else a recurring pack needs is already
+  // implied by the start date: a series starting on a Friday repeats on
+  // Fridays, and a monthly one starting on the second Saturday means the second
+  // Saturday. Asking again here would be asking the organiser to restate what
+  // they have just typed — and the full rule, with several weekdays and an
+  // interval, is in Event Basics for the events that actually need it.
+  const [repeats,   setRepeats]   = useState<PackRecurrence>('none');
+  const [untilDate, setUntilDate] = useState('');
   const [rounds,       setRounds]       = useState(3);
   // Held as hours and minutes because that is how they are asked for. The two
   // are the source of truth and the stored duration is derived — going the
@@ -97,6 +114,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     // Pre-select the store being acted as, or the only one they have.
     setLocationId(defaultStoreId || (stores.length === 1 ? stores[0].id : ''));
     setTimeline('one-day'); setStartDate(''); setStartTime('10:00');
+    setRepeats('none'); setUntilDate('');
     setRounds(3); setRoundHours(2); setRoundMins(0); setBreakMinutes(10);
     setError(null);
 
@@ -124,7 +142,35 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     return minutesToTime(total).slice(0, 5);
   })();
 
+  /**
+   * The rule those two answers make, or null when it does not repeat.
+   *
+   * Null is also the answer while it is INCOMPLETE — a repeat with no start
+   * date to take its weekday from, or no end date — because the database will
+   * not accept a half-made series, and creating the pack without the rule is
+   * better than not creating it at all.
+   */
+  const recurrence = useMemo<RecurrenceFields | null>(() => {
+    if (repeats === 'none' || !startDate || !untilDate) return null;
+    return {
+      recurrence:     repeats,
+      interval_weeks: 1,
+      days_of_week:   [weekdayNameOf(startDate)],
+      week_of_month:  repeats === 'monthly' ? weekOfMonthOf(startDate) : null,
+      until_date:     untilDate,
+    };
+  }, [repeats, startDate, untilDate]);
+
   const step1Valid = name.trim().length > 0 && gameId !== '' && locationId !== '';
+
+  /**
+   * A repeat that has been asked for but cannot be built yet.
+   *
+   * Blocks finishing rather than silently dropping the answer: someone who
+   * picked "Weekly" and left would get a one-off event, having told us
+   * otherwise, and nothing on screen would have said so.
+   */
+  const repeatIncomplete = repeats !== 'none' && !recurrence;
 
   /**
    * Create the pack, and the generated day unless it was skipped.
@@ -138,14 +184,14 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
     setSaving(true);
     setError(null);
     try {
-      const pack = await createPack({ name, gameId, locationId, description, format, timeline });
-
-      if (startDate || startTime) {
-        await updatePack(pack.id, {
-          ...(startDate ? { starts_on: startDate } : {}),
-          ...(startTime ? { starts_at: startTime } : {}),
-        });
-      }
+      // The dates go to day one's SEGMENT, which createPack does — the pack's
+      // own date columns are a cache the database recomputes from the days.
+      const pack = await createPack({
+        name, gameId, locationId, description, format, timeline,
+        startsOn: startDate || null,
+        startsAt: startTime || null,
+        recurrence,
+      });
       if (withSchedule && preview.length > 0) {
         await insertSchedule(pack.id, preview).catch(() => {
           // Non-fatal: the pack is made, and Rounds & Breaks can be filled in.
@@ -311,6 +357,60 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                   />
                 </div>
               </div>
+
+              {/* Not a fourth card, on purpose: "multi-day" and "repeats
+                  monthly" answer different questions, and a monthly weekender
+                  has to be able to give both. Absent for a league, whose
+                  rounds ARE its schedule — the database refuses that pairing.  */}
+              {timeline !== 'league' && (
+                <div className="flex items-end gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      label="Repeats"
+                      value={repeats}
+                      onChange={e => setRepeats(e.target.value as PackRecurrence)}
+                    >
+                      <option value="none">Does not repeat</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </Select>
+                  </div>
+                  {repeats !== 'none' && (
+                    <div className="flex-1 min-w-0">
+                      {/* REQUIRED, and the only thing here that cannot be
+                          derived. A bounded series is what lets the pack's end
+                          date hold its last occurrence. */}
+                      <Input
+                        label="Repeats Until"
+                        type="date"
+                        leftIcon={<Calendar className="w-4 h-4" />}
+                        min={startDate || undefined}
+                        value={untilDate}
+                        onChange={e => setUntilDate(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* What those two answers produce, counted. The pattern and the
+                  end date are each easy to read and impossible to multiply in
+                  your head — "every second Friday until 18 December" is either
+                  five events or six. */}
+              {repeats !== 'none' && (
+                repeatIncomplete ? (
+                  <Callout flavour="warning">
+                    {!startDate
+                      ? 'Give it a start date — a repeat takes its day of the week from there.'
+                      : 'Choose when it ends. A repeating event needs a last date.'}
+                  </Callout>
+                ) : (
+                  <p className="font-body text-sm text-neutral-400">
+                    {describeRecurrence(startDate, recurrence!)}
+                    {' '}You can add more days, or repeat fortnightly, in Event Basics.
+                  </p>
+                )
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -411,7 +511,14 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
                 >
                   Back
                 </Button>
-                <Button variant="ghost" onClick={() => finish({ withSchedule: false })} disabled={saving}>
+                {/* Skipping skips the ROUNDS, not the answers above them — so
+                    an unfinished repeat blocks this door too, or the answer
+                    would be dropped on the way through it. */}
+                <Button
+                  variant="ghost"
+                  onClick={() => finish({ withSchedule: false })}
+                  disabled={saving || repeatIncomplete}
+                >
                   Skip for Now
                 </Button>
               </>
@@ -420,7 +527,7 @@ const NewPackModal = ({ open, onClose, stores, defaultStoreId, onCreated }: NewP
             <Button
               rightIcon={<ArrowRight className="w-4 h-4" />}
               onClick={() => (step === 1 ? setStep(2) : finish({ withSchedule: true }))}
-              disabled={!step1Valid || saving}
+              disabled={!step1Valid || saving || (step === 2 && repeatIncomplete)}
             >
               {saving ? 'Creating…' : 'Next'}
             </Button>

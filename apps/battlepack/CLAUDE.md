@@ -146,6 +146,46 @@ Editing is still `locations.admins` only (`can_edit_battlepack`) — every admin
 of a store can edit every pack there, and losing the store loses the packs; the
 owner column grants nothing on its own.
 
+## An event's shape is TWO answers, not one
+
+`schedule_shape` (days | periods) and `recurrence` (none | weekly | monthly),
+replacing the old single `timeline` enum — which conflated them and made a
+monthly weekender unrepresentable. Four rules follow from that split and are
+easy to undo by accident:
+
+- **One-day is not a shape.** It is `days` with a single segment, so growing a
+  one-dayer into a two-dayer is an insert rather than a conversion. Nothing
+  stores "this is a one-day event"; `timeline` still does, and is on its way
+  out once the app stops reading it.
+- **Repeats is not a fourth card.** It sits below the dates in Event Basics and
+  in the create flow as a property OF the event, because "multi-day" and
+  "repeats monthly" answer different questions and a weekender has to give
+  both.
+- **A league never repeats.** The database refuses the pairing: its periods ARE
+  its schedule. Both forms drop the control entirely rather than disabling it.
+- **The rule is written whole or not at all.** A repeating pack must name a
+  weekday and an end date, so [EventBasicsForm](src/components/forms/EventBasicsForm.tsx)
+  holds a half-made rule in state and saves the moment it is complete — and
+  goes straight back to reading the row, so a cancelled confirmation snaps
+  back. Changing the rule on a published pack emails everyone holding it, which
+  is why the five columns are in `NOTIFYING_PACK_FIELDS` and why that list
+  matches `battlepacks_notify_recurrence` column for column.
+
+Three things then have to agree about what a rule MEANS, and they agree by
+copying rather than by each computing the same Fridays:
+[recurrence.ts](src/lib/recurrence.ts) counts weeks between MONDAYS exactly as
+BattlePlan's `blockAppliesOn` and iCalendar's default `WKST=MO` do; the table
+hold is ONE recurring `blocked_dates` row with the rule copied across, never an
+expanded list of dates; and the RRULE takes `BYDAY` from EACH DAY'S OWN
+weekday when a pack has more than one — handing both days of a weekender the
+pack's whole list would repeat Saturday's timetable on Sunday too.
+
+The create flow asks TWO questions (repeats, and until when) and derives the
+rest from the start date: a series starting on a Friday repeats on Fridays, and
+a monthly one starting on the second Saturday means the second Saturday. The
+full rule — several weekdays, fortnightly, which week of the month — is in
+Event Basics.
+
 Live in production since 2026-08-14: `url` is `https://battlepack.app/app` and
 `is_launched` is true. One Supabase project sits behind production and every
 preview, so **never point `url` at a preview URL** — it repoints the app
