@@ -77,30 +77,40 @@ export interface SharedDeckMeta {
 export async function loadSharedDeckMeta(
   client: SupabaseClient,
 ): Promise<SharedDeckMeta | null> {
+  // No embed for the owner: PostgREST can only embed across a foreign key, and
+  // decks.user_id references auth.users, not public.profiles. Asking for
+  // `profiles(...)` here fails the whole request with a 400, so the profile is
+  // a second, separate read. The games embed is fine — decks_game_id_fkey.
   const { data, error } = await client
     .from('decks')
-    .select('id, name, user_id, games(slug), profiles(display_name, avatar_url)')
+    .select('id, name, user_id, games(slug)')
     .maybeSingle();
 
   if (error || !data) return null;
 
-  // The header row is whatever the token unlocked; there is only ever one,
-  // because current_share_deck_id() resolves to a single deck.
+  // The row is whatever the token unlocked; there is only ever one, because
+  // current_share_deck_id() resolves to a single deck.
   // PostgREST types an embedded relation as an array; a to-one join returns a
   // single object, so the cast goes through unknown.
   const row = data as unknown as {
-    id: string;
-    name: string;
-    games:    { slug: string } | null;
-    profiles: { display_name: string | null; avatar_url: string | null } | null;
+    id:      string;
+    name:    string;
+    user_id: string;
+    games:   { slug: string } | null;
   };
-  const game    = row.games;
-  const profile = row.profiles;
+
+  // Best-effort: an unattributed deck is far better than no deck, so a failure
+  // here degrades to "a BattleCards user" rather than killing the page.
+  const { data: profile } = await client
+    .from('profiles')
+    .select('display_name, avatar_url')
+    .eq('id', row.user_id)
+    .maybeSingle();
 
   return {
     deckId:         row.id,
     name:           row.name,
-    gameSlug:       game?.slug ?? '',
+    gameSlug:       row.games?.slug ?? '',
     ownerName:      profile?.display_name ?? null,
     ownerAvatarUrl: profile?.avatar_url ?? null,
   };
