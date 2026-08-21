@@ -1336,7 +1336,7 @@ export function useBookingsByDate(locationId: string | null, date: string | null
 // ── useBlockedDates ───────────────────────────────────────────────────────────
 // Returns upcoming blocked dates across the given location IDs, ordered by date.
 
-export type BlockRecurrence = 'none' | 'weekly';
+export type BlockRecurrence = 'none' | 'weekly' | 'monthly';
 /** 'all' shuts the venue (including tables added later); 'selected' names tables. */
 export type BlockTableScope = 'all' | 'selected';
 
@@ -1355,6 +1355,11 @@ export interface BlockedDate {
   interval_weeks: number;
   /** Full day names, e.g. ['Monday']. Empty for a one-off. */
   days_of_week:   string[];
+  /**
+   * Monthly only: which occurrence of `days_of_week` in the month — 1-4 for
+   * first through fourth, -1 for the last. NULL for every other recurrence.
+   */
+  week_of_month:  number | null;
   /** Last day the rule can apply; null runs until deleted. */
   until_date:     string | null;
   table_scope:    BlockTableScope;
@@ -1375,7 +1380,8 @@ export interface BlockedDate {
 
 /** The recurrence fields, for callers that don't need the whole row. */
 export type BlockRule = Pick<
-  BlockedDate, 'date' | 'recurrence' | 'interval_weeks' | 'days_of_week' | 'until_date'
+  BlockedDate,
+  'date' | 'recurrence' | 'interval_weeks' | 'days_of_week' | 'week_of_month' | 'until_date'
 >;
 
 /** A rule plus what it takes out — enough to work out capacity on a day. */
@@ -1393,23 +1399,59 @@ function startOfWeek(d: Date): Date {
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 /**
+ * Is `d` the nth occurrence of its own weekday within its month?
+ *
+ * `nth` is 1-4 for first through fourth, and -1 for the last — which is not the
+ * same as the fifth. A fifth Friday exists in some months and not others, so a
+ * rule saying 5 would skip most of the year, while "last" is what people mean
+ * and always resolves.
+ *
+ * A monthly rule with no week set matches nothing rather than everything. The
+ * database will not store one, and if it ever did, blocking nothing is the
+ * failure that leaves a venue open.
+ */
+function isNthWeekdayOfMonth(d: Date, nth: number | null | undefined): boolean {
+  if (nth == null) return false;
+  const dayOfMonth = d.getDate();
+
+  if (nth === -1) {
+    // Day 0 of the next month is the last day of this one.
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return dayOfMonth + 7 > daysInMonth;
+  }
+
+  return Math.floor((dayOfMonth - 1) / 7) + 1 === nth;
+}
+
+/**
  * Does this block apply on `iso`?
  *
  * A one-off applies on exactly its date. A weekly rule applies on the listed
  * weekdays, in every `interval_weeks`-th week counted from the week its series
- * starts, from `date` until `until_date` inclusive.
+ * starts. A monthly rule applies on the listed weekdays in the week of the
+ * month named by `week_of_month`. Both run from `date` until `until_date`
+ * inclusive.
  *
- * Anchoring the interval to whole weeks rather than to day-differences is what
- * makes "every second Friday" mean the same Fridays no matter which day of the
- * week the rule happened to be created on.
+ * Anchoring the weekly interval to whole weeks rather than to day-differences is
+ * what makes "every second Friday" mean the same Fridays no matter which day of
+ * the week the rule happened to be created on.
+ *
+ * RECURRENCE IS AN ALLOWLIST, NOT AN ELSE. Anything this build does not
+ * recognise falls back to "applies on its own date only", so a row written by a
+ * newer client can block too little but can never close a venue that is open.
+ * That is the direction this function has to fail in: it feeds dayHasCapacity,
+ * which decides whether anyone can book anywhere.
  */
 export function blockAppliesOn(rule: BlockRule, iso: string): boolean {
-  if (rule.recurrence !== 'weekly') return rule.date === iso;
+  const repeats = rule.recurrence === 'weekly' || rule.recurrence === 'monthly';
+  if (!repeats) return rule.date === iso;
 
   const day = parseDateLocal(iso);
   if (iso < rule.date) return false;
   if (rule.until_date && iso > rule.until_date) return false;
   if (!rule.days_of_week.includes(DAY_NAMES[day.getDay()])) return false;
+
+  if (rule.recurrence === 'monthly') return isNthWeekdayOfMonth(day, rule.week_of_month);
 
   const every = rule.interval_weeks ?? 1;
   if (every <= 1) return true;
@@ -1444,7 +1486,7 @@ export function blockedTablesOn(
 
 /** Columns every consumer of a block needs, plus its table selection. */
 const BLOCK_RULE_COLUMNS =
-  'date, recurrence, interval_weeks, days_of_week, until_date, table_scope, blocked_date_tables(table_id)';
+  'date, recurrence, interval_weeks, days_of_week, week_of_month, until_date, table_scope, blocked_date_tables(table_id)';
 
 /** Raw block row → the shape blockedTablesOn expects. */
 function mapBlockCoverage(r: unknown): BlockCoverage {
@@ -1457,6 +1499,10 @@ function mapBlockCoverage(r: unknown): BlockCoverage {
     recurrence:     row.recurrence,
     interval_weeks: row.interval_weeks,
     days_of_week:   row.days_of_week ?? [],
+    // ?? null, not left undefined: isNthWeekdayOfMonth treats a missing week as
+    // "matches nothing", and a row served by an older API shape should block
+    // nothing rather than every week of the month.
+    week_of_month:  row.week_of_month ?? null,
     until_date:     row.until_date,
     table_scope:    row.table_scope,
     tableIds:       (row.blocked_date_tables ?? []).map(t => t.table_id),
@@ -1479,7 +1525,7 @@ export function useBlockedDates(locationIds: string[]) {
       .from('blocked_dates')
       .select(`
         id, date, description, blocked_tables, created_by,
-        recurrence, interval_weeks, days_of_week, until_date,
+        recurrence, interval_weeks, days_of_week, week_of_month, until_date,
         table_scope, blocked_date_tables(table_id),
         location:locations(id, name, icon)
       `)

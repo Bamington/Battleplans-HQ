@@ -135,6 +135,7 @@ const DEMO_BLOCKED: BlockedDate = {
   recurrence: 'none',
   interval_weeks: 1,
   days_of_week: [],
+  week_of_month: null,
   until_date: null,
   table_scope: 'all',
   tableIds: [],
@@ -156,12 +157,34 @@ const DEMO_BLOCKED_RECURRING: BlockedDate = {
   recurrence: 'weekly',
   interval_weeks: 2,
   days_of_week: ['Friday'],
+  week_of_month: null,
   until_date: '2026-12-31',
   table_scope: 'selected',
   tableIds: ['tb-1', 'tb-2'],
   location: { id: 'loc-1', name: 'Battleground North', icon: '' },
   created_by: 'p-2',
   hostHandle: 'jo-tanaka',
+};
+
+/**
+ * A monthly rule: the first Saturday of every month, no end date. The pattern
+ * weeks cannot express, and the reason blocked_dates grew a week_of_month.
+ */
+const DEMO_BLOCKED_MONTHLY: BlockedDate = {
+  id: 'bd-4',
+  date: '2026-09-05',
+  description: 'Monthly painting day',
+  blocked_tables: null,
+  recurrence: 'monthly',
+  interval_weeks: 1,
+  days_of_week: ['Saturday'],
+  week_of_month: 1,
+  until_date: null,
+  table_scope: 'all',
+  tableIds: [],
+  location: { id: 'loc-1', name: 'Battleground North', icon: '' },
+  created_by: null,
+  hostHandle: null,
 };
 
 const DEMO_BOOKING: Booking = {
@@ -688,6 +711,12 @@ const ComponentGallery = () => {
             tables={DEMO_TABLES}
             onChanged={() => {}}
           />
+          <BlockedDateItem
+            blocked={DEMO_BLOCKED_MONTHLY}
+            locations={DEMO_LOCATIONS}
+            tables={DEMO_TABLES}
+            onChanged={() => {}}
+          />
           <div className="mt-2">
             <Button onClick={() => setBlockOpen(true)}>Open Block Date Form</Button>
           </div>
@@ -698,7 +727,10 @@ const ComponentGallery = () => {
             those tables actually serve. The third also repeats — a rule, not
             expanded rows, so editing it moves every future occurrence. Intervals
             count in whole weeks from the start date's week, so "every 2nd Friday"
-            stays on the same Fridays whatever day it was created. The heading is the
+            stays on the same Fridays whatever day it was created. The fourth is
+            monthly, which weeks cannot express — it counts occurrences of the
+            weekday inside the month instead, and "Last" rather than "Fifth"
+            because a fifth Saturday only exists in some months. The heading is the
             EVENT the tables are held for — this list only ever shows one venue, so its
             name said nothing; the second row has no description and falls back to it
             rather than rendering headless. The third was created by somebody else, so it
