@@ -22,9 +22,10 @@
  * is identical to the original Kill Team logic — see the matching comments.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@battleplans/ui';
 import type { TokenDefinition } from '../lib/database.types';
+import { usePlaySession, type PlaySessionState } from './usePlaySession';
 
 /** The `tokenOverlay` prop shape consumed by the shared TokenOverlay. */
 export interface TokenOverlayProp {
@@ -57,6 +58,17 @@ export interface UseDeckTokensOptions<T extends { id: string }> {
   resolveStat?: (card: T, statKey: string) => number | undefined;
   /** Keywords on the card, for keyword-driven token maxes and menu display. */
   getUnitKeywords?: (card: T) => { keywordName: string; paramValue: number | null }[];
+  /**
+   * The card's DATABASE id (`cards.id`), or null for a card not yet saved.
+   *
+   * Play state is persisted against this, never the card's `id` — every
+   * builder mints a fresh crypto.randomUUID() for React on each load, so a
+   * snapshot keyed on that would save happily and restore into nothing.
+   *
+   * Omit to opt a builder out of persistence: the game still plays, it just
+   * isn't remembered.
+   */
+  getCardDbId?: (card: T) => string | null;
 }
 
 export interface UseDeckTokensResult<T> {
@@ -80,6 +92,13 @@ export interface UseDeckTokensResult<T> {
   allActivated: boolean;
   /** Build the `tokenOverlay` prop for a card, or undefined when not shown. */
   buildTokenOverlay: (card: T) => TokenOverlayProp | undefined;
+  /** Turn number of the game in progress. 1 when there's no session. */
+  turn: number;
+  /** True once a game is open and its state has been restored onto the cards. */
+  sessionReady: boolean;
+  /** Finish the game: closes the session and returns every token to its
+   *  starting value, so the next visit begins a fresh one. */
+  endGame: () => Promise<void>;
 }
 
 export function useDeckTokens<T extends { id: string }>(
@@ -88,10 +107,40 @@ export function useDeckTokens<T extends { id: string }>(
   const {
     gameSlug, deckId, inPlayMode, cards, activeCardId,
     updateCards, getTokenState, withTokenState,
-    isTokenEligible, resolveStat, getUnitKeywords,
+    isTokenEligible, resolveStat, getUnitKeywords, getCardDbId,
   } = opts;
 
   const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
+
+  // The game in progress. Persistence is opt-in per builder via getCardDbId.
+  const persists = getCardDbId != null;
+  const playSession = usePlaySession({
+    deckId,
+    active: inPlayMode && persists,
+  });
+  // Pulled apart because the hook returns a fresh object each render — depending
+  // on it directly would re-run the save effect on every render instead of when
+  // something actually changed.
+  const {
+    session:  currentSession,
+    ready:    sessionLoaded,
+    save:     saveSession,
+    bumpTurn: bumpSessionTurn,
+  } = playSession;
+
+  // Which session's state has been laid onto the cards. The ref is the guard
+  // the effects read synchronously (state wouldn't have committed yet and the
+  // restore would run twice); the state is what render is allowed to see.
+  // Both are cleared when a game opens or closes, so re-entering Play mode
+  // restores again rather than trusting a stale "already done" flag.
+  const restoredForRef = useRef<string | null>(null);
+  const [restoredFor, setRestoredFor] = useState<string | null>(null);
+
+  // Has the player actually changed anything this visit? Seeding starting
+  // values counts as setting the board up, not as playing — without this the
+  // first render in Play mode would save, creating the very session that
+  // deferred creation exists to avoid.
+  const touchedRef = useRef(false);
 
   const eligible = useCallback(
     (card: T) => (isTokenEligible ? isTokenEligible(card) : true),
@@ -141,8 +190,106 @@ export function useDeckTokens<T extends { id: string }>(
     }));
   }, [tokenDefinitions, updateCards, getTokenState, withTokenState]);
 
+  /** Every token back to its starting value, for every eligible card —
+   *  unconditionally, unlike seedPlayTokens which leaves touched cards alone.
+   *  Used when a game ends. */
+  const resetToSeeds = useCallback(() => {
+    updateCards(list => list.map(c => {
+      if (!eligible(c)) return c;
+      const ts: Record<string, number> = {};
+      for (const def of tokenDefinitions) {
+        if (def.starting_value != null) ts[def.id] = def.starting_value;
+      }
+      return withTokenState(c, ts);
+    }));
+  }, [tokenDefinitions, updateCards, withTokenState, eligible]);
+
+  // ── Restoring a game in progress ──────────────────────────────────────────
+  //
+  // Runs once per opened session, after the builder has seeded starting values.
+  // Saved values are merged OVER the seeds rather than replacing them, so a
+  // token added to the game since the session started still gets its default
+  // instead of coming back undefined.
+
+  const sessionKey = currentSession?.id ?? null;
+
+  useEffect(() => {
+    if (!inPlayMode || !persists || !sessionLoaded) return;
+    if (!sessionKey || restoredForRef.current === sessionKey) return;
+    if (cards.length === 0 || tokenDefinitions.length === 0) return;
+
+    const saved = currentSession?.state ?? {};
+    restoredForRef.current = sessionKey;
+    setRestoredFor(sessionKey);
+
+    // A brand-new session has nothing to restore; the first save captures the
+    // seeded values.
+    if (Object.keys(saved).length === 0) return;
+
+    updateCards(list => list.map(card => {
+      const dbId = getCardDbId ? getCardDbId(card) : null;
+      const cardState = dbId ? saved[dbId] : undefined;
+      if (!cardState) return card;
+      return withTokenState(card, { ...getTokenState(card), ...cardState });
+    }));
+  }, [
+    inPlayMode, persists, sessionLoaded, currentSession, sessionKey,
+    cards.length, tokenDefinitions.length,
+    updateCards, getCardDbId, getTokenState, withTokenState,
+  ]);
+
+  // Re-arm the restore when the game closes or Play mode is left.
+  useEffect(() => {
+    if (!inPlayMode || !sessionKey) {
+      restoredForRef.current = null;
+      setRestoredFor(null);
+    }
+  }, [inPlayMode, sessionKey]);
+
+  // Leaving Play mode clears the "player did something" flag, so the next visit
+  // starts quiet again and merely looking doesn't open a game.
+  useEffect(() => {
+    if (!inPlayMode) touchedRef.current = false;
+  }, [inPlayMode]);
+
+  // ── Saving ────────────────────────────────────────────────────────────────
+  //
+  // Watching the cards is what makes this work for every builder at once: any
+  // route that changes a token — the menu, a direct overlay tap, New Turn —
+  // lands here without each mutator having to remember to save. The hook
+  // debounces and drops no-op snapshots, so this is far cheaper than it looks.
+
+  useEffect(() => {
+    if (!inPlayMode || !persists || !sessionLoaded) return;
+
+    if (sessionKey) {
+      // Resuming: never save before restoring, or the saved game would be
+      // flattened by the seeds rendered while it was still loading.
+      if (restoredForRef.current !== sessionKey) return;
+    } else if (!touchedRef.current) {
+      // No game yet, and nothing has been touched — saving here would create a
+      // session for someone who only glanced at Play mode.
+      return;
+    }
+
+    const snapshot: PlaySessionState = {};
+    for (const card of cards) {
+      if (!eligible(card)) continue;
+      const dbId = getCardDbId ? getCardDbId(card) : null;
+      if (!dbId) continue;                       // unsaved card — nothing to key on
+      const ts = getTokenState(card);
+      if (Object.keys(ts).length > 0) snapshot[dbId] = ts;
+    }
+
+    saveSession(snapshot);
+  }, [
+    inPlayMode, persists, sessionLoaded, saveSession, sessionKey,
+    cards, eligible, getCardDbId, getTokenState,
+  ]);
+
   /** Change a token value on the active card. */
   const handleTokenChange = useCallback((tokenDefId: string, newValue: number) => {
+    touchedRef.current = true;
     updateCards(list => list.map(c =>
       c.id === activeCardId
         ? withTokenState(c, { ...getTokenState(c), [tokenDefId]: newValue })
@@ -153,6 +300,7 @@ export function useDeckTokens<T extends { id: string }>(
   /** Change a token value on a specific card (direct overlay clicks). */
   const handleTokenChangeForCard = useCallback(
     (cardId: string, tokenDefId: string, newValue: number) => {
+      touchedRef.current = true;
       updateCards(list => list.map(c =>
         c.id === cardId
           ? withTokenState(c, { ...getTokenState(c), [tokenDefId]: newValue })
@@ -181,6 +329,8 @@ export function useDeckTokens<T extends { id: string }>(
   const newTurn = useCallback(() => {
     const turnDefs = tokenDefinitions.filter(d => d.refresh_on_turn !== 0);
     if (turnDefs.length === 0) return;
+    touchedRef.current = true;
+    bumpSessionTurn();
     updateCards(list => list.map(card => {
       if (!eligible(card)) return card;
       const ts = { ...getTokenState(card) };
@@ -193,7 +343,7 @@ export function useDeckTokens<T extends { id: string }>(
       }
       return withTokenState(card, ts);
     }));
-  }, [tokenDefinitions, updateCards, eligible, getTokenState, withTokenState, resolveTokenMax]);
+  }, [tokenDefinitions, updateCards, eligible, getTokenState, withTokenState, resolveTokenMax, bumpSessionTurn]);
 
   /** True when this card has all its activation tokens at their effective max
    *  — i.e. it has been activated this turn. False for ineligible cards and
@@ -232,6 +382,19 @@ export function useDeckTokens<T extends { id: string }>(
     };
   }, [inPlayMode, tokenDefinitions, eligible, getUnitKeywords, getTokenState, handleTokenChangeForCard]);
 
+  /** Finish the game, then wipe the board back to starting values so the next
+   *  visit opens a fresh session rather than inheriting the old one's numbers. */
+  const endGame = useCallback(async () => {
+    await playSession.endGame();
+    restoredForRef.current = null;
+    setRestoredFor(null);
+    // Cleared before the reset below: wiping the board back to starting values
+    // is a card change like any other, and with this still set it would save —
+    // opening a brand-new session out of the act of ending one.
+    touchedRef.current = false;
+    resetToSeeds();
+  }, [playSession, resetToSeeds]);
+
   return {
     tokenDefinitions,
     reload,
@@ -243,5 +406,8 @@ export function useDeckTokens<T extends { id: string }>(
     isCardActivated,
     allActivated,
     buildTokenOverlay,
+    turn:         playSession.turn,
+    sessionReady: playSession.ready && restoredFor === sessionKey && sessionKey != null,
+    endGame,
   };
 }

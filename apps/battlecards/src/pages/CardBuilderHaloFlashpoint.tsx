@@ -32,6 +32,8 @@ import { type UnitStatus } from '../components/UnitListEntry';
 import DeckCardList from '../components/DeckCardList';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
+import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
 import { Input } from '@battleplans/ui';
 import { Counter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
@@ -202,16 +204,8 @@ const CardBuilderHaloFlashpoint = () => {
 
   const [ruleSearchQuery, setRuleSearchQuery] = useState('');
 
-  /** When switching to play mode, pick the initial subnav tab based on what's currently viewed. */
-  const handleModeChange = (mode: Mode) => {
-    if (mode === 'play') {
-      setPlayTab(ruleState.activeRuleId ? 'rules' : 'units');
-      setRuleSearchQuery('');
-      // Seed token starting values for untouched cards (shared token engine).
-      seedPlayTokens();
-    }
-    setAppMode(mode);
-  };
+  // enterPlay / playEntry / handleModeChange live below, once the token engine
+  // and card state they depend on have been declared.
 
   // ── Edit mode (reorder + rename + duplicate + delete) ────────────────────────
   const [editMode, setEditMode] = useState(false);
@@ -241,6 +235,8 @@ const CardBuilderHaloFlashpoint = () => {
     newTurn:           handleNewTurn,
     isCardActivated,
     allActivated,
+    turn:              playTurn,
+    endGame:           handleEndGame,
   } = useDeckTokens<HaloCardData>({
     gameSlug:     'halo-flashpoint',
     deckId,
@@ -250,12 +246,44 @@ const CardBuilderHaloFlashpoint = () => {
     updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
     getTokenState:  c => c.tokenState,
     withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    getCardDbId:    c => c.dbId,
     resolveStat:  (c, statKey) => (statKey === 'hp' ? c.hp : undefined),
     getUnitKeywords: c => c.unitKeywords.map(k => ({
       keywordName: k.keywordName,
       paramValue:  k.paramValue,
     })),
   });
+
+  /** When switching to play mode, pick the initial subnav tab based on what's
+   *  currently viewed. */
+  //
+  // A plain function, not useCallback: it reads `ruleState`, which is declared
+  // further down, and only a deferred body may do that. The entry hook holds it
+  // in a ref, so a fresh identity each render costs nothing.
+  const enterPlay = () => {
+    setPlayTab(ruleState.activeRuleId ? 'rules' : 'units');
+    setRuleSearchQuery('');
+    // Seed token starting values for untouched cards (shared token engine).
+    seedPlayTokens();
+    setAppMode('play');
+  };
+
+  /** Owns which mode the deck opens in, and what happens to a game left over
+   *  from an earlier day. See usePlaySessionEntry. */
+  const playEntry = usePlaySessionEntry({
+    deckId,
+    enterPlay,
+    // Cards present is the readiness signal — auto-entering Play before the
+    // deck has loaded would show an empty board.
+    ready: cards.length > 0,
+  });
+
+  const handleModeChange = (mode: Mode) => {
+    // Going to Play routes through the entry hook: it either enters straight
+    // away or asks about an older game first.
+    if (mode === 'play') { playEntry.requestPlay(); return; }
+    setAppMode(mode);
+  };
 
   // ── Dirty tracking (cards that need saving) ───────────────────────────────────
   const dirtyCardsRef = useRef<Set<string>>(new Set());
@@ -1526,7 +1554,12 @@ const CardBuilderHaloFlashpoint = () => {
       }
       topBar={
         appMode === 'play' ? (
-          <PlaySubnav tab={playTab} onTabChange={setPlayTab} />
+          <PlaySubnav
+            tab={playTab}
+            onTabChange={setPlayTab}
+            turn={playTurn}
+            onEndGame={() => { void handleEndGame(); }}
+          />
         ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
@@ -2420,6 +2453,14 @@ const CardBuilderHaloFlashpoint = () => {
           deckName={deckName}
         />
       )}
+
+      <PlaySessionPrompt
+        open={playEntry.promptOpen}
+        lastPlayed={playEntry.lastPlayed}
+        onContinue={playEntry.continueGame}
+        onStartFresh={() => { void playEntry.startFresh(); }}
+        onClose={playEntry.cancel}
+      />
       </>}
     />
   );

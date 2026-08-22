@@ -32,6 +32,8 @@ import { Play } from '@battleplans/ui';
 import DeckCardList from '../components/DeckCardList';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
+import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
 import { Input } from '@battleplans/ui';
 import { Counter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
@@ -346,6 +348,7 @@ const CardBuilderKillTeam = () => {
     updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
     getTokenState:  c => c.tokenState,
     withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    getCardDbId:    c => c.dbId,
     isTokenEligible: c => c.cardType === 'operative',
     resolveStat:  (c, statKey) => (statKey === 'wounds' ? c.wounds : undefined),
     getUnitKeywords: c => c.weapons.flatMap(w => w.weaponKeywords).map(k => ({
@@ -362,17 +365,37 @@ const CardBuilderKillTeam = () => {
     newTurn:           handleNewTurn,
     isCardActivated,
     allActivated,
+    turn:              playTurn,
+    endGame:           handleEndGame,
   } = tokens;
 
   /** When switching to Play mode, seed `tokenState` from each definition's
    *  `starting_value` for any card that hasn't been touched yet (delegated to
    *  the shared token engine). Also resets the Rules-tab search query so
    *  re-entering play starts fresh. */
+  const enterPlay = useCallback(() => {
+    seedPlayTokens();
+    setRuleSearchQuery('');
+    setAppMode('play');
+  }, [seedPlayTokens]);
+
+  /** Owns which mode the deck opens in, and what happens to a game left over
+   *  from an earlier day. See usePlaySessionEntry. */
+  const playEntry = usePlaySessionEntry({
+    deckId,
+    enterPlay,
+    // Cards present is the readiness signal — auto-entering Play before the
+    // deck has loaded would show an empty board.
+    ready: cards.length > 0,
+  });
+
   const handleModeChange = useCallback((next: Mode) => {
-    if (next === 'play') seedPlayTokens();
+    // Going to Play routes through the entry hook: it either enters straight
+    // away or asks about an older game first.
+    if (next === 'play') { playEntry.requestPlay(); return; }
     setRuleSearchQuery('');
     setAppMode(next);
-  }, [seedPlayTokens]);
+  }, [playEntry]);
 
   /** Tab switch handler — also resets the Rules-tab search when the user
    *  navigates away so a stale query never lingers on the next visit. */
@@ -1738,7 +1761,12 @@ const CardBuilderKillTeam = () => {
         // toggles (Open Card List / Open Editor). Both feed the universal
         // responsive collapse behaviour from useCardBuilder.
         appMode === 'play' ? (
-          <PlaySubnav tab={playTab} onTabChange={handlePlayTabChange} />
+          <PlaySubnav
+            tab={playTab}
+            onTabChange={handlePlayTabChange}
+            turn={playTurn}
+            onEndGame={() => { void handleEndGame(); }}
+          />
         ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
@@ -2678,6 +2706,14 @@ const CardBuilderKillTeam = () => {
           deckName={deckName}
         />
       )}
+
+      <PlaySessionPrompt
+        open={playEntry.promptOpen}
+        lastPlayed={playEntry.lastPlayed}
+        onContinue={playEntry.continueGame}
+        onStartFresh={() => { void playEntry.startFresh(); }}
+        onClose={playEntry.cancel}
+      />
 
       </>}
     />

@@ -26,6 +26,8 @@ import { Play } from '@battleplans/ui';
 import CenterViewport from '../components/CenterViewport';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
+import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
@@ -308,6 +310,8 @@ const CardBuilderRyg = () => {
     handleTokenChangeForCard,
     newTurn: handleNewTurn,
     isCardActivated,
+    turn:    playTurn,
+    endGame: handleEndGame,
   } = useDeckTokens<RygCardData>({
     gameSlug:     'ryg',
     deckId,
@@ -317,17 +321,34 @@ const CardBuilderRyg = () => {
     updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
     getTokenState:  c => c.tokenState,
     withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    getCardDbId:    c => c.dbId,
     resolveStat: (c, statKey) => {
       const v = (c as unknown as Record<string, unknown>)[statKey];
       return typeof v === 'number' ? v : undefined;
     },
   });
 
+  const enterPlay = useCallback(() => {
+    seedPlayTokens();
+    setRuleSearchQuery('');
+    setAppMode('play');
+  }, [seedPlayTokens]);
+
+  /** Owns which mode the deck opens in, and what happens to a game left over
+   *  from an earlier day. See usePlaySessionEntry. */
+  const playEntry = usePlaySessionEntry({
+    deckId,
+    enterPlay,
+    ready: cards.length > 0,
+  });
+
   const handleModeChange = useCallback((next: Mode) => {
-    if (next === 'play') seedPlayTokens();
+    // Going to Play routes through the entry hook: it either enters straight
+    // away or asks about an older game first.
+    if (next === 'play') { playEntry.requestPlay(); return; }
     setRuleSearchQuery('');
     setAppMode(next);
-  }, [seedPlayTokens]);
+  }, [playEntry]);
 
   const buildTokenOverlayProp = (card: RygCardData) => {
     if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
@@ -1003,7 +1024,12 @@ const CardBuilderRyg = () => {
       }
       topBar={
         appMode === 'play' ? (
-          <PlaySubnav tab={playTab} onTabChange={handlePlayTabChange} />
+          <PlaySubnav
+            tab={playTab}
+            onTabChange={handlePlayTabChange}
+            turn={playTurn}
+            onEndGame={() => { void handleEndGame(); }}
+          />
         ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
@@ -2079,6 +2105,14 @@ const CardBuilderRyg = () => {
               deckName={deckName}
             />
           )}
+
+          <PlaySessionPrompt
+            open={playEntry.promptOpen}
+            lastPlayed={playEntry.lastPlayed}
+            onContinue={playEntry.continueGame}
+            onStartFresh={() => { void playEntry.startFresh(); }}
+            onClose={playEntry.cancel}
+          />
 
         </>
       }
