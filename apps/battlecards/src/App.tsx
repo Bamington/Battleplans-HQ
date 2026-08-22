@@ -9,6 +9,7 @@
  * - /                              → Auth-aware redirect (→ /login or /app)
  * - /login                         → Pre-login screen (sign in / sign up / Google)
  * - /gallery                       → Component gallery (dev tool — not a user-facing screen)
+ * - /d/:token                      → Read-only view of a deck shared by link (public)
  * - /app                           → App home
  * - /app/admin                      → Admin Tools hub (admin only)
  * - /app/admin/games               → Manage Games (admin only)
@@ -27,7 +28,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useSearchParams } from 'react-router-dom';
 import { supabase } from '@battleplans/ui';
 import ComponentGallery from './pages/ComponentGallery';
 import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
@@ -41,6 +42,7 @@ import PrintDeck from './pages/PrintDeck';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
 import PacksPlaceholder from './pages/PacksPlaceholder';
+import SharedDeck from './pages/SharedDeck';
 import PackEditor from './pages/PackEditor';
 import AdminTools from './pages/AdminTools';
 import ManageUsers from './pages/ManageUsers';
@@ -72,6 +74,21 @@ function RootRedirect() {
   return <Navigate to={target} replace />;
 }
 
+// ── OAuth callback ──────────────────────────────────────────────────────────
+//
+// Sign-in normally ends at /app, but someone who started from a shared deck
+// link carries a `next` through the OAuth round-trip so they come back to the
+// deck they were looking at. Only same-site absolute paths are honoured, so
+// the parameter can't bounce a freshly signed-in user off-site.
+
+function AuthCallbackRoute() {
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get('next');
+  const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
+
+  return <AuthCallback redirectTo={safe} />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -86,13 +103,18 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* ── OAuth callback — handles Google redirect ── */}
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallbackRoute />} />
 
         {/* ── Password reset — where the "lost password" email lands ── */}
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-gray-950" />} />
 
         {/* ── Component Gallery (dev tool) ── */}
         <Route path="/gallery" element={<ComponentGallery />} />
+
+        {/* ── Shared deck — read-only view of a deck someone sent a link to.
+             Public on purpose: the recipient often won't have an account yet,
+             and only copying the deck requires one. ── */}
+        <Route path="/d/:token" element={<SharedDeck />} />
 
         {/* ── Protected routes — require a signed-in user ─────────────────
              The first guard redirects unauthenticated users to /login; the

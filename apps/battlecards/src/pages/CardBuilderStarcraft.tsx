@@ -32,6 +32,8 @@ import AppNavbar from '../components/AppNavbar';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EditSubnav  from '../components/EditSubnav';
 import CenterViewport from '../components/CenterViewport';
+import DeckPanelMenu from '../components/DeckPanelMenu';
+import ShareDeckSheet from '../components/ShareDeckSheet';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import { Button } from '@battleplans/ui';
@@ -59,7 +61,6 @@ import { AddCircle } from '@battleplans/ui';
 import { TrashBinMinimalistic } from '@battleplans/ui';
 import { UserRounded } from '@battleplans/ui';
 import { Diskette } from '@battleplans/ui';
-import { Pen2 } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
 import type { Addon, DeckWithGame, StarcraftStats, StarcraftWeaponStats, StarcraftRuleStats } from '../lib/database.types';
 // rowToKeywords is the same function the pack editor's StarCraft card
@@ -294,6 +295,9 @@ const CardBuilderStarcraft = () => {
   const [searchParams] = useSearchParams();
   const navigate       = useNavigate();
   const deckId         = searchParams.get('deckId');
+
+  // Share sheet — opened from the ⋯ menu in the card-list header.
+  const [shareOpen, setShareOpen] = useState(false);
 
   const [loadState, setLoadState] = useState<LoadState>(() =>
     deckId ? { kind: 'loading' } : { kind: 'error', message: 'No deck selected.' },
@@ -647,14 +651,12 @@ const CardBuilderStarcraft = () => {
             </p>
           }
           headerAction={
-            <button
-              type="button"
-              onClick={startDeckNameEdit}
-              className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
-              title="Rename deck"
-            >
-              <Pen2 className="w-4 h-4" />
-            </button>
+            <DeckPanelMenu
+              editMode={false}
+              onToggleEdit={startDeckNameEdit}
+              onShare={() => setShareOpen(true)}
+              editLabel="Rename deck"
+            />
           }
           footer={
             <>
@@ -822,6 +824,15 @@ const CardBuilderStarcraft = () => {
           onSave={tiers => updateActive({ supplyTiers: tiers })}
           onClose={() => setSupplyTiersOpen(false)}
         />
+
+        {deckId && (
+          <ShareDeckSheet
+            open={shareOpen}
+            onClose={() => setShareOpen(false)}
+            deckId={deckId}
+            deckName={deckName}
+          />
+        )}
       </>}
     />
   );

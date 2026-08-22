@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import AppNavbar from '../components/AppNavbar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, authRedirectTo } from '@battleplans/ui';
 import { Input } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
@@ -44,12 +44,31 @@ const GoogleIcon = () => (
   </svg>
 );
 
+// ── Post-sign-in destination ─────────────────────────────────────────────────
+
+/**
+ * Where to send the user once they're signed in. Normally /app, but someone who
+ * arrived from a shared deck link should land back on that deck rather than on
+ * a home screen that has no idea why they came.
+ *
+ * Only same-site absolute paths are honoured. Anything else — a full URL, a
+ * protocol-relative `//evil.example` — falls back to /app, so the parameter
+ * can't be used to bounce a freshly signed-in user off-site.
+ */
+function safeNext(raw: string | null): string {
+  if (!raw) return '/app';
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/app';
+  return raw;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 type Mode = 'signin' | 'signup';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = safeNext(searchParams.get('next'));
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [mode,            setMode]            = useState<Mode>('signin');
@@ -83,7 +102,7 @@ export default function Login() {
         setError(error.message);
         setLoading(false);
       } else {
-        navigate('/app');
+        navigate(next);
       }
     } else {
       if (password !== confirmPassword) {
@@ -110,9 +129,15 @@ export default function Login() {
   async function handleGoogleSignIn() {
     setLoading(true);
     setError(null);
+    // The destination rides along on the callback URL so a Google sign-in
+    // returns to the same place a password sign-in would.
+    const callback = next === '/app'
+      ? authRedirectTo()
+      : `${authRedirectTo()}?next=${encodeURIComponent(next)}`;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: authRedirectTo() },
+      options: { redirectTo: callback },
     });
     // signInWithOAuth triggers a browser redirect — if we reach this point it failed.
     if (error) {

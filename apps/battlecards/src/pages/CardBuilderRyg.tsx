@@ -24,6 +24,8 @@ import Markdown from 'react-markdown';
 import { AltArrowDown } from '@battleplans/ui';
 import { Play } from '@battleplans/ui';
 import CenterViewport from '../components/CenterViewport';
+import DeckPanelMenu from '../components/DeckPanelMenu';
+import ShareDeckSheet from '../components/ShareDeckSheet';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
@@ -235,6 +237,9 @@ const armorSubtitle = (addon: Addon): string => {
 const CardBuilderRyg = () => {
   const [searchParams] = useSearchParams();
   const deckId         = searchParams.get('deckId');
+
+  // Share sheet — opened from the ⋯ menu in the card-list header.
+  const [shareOpen, setShareOpen] = useState(false);
   const navigate       = useNavigate();
 
   const [appMode, setAppMode] = useState<Mode>('edit');
@@ -1020,13 +1025,12 @@ const CardBuilderRyg = () => {
           onCommit={n => commitDeckName(n, { persist: true })}
           onCancelEdit={() => setEditingDeckName(false)}
           headerAction={appMode === 'edit' ? (
-            <button
-              onClick={() => setEditMode(m => !m)}
-              className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
-              aria-label={editMode ? 'Done editing' : 'Reorder warriors'}
-            >
-              {editMode ? <CheckCircle className="w-5 h-5" /> : <Pen2 className="w-5 h-5" />}
-            </button>
+            <DeckPanelMenu
+              editMode={editMode}
+              onToggleEdit={() => setEditMode(m => !m)}
+              onShare={() => setShareOpen(true)}
+              editLabel="Reorder warriors"
+            />
           ) : undefined}
           footer={appMode === 'edit' && !editMode ? (
             <Button className="w-full" onClick={addCard}>
@@ -2064,6 +2068,15 @@ const CardBuilderRyg = () => {
               onDeleted={() => { godDirtyRef.current = true; setGodState(prev => ({ ...prev, god: null })); }}
               getSubtitle={a => (a.stats as RygGodStats)?.specialAbility?.slice(0, 60) ?? '—'}
               CreateFormComponent={GodFormComponent}
+            />
+          )}
+
+          {deckId && (
+            <ShareDeckSheet
+              open={shareOpen}
+              onClose={() => setShareOpen(false)}
+              deckId={deckId}
+              deckName={deckName}
             />
           )}
 

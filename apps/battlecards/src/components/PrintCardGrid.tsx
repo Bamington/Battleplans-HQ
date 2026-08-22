@@ -203,8 +203,15 @@ const MARGIN_MM = 10;
 // columns on the game row (passed in as the `printSize` / `bleedSize` props).
 // Specific item types — like Kill Team rule cards, which are physically
 // smaller and portrait-oriented — override the defaults via the
-// `ITEM_PROFILE_OVERRIDES` table below. Each profile-grouping prints on its
-// own set of pages so the page-level grid never has to mix slot sizes.
+// `ITEM_PROFILE_OVERRIDES` table below.
+//
+// Items are grouped onto pages by SLOT SIZE (bleedMm), not by item type. A
+// page's grid only needs every slot on it to be the same size; what goes in
+// the slot can differ. RYG is the case that matters — warriors, septs and gods
+// are all 69×95 mm, so keying on type used to start a fresh set of pages for
+// each and waste most of two sheets. Everything that genuinely varies between
+// item types (background art, native canvas, visible card size) is applied per
+// item at render time.
 
 type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule' | 'ryg-warrior' | 'ryg-sept' | 'ryg-god';
 
@@ -217,7 +224,8 @@ interface PrintProfile {
   bleedMm: [number, number];
   /** Bleed background SVG (sized to bleedMm). */
   bg:      string;
-  /** Stable grouping key — items sharing a key go on the same pages. */
+  /** Grouping key — the slot size. Items sharing a key go on the same pages,
+   *  whatever their type. */
   key:     string;
 }
 
@@ -280,16 +288,19 @@ const profileForItem = (
 ): PrintProfile => {
   const override = ITEM_PROFILE_OVERRIDES[type];
   if (override) {
-    return { ...override, key: `${type}` };
+    return { ...override, key: slotKey(override.bleedMm) };
   }
   return {
     native:  DEFAULT_NATIVE[type],
     printMm: defaultPrintMm,
     bleedMm: defaultBleedMm,
     bg:      defaultBg,
-    key:     `default-${defaultBleedMm[0]}x${defaultBleedMm[1]}`,
+    key:     slotKey(defaultBleedMm),
   };
 };
+
+/** Two items share pages when their slots are the same size. */
+const slotKey = ([w, h]: [number, number]) => `${w}x${h}`;
 
 // ── Layout helpers ───────────────────────────────────────────────────────────
 
@@ -411,12 +422,14 @@ const PrintCardGrid = ({
   // Items with the same profile.key share a set of pages. Operatives use the
   // default game profile; rule cards override to their own size (e.g. KT
   // rule cards are 70×120 mm portrait while operatives are 127×89 landscape).
-  const groupsByKey = new Map<string, { profile: PrintProfile; items: PrintItem[] }>();
+  // Only the slot size is shared across a group — everything else is looked up
+  // per item below, so cards of different types can share a sheet.
+  const groupsByKey = new Map<string, { bleedMm: [number, number]; items: PrintItem[] }>();
   for (const item of items) {
     const profile = profileForItem(item.type, defaultBg, printSize, bleedSize);
     let group = groupsByKey.get(profile.key);
     if (!group) {
-      group = { profile, items: [] };
+      group = { bleedMm: profile.bleedMm, items: [] };
       groupsByKey.set(profile.key, group);
     }
     group.items.push(item);
@@ -430,17 +443,9 @@ const PrintCardGrid = ({
   return (
     <>
       {groups.flatMap((group, gi) => {
-        const { profile } = group;
-        const layout = getLayout(profile.bleedMm, paperSize);
-        const bleedW_px = profile.bleedMm[0] * MM;
-        const bleedH_px = profile.bleedMm[1] * MM;
-        const printW_px = profile.printMm[0] * MM;
-        const printH_px = profile.printMm[1] * MM;
-
-        // Scale the native card into the print box; centre within the bleed.
-        const cardScale = Math.min(printW_px / profile.native.w, printH_px / profile.native.h);
-        const offsetX   = (bleedW_px - profile.native.w * cardScale) / 2;
-        const offsetY   = (bleedH_px - profile.native.h * cardScale) / 2;
+        const layout = getLayout(group.bleedMm, paperSize);
+        const bleedW_px = group.bleedMm[0] * MM;
+        const bleedH_px = group.bleedMm[1] * MM;
 
         // When rotated, the slot on the page grid has swapped dimensions.
         // Floor to avoid sub-pixel rounding pushing items to the next flex row.
@@ -468,7 +473,20 @@ const PrintCardGrid = ({
               overflow: 'visible',
             }}
           >
-            {pageItems.map((item) => (
+            {pageItems.map((item) => {
+              // Per item, not per page: a sheet can hold a RYG warrior and a
+              // god side by side, and they carry different background art and
+              // visible card sizes even though their slots match.
+              const profile   = profileForItem(item.type, defaultBg, printSize, bleedSize);
+              const printW_px = profile.printMm[0] * MM;
+              const printH_px = profile.printMm[1] * MM;
+
+              // Scale the native card into the print box; centre within the bleed.
+              const cardScale = Math.min(printW_px / profile.native.w, printH_px / profile.native.h);
+              const offsetX   = (bleedW_px - profile.native.w * cardScale) / 2;
+              const offsetY   = (bleedH_px - profile.native.h * cardScale) / 2;
+
+              return (
               <div
                 key={item.id}
                 style={{
@@ -699,7 +717,8 @@ const PrintCardGrid = ({
                   </svg>}
                 </div>{/* end rotation wrapper */}
               </div>
-            ))}
+              );
+            })}
           </div>
         ));
       })}

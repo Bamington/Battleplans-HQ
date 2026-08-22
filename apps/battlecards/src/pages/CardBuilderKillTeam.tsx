@@ -30,6 +30,8 @@ import { Dropdown, DropdownItem } from '@battleplans/ui';
 import { AltArrowDown } from '@battleplans/ui';
 import { Play } from '@battleplans/ui';
 import DeckCardList from '../components/DeckCardList';
+import DeckPanelMenu from '../components/DeckPanelMenu';
+import ShareDeckSheet from '../components/ShareDeckSheet';
 import { Input } from '@battleplans/ui';
 import { Counter } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
@@ -261,6 +263,9 @@ const CardBuilderKillTeam = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const deckId = searchParams.get('deckId');
+
+  // Share sheet — opened from the ⋯ menu in the card-list header.
+  const [shareOpen, setShareOpen] = useState(false);
 
   // ── App mode (Edit / Play) — matches the pattern used by Halo / Starcraft.
   // Play mode hides the editor + add controls. Per-card play state is stored
@@ -1756,17 +1761,11 @@ const CardBuilderKillTeam = () => {
           onCancelEdit={() => setEditingDeckName(false)}
           headerAction={
             appMode === 'edit' ? (
-              <button
-                type="button"
-                onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
-                className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
-                title={editMode ? 'Done editing' : 'Edit deck'}
-              >
-                {editMode
-                  ? <CheckCircle className="w-4 h-4 text-green-400" />
-                  : <Pen2 className="w-4 h-4" />
-                }
-              </button>
+              <DeckPanelMenu
+                editMode={editMode}
+                onToggleEdit={() => editMode ? handleDoneEditing() : setEditMode(true)}
+                onShare={() => setShareOpen(true)}
+              />
             ) : undefined
           }
           footer={
@@ -2669,6 +2668,15 @@ const CardBuilderKillTeam = () => {
             saving={savingAbilityEdit}
           />
         </Modal>
+      )}
+
+      {deckId && (
+        <ShareDeckSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          deckId={deckId}
+          deckName={deckName}
+        />
       )}
 
       </>}
