@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  supabase, Button, Modal, Dropdown, DropdownItem, Input, Avatar, avatarUrl,
+  supabase, Button, Modal, Dropdown, DropdownItem, Input, Avatar, avatarUrl, Select,
   TrashBinMinimalistic, ArrowRight, UserRounded,
 } from '@battleplans/ui';
-import type { StaffMember } from '../hooks/useBookingData';
+import type { StaffMember, VenueStaffRole } from '../hooks/useBookingData';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -85,7 +85,11 @@ export function StaffItem({ member, locationId, locationName, onChanged }: {
           {member.handle && member.username?.trim() && (
             <span className="font-body text-xs text-neutral-400 leading-4 truncate">@{member.handle}</span>
           )}
-          <span className="font-body text-xs text-primary-300 leading-4">Staff</span>
+          {/* Which of the two they are. An organiser who looks like staff is
+              how a venue ends up thinking someone can see its bookings. */}
+          <span className={`font-body text-xs leading-4 ${member.role === 'organiser' ? 'text-amber-300' : 'text-primary-300'}`}>
+            {member.role === 'organiser' ? 'Organiser' : 'Staff'}
+          </span>
         </div>
 
         <Dropdown
@@ -193,6 +197,10 @@ export function AddStaffModal({
     setFound(((data as FoundUser[] | null) ?? [])[0] ?? null);
   };
 
+  // Chosen before searching, because it changes what the modal is promising —
+  // "sees your bookings" and "runs events here" are very different offers.
+  const [role, setRole] = useState<VenueStaffRole>('staff');
+
   const alreadyStaff = !!found && existingIds.includes(found.user_id);
   const alreadyAdmin = !!found && adminIds.includes(found.user_id);
   const canAdd       = !!found && !alreadyStaff && !alreadyAdmin && !saving;
@@ -206,6 +214,7 @@ export function AddStaffModal({
       location_id: locationId,
       user_id:     found.user_id,
       added_by:    session?.user?.id ?? null,
+      role,
     });
     setSaving(false);
     if (insErr) {
@@ -228,12 +237,24 @@ export function AddStaffModal({
       <div className="flex flex-col gap-4 p-5">
 
         <div className="flex flex-col gap-1">
-          <h2 className="font-heading text-xl text-white">Add Staff Member</h2>
+          <h2 className="font-heading text-xl text-white">Add Someone</h2>
           <p className="font-body text-base text-neutral-300">
-            Staff can see bookings at {locationName}. They can’t change your venue
-            settings, your tables, or who works here.
+            {role === 'organiser'
+              ? `Organisers run events at ${locationName}. They can hold tables for their night and publish a BattlePack here — and they can’t see your bookings.`
+              : `Staff can see bookings at ${locationName}. They can’t change your settings, your tables, or who works here.`}
           </p>
         </div>
+
+        <Select
+          label="Role"
+          options={[
+            { value: 'staff',     label: 'Staff — works the counter' },
+            { value: 'organiser', label: 'Organiser — runs events here' },
+          ]}
+          value={role}
+          disabled={searching || saving}
+          onChange={e => setRole(e.target.value as VenueStaffRole)}
+        />
 
         <div className="flex flex-col gap-2">
           <Input

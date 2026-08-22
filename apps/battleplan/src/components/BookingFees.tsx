@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  supabase, Button, Modal, Dropdown, DropdownItem, Input, Select, Badge,
+  supabase, Button, Modal, Dropdown, DropdownItem, Input, Select, Badge, Checkbox,
   TrashBinMinimalistic, Pen2, ArrowRight,
 } from '@battleplans/ui';
 import { formatBookingTime, formatFeeAmount } from '../hooks/useBookingData';
-import type { BookingFee, FeeScope, LocationTimeslot } from '../hooks/useBookingData';
+import type { BookingFee, FeeScope, LocationTimeslot, StoreTable } from '../hooks/useBookingData';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -34,28 +34,61 @@ export const FEE_DAYS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** What this rule covers, in the store's own terms. */
-export function formatFeeScope(fee: BookingFee, timeslots: LocationTimeslot[]): string {
-  if (fee.scope === 'day') return `Every ${fee.day_of_week}`;
-  if (fee.scope === 'timeslot') {
-    const ts = timeslots.find(t => t.id === fee.timeslot_id);
-    return ts ? `${ts.name} (${formatBookingTime(ts)})` : 'One timeslot';
+/** The distinct table types a venue has, in the order its tables list them. */
+export function tableTypesOf(tables: StoreTable[]): string[] {
+  const seen: string[] = [];
+  for (const t of tables) {
+    const label = t.label?.trim();
+    if (label && !seen.includes(label)) seen.push(label);
   }
-  return 'All bookings';
+  return seen;
+}
+
+/** "TCG" / "TCG and Magic" / "TCG, Magic and Board Games". */
+export function formatTableLabels(labels: string[]): string {
+  if (labels.length <= 1) return labels[0] ?? '';
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+}
+
+/**
+ * What this rule covers, in the store's own terms.
+ *
+ * The table types are part of the sentence rather than a separate badge because
+ * a venue can now hold two rules with the SAME target — "All bookings" and
+ * "All bookings, TCG only" — and the delete confirmation quotes this string to
+ * say which one is going.
+ */
+export function formatFeeScope(fee: BookingFee, timeslots: LocationTimeslot[]): string {
+  const target =
+    fee.scope === 'day'      ? `Every ${fee.day_of_week}`
+  : fee.scope === 'timeslot' ? (() => {
+      const ts = timeslots.find(t => t.id === fee.timeslot_id);
+      return ts ? `${ts.name} (${formatBookingTime(ts)})` : 'One timeslot';
+    })()
+  : 'All bookings';
+
+  return fee.table_labels?.length
+    ? `${target} — ${formatTableLabels(fee.table_labels)} only`
+    : target;
 }
 
 /**
  * Default rule first, then weekdays in week order, then timeslots by name — so
- * the list reads as "here's the venue fee, and here's where it differs".
+ * the list reads as "here's the venue fee, and here's where it differs". Within
+ * one target the catch-all comes before the type-specific rules that carve
+ * exceptions out of it, matching how they resolve.
  */
 export function sortFees(fees: BookingFee[], timeslots: LocationTimeslot[]): BookingFee[] {
   const scopeRank: Record<FeeScope, number> = { default: 0, day: 1, timeslot: 2 };
   const tsName = (id: string | null) => timeslots.find(t => t.id === id)?.name ?? '';
+  const labels = (f: BookingFee) => (f.table_labels ?? []).join(', ');
   return [...fees].sort((a, b) =>
     scopeRank[a.scope] - scopeRank[b.scope]
     || FEE_DAYS.indexOf(a.day_of_week as typeof FEE_DAYS[number])
        - FEE_DAYS.indexOf(b.day_of_week as typeof FEE_DAYS[number])
     || tsName(a.timeslot_id).localeCompare(tsName(b.timeslot_id))
+    || (a.table_labels?.length ? 1 : 0) - (b.table_labels?.length ? 1 : 0)
+    || labels(a).localeCompare(labels(b))
   );
 }
 
@@ -170,12 +203,14 @@ export function BookingFeeItem({ fee, timeslots, hasDefault, onEdit, onChanged }
 // ── BookingFeeFormModal (add / edit) ──────────────────────────────────────────
 
 export function BookingFeeFormModal({
-  open, onClose, locationId, timeslots, fees, editing, onSaved,
+  open, onClose, locationId, timeslots, tables = [], fees, editing, onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   locationId: string;
   timeslots: LocationTimeslot[];
+  /** The venue's tables, so a fee can be limited to some of their types. */
+  tables?: StoreTable[];
   /** Existing rules, so the form can hide targets that are already taken. */
   fees: BookingFee[];
   editing?: BookingFee | null;
@@ -188,18 +223,40 @@ export function BookingFeeFormModal({
   const [tsId,    setTsId]    = useState<string>('');
   const [amount,  setAmount]  = useState('');
   const [message, setMessage] = useState('');
+  const [labels,  setLabels]  = useState<string[]>([]);
+  // Kept apart from `labels` so picking "only certain types" doesn't snap back
+  // to "all" in the instant before the first type is ticked.
+  const [tableMode, setTableMode] = useState<'all' | 'some'>('all');
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
-  const hasDefault = fees.some(f => f.scope === 'default');
+  // A venue with one kind of table is not being asked which kinds this covers —
+  // there is only one answer. The control appears when there is a real choice.
+  const tableTypes     = tableTypesOf(tables);
+  const canScopeTables = tableTypes.length > 1;
+  /** What actually gets written: null unless types were chosen. */
+  const chosenLabels   = tableMode === 'some' && labels.length > 0 ? labels : null;
+
+  const toggleLabel = (label: string) =>
+    setLabels(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]);
 
   // Targets already spoken for. The database enforces this too — catching it
   // here just turns a unique-violation into a sentence the store can act on.
+  //
+  // A target is only taken by a rule covering the SAME table types: "$10 every
+  // Friday" and "$15 every Friday, TCG only" are both legal, so the check moves
+  // with the types ticked below rather than being fixed by the target alone.
+  const labelKey = (l: string[] | null | undefined) => [...(l ?? [])].sort().join('|');
+  const sameTables = (f: BookingFee) =>
+    f.id !== editing?.id && labelKey(f.table_labels) === labelKey(chosenLabels);
+
+  const hasDefault = fees.some(f => f.scope === 'default' && sameTables(f));
+
   const takenDays = new Set(
-    fees.filter(f => f.scope === 'day' && f.id !== editing?.id).map(f => f.day_of_week)
+    fees.filter(f => f.scope === 'day' && sameTables(f)).map(f => f.day_of_week)
   );
   const takenTimeslots = new Set(
-    fees.filter(f => f.scope === 'timeslot' && f.id !== editing?.id).map(f => f.timeslot_id)
+    fees.filter(f => f.scope === 'timeslot' && sameTables(f)).map(f => f.timeslot_id)
   );
 
   const availableDays      = FEE_DAYS.filter(d => !takenDays.has(d));
@@ -213,6 +270,8 @@ export function BookingFeeFormModal({
       setTsId(editing.timeslot_id ?? '');
       setAmount(amountToInput(editing.amount_cents));
       setMessage(editing.message ?? '');
+      setLabels(editing.table_labels ?? []);
+      setTableMode(editing.table_labels?.length ? 'some' : 'all');
     } else {
       // A venue's first rule is almost always its default; once that exists,
       // anything new is an exception, so open on the first free weekday.
@@ -221,6 +280,7 @@ export function BookingFeeFormModal({
       setDay(availableDays[0] ?? '');
       setTsId(availableTimeslots[0]?.id ?? '');
       setAmount(''); setMessage('');
+      setLabels([]); setTableMode('all');
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,13 +293,16 @@ export function BookingFeeFormModal({
   : /* timeslot */         !!tsId;
   // Every rule states its own terms — a fee with no wording can't be saved.
   const messageOk = !!message.trim();
-  const canSubmit = amountCents !== null && messageOk && targetOk && !!locationId && !saving;
+  // "Only certain types" with nothing ticked is a fee that applies to nothing.
+  const tablesOk  = tableMode === 'all' || labels.length > 0;
+  const canSubmit = amountCents !== null && messageOk && targetOk && tablesOk && !!locationId && !saving;
 
   const handleClose = () => { if (!saving) onClose(); };
 
   const handleSave = async () => {
     if (amountCents === null) { setError('Enter a fee amount, like 10 or 10.50.'); return; }
     if (!messageOk) { setError('Write the message players will see for this fee.'); return; }
+    if (!tablesOk)  { setError('Choose at least one table type, or set this fee to all of them.'); return; }
     setSaving(true);
     setError(null);
 
@@ -249,6 +312,9 @@ export function BookingFeeFormModal({
       timeslot_id: scope === 'timeslot' ? tsId : null,
       amount_cents: amountCents,
       message: message.trim(),
+      // Null rather than [] — "every table type" has one spelling, and the
+      // table's check constraint rejects the other. See 20260818030000.
+      table_labels: chosenLabels,
     };
 
     const { error: saveErr } = editing
@@ -319,6 +385,39 @@ export function BookingFeeFormModal({
               <option key={t.id} value={t.id}>{t.name} — {formatBookingTime(t)}</option>
             ))}
           </Select>
+        )}
+
+        {/* Table types. Only offered where the venue has more than one — see
+            canScopeTables. A fee limited to some types sits alongside the
+            catch-all rather than replacing it, so "$10 a table, $15 for TCG" is
+            two rules and the more specific one wins at booking time. */}
+        {canScopeTables && (
+          <Select
+            label="Table Types"
+            value={tableMode}
+            disabled={saving}
+            onChange={e => setTableMode(e.target.value as 'all' | 'some')}
+          >
+            <option value="all">All table types</option>
+            <option value="some">Only certain table types</option>
+          </Select>
+        )}
+
+        {canScopeTables && tableMode === 'some' && (
+          <div className="flex flex-col gap-2">
+            {tableTypes.map(t => (
+              <Checkbox
+                key={t}
+                label={t}
+                checked={labels.includes(t)}
+                disabled={saving}
+                onChange={() => toggleLabel(t)}
+              />
+            ))}
+            <p className="font-body text-xs text-neutral-400">
+              Players booking any other type of table won’t see this fee.
+            </p>
+          </div>
         )}
 
         <Input

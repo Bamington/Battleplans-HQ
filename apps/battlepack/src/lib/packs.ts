@@ -11,14 +11,41 @@
  */
 
 import { supabase } from '@battleplans/ui';
+import { layOutLeague, withLeagueDates } from './leagues';
 import type { PendingBanner } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type PackStatus = 'draft' | 'published' | 'unpublished';
 
-/** The shape of the event, chosen once at creation. */
+/**
+ * The shape of the event, chosen once at creation.
+ *
+ * SUPERSEDED by `schedule_shape` + `recurrence`, which say the two things this
+ * one enum conflated. Still on the row and still written by the create flow
+ * until that is rewritten; see 20260821030000.
+ */
 export type PackTimeline = 'one-day' | 'multi-day' | 'league';
+
+/**
+ * How a pack's schedule is laid out.
+ *
+ * `days` covers one-day and multi-day alike — the difference is how many
+ * segments there are, not what kind of event it is. `periods` is a league's
+ * labelled date ranges, which have no clock times.
+ */
+export type ScheduleShape = 'days' | 'periods';
+
+/** How often the whole event happens. Same vocabulary as `blocked_dates`. */
+export type PackRecurrence = 'none' | 'weekly' | 'monthly';
+
+/**
+ * Play, or one of the gaps between.
+ *
+ * Only a league has both. See `ScheduleSegment.kind`, and [leagues.ts](leagues.ts)
+ * for what the difference does to the dates.
+ */
+export type SegmentKind = 'round' | 'event';
 
 /**
  * What a schedule row is.
@@ -36,6 +63,8 @@ export interface Pack {
   name: string;
   game_id: string;
   location_id: string | null;
+  /** The club running it, when a club is. Distinct from location_id. */
+  host_location_id: string | null;
   starts_on: string | null;
   ends_on: string | null;
   /** What time the day begins. Anchors every schedule item's clock time. */
@@ -60,6 +89,33 @@ export interface Pack {
    * schedule can span dates.
    */
   timeline: PackTimeline;
+  /**
+   * How the schedule is laid out — `days` (one-day and multi-day alike) or
+   * `periods` (a league). One-day is not a value: it is `days` with a single
+   * segment. Replaces the layout half of `timeline`, which is on its way out.
+   */
+  schedule_shape: ScheduleShape;
+  /**
+   * How often the whole event happens. The rule columns below are only
+   * meaningful when this is not 'none', and the database enforces that.
+   */
+  recurrence: PackRecurrence;
+  /** Weekly only: 1 every week, 2 fortnightly. */
+  interval_weeks: number;
+  /** Full day names, matching blocked_dates and timeslots.availability. */
+  days_of_week: string[];
+  /** Monthly only: 1-4 for first through fourth, -1 for the last. */
+  week_of_month: number | null;
+  /** Last day the series can run. Required when recurring. */
+  until_date: string | null;
+  /**
+   * How many weeks each of a LEAGUE's rounds runs for.
+   *
+   * One number for the whole league: every round is the same length, and
+   * changing it re-dates all of them. Meaningless for a tournament, where it
+   * keeps its default of 1 and nothing reads it.
+   */
+  round_length_weeks: number;
   owner_id: string;
   status: PackStatus;
   slug: string | null;
@@ -75,9 +131,49 @@ export interface PackCategoryRow {
   content: unknown;
 }
 
+/**
+ * One part of an event with dates of its own.
+ *
+ * A day of a multi-day tournament, or a period of a league. EVERY PACK HAS AT
+ * LEAST ONE, including the one-day packs that predate the idea — which is what
+ * makes "one-day" a count rather than a type, and growing a one-dayer into a
+ * two-dayer an insert rather than a conversion. See 20260821010000.
+ */
+export interface ScheduleSegment {
+  id: string;
+  pack_id: string;
+  /** Position in the event, and the ONLY ordering — a segment may have no date. */
+  ordinal: number;
+  starts_on: string | null;
+  /** Set for a league period spanning days; null for a single day. */
+  ends_on: string | null;
+  /**
+   * The DAY's own start and end, as the organiser states them — not as the
+   * timetable implies. What an attendee puts in a calendar is this, so adding a
+   * round must not be able to move somebody's diary entry.
+   */
+  starts_at: string | null;
+  ends_at: string | null;
+  /** "Day 1", "Week 3 — Break Week". Null falls back to a derived label. */
+  label: string | null;
+  /**
+   * What this segment IS, and only meaningful for a league.
+   *
+   * `round` is play, and its dates are computed — laid end to end from the
+   * league's start, every round the same length. `event` is a painting week,
+   * a launch night, a break: no round number, the organiser's own dates, and it
+   * PUSHES the rounds after it later because it occupies that stretch of the
+   * calendar. A tournament day is always `round`; there is nothing else for a
+   * day to be.
+   */
+  kind: SegmentKind;
+}
+
 export interface ScheduleItem {
   id: string;
   pack_id: string;
+  /** The day or period this sits in. See ScheduleSegment. */
+  segment_id: string;
   ordinal: number;
   kind: ScheduleKind;
   label: string | null;
@@ -160,6 +256,8 @@ export interface LocationOption {
   name: string;
   address: string | null;
   icon?: string | null;
+  /** venue | club | space — the hero names a club, not a shop. */
+  kind?: string | null;
 }
 
 /**
@@ -174,13 +272,83 @@ export async function listMyLocations(): Promise<LocationOption[]> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return [];
 
-  const { data, error } = await supabase
-    .from('locations')
-    .select('id, name, address, icon')
-    .contains('admins', [auth.user.id])
-    .order('name');
-  if (error) throw error;
-  return (data ?? []) as LocationOption[];
+  // Two ways to be entitled to run an event somewhere, and the picker has to
+  // offer both or a nominated organiser sees an empty list and concludes the
+  // app is broken:
+  //
+  //   - you administer the place, or
+  //   - the place nominated you as an organiser (20260814060000)
+  //
+  // Asked as two queries rather than one. PostgREST cannot express "admins
+  // contains me OR I have a row in another table", and the alternative is a
+  // view that would hide this rule somewhere less obvious than here.
+  const [ownRes, nominatedRes] = await Promise.all([
+    supabase
+      .from('locations')
+      .select('id, name, address, icon, kind')
+      .contains('admins', [auth.user.id])
+      // Spaces are not offered yet. Running a pack at a borrowed room is exactly
+      // what they are for, but that needs the organiser to have BattlePack in the
+      // first place — a separate gate that is still venue-shaped.
+      .neq('kind', 'space'),
+    supabase
+      .from('location_staff')
+      .select('location:locations(id, name, address, icon, kind)')
+      .eq('user_id', auth.user.id)
+      .eq('role', 'organiser'),
+  ]);
+  if (ownRes.error) throw ownRes.error;
+
+  const own = (ownRes.data ?? []) as LocationOption[];
+  const seen = new Set(own.map(l => l.id));
+
+  // An organiser who also administers the place would otherwise appear twice.
+  const nominated = ((nominatedRes.data ?? []) as unknown as { location: LocationOption | null }[])
+    .map(r => r.location)
+    .filter((l): l is LocationOption => !!l && !seen.has(l.id));
+
+  return [...own, ...nominated].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * The clubs this user could name as the host of an event.
+ *
+ * The same two ways in as a venue — you administer it, or it nominated you as
+ * an organiser — narrowed to clubs, because a host is who is RUNNING the event
+ * and a shop running its own event just leaves the field empty.
+ *
+ * Naming a host is not a way into somewhere new: creating a pack still requires
+ * the right to write at the VENUE, so a club cannot put an event into a shop
+ * that has not agreed to it. This only decides whose name goes on it.
+ */
+export async function listMyClubs(): Promise<LocationOption[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+
+  const [ownRes, nominatedRes] = await Promise.all([
+    supabase
+      .from('locations')
+      .select('id, name, address, icon, kind')
+      .contains('admins', [auth.user.id])
+      .eq('kind', 'club'),
+    supabase
+      .from('location_staff')
+      .select('location:locations(id, name, address, icon, kind)')
+      .eq('user_id', auth.user.id)
+      .eq('role', 'organiser'),
+  ]);
+  if (ownRes.error) throw ownRes.error;
+
+  const own = (ownRes.data ?? []) as LocationOption[];
+  const seen = new Set(own.map(l => l.id));
+
+  // The nominated side can't be filtered to clubs in the query — the filter
+  // would apply to location_staff, not the joined row — so it is done here.
+  const nominated = ((nominatedRes.data ?? []) as unknown as { location: LocationOption | null }[])
+    .map(r => r.location)
+    .filter((l): l is LocationOption => !!l && l.kind === 'club' && !seen.has(l.id));
+
+  return [...own, ...nominated].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // ── Packs ────────────────────────────────────────────────────────────────────
@@ -217,6 +385,21 @@ export async function getPack(id: string): Promise<Pack | null> {
 }
 
 /**
+ * The five recurrence columns, which are only ever written together.
+ *
+ * Snake case because it is a patch: this goes straight into an insert or an
+ * update, and renaming in one more place is one more place they can drift from
+ * the constraints that check them.
+ */
+export interface RecurrenceFields {
+  recurrence: PackRecurrence;
+  interval_weeks: number;
+  days_of_week: string[];
+  week_of_month: number | null;
+  until_date: string | null;
+}
+
+/**
  * Create a pack. Name and game only — everything else is filled in afterwards.
  *
  * The game is required here and nowhere else, because it is fixed at creation:
@@ -232,6 +415,35 @@ export async function createPack(fields: {
   format?: string | null;
   /** Omitted means the column's default, 'one-day'. */
   timeline?: PackTimeline;
+  /**
+   * Day one's date and start time. THEY GO ON THE SEGMENT, not on the pack —
+   * see below; the caller hands them over rather than writing them itself so
+   * that a multi-day pack's second day can be placed after a dated first one.
+   */
+  startsOn?: string | null;
+  startsAt?: string | null;
+  /** How often the whole thing happens. Omitted means it does not repeat. */
+  recurrence?: RecurrenceFields | null;
+  /**
+   * How many DAYS a multi-day event runs for, always consecutive from the
+   * first. The count is the fact — nothing stores "this is a three-day event" —
+   * so this is how many segments to make, not a property to save.
+   */
+  days?: number;
+  /** A league's rounds: how many, and how many weeks each one runs. */
+  rounds?: number;
+  roundLengthWeeks?: number;
+  /**
+   * The generated timetable, given to EVERY day.
+   *
+   * Chris's call: the round lengths and breaks entered at creation describe how
+   * this event runs, and a three-day tournament running the same shape of day
+   * three times is the normal case. An organiser who wants day three different
+   * changes day three, which is a smaller job than building all three.
+   *
+   * A league gets none of this: its rounds are weeks, not a timetable.
+   */
+  schedule?: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[];
 }): Promise<Pack> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('You need to be signed in to create a pack.');
@@ -245,12 +457,80 @@ export async function createPack(fields: {
       description: fields.description?.trim() || null,
       format: fields.format?.trim() || null,
       ...(fields.timeline ? { timeline: fields.timeline } : {}),
+      // Both, while `timeline` is still on its way out. The two are derived
+      // from one answer here, so they cannot disagree — and when timeline goes,
+      // only this line does.
+      ...(fields.timeline ? { schedule_shape: shapeForTimeline(fields.timeline) } : {}),
+      // All five or none: the database checks the rule as a whole, so a
+      // recurrence without its weekdays and end date is rejected outright.
+      ...(fields.recurrence ?? {}),
+      ...(fields.roundLengthWeeks ? { round_length_weeks: fields.roundLengthWeeks } : {}),
       owner_id: auth.user.id,
     })
     .select('*')
     .single();
   if (error) throw error;
-  return data as Pack;
+
+  const pack = data as Pack;
+
+  // A trigger has already given it day one, undated. THE DATE GOES THERE, not
+  // on the pack: since 20260821050000 the pack's own starts_on / starts_at are
+  // a cache the database recomputes from the segments, so a date written to the
+  // pack would show in the document, be missing from every form that reads the
+  // day, and vanish the first time anything touched a segment.
+  const [first] = await getSegments(pack.id);
+  if (first && (fields.startsOn || fields.startsAt)) {
+    await updateSegment(first.id, {
+      ...(fields.startsOn ? { starts_on: fields.startsOn } : {}),
+      ...(fields.startsAt ? { starts_at: fields.startsAt } : {}),
+    });
+  }
+
+  const league = fields.timeline === 'league';
+
+  // ── The rest of the days, or the rest of the rounds ──────────────────────
+  //
+  // Sequentially, not in parallel: each one is placed relative to the one
+  // before it, and `(pack_id, ordinal)` is unique — concurrent inserts would
+  // race for the same number.
+  const wanted = league ? Math.max(1, fields.rounds ?? 1) : Math.max(1, fields.days ?? 1);
+  let previous = (await getSegments(pack.id))[0] ?? null;
+  for (let i = 1; i < wanted; i++) {
+    previous = await addSegment(pack.id, previous, league ? 'periods' : 'days');
+  }
+
+  // A league's rounds are all the same length and run end to end, so their
+  // dates are laid out rather than carried forward one from another.
+  if (league) {
+    await syncLeagueDates(
+      await getSegments(pack.id),
+      fields.startsOn ?? null,
+      fields.roundLengthWeeks ?? 1,
+    );
+  }
+
+  // EVERY DAY GETS THE TIMETABLE, which is the point of asking for it once.
+  // Written per segment rather than left to the bridge trigger's default,
+  // because that trigger puts everything on day one.
+  if (!league && fields.schedule?.length) {
+    for (const segment of await getSegments(pack.id)) {
+      await insertSchedule(pack.id, fields.schedule, segment.id);
+    }
+  }
+
+  return pack;
+}
+
+/**
+ * The layout half of the old `timeline` answer.
+ *
+ * One-day and multi-day are both `days` and differ only in how many segments
+ * there are; a league is the one that is a different shape. Kept as a function
+ * rather than inlined because the create flow and Event Basics both map the
+ * same three choices, and two copies would eventually disagree.
+ */
+export function shapeForTimeline(timeline: PackTimeline): ScheduleShape {
+  return timeline === 'league' ? 'periods' : 'days';
 }
 
 /**
@@ -412,8 +692,14 @@ export interface PublicPack {
   pack?: Pack;
   game?: GameOption | null;
   venue?: LocationOption | null;
+  /** The club running it. Name and icon only — a credit line, not a directory entry. */
+  host?: { id: string; name: string; icon: string | null } | null;
   categories?: PackCategoryRow[];
+  /** The days or periods the schedule hangs off. See ScheduleSegment. */
+  segments?: ScheduleSegment[];
   schedule?: ScheduleItem[];
+  /** The creator's display name, for the byline when no club is hosting. */
+  creator?: { name: string | null } | null;
 }
 
 /**
@@ -435,6 +721,79 @@ export async function getPublicPack(slug: string): Promise<PublicPack> {
     return data as PublicPack;
   } catch {
     return { state: 'unknown' };
+  }
+}
+
+/**
+ * Record that the signed-in reader has added this event to their calendar.
+ *
+ * SILENT, AND ONE-WAY. Nothing shows the attendee that this happened and
+ * nothing reads it back to them; the row exists so that if the organiser moves
+ * the date or takes the pack down, there is somebody to tell. Their calendar
+ * entry is a copy we cannot reach, and a copy nobody corrects is worse than no
+ * copy at all.
+ *
+ * Sends the SLUG and nothing else. `battlepack_remember_calendar_add` resolves
+ * the pack itself and snapshots its date, so the client neither chooses which
+ * pack is recorded nor what is recorded against it — the same narrow door
+ * `battlepack_by_slug` uses, for the same reason.
+ *
+ * Never throws, and its result is ignored by every caller. It runs after a
+ * button whose actual job — handing the user an event — has already succeeded,
+ * and a signed-out reader is the ordinary case rather than a failure. Losing a
+ * row means one person misses a change email; raising here would break the
+ * button for everyone.
+ */
+export async function rememberCalendarAdd(slug: string): Promise<void> {
+  if (!slug?.trim()) return;
+  try {
+    await supabase.rpc('battlepack_remember_calendar_add', { lookup: slug.trim() });
+  } catch { /* bookkeeping, not the feature */ }
+}
+
+/**
+ * How many people have this pack in their calendar.
+ *
+ * A COUNT, NEVER THE PEOPLE. It exists so the editor can say "this will email
+ * 12 people" before an organiser changes a date — a confirmation that cannot
+ * name a number is a vague warning, and a vague warning gets clicked through.
+ * Who saved an event stays private; see 20260820020000.
+ */
+export async function calendarAudienceSize(packId: string): Promise<number> {
+  return countViaRpc('battlepack_calendar_audience_size', packId);
+}
+
+/**
+ * How many people would be emailed if the pack were published as it stands.
+ *
+ * The narrower question, for the narrower door. Changing a date makes every
+ * held date wrong, so the audience size is the right number to warn with there.
+ * Publishing is different: a pack that was withdrawn, edited and put back only
+ * writes to the people whose date actually moved, which may be none of them —
+ * and warning "this emails 40 people" before something that emails nobody is
+ * how a warning stops being read.
+ */
+export async function pendingNotifyCount(packId: string): Promise<number> {
+  return countViaRpc('battlepack_pending_notify_count', packId);
+}
+
+/**
+ * Both counts, with the same failure rule.
+ *
+ * Zero on any failure — the same answer as "nobody yet", and deliberately so.
+ * A failed count must not put a modal in front of an organiser claiming emails
+ * will go out when we do not know that they will; the cost of the other
+ * direction is a warning that did not appear, which is the cost of not having
+ * built this at all.
+ */
+async function countViaRpc(fn: string, packId: string): Promise<number> {
+  if (!packId) return 0;
+  try {
+    const { data, error } = await supabase.rpc(fn, { pack: packId });
+    if (error) return 0;
+    return typeof data === 'number' ? data : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -528,6 +887,193 @@ export async function saveCategoryContent(
 
 // ── Schedule ─────────────────────────────────────────────────────────────────
 
+/**
+ * The pack's days or periods, in order.
+ *
+ * By `ordinal`, never by date. A segment may have no date yet — a pack is
+ * publishable before its dates are agreed — and day two still has to follow
+ * day one.
+ */
+export async function getSegments(packId: string): Promise<ScheduleSegment[]> {
+  const { data, error } = await supabase
+    .from('battlepack_schedule_segments')
+    .select('*')
+    .eq('pack_id', packId)
+    .order('ordinal');
+  if (error) throw error;
+  return (data ?? []) as ScheduleSegment[];
+}
+
+/**
+ * Split a pack's items across its segments, in segment order.
+ *
+ * Returned as pairs rather than a lookup because the caller always wants both
+ * halves together: the segment supplies the clock the items are timed against,
+ * and an empty segment is still a day that has to be drawn.
+ *
+ * An item whose segment is missing from the list is dropped rather than shown
+ * under the wrong day — the database makes that impossible (segment_id is NOT
+ * NULL with a foreign key), and silently reassigning it would be worse than
+ * losing it.
+ */
+export function groupBySegment(
+  segments: ScheduleSegment[],
+  items: ScheduleItem[],
+): { segment: ScheduleSegment; items: ScheduleItem[] }[] {
+  return [...segments]
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .map(segment => ({
+      segment,
+      items: items
+        .filter(i => i.segment_id === segment.id)
+        .sort((a, b) => a.ordinal - b.ordinal),
+    }));
+}
+
+/**
+ * Change one day's dates, times or label.
+ *
+ * THE PACK'S OWN starts_on / ends_on / starts_at ARE NOT WRITABLE ANY MORE.
+ * They are a cache the database recomputes from the segments — writing to them
+ * would be undone by the next sync, and silently. This is where a date changes.
+ *
+ * A trigger notifies everyone holding a calendar entry, so the caller is
+ * expected to have asked first; see PackEditor.
+ */
+export async function updateSegment(
+  segmentId: string,
+  patch: Partial<Pick<ScheduleSegment, 'starts_on' | 'ends_on' | 'starts_at' | 'ends_at' | 'label'>>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('battlepack_schedule_segments')
+    .update(patch)
+    .eq('id', segmentId);
+  if (error) throw error;
+}
+
+/**
+ * Add a day to the end of the event.
+ *
+ * Dated the day after the last one that has a date, because consecutive is what
+ * "add a day" means to a tournament organiser far more often than not — and a
+ * date they have to correct is less work than a date they have to invent. Times
+ * are copied from the previous day for the same reason.
+ *
+ * Returns the new segment so the caller can select it: adding a day and then
+ * having to find it would be two steps where the organiser meant one.
+ */
+export async function addSegment(
+  packId: string,
+  after: ScheduleSegment | null,
+  shape: ScheduleShape = 'days',
+  kind: SegmentKind = 'round',
+): Promise<ScheduleSegment> {
+  const nextDay = (iso: string | null): string | null => {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + 1));
+    return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  const shiftDays = (iso: string | null, by: number): string | null => {
+    if (!iso) return null;
+    let out = iso;
+    for (let i = 0; i < by; i++) out = nextDay(out)!;
+    return out;
+  };
+
+  // A DAY follows the day before it.
+  //
+  // A LEAGUE SEGMENT GETS NO DATES HERE, which is the difference from how this
+  // worked before rounds became uniform. Where it lands is not a property of
+  // the one in front of it any more — it depends on the round length, on every
+  // Event ahead of it, and on the league's own start. `syncLeagueDates` lays
+  // the whole sequence out afterwards, and picking a date here would only be a
+  // guess for it to overwrite.
+  const previousEnd = after?.ends_on ?? after?.starts_on ?? null;
+  const startsOn = shape === 'periods'
+    ? (kind === 'event' ? nextDay(previousEnd) : null)
+    : nextDay(after?.starts_on ?? null);
+  const endsOn = shape === 'periods'
+    ? (kind === 'event' ? shiftDays(nextDay(previousEnd), 6) : null)
+    : null;
+
+  const { data, error } = await supabase
+    .from('battlepack_schedule_segments')
+    .insert({
+      pack_id:   packId,
+      ordinal:   (after?.ordinal ?? 0) + 1,
+      starts_on: startsOn,
+      ends_on:   endsOn,
+      // A league keeps no clock, so a period never carries one forward.
+      starts_at: shape === 'periods' ? null : after?.starts_at ?? null,
+      ends_at:   shape === 'periods' ? null : after?.ends_at ?? null,
+      kind,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as ScheduleSegment;
+}
+
+/**
+ * Remove a day, and everything scheduled inside it.
+ *
+ * The rounds go with it — the foreign key cascades — which is why the caller
+ * asks first when the day has any. There is no way back: unlike hiding a
+ * category, this does not keep what was written.
+ */
+/**
+ * Re-date a league's rounds, and write only what moved.
+ *
+ * Called after ANYTHING that can shift the sequence: the league's start date,
+ * the round length, adding or removing a round, moving one, or editing an
+ * Event's dates. The layout itself is in [leagues.ts](leagues.ts) — this is the
+ * half that talks to the database.
+ *
+ * Returns the segments as they now are, so a caller can render without a second
+ * round trip. The pack's own `ends_on` is NOT written here: it is a cache the
+ * envelope trigger recomputes from these rows, so the league's end date follows
+ * from the last round moving, which is exactly what "dynamically update the end
+ * date" means.
+ */
+export async function syncLeagueDates(
+  segments: ScheduleSegment[],
+  startsOn: string | null,
+  roundLengthWeeks: number,
+): Promise<ScheduleSegment[]> {
+  const moves = layOutLeague(segments, startsOn, roundLengthWeeks);
+  if (moves.length === 0) return segments;
+
+  // One at a time rather than an upsert: an upsert would need every column of
+  // every row, and sending a full segment back is how a stale copy overwrites
+  // something else's edit.
+  await Promise.all(moves.map(m =>
+    supabase
+      .from('battlepack_schedule_segments')
+      .update({ starts_on: m.starts_on, ends_on: m.ends_on })
+      .eq('id', m.id)
+      .then(({ error }) => { if (error) throw error; }),
+  ));
+
+  return withLeagueDates(segments, startsOn, roundLengthWeeks);
+}
+
+export async function deleteSegment(segmentId: string): Promise<void> {
+  const { error } = await supabase
+    .from('battlepack_schedule_segments')
+    .delete()
+    .eq('id', segmentId);
+  if (error) throw error;
+}
+
+/** Renumber days after one is removed, so the sequence has no holes. */
+export async function reorderSegments(segments: ScheduleSegment[]): Promise<void> {
+  await Promise.all(segments.map((s, i) =>
+    supabase.from('battlepack_schedule_segments').update({ ordinal: i + 1 }).eq('id', s.id),
+  ));
+}
+
 export async function getSchedule(packId: string): Promise<ScheduleItem[]> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
@@ -545,11 +1091,15 @@ export async function addScheduleItem(
   ordinal: number,
   label?: string,
   durationMinutes?: number,
+  segmentId?: string,
 ): Promise<ScheduleItem> {
   const { data, error } = await supabase
     .from('battlepack_schedule_items')
     .insert({
       pack_id: packId,
+      // Omitted means the pack's first day, which a database trigger fills in
+      // (20260821010000). Named explicitly once the editor knows which day.
+      ...(segmentId ? { segment_id: segmentId } : {}),
       kind,
       ordinal,
       label: label ?? null,
@@ -595,9 +1145,9 @@ export interface RoundDefaults {
  * Returned rather than written so the caller can show the day before committing
  * to it, and so this can be checked without a database.
  */
-export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' | 'pack_id'>[] {
+export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[] {
   const { rounds, roundMinutes, breakMinutes } = defaults;
-  const items: Omit<ScheduleItem, 'id' | 'pack_id'>[] = [];
+  const items: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[] = [];
 
   for (let i = 0; i < rounds; i++) {
     items.push({
@@ -623,12 +1173,20 @@ export function buildSchedule(defaults: RoundDefaults): Omit<ScheduleItem, 'id' 
 /** Write a generated day to a pack. Used by the create flow's round defaults. */
 export async function insertSchedule(
   packId: string,
-  items: Omit<ScheduleItem, 'id' | 'pack_id'>[],
+  items: Omit<ScheduleItem, 'id' | 'pack_id' | 'segment_id'>[],
+  segmentId?: string,
 ): Promise<void> {
   if (items.length === 0) return;
+  // Omitted leaves it to the bridge trigger, which puts everything on day one.
+  // That is right for a single-day pack and wrong for every other day of a
+  // multi-day one, which is why the day is named when there is more than one.
   const { error } = await supabase
     .from('battlepack_schedule_items')
-    .insert(items.map(i => ({ ...i, pack_id: packId })));
+    .insert(items.map(i => ({
+      ...i,
+      pack_id: packId,
+      ...(segmentId ? { segment_id: segmentId } : {}),
+    })));
   if (error) throw error;
 }
 

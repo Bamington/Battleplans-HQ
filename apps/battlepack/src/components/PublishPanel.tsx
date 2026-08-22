@@ -24,14 +24,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Badge, Button, Callout, CheckCircle, Checkbox, DangerCircle, PanelSection, Input, Select, Rocket,
+  Badge, Button, Callout, CheckCircle, Checkbox, DangerCircle, ExternalLink, PanelSection,
+  Input, Select, Rocket,
 } from '@battleplans/ui';
 import {
-  NO_BLOCK, listStoreTables, locationUsesBattlePlan, packBlockDates,
+  NO_BLOCK, listStoreTables, locationUsesBattlePlan, packBlockWhen,
   readSelection, syncPackBlocks,
 } from '../lib/tableBlocks';
 import type { BlockSelection, BlockTableScope, StoreTableOption } from '../lib/tableBlocks';
 import { isSlugAvailable, suggestSlugs } from '../lib/packs';
+import { recurrencePattern } from '../lib/recurrence';
 import type { Pack } from '../lib/packs';
 import type { CategoryDefinition } from '../registry/categories';
 
@@ -57,8 +59,19 @@ function formatBlockDate(iso: string): string {
   return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 
-/** Where a published pack lives once it is published. */
+/**
+ * Where a published pack lives once it is published.
+ *
+ * Hard-coded, and NOT window.location.origin. This is the address an organiser
+ * copies into a Facebook post — it has to be the canonical one even when the
+ * editor is being used on a preview deployment, whose hostname stops resolving
+ * the moment that deployment ages out.
+ */
 const SITE = 'battlepack.app';
+const publicUrl = (slug: string) => `https://${SITE}/${slug}`;
+
+/** How long the URL says "Copied" before going back to saying the URL. */
+const COPIED_MS = 1600;
 
 const PublishPanel = ({
   pack, venueName, outstanding, onSelectCategory, onPublish, onUnpublish,
@@ -75,6 +88,7 @@ const PublishPanel = ({
   const [avail, setAvail]       = useState<Availability>('idle');
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<'idle' | 'done' | 'error'>('idle');
 
   // ── Table holding ──────────────────────────────────────────────────────────
   const [usesBattlePlan, setUsesBattlePlan] = useState(false);
@@ -83,9 +97,31 @@ const PublishPanel = ({
   const [blockState, setBlockState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [blockBusy, setBlockBusy]   = useState(false);
 
-  // The date a block would land on. One today; packBlockDates is where
-  // multi-day and recurring events will change this without touching the panel.
-  const blockDate = packBlockDates(pack)[0] ?? null;
+  /**
+   * WHEN the hold lands, said the way the pack actually runs.
+   *
+   * One date for a one-day event, a range for a tournament across a weekend,
+   * and the repeat pattern for a series — because a checkbox promising to hold
+   * tables "on 11/07/2026" for something that runs every Friday until December
+   * would be describing a fraction of what it does.
+   *
+   * Null means nothing can be held: no start date, or a league, which holds
+   * nothing by design.
+   */
+  const blockWhen = (() => {
+    const rules = packBlockWhen(pack);
+    if (rules.length === 0) return null;
+    const repeat = recurrencePattern(pack);
+    if (repeat) {
+      return pack.until_date
+        ? `${repeat.toLowerCase()} until ${formatBlockDate(pack.until_date)}`
+        : repeat.toLowerCase();
+    }
+    const days = rules.map(r => r.date);
+    return days.length > 1
+      ? `on ${formatBlockDate(days[0])} – ${formatBlockDate(days[days.length - 1])}`
+      : `on ${formatBlockDate(days[0])}`;
+  })();
 
   useEffect(() => {
     let stale = false;
@@ -131,6 +167,31 @@ const PublishPanel = ({
 
   // Once the pack has a slug it is the only possible value, so stop tracking.
   useEffect(() => { if (pack.slug) setSlug(pack.slug); }, [pack.slug]);
+
+  // The "Copied" label reverts on its own. Cleared on unmount so a panel that
+  // is swapped out mid-flash does not set state on a gone component.
+  useEffect(() => {
+    if (copyState === 'idle') return;
+    const t = setTimeout(() => setCopyState('idle'), COPIED_MS);
+    return () => clearTimeout(t);
+  }, [copyState]);
+
+  /**
+   * Put the public URL on the clipboard.
+   *
+   * Says so when it fails rather than doing nothing visible: the clipboard API
+   * needs a secure context and a permission that a browser can refuse, and a
+   * button that silently does nothing is the worst of the three outcomes.
+   */
+  const copyUrl = async () => {
+    if (!pack.slug) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl(pack.slug));
+      setCopyState('done');
+    } catch {
+      setCopyState('error');
+    }
+  };
 
   // Debounced availability. Advisory — see the note at the top of this file.
   //
@@ -259,9 +320,44 @@ const PublishPanel = ({
           }
         />
 
-        <p className="font-body text-sm text-gray-400 break-all">
-          {SITE}/<span className="text-white">{slug || '…'}</span>
-        </p>
+        {/* Before publishing this is a PREVIEW of an address that does not
+            resolve yet, so it stays plain text — offering to copy or open a
+            URL that 404s would be offering a broken link. Once the pack is
+            live the same line becomes the two things an organiser actually
+            wants: copy it to paste somewhere, or go and look at it. */}
+        {pack.status === 'published' && pack.slug ? (
+          <div className="flex items-start gap-2">
+            <button
+              type="button"
+              onClick={copyUrl}
+              title="Copy this URL"
+              className="flex-1 min-w-0 text-left font-body text-sm text-gray-400 break-all
+                         hover:text-gray-300 cursor-pointer transition-colors"
+            >
+              {SITE}/<span className="text-white">{pack.slug}</span>
+              {/* The feedback replaces nothing and moves nothing — it is
+                  appended, so the line does not reflow under the cursor at the
+                  moment of the click. */}
+              {copyState === 'done'  && <span className="text-primary-500"> — Copied</span>}
+              {copyState === 'error' && <span className="text-amber-400"> — Could not copy; select it instead</span>}
+            </button>
+
+            <a
+              href={publicUrl(pack.slug)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open the public page in a new tab"
+              aria-label="Open the public page in a new tab"
+              className="shrink-0 mt-0.5 text-gray-400 hover:text-primary-500 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        ) : (
+          <p className="font-body text-sm text-gray-400 break-all">
+            {SITE}/<span className="text-white">{slug || '…'}</span>
+          </p>
+        )}
 
         {suggestions.length > 1 && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -293,10 +389,10 @@ const PublishPanel = ({
           />
 
           <div className="flex flex-col gap-2">
-            {blockDate ? (
+            {blockWhen ? (
               <>
                 <Checkbox
-                  label={`Hold tables at ${venueName ?? 'this venue'} on ${formatBlockDate(blockDate)}`}
+                  label={`Hold tables at ${venueName ?? 'this venue'} ${blockWhen}`}
                   checked={selection.enabled}
                   onChange={e => applySelection({ ...selection, enabled: e.target.checked })}
                   disabled={blockBusy}
@@ -351,8 +447,11 @@ const PublishPanel = ({
               </>
             ) : (
               <p className="font-body text-sm text-gray-500">
-                Set a start date in Event Basics and you can hold the venue's tables
-                for it.
+                {pack.schedule_shape === 'periods'
+                  ? `A league's games are arranged by the players over weeks, so there is
+                     no single day to hold — the venue stays bookable throughout.`
+                  : `Set a start date in Event Basics and you can hold the venue's tables
+                     for it.`}
               </p>
             )}
           </div>

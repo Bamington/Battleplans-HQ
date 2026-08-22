@@ -39,16 +39,21 @@ import {
 } from '../registry/categories';
 import type { CategoryContext, CategoryTab } from '../registry/categories';
 import {
-  getPack, getCategoryRows, getSchedule, updatePack, hideCategory, showCategory,
+  getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
+  listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment, addSegment, deleteSegment,
+  syncLeagueDates,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
-import { categoryBody, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
+import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
+import { describeRecurrence } from '../lib/recurrence';
 // Still needed here, by hasContent() rather than by the document rendering.
 import { readChecklist } from '../components/forms/ChecklistSectionForm';
 import { readFaq } from '../components/forms/FaqSectionForm';
 import PublishPanel from '../components/PublishPanel';
-import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } from '../lib/packs';
+import type {
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem, ScheduleSegment,
+} from '../lib/packs';
 
 /**
  * The left nav's Publish row. Deliberately not a registry key — Publish has no
@@ -57,6 +62,110 @@ import type { GameOption, LocationOption, Pack, PackCategoryRow, ScheduleItem } 
  */
 const PUBLISH_KEY = '__publish__';
 
+/**
+ * Below this, BuilderShell's two asides are drawers rather than columns.
+ *
+ * Kept in sync with the shell's own `lg:` breakpoint by hand — it expresses the
+ * split in Tailwind variants, which cannot be read back from JS. This is
+ * BattlePack's rule and not the shell's: BattleCards keeps its list open while
+ * you pick through cards, whereas a pack category and its form are one thing,
+ * and on a phone showing the list instead of the form means every edit costs
+ * two taps.
+ */
+const DRAWER_MQ = '(max-width: 1023px)';
+const panelsAreDrawers = () =>
+  typeof window !== 'undefined' && window.matchMedia(DRAWER_MQ).matches;
+
+/**
+ * The SEGMENT columns whose change emails everyone holding a calendar entry.
+ *
+ * These are what `battlepack_schedule_signature` hashes, and the two lists have
+ * to say the same thing: the signature decides who is written to, and this
+ * decides who is warned first. A warning that has not kept up is worse than
+ * none, because it teaches an organiser that saving a date is safe right up
+ * until the time it is not.
+ *
+ * A day's `ends_at` is deliberately absent from both — settled with Chris, on
+ * the grounds that people block out the whole day anyway.
+ */
+const NOTIFYING_FIELDS = ['starts_on', 'starts_at'];
+
+/**
+ * The PACK columns whose change emails everyone holding a calendar entry.
+ *
+ * The recurrence rule, all five of it, matching the watch list on
+ * `battlepacks_notify_recurrence` (20260821060000) column for column. Changing
+ * when a series repeats changes dates people already hold, so it goes through
+ * the same stop the segment dates do.
+ *
+ * The database decides which email — a rule that only runs LONGER is an
+ * extension rather than a move — and that judgement is deliberately not
+ * repeated here. This list answers a narrower question: would saving this write
+ * to anybody at all.
+ */
+const NOTIFYING_PACK_FIELDS = [
+  'recurrence', 'interval_weeks', 'days_of_week', 'week_of_month', 'until_date',
+];
+
+/** "1 person" / "4 people" — the sentence reads badly with a bare count. */
+const people = (n: number) => (n === 1 ? '1 person' : `${n} people`);
+
+/** Something that would destroy days, held until the organiser confirms it. */
+interface ConfirmDays {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  run: () => Promise<void>;
+}
+
+/** A change that would email people, held until the organiser confirms it. */
+interface PendingNotify {
+  kind: 'moved' | 'rule' | 'withdrawn';
+  count: number;
+  /** What the event's date becomes. Shown for a move; absent otherwise. */
+  becomes?: string;
+  run: () => Promise<void>;
+}
+
+/**
+ * A day's date line as it WOULD read, given a patch that has not been written.
+ *
+ * The confirmation is the only place this is visible. The date field is
+ * controlled by the segment, which is deliberately not updated until the
+ * organiser confirms — so React restores the input to the old value the moment
+ * the modal goes up, and a dialog that did not name the new date would be
+ * asking "are you sure?" about something no longer on screen.
+ */
+const whenAfterDay = (day: ScheduleSegment, patch: Partial<ScheduleSegment>): string => {
+  const next   = { ...day, ...patch };
+  const starts = formatDate(next.starts_on);
+  const ends   = next.ends_on && next.ends_on !== next.starts_on ? formatDate(next.ends_on) : null;
+  const time   = next.starts_at ? formatTime(next.starts_at) : null;
+  return [starts, ends ? `– ${ends}` : null, time ? `at ${time}` : null]
+    .filter(Boolean).join(' ') || 'no date';
+};
+
+/**
+ * The same, for a patch to the pack row itself — which now means the rule.
+ *
+ * The organiser's full sentence, count and all, because this is the one moment
+ * the count matters most: "6 events, the last on 18/12/2026" is what they are
+ * about to write to other people's diaries.
+ *
+ * The pack's own date columns are a cache a trigger recomputes, so a patch
+ * touching the rule cannot be shown as a date range — `ends_on` will not be
+ * what it says until after the write.
+ */
+const whenAfter = (pack: Pack, patch: Record<string, unknown>): string => {
+  const next = { ...pack, ...patch } as Pack;
+
+  if (next.recurrence === 'none') {
+    const day = formatDate(next.starts_on);
+    return day ? `Happens once, on ${day}` : 'Happens once';
+  }
+  return describeRecurrence(next.starts_on, next) ?? 'A repeating event';
+};
+
 export default function PackEditor() {
   const { packId = '' } = useParams();
   const navigate = useNavigate();
@@ -64,6 +173,9 @@ export default function PackEditor() {
   const [pack,     setPack]     = useState<Pack | null>(null);
   const [rows,     setRows]     = useState<Record<string, PackCategoryRow>>({});
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  // Always at least one — the database guarantees it, so the document never has
+  // to draw a pack with no days.
+  const [segments, setSegments] = useState<ScheduleSegment[]>([]);
   const [games,    setGames]    = useState<GameOption[]>([]);
   const [venues,   setVenues]   = useState<LocationOption[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -81,6 +193,13 @@ export default function PackEditor() {
   // bins appear. Destructive controls should be asked for, not always present.
   const [editingList, setEditingList] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [pendingNotify, setPendingNotify] = useState<PendingNotify | null>(null);
+  // Separate from the modal's own state: the write runs while the modal is
+  // still up, so the button can say it is working rather than the dialog
+  // vanishing into a pause.
+  const [notifying, setNotifying] = useState(false);
+  /** A day-destroying change, held until confirmed. See ConfirmDays. */
+  const [confirmDays, setConfirmDays] = useState<ConfirmDays | null>(null);
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,13 +208,13 @@ export default function PackEditor() {
     let cancelled = false;
     (async () => {
       try {
-        const [p, r, s, g, l] = await Promise.all([
+        const [p, r, s, g, l, sg] = await Promise.all([
           getPack(packId), getCategoryRows(packId), getSchedule(packId),
-          listGames(), listMyLocations(),
+          listGames(), listMyLocations(), getSegments(packId),
         ]);
         if (cancelled) return;
         if (!p) { setError('That pack does not exist, or you cannot open it.'); return; }
-        setPack(p); setRows(r); setSchedule(s); setGames(g); setVenues(l);
+        setPack(p); setRows(r); setSchedule(s); setGames(g); setVenues(l); setSegments(sg);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the pack.');
       } finally {
@@ -111,12 +230,13 @@ export default function PackEditor() {
    * which of its slices changed.
    */
   const reload = useCallback(async () => {
-    const [p, r, s] = await Promise.all([
-      getPack(packId), getCategoryRows(packId), getSchedule(packId),
+    const [p, r, s, sg] = await Promise.all([
+      getPack(packId), getCategoryRows(packId), getSchedule(packId), getSegments(packId),
     ]);
     if (p) setPack(p);
     setRows(r);
     setSchedule(s);
+    setSegments(sg);
   }, [packId]);
 
   const categories = useMemo(
@@ -156,9 +276,21 @@ export default function PackEditor() {
     if (!activeKey && categories.length) setActiveKey(categories[0].key);
   }, [categories, activeKey]);
 
-  const ctx: CategoryContext | null = pack ? { pack, rows, schedule, games, venues } : null;
+  const ctx: CategoryContext | null = pack ? { pack, rows, segments, schedule, games, venues } : null;
   const game  = games.find(g => g.id === pack?.game_id) ?? null;
   const venue = venues.find(v => v.id === pack?.location_id) ?? null;
+  // The host may be a club this user administers but which is not in `venues`
+  // (that list is venues you can run events AT), so it is looked up separately.
+  const [host, setHost] = useState<LocationOption | null>(null);
+  useEffect(() => {
+    const id = pack?.host_location_id;
+    if (!id) { setHost(null); return; }
+    let cancelled = false;
+    listMyClubs()
+      .then(clubs => { if (!cancelled) setHost(clubs.find(c => c.id === id) ?? null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [pack?.host_location_id]);
 
   /**
    * Game artwork comes from the shared maps keyed by slug, with the database
@@ -174,6 +306,13 @@ export default function PackEditor() {
    * The one place selection changes. Switching tab before scrolling matters:
    * the target section is not in the DOM until its tab is showing, so the
    * scroll has to wait a frame for React to commit the tab change.
+   *
+   * ON A PHONE, SELECTING IS ALSO NAVIGATING. The list closes and the form for
+   * what was picked opens in its place — picking a category is a statement of
+   * what you want to edit, and leaving the list up means a second tap on "Edit"
+   * before anything can be typed. At lg+ both panels are always-visible columns
+   * and these flags are ignored by the shell, so the swap is only ever made
+   * when it means something.
    */
   const selectCategory = useCallback((key: string) => {
     const definition = CATEGORY_BY_KEY[key];
@@ -181,7 +320,7 @@ export default function PackEditor() {
 
     setActiveKey(key);
     setActiveTab(definition.tab);
-    setLeftOpen(false);          // below lg the nav is a sheet over the document
+    if (panelsAreDrawers()) { setLeftOpen(false); setRightOpen(true); }
 
     requestAnimationFrame(() => {
       document.getElementById(sectionId(key))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -207,6 +346,170 @@ export default function PackEditor() {
       if (fresh) setPack(fresh);
     }
   }, [packId]);
+
+  /**
+   * The same write, with a stop in front of it when it would email people.
+   *
+   * A published pack's date is not just data once somebody has saved the event:
+   * changing it writes to every one of them (20260820010000). That consequence
+   * is invisible from the form — an organiser nudging a start time by fifteen
+   * minutes has no way of knowing they just wrote to forty people — so it is
+   * made visible before the write rather than reported after it.
+   *
+   * The count is fetched HERE, at the moment of the change, rather than held in
+   * state: the number in the sentence is the number of people about to be
+   * emailed, and one read from ten minutes ago is not that.
+   *
+   * Nothing is written until confirm, which is what makes cancelling free: the
+   * date fields render straight from `pack`, so an unconfirmed pick snaps back
+   * on the next render with nothing to undo.
+   */
+  const savePackFieldsChecked = useCallback(async (patch: Record<string, unknown>) => {
+    // The dates themselves moved to segments; what is left on the pack that can
+    // reach people is the recurrence rule, which decides every date after the
+    // first one.
+    const movesTheEvent = NOTIFYING_PACK_FIELDS.some(f => f in patch);
+    if (!movesTheEvent || pack?.status !== 'published') return savePackFields(patch);
+
+    const count = await calendarAudienceSize(packId);
+    if (count === 0) return savePackFields(patch);
+
+    setPendingNotify({
+      kind: 'rule',
+      count,
+      becomes: pack ? whenAfter(pack, patch) : undefined,
+      run: () => savePackFields(patch),
+    });
+  }, [pack, packId, savePackFields]);
+
+  /**
+   * The write path for a day's dates and times.
+   *
+   * Separate from savePackFields because it writes a different table and is the
+   * one that can email people: `battlepack_schedule_segments` is what the
+   * notification signature is computed from, so a date change here is what
+   * reaches everyone holding a calendar entry.
+   *
+   * NOT optimistic, unlike the pack write. The pack's own date columns are a
+   * cache the database recomputes from this, so guessing the result locally
+   * would mean guessing what a trigger is about to do — a reload is one round
+   * trip and is certain.
+   */
+  const saveSegmentChecked = useCallback(async (patch: Partial<ScheduleSegment>) => {
+    const day = segments[0];
+    if (!day) return;
+
+    const run = async () => {
+      setSaveError(null);
+      try {
+        await updateSegment(day.id, patch);
+        // THE LEAGUE'S START IS DAY ONE'S START, so moving it moves every round
+        // behind it. Here rather than in the form because Event Basics writes
+        // this same segment, and a league whose first round moved while the
+        // rest stayed would be the bug either place forgetting it.
+        if (pack?.schedule_shape === 'periods') {
+          const next = segments.map(sg => (sg.id === day.id ? { ...sg, ...patch } : sg));
+          await syncLeagueDates(next, next[0]?.starts_on ?? null, pack.round_length_weeks || 1);
+        }
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not save that change.');
+      }
+    };
+
+    const movesTheEvent = NOTIFYING_FIELDS.some(f => f in patch);
+    if (!movesTheEvent || pack?.status !== 'published') return run();
+
+    const count = await calendarAudienceSize(packId);
+    // Nobody saved it, so nobody is told, so there is nothing to warn about.
+    // Also the answer when the count itself failed — see calendarAudienceSize.
+    if (count === 0) return run();
+
+    setPendingNotify({ kind: 'moved', count, becomes: whenAfterDay(day, patch), run });
+  }, [segments, pack?.status, pack?.schedule_shape, pack?.round_length_weeks, packId, reload]);
+
+  /**
+   * Change what kind of event this is.
+   *
+   * Several writes, so it lives here rather than in the form: the shape column,
+   * and then whatever has to happen to the days for the answer to be true. A
+   * multi-day event with one day is not multi-day, and a league with clock
+   * times is not a league.
+   *
+   * The only lossy direction is multi-day → one-day, which throws away days and
+   * every round inside them. That one asks first; the rest are reversible by
+   * choosing again.
+   */
+  const changeEventType = useCallback(async (next: PackTimeline) => {
+    if (!pack) return;
+    const days = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+
+    /**
+     * A repeat only survives on a one-day event.
+     *
+     * Cleared as part of the same write rather than left for a constraint to
+     * refuse: only a league is refused by the database, and a repeating
+     * multi-day pack is a state the app has deliberately stopped offering. All
+     * five columns, because the rule is checked as a whole.
+     */
+    const stopRepeating = next !== 'one-day' && pack.recurrence !== 'none';
+    const clearRepeat = stopRepeating
+      ? { recurrence: 'none', interval_weeks: 1, days_of_week: [], week_of_month: null, until_date: null }
+      : {};
+
+    const apply = async () => {
+      setSaveError(null);
+      try {
+        if (next === 'league') {
+          // A league has no clock: players arrange their own games, so a start
+          // time would be a promise nobody made.
+          await Promise.all(days.map(d => updateSegment(d.id, { starts_at: null, ends_at: null })));
+          await updatePack(pack.id, { schedule_shape: 'periods', timeline: 'league', ...clearRepeat } as Partial<Pack>);
+          // Its rounds are all the same length and run end to end, so the dates
+          // it was carrying as days are laid out again as rounds.
+          await syncLeagueDates(days, days[0]?.starts_on ?? null, pack.round_length_weeks || 1);
+        } else if (next === 'multi-day') {
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'multi-day', ...clearRepeat } as Partial<Pack>);
+          // The count is the fact, so becoming multi-day means having a second
+          // day rather than being labelled as though you do.
+          if (days.length < 2) await addSegment(pack.id, days[days.length - 1] ?? null);
+        } else {
+          await Promise.all(days.slice(1).map(d => deleteSegment(d.id)));
+          await updatePack(pack.id, { schedule_shape: 'days', timeline: 'one-day' } as Partial<Pack>);
+        }
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not change the event type.');
+        await reload();
+      }
+    };
+
+    const losing = next === 'one-day' ? days.length - 1 : 0;
+    if (losing > 0) {
+      setConfirmDays({
+        title: `Drop ${losing === 1 ? 'the second day' : `${losing} days`}?`,
+        body: `Becoming a one-day event removes ${losing === 1 ? 'it' : 'them'} and everything scheduled inside. That cannot be undone.`,
+        confirmLabel: 'Make it one day',
+        run: apply,
+      });
+      return;
+    }
+
+    // ASKED, NEVER SILENT. A repeat is not visible from the tile they just
+    // clicked, so switching type would otherwise take a setting away without
+    // anything on screen mentioning it. Same stop the lost days get.
+    if (stopRepeating) {
+      setConfirmDays({
+        title: 'Stop it repeating?',
+        body: `${describeRecurrence(pack.starts_on, pack) ?? 'This event repeats.'} Only a one-day event can repeat, so becoming ${next === 'league' ? 'a league' : 'a multi-day event'} turns that off.`,
+        confirmLabel: 'Change it anyway',
+        run: apply,
+      });
+      return;
+    }
+
+    await apply();
+  }, [pack, segments, reload]);
 
   async function renamePack(next: string) {
     const name = next.trim();
@@ -297,7 +600,7 @@ export default function PackEditor() {
   /** What one category contributes to the document — shared with the public
    *  page at /:slug, so the organiser and the attendee see one document. */
   const bodyFor = (c: typeof categories[number]) =>
-    categoryBody({ category: c, pack, rows, schedule });
+    categoryBody({ category: c, pack, rows, segments, schedule });
 
   /**
    * The tab's sections, with paired ones sharing a row.
@@ -322,6 +625,11 @@ export default function PackEditor() {
             categoryKey={c.key}
             title={c.documentLabel ?? c.label}
             active={c.key === activeKey}
+            /* Tapping the pack is the other way into a category, and the one
+               that needs no aim: you point at the thing you can see is wrong.
+               It runs through selectCategory like the nav does, so on a phone
+               it brings the form up with it. */
+            onSelect={() => selectCategory(c.key)}
           >
             {bodyFor(c)}
           </DocumentSection>
@@ -337,7 +645,15 @@ export default function PackEditor() {
           <DocumentRow key="about+key-info">
             <div className="flex-1 min-w-0">{sections}</div>
             <div className="flex-1 min-w-0">
-              <DocumentSection categoryKey="key-info" title="Key Info">
+              {/* Key Info has no form of its own — every fact in it is typed
+                  into Event Basics, which is where its own empty hint sends
+                  you. So tapping it opens that, rather than being the one
+                  section on the page that does nothing when tapped. */}
+              <DocumentSection
+                categoryKey="key-info"
+                title="Key Info"
+                onSelect={() => selectCategory('event-basics')}
+              >
                 {info.length
                   ? <KeyInfoCard rows={info} />
                   : <EmptySection hint="Set the venue, dates and format in Event Basics." />}
@@ -453,13 +769,20 @@ export default function PackEditor() {
             label="Publish"
             complete={pack.status === 'published'}
             active={activeKey === PUBLISH_KEY}
-            onSelect={() => { setActiveKey(PUBLISH_KEY); setLeftOpen(false); }}
+            /* Same swap as a category — Publish is a row in this list, and a
+               row that closed the list without showing you anything would be
+               the odd one out. Not selectCategory, because it has no registry
+               entry, no tab and no section to scroll to. */
+            onSelect={() => {
+              setActiveKey(PUBLISH_KEY);
+              if (panelsAreDrawers()) { setLeftOpen(false); setRightOpen(true); }
+            }}
           />
         </ListPanel>
       }
 
       center={
-        <main className="flex-1 min-w-0 overflow-y-auto lg:order-2 p-4">
+        <main className="flex-1 min-w-0 overflow-y-auto lg:order-2 p-2 lg:p-4">
           <div className="mx-auto w-full max-w-4xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
             <PackHero
               name={pack.name}
@@ -473,6 +796,11 @@ export default function PackEditor() {
                  uploaded one; otherwise the game's banner stands in. */
               bannerImage={bannerUrl(pack.banner_path)}
               bannerAspect={pack.banner_aspect}
+              /* The host the organiser chose, not an inference from the venue.
+                 A club can run an event at a shop, which the venue field alone
+                 could never say. */
+              clubName={host?.name ?? null}
+              clubIcon={host?.icon ?? null}
               /* The format reads as a second fact about the event, so it sits
                  beside the game in the same muted style rather than competing. */
               subtitle={pack.format}
@@ -523,14 +851,35 @@ export default function PackEditor() {
               venueName={venue?.name}
               outstanding={outstanding}
               onSelectCategory={selectCategory}
-              onPublish={async slug => { await publishPack(pack, slug); await reload(); }}
-              onUnpublish={async () => { await unpublishPack(pack.id); await reload(); }}
+              /* The narrow one. A first publish tells nobody — nobody can have
+                 saved a pack that has never been public. A RE-publish can, if
+                 the date moved while it was down, so the count asked for here
+                 is "who is stale" rather than "who saved it": warning about
+                 forty emails before something that sends none is how a warning
+                 stops being read. */
+              onPublish={async slug => {
+                const publish = async () => { await publishPack(pack, slug); await reload(); };
+                const count = await pendingNotifyCount(pack.id);
+                if (count === 0) return publish();
+                setPendingNotify({ kind: 'moved', count, run: publish });
+              }}
+              /* Same stop as a date change, and a heavier one: taking the event
+                 down writes to EVERYONE who saved it, not just the people whose
+                 date has drifted. */
+              onUnpublish={async () => {
+                const withdraw = async () => { await unpublishPack(pack.id); await reload(); };
+                const count = await calendarAudienceSize(pack.id);
+                if (count === 0) return withdraw();
+                setPendingNotify({ kind: 'withdrawn', count, run: withdraw });
+              }}
             />
           ) : activeDefinition && ctx ? (
             <activeDefinition.Form
               {...ctx}
               categoryKey={activeDefinition.key}
-              onChange={savePackFields}
+              onChange={savePackFieldsChecked}
+              onSegmentChange={saveSegmentChecked}
+              onTypeChange={changeEventType}
               reload={reload}
             />
           ) : (
@@ -562,6 +911,117 @@ export default function PackEditor() {
                 Remove
               </Button>
               <Button variant="outline" color="secondary" onClick={() => setConfirmRemove(null)}>
+                Keep it
+              </Button>
+            </ButtonPair>
+          </div>
+        </Modal>
+
+        {/* The one modal that is not about this pack's contents but about the
+            people reading it. Deliberately states the NUMBER: "attendees will
+            be notified" is a warning an organiser learns to click through,
+            and "12 people" is one they read. */}
+        <Modal
+          open={pendingNotify !== null}
+          onClose={() => (notifying ? undefined : setPendingNotify(null))}
+          className="max-w-sm"
+        >
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">
+              {pendingNotify?.kind === 'withdrawn'
+                ? `Tell ${people(pendingNotify.count)} it is off?`
+                : pendingNotify?.kind === 'rule'
+                  ? `Tell ${people(pendingNotify.count)} when it runs has changed?`
+                  : `Tell ${people(pendingNotify?.count ?? 0)} the date has changed?`}
+            </h2>
+
+            <p className="font-body text-sm text-gray-300">
+              {pendingNotify?.kind === 'withdrawn'
+                ? `${people(pendingNotify.count)} added this event to their own calendar.
+                   Taking it down emails them to say it is not going ahead.`
+                : pendingNotify?.kind === 'rule'
+                  ? `${people(pendingNotify.count)} added this event to their own calendar, and
+                     the repeat they saved is the one you are about to change. Saving
+                     emails them the new pattern and a link to re-add it.`
+                  : `${people(pendingNotify?.count ?? 0)} added this event to their own calendar,
+                     and the date in there is the one you are about to change. Saving
+                     emails them the new date and a link to re-add it.`}
+            </p>
+
+            {/* What they are actually confirming. The date field is controlled
+                by `pack`, which is not written until they say yes, so the input
+                behind this dialog has already snapped back to the old value —
+                without this line the question is about a date no longer on
+                screen. */}
+            {pendingNotify?.becomes && (
+              <div className="rounded-lg bg-gray-900 px-4 py-3">
+                <p className="font-body text-xs uppercase tracking-wide text-gray-500 font-bold">
+                  {pendingNotify?.kind === 'rule' ? 'New schedule' : 'New date'}
+                </p>
+                <p className="font-body font-medium text-base leading-6 text-gray-50">
+                  {pendingNotify.becomes}
+                </p>
+              </div>
+            )}
+
+            {/* Said plainly because organisers assume otherwise: we can write to
+                somebody, we cannot reach into their diary. */}
+            <p className="font-body text-sm text-gray-400">
+              Their calendar entry does not change by itself — the email is all we
+              can do.
+            </p>
+
+            <ButtonPair>
+              <Button
+                color={pendingNotify?.kind === 'withdrawn' ? 'danger' : 'primary'}
+                disabled={notifying}
+                onClick={async () => {
+                  const job = pendingNotify;
+                  if (!job) return;
+                  setNotifying(true);
+                  try { await job.run(); } finally { setNotifying(false); setPendingNotify(null); }
+                }}
+              >
+                {notifying
+                  ? 'Saving…'
+                  : pendingNotify?.kind === 'withdrawn' ? 'Take it down and tell them' : 'Save and tell them'}
+              </Button>
+              <Button
+                variant="outline"
+                color="secondary"
+                disabled={notifying}
+                onClick={() => setPendingNotify(null)}
+              >
+                Cancel
+              </Button>
+            </ButtonPair>
+          </div>
+        </Modal>
+
+        {/* Losing a day is not like hiding a category, which gives its content
+            back. This takes the day and every round inside it, so it is always
+            asked — whether it came from the day list or from becoming a one-day
+            event. */}
+        <Modal
+          open={confirmDays !== null}
+          onClose={() => setConfirmDays(null)}
+          className="max-w-sm"
+        >
+          <div className="flex flex-col gap-4 p-5">
+            <h2 className="font-heading text-xl text-white">{confirmDays?.title}</h2>
+            <p className="font-body text-sm text-gray-300">{confirmDays?.body}</p>
+            <ButtonPair>
+              <Button
+                color="danger"
+                onClick={() => {
+                  const job = confirmDays;
+                  setConfirmDays(null);
+                  if (job) void job.run();
+                }}
+              >
+                {confirmDays?.confirmLabel ?? 'Remove'}
+              </Button>
+              <Button variant="outline" color="secondary" onClick={() => setConfirmDays(null)}>
                 Keep it
               </Button>
             </ButtonPair>

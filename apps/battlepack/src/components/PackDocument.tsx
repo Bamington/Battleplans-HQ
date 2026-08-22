@@ -62,13 +62,23 @@ export interface PackHeroProps {
    * to the 3:1 that pre-ratio banners were cropped to.
    */
   bannerAspect?: number | null;
+  /**
+   * The club running this, when a club is. Shown FIRST in the strip, before the
+   * game — whose event it is tells you more than what is being played, and a
+   * club's regulars recognise their own name before anything else.
+   *
+   * Absent for a shop: a venue is already the address in Key Info, and
+   * repeating it in the strip would say the same thing twice.
+   */
+  clubName?: string | null;
+  clubIcon?: string | null;
   /** Free-form line under the title, e.g. "2000 Points". */
   subtitle?: ReactNode;
   menu?: ReactNode;
 }
 
 export const PackHero = ({
-  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, subtitle, menu,
+  name, gameName, gameIcon, gameImage, gameLogo, bannerImage, bannerAspect, clubName, clubIcon, subtitle, menu,
 }: PackHeroProps) => {
   const custom = !!bannerImage;
   const image  = bannerImage || gameImage;
@@ -105,8 +115,18 @@ export const PackHero = ({
 
       <h1 className="font-heading text-5xl leading-[56px] text-white text-center">{name}</h1>
 
-      {/* One muted strip: icon + game, then any extra facts separated by dashes. */}
-      <div className="flex items-center justify-center gap-2.5 font-body font-bold text-sm leading-5 text-gray-300 opacity-50">
+      {/* One muted strip: the club if there is one, then icon + game, then any
+          extra facts, each separated by a dash. */}
+      <div className="flex items-center justify-center flex-wrap gap-2.5 font-body font-bold text-sm leading-5 text-gray-300 opacity-50">
+        {clubName && (
+          <>
+            <span className="flex items-center gap-1">
+              {clubIcon && <img src={clubIcon} alt="" className="w-[22px] h-[22px] rounded object-cover" />}
+              {clubName}
+            </span>
+            <span>-</span>
+          </>
+        )}
         <span className="flex items-center gap-1">
           {gameIcon && <img src={gameIcon} alt="" className="w-[22px] h-[22px] rounded object-cover" />}
           {gameName}
@@ -222,12 +242,33 @@ export interface DocumentSectionProps {
   title: string;
   /** Highlights the section the left nav currently has selected. */
   active?: boolean;
+  /**
+   * Editing this section, when the reader is allowed to. The editor passes it;
+   * the public page does not, which is what keeps an attendee's copy inert.
+   */
+  onSelect?: () => void;
   children?: ReactNode;
 }
 
-export const DocumentSection = ({ categoryKey, title, active, children }: DocumentSectionProps) => (
+/**
+ * Should this click select the section, or was it meant for something inside it?
+ *
+ * A section is not a button — it holds links, link previews and FAQ toggles,
+ * and swallowing their clicks would break the document to make it selectable.
+ * So the handler stands down for anything that is itself interactive, and for a
+ * click that finished a text selection, which is how somebody copies a round
+ * time out of the page.
+ */
+const isPlainSectionClick = (target: EventTarget | null) => {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('a, button, input, textarea, select, summary, [role="button"]')) return false;
+  return !window.getSelection()?.toString();
+};
+
+export const DocumentSection = ({ categoryKey, title, active, onSelect, children }: DocumentSectionProps) => (
   <section
     id={sectionId(categoryKey)}
+    onClick={onSelect ? e => { if (isPlainSectionClick(e.target)) onSelect(); } : undefined}
     /* scroll-mt keeps the heading clear of the chrome when the nav scrolls to
        it, rather than jamming it against the top edge.
 
@@ -237,7 +278,7 @@ export const DocumentSection = ({ categoryKey, title, active, children }: Docume
        inactive, so selecting a section cannot shift the layout by 2px. */
     className={`scroll-mt-6 rounded-lg transition-colors -mx-2 px-2 py-1 border border-dashed ${
       active ? 'border-primary-500' : 'border-transparent'
-    }`}
+    } ${onSelect ? 'cursor-pointer' : ''}`}
   >
     {/* Tanker 24/32 in gray-300, sentence case — not the uppercase treatment
         the left nav and panel headers use. mb-1 is the 4px the headings were
@@ -266,8 +307,14 @@ export interface KeyInfoRow {
  *
  * Flush gray-900 rows in a rounded, clipped container — no gaps and no card
  * border, so the block reads as one table rather than a stack of cards.
+ *
+ * `footer` is one more row, and it exists for things that are not facts: the
+ * public page ends the card with "Add to Calendar". It is a slot rather than
+ * another KeyInfoRow because those are read-backs of the pack and this is
+ * something to press — the caller owns what it does, and the editor passes
+ * nothing.
  */
-export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
+export const KeyInfoCard = ({ rows, footer }: { rows: KeyInfoRow[]; footer?: ReactNode }) => (
   <div className="w-full flex flex-col rounded-xl overflow-hidden">
     {rows.map((row, i) => (
       <div key={i} className="w-full flex items-center gap-2 bg-gray-900 px-4 py-3">
@@ -277,6 +324,7 @@ export const KeyInfoCard = ({ rows }: { rows: KeyInfoRow[] }) => (
         </p>
       </div>
     ))}
+    {footer}
   </div>
 );
 
@@ -365,17 +413,26 @@ export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
             {String(row.ordinal).padStart(2, '0')}
           </span>
 
-          <span className={`flex-1 min-w-0 font-body text-base leading-6 truncate ${style.label}`}>
-            {row.label}
-          </span>
-
-          {row.time && (
-            <span
-              className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] text-right ${style.time}`}
-            >
-              {row.time}
+          {/* THE LABEL AND THE TIME SHARE A COLUMN ON A PHONE. Side by side,
+              the time is fixed-width and the label takes what is left — which
+              at 375px is nothing, so every row read "R…  10:15 AM - 12:15 PM"
+              and the one thing a timetable is for was the part that got cut.
+              Stacked, the label gets the full width and the time sits under it.
+              At sm+ there is room for both, so it goes back to one line with
+              the time pushed right by ml-auto. */}
+          <span className="flex-1 min-w-0 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className={`min-w-0 font-body text-base leading-6 sm:truncate ${style.label}`}>
+              {row.label}
             </span>
-          )}
+
+            {row.time && (
+              <span
+                className={`shrink-0 font-body font-bold text-xs leading-4 uppercase tracking-[1.2px] sm:ml-auto sm:text-right ${style.time}`}
+              >
+                {row.time}
+              </span>
+            )}
+          </span>
         </div>
       );
     })}

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  supabase, Button, Modal, Dropdown, DropdownItem, Input, Select, Checkbox,
+  supabase, Button, Modal, Dropdown, DropdownItem, Input, Checkbox,
   TrashBinMinimalistic, Pen2, ArrowRight,
 } from '@battleplans/ui';
 import { formatBookingTime, formatDateLabel, findImpactedBookings } from '../hooks/useBookingData';
-import type { StoreTable, TableSize, LocationTimeslot, ImpactedSlot } from '../hooks/useBookingData';
+import type { StoreTable, LocationTimeslot, ImpactedSlot } from '../hooks/useBookingData';
 
 // ── Icons / helpers ───────────────────────────────────────────────────────────
 
@@ -16,10 +16,14 @@ const MenuDotsIcon = () => (
   </svg>
 );
 
-const SIZE_LABELS: Record<TableSize, string> = {
-  wargaming: 'Wargaming',
-  tcg:       'TCG',
-};
+/**
+ * Suggestions, not choices.
+ *
+ * The label is free text — a venue can type "Terrain table" or "Painting
+ * bench". These are offered as a datalist so the two the field used to allow
+ * are still one keystroke away, without being the only answers.
+ */
+const LABEL_SUGGESTIONS = ['Wargaming', 'TCG', 'Board games', 'Terrain table', 'Painting bench'];
 
 /** Post-change capacity of each timeslot once `table` stops contributing to it. */
 function capacityAfter(tsIds: string[], table: StoreTable, allTables: StoreTable[]): Record<string, number> {
@@ -142,10 +146,17 @@ export function StoreTableItem({ table, allTables, timeslots, locationId, onEdit
         <div className="flex flex-col flex-1 min-w-0 gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-heading text-lg text-white leading-6">{table.name}</span>
-            <span className="font-body text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-300">
-              {SIZE_LABELS[table.size]}
-            </span>
+            {/* Free text now, so a table with no label just doesn't get a chip
+                rather than being forced into one of two categories. */}
+            {table.label?.trim() && (
+              <span className="font-body text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-300">
+                {table.label}
+              </span>
+            )}
           </div>
+          {table.notes?.trim() && (
+            <span className="font-body text-xs text-neutral-400 leading-4 italic">{table.notes}</span>
+          )}
           <span className="font-body text-xs text-neutral-300 leading-4">
             Available for {table.timeslotIds.length} of {timeslots.length} {timeslots.length === 1 ? 'timeslot' : 'timeslots'}
           </span>
@@ -239,7 +250,8 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
   const isEdit = !!editing;
 
   const [name,        setName]        = useState('');
-  const [size,        setSize]        = useState<TableSize>('wargaming');
+  const [label,       setLabel]       = useState('');
+  const [notes,       setNotes]       = useState('');
   const [enabled,     setEnabled]     = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving,      setSaving]      = useState(false);
@@ -252,12 +264,13 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
     if (!open) return;
     if (editing) {
       setName(editing.name);
-      setSize(editing.size);
+      setLabel(editing.label ?? '');
+      setNotes(editing.notes ?? '');
       setEnabled(editing.enabled);
       setSelectedIds(editing.timeslotIds);
     } else {
       setName(defaultName ?? '');
-      setSize('wargaming');
+      setLabel(''); setNotes('');
       setEnabled(true);
       setSelectedIds(timeslots.map(t => t.id));
     }
@@ -285,7 +298,9 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
 
     if (editing) {
       const { error: updErr } = await supabase.from('store_tables')
-        .update({ name: name.trim(), size, enabled })
+        // `size` deliberately not written. It is a legacy mirror kept only for
+        // the deployed app, defaulted at the database — see 20260817010000.
+        .update({ name: name.trim(), label: label.trim() || null, notes: notes.trim() || null, enabled })
         .eq('id', editing.id);
       if (updErr) { setError(updErr.message); setSaving(false); return; }
       // Reconcile availability by replacing the whole set.
@@ -294,7 +309,9 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
       if (delErr) { setError(delErr.message); setSaving(false); return; }
     } else {
       const { data, error: insErr } = await supabase.from('store_tables')
-        .insert({ location_id: locationId, name: name.trim(), size, enabled })
+        // `size` omitted on purpose — the database defaults it, and it exists
+        // only for the deployed app until it can be dropped.
+        .insert({ location_id: locationId, name: name.trim(), label: label.trim() || null, notes: notes.trim() || null, enabled })
         .select('id').single();
       if (insErr || !data) { setError(insErr?.message ?? 'Failed to create table.'); setSaving(false); return; }
       tableId = data.id as string;
@@ -338,7 +355,7 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
           <div className="flex flex-col gap-1">
             <h2 className="font-heading text-xl text-white">{isEdit ? 'Edit Table' : 'Add Table'}</h2>
             <p className="font-body text-base text-neutral-300">
-              {isEdit ? 'Update this table.' : 'Add a bookable table to this venue.'}
+              {isEdit ? 'Update this table.' : 'Add a bookable table.'}
             </p>
           </div>
 
@@ -350,14 +367,30 @@ export function TableFormModal({ open, onClose, locationId, timeslots, allTables
             onChange={e => setName(e.target.value)}
           />
 
-          <Select
-            label="Size"
-            value={size}
-            onChange={e => setSize(e.target.value as TableSize)}
-          >
-            <option value="wargaming">Wargaming</option>
-            <option value="tcg">TCG</option>
-          </Select>
+          {/* Free text with suggestions rather than a fixed pair. The datalist
+              keeps the two old values one keystroke away without making them
+              the only answers. */}
+          <Input
+            label="Label"
+            type="text"
+            list="table-label-suggestions"
+            placeholder="e.g. Wargaming, Terrain table, Painting bench"
+            helperText="Optional. Shown next to the table's name."
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+          />
+          <datalist id="table-label-suggestions">
+            {LABEL_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+          </datalist>
+
+          <Input
+            label="Notes"
+            type="text"
+            placeholder="e.g. no power socket, wobbly leg"
+            helperText="Only your venue sees this."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
 
           <Checkbox
             color="green"

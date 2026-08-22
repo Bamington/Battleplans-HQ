@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   AdminRoute,
   AltArrowLeft,
+  Badge,
   Button,
+  Checkbox,
+  Select,
   Dropdown,
   DropdownDivider,
   DropdownItem,
@@ -20,15 +23,34 @@ import {
   supabase,
 } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
+import type { LocationKind } from '../../hooks/useBookingData';
 
 type LocationRow = {
   id: string;
   name: string;
-  address: string;
+  /** Null for a club — see locations_address_required_unless_club. */
+  address: string | null;
   icon: string | null;
   store_email: string | null;
   admins: string[] | null;
+  kind: LocationKind;
+  owner_location_id: string | null;
+  /** For a club, the space it meets at — its address. */
+  meets_at_id: string | null;
+  /** Hidden from the public. See the read policies in 20260811030000. */
+  is_test: boolean;
 };
+
+const KIND_OPTIONS = [
+  { value: 'venue', label: 'Venue — a shop, listed publicly' },
+  { value: 'club',  label: 'Club — a group of people, no address' },
+  { value: 'space', label: 'Space — a borrowed room, never public' },
+];
+
+/** A club has no address of its own; everything else must have one. */
+function needsAddress(kind: LocationKind): boolean {
+  return kind !== 'club';
+}
 
 /** Shape returned by the admin_list_users RPC. */
 type UserRow = {
@@ -36,15 +58,37 @@ type UserRow = {
   email: string;
 };
 
+/**
+ * An app a venue can be given.
+ *
+ * Only apps granted to the `store_admin` pseudo-role appear — those are the
+ * ones where a `location_apps` row actually does something. Offering a switch
+ * for BattlePlan or BattleCards would be a control that changes nothing.
+ */
+type StoreApp = {
+  slug: string;
+  name: string;
+};
+
 type LocationFormState = {
   name: string;
-  address: string;    // required — the column is NOT NULL
+  address: string;    // required unless this is a club
   icon: string;       // URL or empty string
   store_email: string;
   admins: string[];   // user ids
+  apps: string[];     // app slugs switched on for this venue
+  kind: LocationKind;
+  /** Required for a space, meaningless otherwise. */
+  owner_location_id: string;
+  /** For a club only. '' = none chosen. */
+  meets_at_id: string;
+  is_test: boolean;
 };
 
-const EMPTY_FORM: LocationFormState = { name: '', address: '', icon: '', store_email: '', admins: [] };
+const EMPTY_FORM: LocationFormState = {
+  name: '', address: '', icon: '', store_email: '', admins: [], apps: [],
+  kind: 'venue', owner_location_id: '', meets_at_id: '', is_test: false,
+};
 
 const BattlePlanLogo = () => (
   <span className="font-heading text-white text-base tracking-wide">BattlePlan</span>
@@ -140,12 +184,166 @@ function IconUpload({ name, value, onChange, disabled }: IconUploadProps) {
   );
 }
 
+// ── Apps switch ─────────────────────────────────────────────────────────────
+
+/**
+ * Which of the platform's apps this venue gets.
+ *
+ * Ticking one is what gives the venue's admins the app in their switcher AND
+ * the matching surfaces inside BattlePlan — the Upcoming Events column for
+ * BattlePack. Both read the same `location_apps` row, so they cannot disagree.
+ *
+ * Renders nothing when no app is granted to store admins, rather than an empty
+ * heading over a blank space.
+ */
+function AppsField({ apps, value, onChange, disabled }: {
+  apps: StoreApp[];
+  value: string[];
+  onChange: (slugs: string[]) => void;
+  disabled?: boolean;
+}) {
+  if (apps.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Apps</p>
+      <div className="flex flex-col gap-2 mt-1">
+        {apps.map(app => (
+          <Checkbox
+            key={app.slug}
+            label={app.name}
+            checked={value.includes(app.slug)}
+            disabled={disabled}
+            onChange={e => onChange(
+              e.target.checked
+                ? [...value, app.slug]
+                : value.filter(s => s !== app.slug),
+            )}
+          />
+        ))}
+      </div>
+      <p className="font-body text-xs text-neutral-600 mt-1">
+        Its admins get the app in their switcher, and see it inside BattlePlan.
+      </p>
+    </div>
+  );
+}
+
+// ── Kind ────────────────────────────────────────────────────────────────────
+
+/**
+ * What this row is, and — for a space — who looks after it.
+ *
+ * A SPACE MUST HAVE AN OWNER. Reading a space is granted either by being in its
+ * own `admins` or by administering its owner; a space with neither is a row
+ * nobody can see, edit or delete. Platform admins are not stopped by the
+ * insert policy the way a venue admin is, so the form is what enforces it here.
+ */
+function KindField({ value, owner, owners, meetsAt, spaces, isTest, onChange, disabled }: {
+  value: LocationKind;
+  owner: string;
+  /** Candidate owners — anything that is not itself a space. */
+  owners: LocationRow[];
+  /** For a club: the space it meets at. */
+  meetsAt: string;
+  /** The rooms this club owns, to choose from. Empty on a club being created. */
+  spaces: LocationRow[];
+  isTest: boolean;
+  onChange: (patch: { kind?: LocationKind; owner_location_id?: string; meets_at_id?: string; is_test?: boolean }) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Kind</p>
+      <div className="flex flex-col gap-3 mt-1">
+        <Select
+          options={KIND_OPTIONS}
+          value={value}
+          onChange={e => onChange({ kind: e.target.value as LocationKind })}
+          disabled={disabled}
+        />
+
+        {value === 'space' && (
+          <SearchSelect
+            placeholder="Choose an owner"
+            searchPlaceholder="Search venues…"
+            helperText="The venue or club that meets here and looks after this room."
+            emptyLabel="No venues match that search."
+            options={owners.map(o => ({ value: o.id, label: o.name }))}
+            value={owner}
+            onChange={id => onChange({ owner_location_id: id })}
+            disabled={disabled}
+          />
+        )}
+
+        {value === 'space' && (
+          <p className="font-body text-xs text-neutral-600">
+            Never appears publicly, and never in a booking or venue picker.
+          </p>
+        )}
+
+        {/* A club's tables and timeslots are its own; this is only the address
+            members turn up to. */}
+        {value === 'club' && (
+          spaces.length > 0 ? (
+            <SearchSelect
+              placeholder="Nowhere set"
+              searchPlaceholder="Search rooms…"
+              helperText="The room this club meets in. Its tables and timeslots stay on the club."
+              emptyLabel="No rooms match that search."
+              options={[
+                { value: '', label: 'Nowhere set' },
+                ...spaces.map(s => ({ value: s.id, label: s.name })),
+              ]}
+              value={meetsAt}
+              onChange={id => onChange({ meets_at_id: id })}
+              disabled={disabled}
+            />
+          ) : (
+            <p className="font-body text-xs text-neutral-600">
+              To set where this club meets, first add a Space owned by it.
+            </p>
+          )
+        )}
+
+        {/* Hides it from the public without deleting it, which is how Test
+            Venue and Burrow Games already work. Kept with Kind because both
+            answer the same question: what this row is for. */}
+        <div className="pt-1">
+          <Checkbox
+            label="For testing"
+            helperText="Hidden from everyone except its own admins and staff. Bookings, tables and events all still work."
+            checked={isTest}
+            disabled={disabled}
+            onChange={e => onChange({ is_test: e.target.checked })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Whether the form can be saved. A space needs an owner on top of the usual
+ * name and address.
+ */
+function formIsValid(f: LocationFormState): boolean {
+  if (!f.name.trim()) return false;
+  // Mirrors locations_address_required_unless_club — saving without this would
+  // be refused by the database rather than by the form.
+  if (needsAddress(f.kind) && !f.address.trim()) return false;
+  if (f.kind === 'space' && !f.owner_location_id) return false;
+  return true;
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 
 function ManageLocationsInner() {
   const navigate = useNavigate();
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [storeApps, setStoreApps] = useState<StoreApp[]>([]);
+  const [appsByLocation, setAppsByLocation] = useState<Map<string, string[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,7 +364,65 @@ function ManageLocationsInner() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => { fetchLocations(); fetchUsers(); }, []);
+  useEffect(() => { fetchLocations(); fetchUsers(); fetchStoreApps(); fetchLocationApps(); }, []);
+
+  /**
+   * The apps a venue can be given: those granted to the 'store_admin'
+   * pseudo-role. Read from the grant table rather than hardcoded, so granting a
+   * second app to store admins makes its switch appear here on its own.
+   */
+  async function fetchStoreApps() {
+    const { data, error } = await supabase
+      .from('platform_app_roles')
+      .select('app_slug, app:platform_apps(slug, name)')
+      .eq('role', 'store_admin');
+    if (error) return;
+    const rows = (data ?? []) as unknown as { app: { slug: string; name: string } | null }[];
+    setStoreApps(
+      rows.map(r => r.app).filter((a): a is StoreApp => !!a)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  }
+
+  /** Which apps each venue currently has, keyed by venue. */
+  async function fetchLocationApps() {
+    const { data, error } = await supabase.from('location_apps').select('location_id, app_slug');
+    if (error) return;
+    const map = new Map<string, string[]>();
+    for (const row of ((data ?? []) as { location_id: string; app_slug: string }[])) {
+      map.set(row.location_id, [...(map.get(row.location_id) ?? []), row.app_slug]);
+    }
+    setAppsByLocation(map);
+  }
+
+  /**
+   * Make a venue's rows match `next`.
+   *
+   * Written as an add/remove diff rather than delete-then-insert: this table is
+   * what decides whether a venue admin can open the app at all, and a failed
+   * insert after a successful delete would quietly take it away from them.
+   */
+  async function syncLocationApps(locationId: string, next: string[]) {
+    const current = appsByLocation.get(locationId) ?? [];
+    const toAdd    = next.filter(s => !current.includes(s));
+    const toRemove = current.filter(s => !next.includes(s));
+
+    if (toAdd.length) {
+      const { error } = await supabase
+        .from('location_apps')
+        .insert(toAdd.map(app_slug => ({ location_id: locationId, app_slug })));
+      if (error) throw error;
+    }
+    if (toRemove.length) {
+      const { error } = await supabase
+        .from('location_apps')
+        .delete()
+        .eq('location_id', locationId)
+        .in('app_slug', toRemove);
+      if (error) throw error;
+    }
+    setAppsByLocation(prev => new Map(prev).set(locationId, next));
+  }
 
   /**
    * Venue admins are picked from the full user list. RLS on user_profiles is
@@ -182,7 +438,9 @@ function ManageLocationsInner() {
     setLoading(true);
     const { data, error } = await supabase
       .from('locations')
-      .select('id, name, address, icon, store_email, admins')
+      // Every kind, unfiltered — this is the one screen where a space is
+      // supposed to be visible.
+      .select('id, name, address, icon, store_email, admins, kind, owner_location_id, meets_at_id, is_test')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -198,21 +456,47 @@ function ManageLocationsInner() {
   }
 
   async function handleAdd() {
-    if (!addForm.name.trim() || !addForm.address.trim()) return;
+    // Same rule the button is disabled by. Two copies of it drifted apart once
+    // already — a club passed formIsValid, enabled the button, and was then
+    // silently dropped here for having no address.
+    if (!formIsValid(addForm)) return;
     setAdding(true);
     setAddError(null);
     const { data, error } = await supabase
       .from('locations')
       .insert({
         name: addForm.name.trim(),
-        address: addForm.address.trim(),
+        // NULL rather than '' for a club. An empty string would satisfy the
+        // database check while still being an address nobody typed.
+        address: needsAddress(addForm.kind) ? addForm.address.trim() : null,
         icon: addForm.icon || null,
         store_email: addForm.store_email.trim() || null,
+        kind: addForm.kind,
+        // An ownerless space is readable by nobody, so it would sit there
+        // unseeable and undeletable. The form requires an owner for a space.
+        owner_location_id: addForm.kind === 'space' ? addForm.owner_location_id : null,
+        is_test: addForm.is_test,
       })
       .select()
       .single();
     if (error) { setAddError(error.message); setAdding(false); return; }
-    setLocations(prev => [...prev, data as LocationRow].sort((a, b) => a.name.localeCompare(b.name)));
+
+    // After the insert, because the rows are keyed by an id that did not exist
+    // until now. The venue is already saved at this point, so a failure here is
+    // reported without discarding it — the switches can be set from Edit.
+    const created = data as LocationRow;
+    if (addForm.apps.length > 0) {
+      try {
+        await syncLocationApps(created.id, addForm.apps);
+      } catch (e) {
+        setAddError(`Location saved, but its apps could not be set: ${(e as Error).message}`);
+        setAdding(false);
+        setLocations(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+        return;
+      }
+    }
+
+    setLocations(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     setAdding(false);
     setAddOpen(false);
   }
@@ -227,26 +511,45 @@ function ManageLocationsInner() {
       icon: loc.icon ?? '',
       store_email: loc.store_email ?? '',
       admins: loc.admins ?? [],
+      apps: appsByLocation.get(loc.id) ?? [],
+      kind: loc.kind,
+      owner_location_id: loc.owner_location_id ?? '',
+      meets_at_id: loc.meets_at_id ?? '',
+      is_test: loc.is_test,
     });
     setEditError(null);
   }
 
   async function handleSaveEdit() {
-    if (!editTarget || !editForm.name.trim() || !editForm.address.trim()) return;
+    if (!editTarget || !formIsValid(editForm)) return;
     setSaving(true);
     setEditError(null);
     const next = {
       name: editForm.name.trim(),
-      address: editForm.address.trim(),
+      address: needsAddress(editForm.kind) ? editForm.address.trim() : null,
       icon: editForm.icon || null,
       store_email: editForm.store_email.trim() || null,
       admins: editForm.admins,
+      kind: editForm.kind,
+      owner_location_id: editForm.kind === 'space' ? editForm.owner_location_id : null,
+      // Clubs only — locations_meets_at_clubs_only refuses it on anything else.
+      meets_at_id: editForm.kind === 'club' ? (editForm.meets_at_id || null) : null,
+      is_test: editForm.is_test,
     };
     const { error } = await supabase
       .from('locations')
       .update(next)
       .eq('id', editTarget.id);
     if (error) { setEditError(error.message); setSaving(false); return; }
+
+    try {
+      await syncLocationApps(editTarget.id, editForm.apps);
+    } catch (e) {
+      setEditError(`Details saved, but the apps could not be updated: ${(e as Error).message}`);
+      setSaving(false);
+      return;
+    }
+
     setLocations(prev =>
       prev.map(l => l.id === editTarget.id ? { ...l, ...next } : l)
           .sort((a, b) => a.name.localeCompare(b.name))
@@ -318,7 +621,23 @@ function ManageLocationsInner() {
                   )}
 
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <p className="font-body text-sm font-medium text-white leading-none">{loc.name}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-body text-sm font-medium text-white leading-none truncate">{loc.name}</p>
+                      {/* Venues are the norm and go unlabelled; anything else is
+                          worth calling out, because a space is invisible
+                          everywhere but this screen. */}
+                      {loc.kind !== 'venue' && (
+                        <Badge variant="outline" color="gray">
+                          {loc.kind === 'space' ? 'Space' : 'Club'}
+                        </Badge>
+                      )}
+                      {/* Worth calling out in warning colour: a test location
+                          looks completely normal to you and is invisible to
+                          everyone else, which is easy to forget. */}
+                      {loc.is_test && (
+                        <Badge variant="outline" color="warning">Test</Badge>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                       {loc.address && (
                         <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
@@ -341,6 +660,21 @@ function ManageLocationsInner() {
                       {!loc.address && !loc.store_email && (!loc.admins || loc.admins.length === 0) && (
                         <span className="font-body text-xs text-neutral-600">No details set</span>
                       )}
+                      {/* A club has no address of its own, so say where it meets
+                          — otherwise its row reads as having no details at all. */}
+                      {loc.kind === 'club' && loc.meets_at_id && (
+                        <span className="flex items-center gap-1 font-body text-xs text-neutral-400 truncate">
+                          <Home className="size-3 shrink-0" />
+                          Meets at {locations.find(l => l.id === loc.meets_at_id)?.name ?? 'a room'}
+                        </span>
+                      )}
+                      {/* Which apps this venue has been given. Rolling it out one
+                          shop at a time only works if the list says who has it. */}
+                      {(appsByLocation.get(loc.id) ?? []).map(slug => (
+                        <Badge key={slug} variant="outline" color="primary">
+                          {storeApps.find(a => a.slug === slug)?.name ?? slug}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
 
@@ -396,7 +730,7 @@ function ManageLocationsInner() {
         <div className="flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-0.5">
             <h2 className="font-heading text-base text-white">Add Location</h2>
-            <p className="font-body text-sm text-neutral-400">Fill in the details for the new venue.</p>
+            <p className="font-body text-sm text-neutral-400">Fill in the details, then choose what kind it is.</p>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -409,6 +743,7 @@ function ManageLocationsInner() {
                 placeholder="e.g. The Dice Den"
                 disabled={adding}
               />
+              {needsAddress(addForm.kind) && (
               <Input
                 label="Address"
                 value={addForm.address}
@@ -416,6 +751,7 @@ function ManageLocationsInner() {
                 placeholder="e.g. 12 Main Street, Werribee VIC"
                 disabled={adding}
               />
+              )}
               <Input
                 label="Store Email"
                 type="email"
@@ -434,13 +770,36 @@ function ManageLocationsInner() {
             disabled={adding}
           />
 
+          <KindField
+            value={addForm.kind}
+            owner={addForm.owner_location_id}
+            owners={locations.filter(l => l.kind !== 'space')}
+            meetsAt={addForm.meets_at_id}
+            // A club being created owns nothing yet, so there is nowhere to
+            // point at — the field explains that rather than showing an empty list.
+            spaces={[]}
+            isTest={addForm.is_test}
+            onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
+            disabled={adding}
+          />
+
+          {/* A space has no staff, no apps and no store email — it is a room. */}
+          {addForm.kind !== 'space' && (
+            <AppsField
+              apps={storeApps}
+              value={addForm.apps}
+              onChange={slugs => setAddForm(f => ({ ...f, apps: slugs }))}
+              disabled={adding}
+            />
+          )}
+
           {addError && <p className="font-body text-sm text-red-400">{addError}</p>}
 
           <div className="flex items-center justify-end gap-3">
             <Button variant="ghost" color="secondary" disabled={adding} onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button color="primary" loading={adding} disabled={!addForm.name.trim() || !addForm.address.trim()} onClick={handleAdd}>
+            <Button color="primary" loading={adding} disabled={!formIsValid(addForm)} onClick={handleAdd}>
               Add Location
             </Button>
           </div>
@@ -465,12 +824,16 @@ function ManageLocationsInner() {
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   disabled={saving}
                 />
-                <Input
-                  label="Address"
-                  value={editForm.address}
-                  onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
-                  disabled={saving}
-                />
+                {/* A club has nowhere of its own — it meets at a space or at
+                    somebody else's shop. */}
+                {needsAddress(editForm.kind) && (
+                  <Input
+                    label="Address"
+                    value={editForm.address}
+                    onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                    disabled={saving}
+                  />
+                )}
                 <Input
                   label="Store Email"
                   type="email"
@@ -505,13 +868,35 @@ function ManageLocationsInner() {
               />
             </div>
 
+            <KindField
+              value={editForm.kind}
+              owner={editForm.owner_location_id}
+              // Never itself, or a space could end up owning itself and become
+              // unreachable through the owner branch.
+              owners={locations.filter(l => l.kind !== 'space' && l.id !== editTarget.id)}
+              meetsAt={editForm.meets_at_id}
+              spaces={locations.filter(l => l.kind === 'space' && l.owner_location_id === editTarget.id)}
+              isTest={editForm.is_test}
+              onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
+              disabled={saving}
+            />
+
+            {editForm.kind !== 'space' && (
+              <AppsField
+                apps={storeApps}
+                value={editForm.apps}
+                onChange={slugs => setEditForm(f => ({ ...f, apps: slugs }))}
+                disabled={saving}
+              />
+            )}
+
             {editError && <p className="font-body text-sm text-red-400">{editError}</p>}
 
             <div className="flex items-center justify-end gap-3">
               <Button variant="ghost" color="secondary" disabled={saving} onClick={() => setEditTarget(null)}>
                 Cancel
               </Button>
-              <Button color="primary" loading={saving} disabled={!editForm.name.trim() || !editForm.address.trim()} onClick={handleSaveEdit}>
+              <Button color="primary" loading={saving} disabled={!formIsValid(editForm)} onClick={handleSaveEdit}>
                 Save
               </Button>
             </div>

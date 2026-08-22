@@ -92,6 +92,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
         const { data: locs } = await supabase
           .from('locations')
           .select('id, name')
+          .neq('kind', 'space')   // never a home venue — see useLocations
           .order('name');
         if (!cancelled && locs) setLocations(locs as WelcomeLocation[]);
       }

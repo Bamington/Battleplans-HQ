@@ -59,6 +59,7 @@ import AddCategoryModal from '../components/AddCategoryModal';
 import PublishPanel from '../components/PublishPanel';
 import LinkPreview from '../components/LinkPreview';
 import CategoryListItem from '../components/CategoryListItem';
+import AddToCalendar from '../components/AddToCalendar';
 import BattlepackListItem from '../components/BattlepackListItem';
 import {
   PackHero, DocumentSection, DocumentRow, EmptySection, KeyInfoCard, ScheduleTable,
@@ -73,9 +74,13 @@ import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
 import { timeSchedule } from '../lib/packs';
+import { leagueLabels, withLeagueDates } from '../lib/leagues';
 import type {
-  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, ScheduleItem,
+  GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack,
+  ScheduleItem, ScheduleKind, ScheduleSegment,
 } from '../lib/packs';
+import { icsForEvents, packCalendarEvents } from '../lib/calendar';
+import { keyInfoRows, periodRange } from '../components/packBody';
 
 // ── Local nav ────────────────────────────────────────────────────────────────
 
@@ -96,6 +101,16 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-titled-list-form',    label: 'Prizes / Resources',   icon: <Star className="w-5 h-5" /> },
   { href: '#nav-link-preview',        label: 'Link Preview',         icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-publish-panel',       label: 'Publish Panel',        icon: <Rocket className="w-5 h-5" /> },
+  { href: '#nav-add-to-calendar',     label: 'Add to Calendar',      icon: <Calendar className="w-5 h-5" /> },
+];
+
+/**
+ * One demo day. Every pack has at least one segment, so a form fixture without
+ * one would be a state the database cannot produce.
+ */
+const DEMO_SEGMENTS: ScheduleSegment[] = [
+  { id: 'sg-1', pack_id: 'demo-pack', ordinal: 1, starts_on: '2026-07-11',
+    ends_on: null, starts_at: '10:00:00', ends_at: '18:15:00', label: null, kind: 'round' },
 ];
 
 // ── Demos ────────────────────────────────────────────────────────────────────
@@ -129,17 +144,35 @@ const CategoryListDemo = () => {
  */
 const EventBasicsFormDemo = () => {
   const [pack, setPack] = useState<Pack>({
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   });
   const [log, setLog] = useState<string[]>([]);
 
+  /**
+   * Days, so the type switch is real rather than described.
+   *
+   * The three variants differ by what they ASK FOR — a league wants an end date
+   * and no clock, a multi-day event labels its times "Day 1" — and a demo that
+   * could not switch between them would show one third of the form.
+   */
+  const [demoSegments, setDemoSegments] = useState<ScheduleSegment[]>([
+    { id: 'd1', pack_id: 'demo', ordinal: 1, starts_on: '2026-07-11',
+      ends_on: null, starts_at: '10:00:00', ends_at: '18:00:00', label: null, kind: 'round' },
+  ]);
+
   const games: GameOption[]     = [{ id: 'g1', name: 'Warhammer 40,000', slug: 'warhammer-40-000', icon: null, image: null }];
+  // The three states a venue's icon can be in, since the picker now shows the
+  // venue's own artwork rather than an identical map pin on every row: an
+  // emoji, nothing at all (falls back to the initial), and a club.
   const venues: LocationOption[] = [
-    { id: 'v1', name: 'Gaming Arena',      address: '2/86 Cottrell Street, Werribee, VIC' },
+    { id: 'v1', name: 'Gaming Arena',       address: '2/86 Cottrell Street, Werribee, VIC', icon: '🎲' },
     { id: 'v2', name: 'Battleground North', address: '14 High Street, Preston, VIC' },
+    { id: 'v3', name: 'Fitzroy Wargamers',  address: null, icon: '⚔️', kind: 'club' },
   ];
 
   return (
@@ -149,6 +182,22 @@ const EventBasicsFormDemo = () => {
           pack={pack}
           rows={{}}
           schedule={[]}
+          segments={demoSegments}
+          onSegmentChange={patch => setDemoSegments(prev => prev.map((d, i) => (i === 0 ? { ...d, ...patch } : d)))}
+          onTypeChange={next => {
+            // The same three moves the editor makes, in memory: a league loses
+            // its clock, a multi-day event gains a second day, one-day drops
+            // back to a single one.
+            setPack(prev => ({ ...prev, timeline: next, schedule_shape: next === 'league' ? 'periods' : 'days' }));
+            setDemoSegments(prev => {
+              if (next === 'league') return prev.map(d => ({ ...d, starts_at: null, ends_at: null }));
+              if (next === 'multi-day' && prev.length < 2) {
+                return [...prev, { ...prev[0], id: 'd2', ordinal: 2, starts_on: '2026-07-12' }];
+              }
+              if (next === 'one-day') return prev.slice(0, 1);
+              return prev;
+            });
+          }}
           games={games}
           venues={venues}
           categoryKey="event-basics"
@@ -169,6 +218,13 @@ const EventBasicsFormDemo = () => {
           would empty the left nav, the document heading and the home row at
           once. Game is deliberately read-only — it is fixed at creation, which
           is what lets game-specific categories resolve exactly once.
+          {' '}
+          Repeats is the exception to save-on-change: a series is rejected by the
+          database until it names a weekday and an end date, so the rule is held
+          here until it is whole — switch it to Weekly and watch the write log
+          stay empty until the end date is picked. The weekday is guessed from
+          the start date, and for a multi-day event it is not a question at all:
+          its days ARE its weekdays.
         </GalleryNote>
 
         {/* The end date is not a field you can toggle in the panel — it depends
@@ -209,21 +265,36 @@ const EventBasicsFormDemo = () => {
  * shows up here as a thrown error rather than silently.
  */
 const RoundsBreaksFormDemo = () => {
+  /**
+   * The form asks for different things depending on the pack's shape — a day
+   * has clock times, a league round has a span of dates — so the demo can be
+   * switched between them rather than showing one and describing the other.
+   */
+  const [shape, setShape] = useState<'days' | 'periods'>('days');
+  // Stateful, so the Round Length control actually re-dates the rounds here
+  // rather than looking like it might.
+  const [roundWeeks, setRoundWeeks] = useState(1);
+
   const pack: Pack = {
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: shape, recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null,
+    round_length_weeks: roundWeeks, created_at: '', updated_at: '',
   };
 
   const [items, setItems] = useState<ScheduleItem[]>([
-    { id: 'a', pack_id: 'demo', ordinal: 0, kind: 'break', label: 'Registration', duration_minutes: 30 },
-    { id: 'b', pack_id: 'demo', ordinal: 1, kind: 'round', label: 'Round 1',      duration_minutes: 30 },
-    { id: 'c', pack_id: 'demo', ordinal: 2, kind: 'break', label: 'Lunch',        duration_minutes: 30 },
-    { id: 'd', pack_id: 'demo', ordinal: 3, kind: 'round', label: 'Round 2',      duration_minutes: 30 },
+    { id: 'a', pack_id: 'demo', segment_id: 'sg-1', ordinal: 0, kind: 'break', label: 'Registration', duration_minutes: 30 },
+    { id: 'b', pack_id: 'demo', segment_id: 'sg-1', ordinal: 1, kind: 'round', label: 'Round 1',      duration_minutes: 30 },
+    { id: 'c', pack_id: 'demo', segment_id: 'sg-1', ordinal: 2, kind: 'break', label: 'Lunch',        duration_minutes: 30 },
+    { id: 'd', pack_id: 'demo', segment_id: 'sg-1', ordinal: 3, kind: 'round', label: 'Round 2',      duration_minutes: 30 },
   ]);
   const [nextId, setNextId] = useState(1);
   const [problem, setProblem] = useState<string | null>(null);
+
+  const [demoDays, setDemoDays] = useState<ScheduleSegment[]>(DEMO_SEGMENTS);
 
   /** Same invariant the database holds, checked in the demo so bugs surface. */
   const assertContiguous = (next: ScheduleItem[]) => {
@@ -236,7 +307,7 @@ const RoundsBreaksFormDemo = () => {
     add: async (_packId, kind, ordinal, label) => {
       const id = `new-${nextId}`;
       setNextId(n => n + 1);
-      setItems(prev => [...prev, { id, pack_id: 'demo', ordinal, kind, label, duration_minutes: kind === 'round' ? 120 : 10 }]);
+      setItems(prev => [...prev, { id, pack_id: 'demo', segment_id: 'sg-1', ordinal, kind, label, duration_minutes: kind === 'round' ? 120 : 10 }]);
     },
     update: async (id, patch) => {
       setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
@@ -249,19 +320,96 @@ const RoundsBreaksFormDemo = () => {
       setItems(renumbered);
       assertContiguous(renumbered);
     },
+    // The day operations run against the same in-memory store, so the demo can
+    // exercise adding and removing days without a session — which is the half
+    // of this form that is hardest to reason about on paper.
+    addDay: async (_packId, after, addShape, addKind = 'round') => {
+      // Mirrors addSegment: a DAY follows the day before it, while a LEAGUE
+      // segment arrives undated and is placed by the layout below — which is
+      // the behaviour worth looking at, since a round's dates are not a
+      // property of the round.
+      const shift = (iso: string | null, by: number): string | null => {
+        if (!iso) return null;
+        const [y, m, d] = iso.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d + by)).toISOString().slice(0, 10);
+      };
+      const asPeriod = addShape === 'periods';
+      const previousEnd = after?.ends_on ?? after?.starts_on ?? null;
+
+      const created: ScheduleSegment = {
+        id: `sg-new-${nextId}`, pack_id: 'demo-pack', ordinal: (after?.ordinal ?? 0) + 1,
+        kind: addKind,
+        // An Event lands behind what precedes it and runs a week; a round waits
+        // for the layout. A tournament day follows the day before it.
+        starts_on: asPeriod
+          ? (addKind === 'event' ? shift(previousEnd, 1) : null)
+          : shift(after?.starts_on ?? null, 1),
+        ends_on: asPeriod && addKind === 'event' ? shift(previousEnd, 7) : null,
+        starts_at: asPeriod ? null : after?.starts_at ?? null,
+        ends_at:   asPeriod ? null : after?.ends_at ?? null,
+        label: null,
+      };
+      setNextId(n => n + 1);
+      setDemoDays(prev => [...prev, created]);
+      return created;
+    },
+    // THE REAL LAYOUT, not a stand-in. It is a pure function of the segments,
+    // so the demo can run the actual one — which is the only way the strip
+    // here shows what the editor would really do.
+    syncLeague: async (segs, startsOn, weeks) => {
+      const laid = withLeagueDates(segs, startsOn, weeks);
+      setDemoDays(laid);
+      return laid;
+    },
+    updateDay: async (id, patch) => {
+      setDemoDays(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
+    },
+    removeDay: async (id) => {
+      setDemoDays(prev => prev.filter(d => d.id !== id));
+      setItems(prev => prev.filter(i => i.segment_id !== id));
+    },
+    reorderDays: async (ordered) => {
+      setDemoDays(ordered.map((d, i) => ({ ...d, ordinal: i + 1 })));
+    },
   };
 
   return (
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant={shape === 'days' ? 'filled' : 'outline'}
+          color={shape === 'days' ? 'primary' : 'secondary'}
+          onClick={() => setShape('days')}
+        >
+          Tournament days
+        </Button>
+        <Button
+          size="sm"
+          variant={shape === 'periods' ? 'filled' : 'outline'}
+          color={shape === 'periods' ? 'primary' : 'secondary'}
+          onClick={() => setShape('periods')}
+        >
+          League rounds
+        </Button>
+      </div>
+
     <div className="w-full flex flex-col gap-3 lg:flex-row">
       <div className="w-full lg:w-72 shrink-0 bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
         <RoundsBreaksForm
           pack={pack}
           rows={{}}
           schedule={items}
+          segments={demoDays}
+          onSegmentChange={() => {}}
+          onTypeChange={() => {}}
           games={[]}
           venues={[]}
           categoryKey="rounds-breaks"
-          onChange={() => {}}
+          onChange={patch => {
+            // The only pack field this form writes is the round length.
+            if (typeof patch.round_length_weeks === 'number') setRoundWeeks(patch.round_length_weeks);
+          }}
           reload={async () => {}}
           ops={ops}
         />
@@ -273,18 +421,47 @@ const RoundsBreaksFormDemo = () => {
             As the document renders it
           </p>
           {/* Times worked out from the pack's start and each length, exactly as
-              the document does it — nothing here reads a stored time. */}
-          <ScheduleTable
-            rows={timeSchedule(items, pack.starts_at).map(i => ({
-              ordinal: i.ordinal,
-              kind: i.kind,
-              label: i.label ?? (i.kind === 'round' ? 'Round' : 'Break'),
-              time: `${i.startsAt.slice(0, 5)} - ${i.endsAt.slice(0, 5)}`,
-            }))}
-          />
+              the document does it — nothing here reads a stored time. A league
+              has no items to time: its rounds ARE the rows, dated rather than
+              clocked, which is why the two shapes read so differently here. */}
+          {shape === 'periods'
+            ? (() => {
+                const ordered = [...demoDays].sort((a, b) => a.ordinal - b.ordinal);
+                // The real labeller, so an Event never takes a round number
+                // here either.
+                const names = leagueLabels(ordered);
+                return <ScheduleTable
+                  rows={ordered.map(seg => ({
+                    ordinal: seg.ordinal,
+                    kind: (seg.kind === 'event' ? 'event' : 'round') as ScheduleKind,
+                    label: names.get(seg.id) ?? 'Round',
+                    time: periodRange(seg),
+                  }))}
+                />;
+              })()
+            : <ScheduleTable
+                rows={timeSchedule(items, pack.starts_at).map(i => ({
+                  ordinal: i.ordinal,
+                  kind: i.kind,
+                  label: i.label ?? (i.kind === 'round' ? 'Round' : 'Break'),
+                  time: `${i.startsAt.slice(0, 5)} - ${i.endsAt.slice(0, 5)}`,
+                }))}
+              />}
         </div>
 
         {problem && <Callout flavour="bad">{problem}</Callout>}
+
+        <GalleryNote>
+          Switch to League rounds and the strip stops being a list of days you
+          date and becomes a sequence that dates itself: rounds run end to end
+          from the league's start, every one the same length, so their dates are
+          shown rather than asked for. Add an Event — a painting week, a launch
+          night — and everything behind it moves, because it occupies that
+          stretch of the calendar; that is what makes a break week expressible.
+          An Event keeps its length wherever it lands, and its own start date
+          only when the rounds have not already run past it. Change the round
+          length and watch the finish date at the top move with it.
+        </GalleryNote>
 
         <GalleryNote>
           Reordering renumbers the whole day in one write rather than shuffling
@@ -296,6 +473,7 @@ const RoundsBreaksFormDemo = () => {
           shouts if it breaks.
         </GalleryNote>
       </div>
+    </div>
     </div>
   );
 };
@@ -378,10 +556,12 @@ const AddCategoryModalDemo = () => {
  */
 const SectionFormDemo = () => {
   const pack: Pack = {
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
     starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   };
 
   const [which, setWhich] = useState('faq');
@@ -429,6 +609,9 @@ const SectionFormDemo = () => {
             pack={pack}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey={which}
@@ -464,10 +647,12 @@ const SectionFormDemo = () => {
 
 /** The stub every list-editor demo below writes against. */
 const DEMO_PACK: Pack = {
-  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null,
+  id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
   starts_on: null, ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
   status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-  timeline: 'one-day', created_at: '', updated_at: '',
+  timeline: 'one-day',
+  schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+  days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
 };
 
 /**
@@ -510,6 +695,9 @@ const ChecklistSectionFormDemo = () => {
             pack={DEMO_PACK}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey="what-to-bring"
@@ -591,6 +779,9 @@ const FaqSectionFormDemo = () => {
             pack={DEMO_PACK}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey="faq"
@@ -698,6 +889,9 @@ const TitledListFormDemo = () => {
             pack={DEMO_PACK}
             rows={rows}
             schedule={[]}
+            segments={DEMO_SEGMENTS}
+            onSegmentChange={() => {}}
+            onTypeChange={() => {}}
             games={[]}
             venues={[]}
             categoryKey={which}
@@ -754,10 +948,12 @@ const PublishPanelDemo = () => {
   const TAKEN = ['july-rtt', 'season-6-league'];
 
   const [pack, setPack] = useState<Pack>({
-    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1',
+    id: 'demo', name: 'July RTT', game_id: 'g1', location_id: 'v1', host_location_id: null,
     starts_on: '2026-06-13', ends_on: null, starts_at: '10:00:00', format: null, description: null, owner_id: 'u1',
     status: 'draft', slug: null, banner_path: null, banner_aspect: null,
-    timeline: 'one-day', created_at: '', updated_at: '',
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
   });
   const [blocked, setBlocked] = useState(true);
 
@@ -810,6 +1006,162 @@ const PublishPanelDemo = () => {
           claims the event is live, because V1 has no public page: publishing
           reserves the URL and nothing more.
         </GalleryNote>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * The three shapes an event can take, each with the file it produces.
+ *
+ * Side by side for the same reason the list-editor demos are: the control is
+ * three rows and a new tab, and everything that can actually be wrong about it
+ * is in the output. A one-day pack with a timetable takes its length from the
+ * rounds; one without falls back to three hours; a pack with no start time is a
+ * day in the diary and must emit `DTSTART;VALUE=DATE` rather than a midnight
+ * appointment.
+ */
+const AddToCalendarDemo = () => {
+  const basePack: Pack = {
+    id: 'demo-pack', name: 'July RTT', game_id: 'g1', location_id: 'v1', host_location_id: null,
+    starts_on: '2026-07-11', ends_on: null, starts_at: '10:00:00',
+    format: '2000 Points, Matched Play', description: null, owner_id: 'u1',
+    status: 'published', slug: 'july-rtt', banner_path: null, banner_aspect: null,
+    timeline: 'one-day',
+    schedule_shape: 'days', recurrence: 'none', interval_weeks: 1,
+    days_of_week: [], week_of_month: null, until_date: null, round_length_weeks: 1, created_at: '', updated_at: '',
+  };
+  const venue: LocationOption = { id: 'v1', name: 'The Gaming Arena', address: '12 Dice Lane, Leeds' };
+  const schedule: ScheduleItem[] = [
+    { id: 's1', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 1, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's2', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 1, kind: 'break', label: 'Lunch', duration_minutes: 45 },
+    { id: 's3', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 2, kind: 'round', label: null, duration_minutes: 150 },
+    { id: 's4', pack_id: 'demo-pack', segment_id: 'sg-1', ordinal: 3, kind: 'round', label: null, duration_minutes: 150 },
+  ];
+
+  const seg = (
+    id: string, ordinal: number, starts_on: string | null,
+    starts_at: string | null, ends_at: string | null,
+    extra: Partial<ScheduleSegment> = {},
+  ): ScheduleSegment =>
+    ({ id, pack_id: 'demo-pack', ordinal, starts_on, ends_on: null, starts_at, ends_at, label: null, kind: 'round', ...extra });
+
+  const CASES: { label: string; note: string; data: PublicPack }[] = [
+    {
+      label: 'One day',
+      note: 'The day’s own start and end — not the sum of its rounds, so adding a round cannot move anybody’s diary entry.',
+      data: {
+        state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule,
+        segments: [seg('sg-1', 1, '2026-07-11', '10:00:00', '18:15:00')],
+      },
+    },
+    {
+      label: 'Two days',
+      note: 'One VEVENT each, in one file. Day two starts earlier than day one — the thing a single pack-level start time could never say.',
+      data: {
+        state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule,
+        segments: [
+          seg('sg-1', 1, '2026-07-11', '10:00:00', '18:15:00'),
+          seg('sg-2', 2, '2026-07-12', '09:00:00', '16:00:00'),
+        ],
+      },
+    },
+    {
+      label: 'No times set',
+      note: 'An all-day marker. DTEND is the day after — every format here treats an all-day end as exclusive.',
+      data: {
+        state: 'published', display_slug: 'july-rtt', pack: basePack, venue, schedule: [],
+        segments: [seg('sg-1', 1, '2026-07-11', null, null)],
+      },
+    },
+    {
+      label: 'Recurring, fortnightly',
+      note: 'One event with an RRULE rather than a row per occurrence. UNTIL is floating to match a floating DTSTART, which is what the spec requires.',
+      data: {
+        state: 'published', display_slug: 'friday-night', venue, schedule: [],
+        pack: {
+          ...basePack, name: 'Friday Night Hobby', slug: 'friday-night',
+          recurrence: 'weekly', interval_weeks: 2,
+          days_of_week: ['Friday'], until_date: '2026-12-18',
+        },
+        segments: [seg('sg-1', 1, '2026-07-10', '18:00:00', '22:00:00')],
+      },
+    },
+    {
+      label: 'Recurring weekender',
+      note: 'EACH DAY REPEATS ON ITS OWN WEEKDAY — Saturday BYDAY=SA, Sunday BYDAY=SU. Handing both days the pack’s whole list instead would put Saturday’s timetable on Sunday as well, turning a fortnightly weekender into four events.',
+      data: {
+        state: 'published', display_slug: 'monthly-weekender', venue, schedule: [],
+        pack: {
+          ...basePack, name: 'Fortnightly Weekender', slug: 'monthly-weekender',
+          recurrence: 'weekly', interval_weeks: 2,
+          days_of_week: ['Saturday', 'Sunday'], until_date: '2026-11-08',
+        },
+        segments: [
+          seg('sg-1', 1, '2026-09-12', '10:00:00', '18:00:00'),
+          seg('sg-2', 2, '2026-09-13', '09:00:00', '17:00:00'),
+        ],
+      },
+    },
+    {
+      label: 'League',
+      note: 'ONE entry spanning the whole thing, with the rounds listed in the description. Six diary entries for a self-organised league is more noise than help.',
+      data: {
+        state: 'published', display_slug: 'summer-league', venue, schedule: [],
+        pack: { ...basePack, name: 'Summer League', slug: 'summer-league', schedule_shape: 'periods' },
+        segments: [
+          seg('sg-1', 1, '2026-07-06', null, null, { ends_on: '2026-07-12', label: 'Round 1' }),
+          seg('sg-2', 2, '2026-07-13', null, null, { ends_on: '2026-07-19', label: 'Round 2' }),
+          seg('sg-3', 3, '2026-07-20', null, null, { ends_on: '2026-07-26', label: 'Break Week' }),
+        ],
+      },
+    },
+  ];
+
+  // The public page's placement: the last row of the Key Info card. Shown
+  // against real fact rows because the whole point of the row variant is that
+  // it lands flush with them, which a demo of the row on its own would not
+  // show.
+  const inCard = CASES[0];
+  const inCardEvents = packCalendarEvents(inCard.data, 'https://battlepack.app');
+
+  return (
+    <div className="w-full flex flex-col gap-8">
+      <div className="w-full max-w-sm flex flex-col gap-2">
+        <p className="font-body font-bold text-sm leading-5 text-gray-50">In the Key Info card (the public page)</p>
+        <p className="font-body text-sm leading-5 text-gray-400">
+          Same geometry as a fact row; the accent label and the hover are what
+          say it can be pressed.
+        </p>
+        {inCardEvents.length > 0 && (
+          <KeyInfoCard
+            rows={keyInfoRows(inCard.data.pack!, inCard.data.venue)}
+            /* No onAdd: the gallery is not a pack page and there is nothing to
+               record. The real page passes rememberCalendarAdd. */
+            footer={<AddToCalendar events={inCardEvents} variant="row" />}
+          />
+        )}
+      </div>
+
+      <div className="w-full flex flex-col gap-6">
+        <p className="font-body font-bold text-sm leading-5 text-gray-50">
+          Standalone button, and the file each event shape produces
+        </p>
+        {CASES.map(({ label, note, data }) => {
+          const events = packCalendarEvents(data, 'https://battlepack.app');
+          return (
+            <div key={label} className="w-full flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-4">
+              <div className="lg:w-72 shrink-0 flex flex-col gap-2">
+                <p className="font-body font-bold text-sm leading-5 text-gray-50">{label}</p>
+                <p className="font-body text-sm leading-5 text-gray-400">{note}</p>
+                {events.length > 0 && <AddToCalendar events={events} className="self-start" />}
+              </div>
+              <pre className="flex-1 min-w-0 font-mono text-xs leading-5 text-gray-400 bg-gray-900 rounded-lg p-3 overflow-x-auto whitespace-pre">
+                {events.length > 0 ? icsForEvents(events) : '(no date — the button is not rendered)'}
+              </pre>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -966,6 +1318,24 @@ const ComponentGallery = () => {
             subtitle="1500 Points"
           />
         </div>
+
+        <GalleryNote>
+          A pack run by a CLUB names it first in the strip, before the game —
+          whose event it is tells a reader more than what is being played. A shop
+          is never named here: it is already the address in Key Info, and saying
+          it twice is just noise.
+        </GalleryNote>
+        <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-lg shadow-md overflow-hidden">
+          <PackHero
+            name="Alternate Fridays"
+            clubName="Fitzroy Wargamers"
+            gameName="Warhammer 40,000"
+            gameIcon={GAME_ICONS['warhammer-40-000']}
+            gameImage={GAME_BANNERS['warhammer-40-000']}
+            gameLogo={GAME_BANNERS['warhammer-40-000']}
+            subtitle="2000 Points"
+          />
+        </div>
       </GallerySection>
 
       <GallerySection id="nav-pack-document" title="Pack Document">
@@ -1086,6 +1456,21 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-publish-panel" title="Publish Panel">
         <PublishPanelDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-add-to-calendar" title="Add to Calendar">
+        <GalleryNote>
+          The button under a published pack's title, and the sheet of
+          destinations behind it. Google and Outlook take the event as a URL and
+          open in a new tab; everyone else gets the .ics, which is the only
+          thing Apple Calendar, desktop Outlook and Android will take. The file
+          each case produces is printed beside the button, because the shape of
+          the event is the part that goes wrong: an all-day pack must emit bare
+          dates rather than a midnight appointment, an end date is EXCLUSIVE in
+          every one of these formats, and no time anywhere carries a zone — a
+          pack stores 10am at the venue, not an instant.
+        </GalleryNote>
+        <AddToCalendarDemo />
       </GallerySection>
 
     </GalleryShell>

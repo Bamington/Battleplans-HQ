@@ -1,0 +1,29 @@
+-- 20260820000100_calendar_add_revoke_anon.sql
+--
+-- Take EXECUTE on battlepack_remember_calendar_add away from anon.
+--
+-- 20260820000000 said anon was not granted execute, and anon had it anyway.
+-- The reason is worth writing down because it will happen again to the next
+-- function: this project's database has ALTER DEFAULT PRIVILEGES granting
+-- EXECUTE on new functions in `public` to anon and authenticated. That grant
+-- lands at CREATE time, as an EXPLICIT grant to the anon role — and
+-- `REVOKE ALL ... FROM public`, which the previous migration did, removes the
+-- PUBLIC pseudo-role's privileges and not that one. So the revoke ran, looked
+-- right, and changed nothing.
+--
+-- Naming anon is the fix. Any migration that means "authenticated only" has to
+-- say so about anon specifically; revoking from PUBLIC is not the same
+-- sentence.
+--
+-- Not a live hole, which is why this is a follow-up and not a hotfix: the
+-- function's first act is to check auth.uid(), so an anonymous caller has only
+-- ever been able to make it return false. It is closed because a write
+-- endpoint reachable without a session is a fact somebody will one day rely on
+-- being false, and because the comment above it should be true.
+--
+-- battlepack_by_slug is deliberately NOT touched. Anon executing that one is
+-- the entire point of the public page.
+--
+-- Idempotent, and purely a privilege change — no schema, no data.
+
+REVOKE ALL ON FUNCTION public.battlepack_remember_calendar_add(text) FROM anon;

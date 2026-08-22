@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { supabase, AppFooter, Select, Pagination, ColumnShell, ColumnHeader, Widget2 } from '@battleplans/ui';
+import { supabase, AppFooter, Select, Pagination, ColumnShell, ColumnHeader, Widget2, COLUMN_ROW } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import { GAME_ICONS } from '../components/gameIcons';
 import { useCollectionStats } from '../hooks/useCollectionStats';
@@ -348,7 +348,7 @@ export default function CollectionStatsPage() {
       <AppNavbar fixed={false} logo={<BattleBenchLogo />} breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'Stats' }]} />
 
       <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
-        <div className="flex flex-1 min-h-0 items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+        <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
           <OverallColumn    models={models} collectionCount={collectionCount} loading={loading} />
           <ByGameColumn     models={models} loading={loading} />
           <HighlightsColumn models={models} loading={loading} />
