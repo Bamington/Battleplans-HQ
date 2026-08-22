@@ -478,6 +478,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-card-forms',            label: 'Card Forms',            icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-addon-forms',           label: 'Addon Forms',           icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-print-mixed',           label: 'Print Mixed Types',     icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-deck-panel-menu',       label: 'Deck Panel Menu',       icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-share-deck-sheet',      label: 'Share Deck Sheet',      icon: <Gallery className="w-5 h-5" /> },
 ];
@@ -2448,6 +2449,32 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-ryg-forms" title="Addon Forms / Repent Ye Foolish Gods">
         <AddonFormHarness forms={RYG_ADDON_FORMS} />
+      </GallerySection>
+
+      <GallerySection id="nav-print-mixed" title="PrintCardGrid / RYG mixed types (A4)">
+        <div className="flex flex-col gap-4 w-full overflow-auto">
+          <Text size="sm" color="secondary">
+            Warriors, a sept and a god all print at 69×95 mm, so they share one
+            set of pages rather than starting a fresh sheet per type. Pages are
+            grouped by slot size; background art and card size stay per-card.
+          </Text>
+          <div className="bg-gray-800 p-6 rounded-lg overflow-auto">
+            <PrintCardGrid
+              gameSlug="ryg"
+              paperSize="a4"
+              printSize={[63, 89]}
+              bleedSize={[69, 95]}
+              excludedIds={new Set()}
+              rygCards={[
+                { id: 'rw1', warriorName: 'Kael the Sworn', type: 'Warrior', sept: 'Ashborn', offense: 4, defense: 3, life: 8, tactics: 2, fate: 3, talents: 'Cleave', talentList: [], specialAbilityDesc: '', weapons: [], armor: [], items: [], spells: [], portrait: null, avatarUrl: null },
+                { id: 'rw2', warriorName: 'Mora Quickstep', type: 'Scout', sept: 'Ashborn', offense: 3, defense: 4, life: 6, tactics: 4, fate: 2, talents: 'Evade', talentList: [], specialAbilityDesc: '', weapons: [], armor: [], items: [], spells: [], portrait: null, avatarUrl: null },
+                { id: 'rw3', warriorName: 'Brenn Ironhand', type: 'Warrior', sept: 'Ashborn', offense: 5, defense: 2, life: 9, tactics: 1, fate: 2, talents: 'Bulwark', talentList: [], specialAbilityDesc: '', weapons: [], armor: [], items: [], spells: [], portrait: null, avatarUrl: null },
+              ]}
+              rygSeptCard={{ id: 'rs1', septName: 'Ashborn', prohibited: 'Necromancy', required: 'Fire rites', restricted: 'Heavy armour', benefits: [{ name: 'Emberblood', description: 'Ignore the first burn each battle.' }], destinyName: 'The Long Ash', destinyDesc: 'Endure to be remembered.', destinyCurse: 'Never rest twice in one place.' }}
+              rygGodCard={{ id: 'rg1', godName: 'Vashk the Unlit', specialAbility: 'Once per battle, reroll a fate die.', minions: 'Cinder rats', servants: 'Ash wardens', lieutenants: 'The Quenched', champions: 'Vessel of Smoke' }}
+            />
+          </div>
+        </div>
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
