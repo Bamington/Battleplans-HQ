@@ -19,6 +19,7 @@ import EditSubnav from '../components/EditSubnav';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import { Dropdown, DropdownItem } from '@battleplans/ui';
 import { Card, CardBody } from '@battleplans/ui';
+import { Select } from '@battleplans/ui';
 import { Magnifer } from '@battleplans/ui';
 import Markdown from 'react-markdown';
 import { AltArrowDown } from '@battleplans/ui';
@@ -28,6 +29,10 @@ import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
 import PlaySessionPrompt from '../components/PlaySessionPrompt';
 import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
+import EnemyCard from '../components/EnemyCard';
+import {
+  useRygEnemies, ENEMY_TYPES, AI_TYPES, type EnemyCardData,
+} from '../hooks/useRygEnemies';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
@@ -269,7 +274,13 @@ const CardBuilderRyg = () => {
   const activeCard = cards.find(c => c.id === activeCardId) ?? cards[0];
 
   // ── Active view ───────────────────────────────────────────────────────────
-  const [activeView, setActiveView] = useState<'warriors' | 'sept' | 'god'>('sept');
+  const [activeView, setActiveView] = useState<'warriors' | 'sept' | 'god' | 'enemy'>('sept');
+
+  // Enemy cards — loaded, edited and saved by their own hook, and always shown
+  // after the warband.
+  const { enemies, addEnemy, updateEnemy, removeEnemy } = useRygEnemies(deckId);
+  const [activeEnemyId, setActiveEnemyId] = useState<string | null>(null);
+  const activeEnemy = enemies.find(e => e.id === activeEnemyId) ?? null;
 
   // ── Play-mode subnav (Units / Rules) ───────────────────────────────────────
   // RYG has no rule cards, but for cross-game consistency the Rules tab lists
@@ -1162,6 +1173,39 @@ const CardBuilderRyg = () => {
                 </>
               );
             })()}
+
+            {/* Enemies — always after the warband, never interleaved. */}
+            {(enemies.length > 0 || appMode === 'edit') && (
+              <h3 className="flex items-center gap-2 px-1 pt-3 pb-1 text-xs font-body font-bold text-gray-500 uppercase tracking-[1.2px]">
+                <span>Enemies</span>
+                <span className="flex-1 h-px bg-gray-700" />
+              </h3>
+            )}
+            {enemies.map(enemy => (
+              <UnitListEntry
+                key={enemy.id}
+                unitName={enemy.name || 'Unnamed Enemy'}
+                unitType={[enemy.enemyType, enemy.aiType && `${enemy.aiType} AI`].filter(Boolean).join(' · ')}
+                avatarSrc={logoRyg}
+                status={enemy.name.trim() ? 'complete' : 'blank'}
+                active={activeView === 'enemy' && enemy.id === activeEnemyId}
+                activated={false}
+                editMode={editMode}
+                onClick={() => { setActiveEnemyId(enemy.id); setActiveView('enemy'); }}
+                onDuplicate={undefined}
+                onDelete={() => { void removeEnemy(enemy.id); if (activeEnemyId === enemy.id) setActiveEnemyId(null); }}
+              />
+            ))}
+            {appMode === 'edit' && !editMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => { const id = addEnemy(); setActiveEnemyId(id); setActiveView('enemy'); }}
+              >
+                <AddCircle className="w-4 h-4" /> Add Enemy
+              </Button>
+            )}
           </nav>
         </ListPanel>
       }
@@ -1214,11 +1258,17 @@ const CardBuilderRyg = () => {
           isMobile={isMobile}
         >
           <CardCarousel
-            items={[{ id: 'sept-card' }, { id: 'god-card' }, ...cards] as { id: string }[]}
-            activeId={activeView === 'sept' ? 'sept-card' : activeView === 'god' ? 'god-card' : activeCardId}
+            items={[{ id: 'sept-card' }, { id: 'god-card' }, ...cards, ...enemies] as { id: string }[]}
+            activeId={
+              activeView === 'sept'  ? 'sept-card'
+              : activeView === 'god' ? 'god-card'
+              : activeView === 'enemy' ? (activeEnemyId ?? '')
+              : activeCardId
+            }
             onActiveChange={id => {
               if (id === 'sept-card')      setActiveView('sept');
               else if (id === 'god-card')  setActiveView('god');
+              else if (enemies.some(e => e.id === id)) { setActiveView('enemy'); setActiveEnemyId(id); }
               else { setActiveView('warriors'); setCardState(s => ({ ...s, activeCardId: id })); }
             }}
             cardWidth={CARD_W}
@@ -1247,6 +1297,27 @@ const CardBuilderRyg = () => {
                   champions={godState.god?.champions}
                 />
               );
+              if ((item as Partial<EnemyCardData>).kind === 'enemy') {
+                const e = item as unknown as EnemyCardData;
+                return (
+                  <EnemyCard
+                    name={e.name || 'Unnamed Enemy'}
+                    enemyType={e.enemyType}
+                    aiType={e.aiType}
+                    offense={e.offense}
+                    defense={e.defense}
+                    life={e.life}
+                    tactics={e.tactics}
+                    fate={e.fate}
+                    abilities={e.abilities.map(a => ({ id: a.addonId, title: a.name, description: a.description }))}
+                    weapons={e.weapons.map(w => ({
+                      id: w.addonId, name: w.name, damage: w.damage,
+                      range: w.range, cost: 0, keywords: w.keywords,
+                    }))}
+                    equipment={e.equipment.map(q => ({ id: q.addonId, name: q.name, description: q.description }))}
+                  />
+                );
+              }
               const card = item as RygCardData;
               const props = cardToProps(card);
               if (appMode === 'play') {
@@ -1374,6 +1445,55 @@ const CardBuilderRyg = () => {
               </div>
             </div>
           </EditorPanel>
+        ) : activeView === 'enemy' ? (
+          activeEnemy ? (
+            <EditorPanel title="Edit Enemy">
+              <div className="flex flex-col gap-5 p-4">
+
+                <Input
+                  label="Name"
+                  value={activeEnemy.name}
+                  onChange={e => updateEnemy(activeEnemy.id, { name: e.target.value })}
+                  placeholder="e.g. Paingiver"
+                />
+
+                {/* The two properties that make an enemy an enemy. Both render
+                    into the card's subtitle as "CHAMPION • DROSS AI". */}
+                <Select
+                  label="Enemy Type"
+                  value={activeEnemy.enemyType}
+                  onChange={e => updateEnemy(activeEnemy.id, { enemyType: e.target.value })}
+                  options={ENEMY_TYPES.map(t => ({ value: t, label: t }))}
+                />
+                <Select
+                  label="AI Type"
+                  value={activeEnemy.aiType}
+                  onChange={e => updateEnemy(activeEnemy.id, { aiType: e.target.value })}
+                  options={AI_TYPES.map(t => ({ value: t, label: t }))}
+                />
+
+                <section className="space-y-3">
+                  <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">Stats</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Counter label="Life"    value={activeEnemy.life}    onChange={v => updateEnemy(activeEnemy.id, { life: v })}    min={0} max={99} />
+                    <Counter label="Offense" value={activeEnemy.offense} onChange={v => updateEnemy(activeEnemy.id, { offense: v })} min={0} max={99} />
+                    <Counter label="Defense" value={activeEnemy.defense} onChange={v => updateEnemy(activeEnemy.id, { defense: v })} min={0} max={99} />
+                    <Counter label="Tactics" value={activeEnemy.tactics} onChange={v => updateEnemy(activeEnemy.id, { tactics: v })} min={0} max={99} />
+                    <Counter label="Fate"    value={activeEnemy.fate}    onChange={v => updateEnemy(activeEnemy.id, { fate: v })}    min={0} max={99} />
+                  </div>
+                </section>
+
+                {/* Attaching abilities, weapons and equipment comes next — the
+                    card renders whatever is already attached in the meantime. */}
+                <section className="space-y-2">
+                  <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">Attached</p>
+                  <p className="font-body text-xs text-gray-500">
+                    {activeEnemy.abilities.length} abilities · {activeEnemy.weapons.length} weapons · {activeEnemy.equipment.length} equipment
+                  </p>
+                </section>
+              </div>
+            </EditorPanel>
+          ) : null
         ) : (
         <EditorPanel title="Edit Warrior">
 
