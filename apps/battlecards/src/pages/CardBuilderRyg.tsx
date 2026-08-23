@@ -11,7 +11,7 @@
  * Route: /app/builder/ryg?deckId=<uuid>
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { ModeToggle, type Mode } from '@battleplans/ui';
@@ -67,7 +67,7 @@ import { CloseCircle } from '@battleplans/ui';
 import { TrashBinMinimalistic } from '@battleplans/ui';
 import { Pen2 } from '@battleplans/ui';
 import { supabase } from '@battleplans/ui';
-import type { Addon, RygWarriorTypeStats, RygTalentStats, RygTalentParamField, RygSpellStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
+import type { Addon, RygWarriorTypeStats, RygTalentStats, RygTalentParamField, RygSpellStats, RygWeaponStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
 import { formatKeywordLabel } from '../lib/cardShape/util';
 // @ts-ignore
 import logoRyg from '../../../../packages/ui/src/assets/games/icons/ryg.png';
@@ -128,6 +128,66 @@ interface LocalItem {
   cost:        number;
   description: string;
 }
+
+/**
+ * One attachment group in the enemy editor — the attached rows plus the button
+ * that opens their picker. A private layout helper for this screen, not a
+ * shared component: it exists so the three groups don't repeat the same markup.
+ */
+function EnemyAttachSection({
+  title, addLabel, secondaryAddLabel, rows, onAdd, onSecondaryAdd, onRemove,
+}: {
+  title:              string;
+  addLabel:           string;
+  secondaryAddLabel?: string;
+  rows:               Array<{ id: string; name: string; sub: string }>;
+  onAdd:              () => void;
+  onSecondaryAdd?:    () => void;
+  onRemove:           (id: string) => void;
+}) {
+  return (
+    <section className="space-y-2">
+      <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">{title}</p>
+
+      {rows.map(row => (
+        <div key={row.id} className="flex items-start gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg">
+          <div className="flex-1 min-w-0">
+            <p className="font-body text-sm font-medium text-gray-200 truncate">{row.name}</p>
+            {row.sub && (
+              <p className="font-body text-xs text-gray-500 truncate">{row.sub}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={`Remove ${row.name}`}
+            onClick={() => onRemove(row.id)}
+            className="shrink-0 text-gray-500 hover:text-red-400 transition-colors"
+          >
+            <CloseCircle className="size-4" />
+          </button>
+        </div>
+      ))}
+
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" leftIcon={<AddCircle className="w-4 h-4" />} onClick={onAdd}>
+          {addLabel}
+        </Button>
+        {secondaryAddLabel && onSecondaryAdd && (
+          <Button variant="outline" size="sm" leftIcon={<AddCircle className="w-4 h-4" />} onClick={onSecondaryAdd}>
+            {secondaryAddLabel}
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Anything the play-mode token engine can hold tokens for. */
+type TokenCard = RygCardData | EnemyCardData;
+
+const isEnemyCard = (c: TokenCard): c is EnemyCardData =>
+  (c as EnemyCardData).kind === 'enemy';
+const isWarrior = (c: TokenCard): c is RygCardData => !isEnemyCard(c);
 
 interface LocalSpell {
   addonId:      string;
@@ -278,9 +338,11 @@ const CardBuilderRyg = () => {
 
   // Enemy cards — loaded, edited and saved by their own hook, and always shown
   // after the warband.
-  const { enemies, addEnemy, updateEnemy, removeEnemy } = useRygEnemies(deckId);
+  const { enemies, addEnemy, updateEnemy, removeEnemy, patchEnemies } = useRygEnemies(deckId);
   const [activeEnemyId, setActiveEnemyId] = useState<string | null>(null);
   const activeEnemy = enemies.find(e => e.id === activeEnemyId) ?? null;
+  /** Which attachment picker is open, if any. */
+  const [enemyPicker, setEnemyPicker] = useState<'ability' | 'weapon' | 'armor' | 'item' | null>(null);
 
   // ── Play-mode subnav (Units / Rules) ───────────────────────────────────────
   // RYG has no rule cards, but for cross-game consistency the Rules tab lists
@@ -316,6 +378,18 @@ const CardBuilderRyg = () => {
     }));
   };
 
+  // ── The board, for the token engine ───────────────────────────────────────
+  // Warriors and enemies are different shapes but both are units that take
+  // damage, so play mode treats them as one list. Each half is written back to
+  // its own state, hence the refs — the engine hands back a combined list.
+
+  const tokenCards: TokenCard[] = useMemo(() => [...cards, ...enemies], [cards, enemies]);
+
+  const cardsRef   = useRef<RygCardData[]>(cards);
+  const enemiesRef = useRef<EnemyCardData[]>(enemies);
+  useEffect(() => { cardsRef.current   = cards;   }, [cards]);
+  useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
+
   // ── Play-mode tokens (shared engine) ──────────────────────────────────────
   // RYG runs its warrior tokens through the same `useDeckTokens` hook as every
   // other game. Every warrior card is token-eligible; `life` backs the
@@ -329,13 +403,25 @@ const CardBuilderRyg = () => {
     isCardActivated,
     turn:    playTurn,
     endGame: handleEndGame,
-  } = useDeckTokens<RygCardData>({
+  } = useDeckTokens<TokenCard>({
     gameSlug:     'ryg',
     deckId,
     inPlayMode:   appMode === 'play',
-    cards,
+    // Warriors and enemies share one engine, so a single play session covers
+    // the whole board. Running two engines would give the deck two sessions
+    // fighting to save over each other.
+    cards:        tokenCards,
     activeCardId,
-    updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
+    // `fn` is a pure list transform, so it can be applied to the combined list
+    // twice and each half kept — which avoids trying to update two independent
+    // pieces of state inside one functional setter.
+    updateCards: fn => {
+      setCardState(prev => ({
+        ...prev,
+        cards: fn([...prev.cards, ...enemiesRef.current]).filter(isWarrior),
+      }));
+      patchEnemies(list => fn([...cardsRef.current, ...list]).filter(isEnemyCard));
+    },
     getTokenState:  c => c.tokenState,
     withTokenState: (c, tokenState) => ({ ...c, tokenState }),
     getCardDbId:    c => c.dbId,
@@ -367,7 +453,9 @@ const CardBuilderRyg = () => {
     setAppMode(next);
   }, [playEntry]);
 
-  const buildTokenOverlayProp = (card: RygCardData) => {
+  // Takes either kind of card — enemies take damage in play mode too, and both
+  // shapes expose `life` and a token state.
+  const buildTokenOverlayProp = (card: TokenCard) => {
     if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
     return {
       definitions: tokenDefinitions,
@@ -931,6 +1019,16 @@ const CardBuilderRyg = () => {
     />
   ), []);
 
+  /** Enemy abilities are a title and a description — no cost, unlike gear. */
+  const EnemyAbilityForm = useCallback((props: Parameters<typeof RygSimpleAddonForm>[0]) => (
+    <RygSimpleAddonForm
+      {...props}
+      namePlaceholder="Ability Name"
+      descPlaceholder="Describe what the ability does…"
+      saveLabel="Save Ability"
+    />
+  ), []);
+
   const TalentForm = useCallback((props: Parameters<typeof RygTalentForm>[0]) => (
     <RygTalentForm {...props} />
   ), []);
@@ -1299,7 +1397,8 @@ const CardBuilderRyg = () => {
               );
               if ((item as Partial<EnemyCardData>).kind === 'enemy') {
                 const e = item as unknown as EnemyCardData;
-                return (
+                const enemyOverlay = buildTokenOverlayProp(e);
+                const enemyCard = (
                   <EnemyCard
                     name={e.name || 'Unnamed Enemy'}
                     enemyType={e.enemyType}
@@ -1316,6 +1415,19 @@ const CardBuilderRyg = () => {
                     }))}
                     equipment={e.equipment.map(q => ({ id: q.addonId, name: q.name, description: q.description }))}
                   />
+                );
+                if (!enemyOverlay) return enemyCard;
+                return (
+                  <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
+                    {enemyCard}
+                    <TokenOverlay
+                      gameSlug="ryg"
+                      tokenDefinitions={enemyOverlay.definitions}
+                      card={enemyOverlay.cardInfo}
+                      tokenState={enemyOverlay.state}
+                      onTokenChange={(defId, val) => handleTokenChangeForCard(e.id, defId, val)}
+                    />
+                  </div>
                 );
               }
               const card = item as RygCardData;
@@ -1483,14 +1595,43 @@ const CardBuilderRyg = () => {
                   </div>
                 </section>
 
-                {/* Attaching abilities, weapons and equipment comes next — the
-                    card renders whatever is already attached in the meantime. */}
-                <section className="space-y-2">
-                  <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">Attached</p>
-                  <p className="font-body text-xs text-gray-500">
-                    {activeEnemy.abilities.length} abilities · {activeEnemy.weapons.length} weapons · {activeEnemy.equipment.length} equipment
-                  </p>
-                </section>
+                {/* Abilities — their own pool, separate from player units. */}
+                <EnemyAttachSection
+                  title="Special Abilities"
+                  addLabel="Add Ability"
+                  rows={activeEnemy.abilities.map(a => ({ id: a.addonId, name: a.name, sub: a.description }))}
+                  onAdd={() => setEnemyPicker('ability')}
+                  onRemove={id => updateEnemy(activeEnemy.id, {
+                    abilities: activeEnemy.abilities.filter(a => a.addonId !== id),
+                  })}
+                />
+
+                <EnemyAttachSection
+                  title="Weapons"
+                  addLabel="Add Weapon"
+                  rows={activeEnemy.weapons.map(w => ({
+                    id: w.addonId, name: w.name,
+                    sub: [w.damage, w.range > 0 ? `${w.range}"` : null].filter(Boolean).join(' · '),
+                  }))}
+                  onAdd={() => setEnemyPicker('weapon')}
+                  onRemove={id => updateEnemy(activeEnemy.id, {
+                    weapons: activeEnemy.weapons.filter(w => w.addonId !== id),
+                  })}
+                />
+
+                {/* Armor and items are separate pools but one block on the
+                    card, so they share a section with two add buttons. */}
+                <EnemyAttachSection
+                  title="Equipment"
+                  addLabel="Add Armor"
+                  secondaryAddLabel="Add Item"
+                  rows={activeEnemy.equipment.map(q => ({ id: q.addonId, name: q.name, sub: q.description }))}
+                  onAdd={() => setEnemyPicker('armor')}
+                  onSecondaryAdd={() => setEnemyPicker('item')}
+                  onRemove={id => updateEnemy(activeEnemy.id, {
+                    equipment: activeEnemy.equipment.filter(q => q.addonId !== id),
+                  })}
+                />
               </div>
             </EditorPanel>
           ) : null
@@ -2244,6 +2385,87 @@ const CardBuilderRyg = () => {
               onDeleted={() => { godDirtyRef.current = true; setGodState(prev => ({ ...prev, god: null })); }}
               getSubtitle={a => (a.stats as RygGodStats)?.specialAbility?.slice(0, 60) ?? '—'}
               CreateFormComponent={GodFormComponent}
+            />
+          )}
+
+          {/* ── Enemy attachment pickers ──────────────────────────────────
+              One AddAddonModal per pool. Weapons, armor and items reuse the
+              pools and forms the warrior flow already uses; abilities have
+              their own pool and a title + description form. */}
+          {activeEnemy && enemyPicker === 'ability' && (
+            <AddAddonModal
+              open
+              gameSlug="ryg"
+              addonTypeSlug="enemy-abilities"
+              addonTypeName="Ability"
+              excludeAddonIds={activeEnemy.abilities.map(a => a.addonId)}
+              onClose={() => setEnemyPicker(null)}
+              onAdd={addon => {
+                setEnemyPicker(null);
+                updateEnemy(activeEnemy.id, {
+                  abilities: [...activeEnemy.abilities, {
+                    addonId: addon.id, name: addon.name, description: addon.description ?? '',
+                  }],
+                });
+              }}
+              onDeleted={addonId => updateEnemy(activeEnemy.id, {
+                abilities: activeEnemy.abilities.filter(a => a.addonId !== addonId),
+              })}
+              getSubtitle={addon => addon.description ?? ''}
+              CreateFormComponent={EnemyAbilityForm}
+            />
+          )}
+
+          {activeEnemy && enemyPicker === 'weapon' && (
+            <AddAddonModal
+              open
+              gameSlug="ryg"
+              addonTypeSlug="weapons"
+              addonTypeName="Weapon"
+              excludeAddonIds={activeEnemy.weapons.map(w => w.addonId)}
+              onClose={() => setEnemyPicker(null)}
+              onAdd={addon => {
+                setEnemyPicker(null);
+                const ws = (addon.stats ?? {}) as RygWeaponStats;
+                updateEnemy(activeEnemy.id, {
+                  weapons: [...activeEnemy.weapons, {
+                    addonId:  addon.id,
+                    name:     addon.name,
+                    damage:   ws.damage ?? '',
+                    range:    ws.range ?? 0,
+                    keywords: addon.description ?? '',
+                  }],
+                });
+              }}
+              onDeleted={addonId => updateEnemy(activeEnemy.id, {
+                weapons: activeEnemy.weapons.filter(w => w.addonId !== addonId),
+              })}
+              getSubtitle={weaponSubtitle}
+              CreateFormComponent={WeaponFormWithCallbacks}
+            />
+          )}
+
+          {activeEnemy && (enemyPicker === 'armor' || enemyPicker === 'item') && (
+            <AddAddonModal
+              open
+              gameSlug="ryg"
+              addonTypeSlug={enemyPicker === 'armor' ? 'armor' : 'items'}
+              addonTypeName={enemyPicker === 'armor' ? 'Armor' : 'Item'}
+              excludeAddonIds={activeEnemy.equipment.map(q => q.addonId)}
+              onClose={() => setEnemyPicker(null)}
+              onAdd={addon => {
+                setEnemyPicker(null);
+                updateEnemy(activeEnemy.id, {
+                  equipment: [...activeEnemy.equipment, {
+                    addonId: addon.id, name: addon.name, description: addon.description ?? '',
+                  }],
+                });
+              }}
+              onDeleted={addonId => updateEnemy(activeEnemy.id, {
+                equipment: activeEnemy.equipment.filter(q => q.addonId !== addonId),
+              })}
+              getSubtitle={addon => addon.description ?? ''}
+              CreateFormComponent={enemyPicker === 'armor' ? ArmorForm : ItemForm}
             />
           )}
 

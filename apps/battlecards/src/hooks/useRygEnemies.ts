@@ -74,6 +74,12 @@ export interface EnemyCardData {
   abilities: EnemyAttachment[];
   weapons:   EnemyWeaponData[];
   equipment: EnemyAttachment[];
+  /**
+   * Play-mode token values, keyed by token-definition id. Enemies take damage
+   * like warriors do, so they go through the same token engine. This is never
+   * written to cards.stats — it belongs to the play session.
+   */
+  tokenState: Record<string, number>;
 }
 
 export const defaultEnemy = (): EnemyCardData => ({
@@ -88,9 +94,10 @@ export const defaultEnemy = (): EnemyCardData => ({
   life:      0,
   tactics:   0,
   fate:      0,
-  abilities: [],
-  weapons:   [],
-  equipment: [],
+  abilities:  [],
+  weapons:    [],
+  equipment:  [],
+  tokenState: {},
 });
 
 /** What lands in cards.stats. Enemy and AI type ride along with the numbers. */
@@ -115,6 +122,12 @@ export interface UseRygEnemiesResult {
   addEnemy:    () => string;
   updateEnemy: (id: string, patch: Partial<EnemyCardData>) => void;
   removeEnemy: (id: string) => Promise<void>;
+  /**
+   * Replace the list without marking anything dirty — for the play-mode token
+   * engine, whose changes belong to the play session rather than the deck.
+   * Saving them as card edits would rewrite every enemy row on every tap.
+   */
+  patchEnemies: (updater: (list: EnemyCardData[]) => EnemyCardData[]) => void;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -212,6 +225,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
           tactics:   num(s.tactics),
           fate:      num(s.fate),
           abilities, weapons, equipment,
+          tokenState: {},
         };
       });
 
@@ -295,5 +309,10 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
     if (target?.dbId) await supabase.from('cards').delete().eq('id', target.dbId);
   }, [enemies]);
 
-  return { enemies, loading, addEnemy, updateEnemy, removeEnemy };
+  const patchEnemies = useCallback(
+    (updater: (list: EnemyCardData[]) => EnemyCardData[]) => setEnemies(updater),
+    [],
+  );
+
+  return { enemies, loading, addEnemy, updateEnemy, removeEnemy, patchEnemies };
 }
