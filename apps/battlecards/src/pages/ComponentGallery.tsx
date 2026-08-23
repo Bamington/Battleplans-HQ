@@ -38,6 +38,7 @@ import UnitListEntry from '../components/UnitListEntry';
 import DeckCardList from '../components/DeckCardList';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
+import PlaySessionPrompt from '../components/PlaySessionPrompt';
 import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
@@ -135,8 +136,32 @@ const DEMO_RYG_ITEMS: RygItem[] = [
   { id: 'i1', name: 'Vial of Ash', cost: 1, description: 'Once per battle, ignore a single wound.' },
 ];
 
+// Three shapes worth seeing together: a fully-specified spell, an area spell
+// with a radius, and one with no flavour text — the case that used to render a
+// blank body before the card read `effect`.
 const DEMO_RYG_SPELLS: RygSpell[] = [
-  { id: 's1', name: 'Whisper of Rust', spellType: 'Hex', fateModifier: '-1', description: 'Target weapon loses 1 Damage until the end of the round.' },
+  {
+    id: 's1', name: 'Whisper of Rust', spellType: 'Hex', fateModifier: '-1',
+    range: 12, target: 'One Enemy',
+    effect: 'Target weapon loses 1 Damage until the end of the round.',
+    description: 'Iron remembers every promise it was forged to keep.',
+  },
+  {
+    id: 's2', name: 'Ashen Bloom', spellType: 'Sorcery',
+    fateModifier: '0 (−1 per additional target beyond the caster)',
+    range: 18, radius: 3, target: 'All models within radius',
+    // Deliberately near the longest effect in real data (~550 characters), so
+    // the gallery shows the worst case the card has to survive rather than a
+    // comfortable one.
+    effect: 'Each model within the radius suffers D3 damage and is Pinned until it next activates. A model reduced to 0 Life by this spell is not removed immediately; instead it remains standing until the end of the round, and any model in base contact with it when it falls suffers a further D3 damage. The caster may choose to extend the radius by 3" for each additional point of Fate spent, to a maximum of 9". Models with the Warded keyword ignore the Pinned result but still suffer damage, and models that cannot be Pinned are unaffected by the secondary effect.',
+    description: '',
+  },
+  {
+    id: 's3', name: 'Sanguine Song', spellType: 'Blood Magic', fateModifier: '-2',
+    range: 3, target: 'One friendly model that has been destroyed',
+    effect: 'Return the target to play with 1 Life. The caster suffers D3+3 damage.',
+    description: '',
+  },
 ];
 
 // ── Demo data for the carousel ───────────────────────────────────────────────
@@ -275,6 +300,46 @@ const ZoomControlsGalleryDemo = () => {
       />
       <p className="font-body text-xs text-gray-400 dark:text-gray-500">
         Zoom level: {zoom.toFixed(1)} · resize below 768px (md) for the mobile icon-only style.
+      </p>
+    </div>
+  );
+};
+
+// ── PlaySessionPromptGalleryDemo ─────────────────────────────────────────────
+
+/** The prompt shown when Play mode opens on a deck whose game was last played
+ *  on an earlier day. Both wordings are covered: a dated game, and the fallback
+ *  when the timestamp is unknown. A game from today never triggers this — the
+ *  deck goes straight into Play instead. */
+const PlaySessionPromptGalleryDemo = () => {
+  const [open, setOpen]     = useState(false);
+  const [dated, setDated]   = useState(true);
+  const [choice, setChoice] = useState<string>('—');
+
+  // Three days back, so the demo exercises the "N days ago" wording.
+  const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000);
+
+  return (
+    <div className="flex flex-col gap-2 items-start">
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => { setDated(true); setOpen(true); }}>
+          Open (played 3 days ago)
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => { setDated(false); setOpen(true); }}>
+          Open (date unknown)
+        </Button>
+      </div>
+
+      <PlaySessionPrompt
+        open={open}
+        lastPlayed={dated ? threeDaysAgo : null}
+        onContinue={() => { setChoice('Continued the old game'); setOpen(false); }}
+        onStartFresh={() => { setChoice('Started a new game'); setOpen(false); }}
+        onClose={() => { setChoice('Dismissed — stays in Edit'); setOpen(false); }}
+      />
+
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Last choice: {choice}
       </p>
     </div>
   );
@@ -479,6 +544,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-addon-forms',           label: 'Addon Forms',           icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-print-mixed',           label: 'Print Mixed Types',     icon: <Bookmark className="w-5 h-5" /> },
+  { href: '#nav-play-session-prompt',   label: 'Play Session Prompt',   icon: <Play className="w-5 h-5" /> },
   { href: '#nav-deck-panel-menu',       label: 'Deck Panel Menu',       icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-share-deck-sheet',      label: 'Share Deck Sheet',      icon: <Gallery className="w-5 h-5" /> },
 ];
@@ -1891,6 +1957,19 @@ const ComponentGallery = () => {
             <Text size="sm" color="secondary">Rules active</Text>
             <PlaySubnav tab="rules" onTabChange={() => {}} />
           </div>
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">
+              With a game in progress — turn counter and End game. The end
+              button asks to confirm in place before it throws the board away.
+            </Text>
+            <PlaySubnav tab="units" onTabChange={() => {}} turn={3} onEndGame={() => {}} />
+          </div>
+          <div className="flex flex-col gap-3">
+            <Text size="sm" color="secondary">
+              Turn shown without an end control (builder without persistence)
+            </Text>
+            <PlaySubnav tab="units" onTabChange={() => {}} turn={1} />
+          </div>
         </div>
       </GallerySection>
 
@@ -2475,6 +2554,10 @@ const ComponentGallery = () => {
             />
           </div>
         </div>
+      </GallerySection>
+
+      <GallerySection id="nav-play-session-prompt" title="Play Session Prompt">
+        <PlaySessionPromptGalleryDemo />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════

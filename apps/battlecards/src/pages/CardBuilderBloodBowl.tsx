@@ -30,6 +30,8 @@ import EditSubnav from '../components/EditSubnav';
 import CenterViewport from '../components/CenterViewport';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
+import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import CardCarousel from '../components/CardCarousel';
 import { useCardBuilder } from '../hooks/useCardBuilder';
@@ -273,6 +275,8 @@ const CardBuilderBloodBowl = () => {
     seedPlayTokens,
     handleTokenChange,
     handleTokenChangeForCard,
+    turn:    playTurn,
+    endGame: handleEndGame,
   } = useDeckTokens<BloodBowlCardData>({
     gameSlug:     'blood-bowl',
     deckId,
@@ -282,14 +286,30 @@ const CardBuilderBloodBowl = () => {
     updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
     getTokenState:  c => c.tokenState,
     withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    getCardDbId:    c => c.dbId,
     getUnitKeywords: c => c.unitKeywords.map(k => ({
       keywordName: k.keywordName,
       paramValue:  k.paramValue,
     })),
   });
 
+  const enterPlay = useCallback(() => {
+    seedPlayTokens();
+    setAppMode('play');
+  }, [seedPlayTokens]);
+
+  /** Owns which mode the deck opens in, and what happens to a game left over
+   *  from an earlier day. See usePlaySessionEntry. */
+  const playEntry = usePlaySessionEntry({
+    deckId,
+    enterPlay,
+    ready: cards.length > 0,
+  });
+
   const handleModeChange = (next: Mode) => {
-    if (next === 'play') seedPlayTokens();
+    // Going to Play routes through the entry hook: it either enters straight
+    // away or asks about an older game first.
+    if (next === 'play') { playEntry.requestPlay(); return; }
     setAppMode(next);
   };
 
@@ -1401,7 +1421,12 @@ const CardBuilderBloodBowl = () => {
       }
       topBar={
         appMode === 'play' ? (
-          <PlaySubnav tab={playTab} onTabChange={setPlayTab} />
+          <PlaySubnav
+            tab={playTab}
+            onTabChange={setPlayTab}
+            turn={playTurn}
+            onEndGame={() => { void handleEndGame(); }}
+          />
         ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
@@ -1743,6 +1768,14 @@ const CardBuilderBloodBowl = () => {
           deckName={deckName}
         />
       )}
+
+      <PlaySessionPrompt
+        open={playEntry.promptOpen}
+        lastPlayed={playEntry.lastPlayed}
+        onContinue={playEntry.continueGame}
+        onStartFresh={() => { void playEntry.startFresh(); }}
+        onClose={playEntry.cancel}
+      />
       </>}
     />
   );

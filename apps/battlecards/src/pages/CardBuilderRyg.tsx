@@ -26,6 +26,8 @@ import { Play } from '@battleplans/ui';
 import CenterViewport from '../components/CenterViewport';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
+import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import UnitListEntry from '../components/UnitListEntry';
@@ -127,6 +129,12 @@ interface LocalSpell {
   name:         string;
   spellType:    string;
   fateModifier: string;
+  range?:       number;
+  radius?:      number;
+  target?:      string;
+  /** The spell's rules text — the body of the row on the card. */
+  effect?:      string;
+  /** Flavour text, shown beneath the effect where present. */
   description:  string;
 }
 
@@ -308,6 +316,8 @@ const CardBuilderRyg = () => {
     handleTokenChangeForCard,
     newTurn: handleNewTurn,
     isCardActivated,
+    turn:    playTurn,
+    endGame: handleEndGame,
   } = useDeckTokens<RygCardData>({
     gameSlug:     'ryg',
     deckId,
@@ -317,17 +327,34 @@ const CardBuilderRyg = () => {
     updateCards:  fn => setCardState(prev => ({ ...prev, cards: fn(prev.cards) })),
     getTokenState:  c => c.tokenState,
     withTokenState: (c, tokenState) => ({ ...c, tokenState }),
+    getCardDbId:    c => c.dbId,
     resolveStat: (c, statKey) => {
       const v = (c as unknown as Record<string, unknown>)[statKey];
       return typeof v === 'number' ? v : undefined;
     },
   });
 
+  const enterPlay = useCallback(() => {
+    seedPlayTokens();
+    setRuleSearchQuery('');
+    setAppMode('play');
+  }, [seedPlayTokens]);
+
+  /** Owns which mode the deck opens in, and what happens to a game left over
+   *  from an earlier day. See usePlaySessionEntry. */
+  const playEntry = usePlaySessionEntry({
+    deckId,
+    enterPlay,
+    ready: cards.length > 0,
+  });
+
   const handleModeChange = useCallback((next: Mode) => {
-    if (next === 'play') seedPlayTokens();
+    // Going to Play routes through the entry hook: it either enters straight
+    // away or asks about an older game first.
+    if (next === 'play') { playEntry.requestPlay(); return; }
     setRuleSearchQuery('');
     setAppMode(next);
-  }, [seedPlayTokens]);
+  }, [playEntry]);
 
   const buildTokenOverlayProp = (card: RygCardData) => {
     if (appMode !== 'play' || tokenDefinitions.length === 0) return undefined;
@@ -485,7 +512,17 @@ const CardBuilderRyg = () => {
                   items.push({ addonId: ca.addon_id, name: addon.name, cost: num((addon.stats as Record<string,unknown>).cost), description: addon.description ?? '' });
                 } else if (slug === 'spells') {
                   const ss = (addon.stats ?? {}) as RygSpellStats;
-                  spells.push({ addonId: ca.addon_id, name: addon.name, spellType: ss.type ?? '', fateModifier: ss.fateModifier ?? '', description: addon.description ?? '' });
+                  spells.push({
+                    addonId:      ca.addon_id,
+                    name:         addon.name,
+                    spellType:    ss.type ?? '',
+                    fateModifier: ss.fateModifier ?? '',
+                    range:        ss.range,
+                    radius:       ss.radius,
+                    target:       ss.target,
+                    effect:       ss.effect,
+                    description:  addon.description ?? '',
+                  });
                 }
               }
 
@@ -920,7 +957,17 @@ const CardBuilderRyg = () => {
     weapons:            card.weapons.map(w => ({ id: w.addonId, name: w.name, damage: w.damage, range: w.range, cost: w.cost, description: w.description, keywords: w.keywords, keywordList: w.weaponKeywords.map(kw => ({ name: kw.keywordName, description: kw.description })) })),
     armor:              card.armor.map(a => ({ id: a.addonId, name: a.name, cost: a.cost, description: a.description })),
     items:              card.items.map(i => ({ id: i.addonId, name: i.name, cost: i.cost, description: i.description })),
-    spells:             card.spells.map((s): RygSpell => ({ id: s.addonId, name: s.name, spellType: s.spellType, fateModifier: s.fateModifier, description: s.description })),
+    spells:             card.spells.map((s): RygSpell => ({
+      id:           s.addonId,
+      name:         s.name,
+      spellType:    s.spellType,
+      fateModifier: s.fateModifier,
+      range:        s.range,
+      radius:       s.radius,
+      target:       s.target,
+      effect:       s.effect,
+      description:  s.description,
+    })),
     portrait:           card.portraitUrl ?? undefined,
   });
 
@@ -1003,7 +1050,12 @@ const CardBuilderRyg = () => {
       }
       topBar={
         appMode === 'play' ? (
-          <PlaySubnav tab={playTab} onTabChange={handlePlayTabChange} />
+          <PlaySubnav
+            tab={playTab}
+            onTabChange={handlePlayTabChange}
+            turn={playTurn}
+            onEndGame={() => { void handleEndGame(); }}
+          />
         ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
@@ -1987,6 +2039,10 @@ const CardBuilderRyg = () => {
                     name:         addon.name,
                     spellType:    ss.type ?? '',
                     fateModifier: ss.fateModifier ?? '',
+                    range:        ss.range,
+                    radius:       ss.radius,
+                    target:       ss.target,
+                    effect:       ss.effect,
                     description:  addon.description ?? '',
                   }],
                 });
@@ -2079,6 +2135,14 @@ const CardBuilderRyg = () => {
               deckName={deckName}
             />
           )}
+
+          <PlaySessionPrompt
+            open={playEntry.promptOpen}
+            lastPlayed={playEntry.lastPlayed}
+            onContinue={playEntry.continueGame}
+            onStartFresh={() => { void playEntry.startFresh(); }}
+            onClose={playEntry.cancel}
+          />
 
         </>
       }
