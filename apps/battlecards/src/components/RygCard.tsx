@@ -34,7 +34,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 // @ts-ignore — path contains spaces
-import bgSvg from '../assets/games/card assets/ryg/bg.svg';
+import bgSvg from '../assets/games/card assets/ryg/bg.png';
 
 // ── Native size ──────────────────────────────────────────────────────────────
 export const CARD_W = 890;

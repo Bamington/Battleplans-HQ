@@ -37,7 +37,7 @@ import bgPrintKillTeamRule    from '../assets/games/card assets/kill-team/bg-por
 // RYG doesn't have separate print backgrounds yet — reuse the standard card backgrounds.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import bgRygWarrior           from '../assets/games/card assets/ryg/bg-print.svg';
+import bgRygWarrior           from '../assets/games/card assets/ryg/bg-print.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import bgRygSeptGod           from '../assets/games/card assets/ryg/bg-septgod-print.png';
@@ -246,24 +246,30 @@ const ITEM_PROFILE_OVERRIDES: Partial<Record<PrintItemType, ProfileOverride>> = 
     bleedMm: [76, 126],
     bg:      bgPrintKillTeamRule,
   },
-  // RYG warrior cards use the warrior background.
+  // RYG cards are 89×127 mm with 3 mm bleed. Every RYG background exports at
+  // 890×1270 px inside a 950×1330 px bleed — 10 px per mm, the same convention
+  // the Kill Team rule card above uses, and what the games row specifies.
+  //
+  // These previously read 63×89 / 69×95, which printed the art at poker size:
+  // the aspect is near enough that it looked unremarkable, just a third
+  // smaller than designed.
   'ryg-warrior': {
     native:  { w: 890, h: 1270 },
-    printMm: [63, 89],
-    bleedMm: [69, 95],
+    printMm: [89, 127],
+    bleedMm: [95, 133],
     bg:      bgRygWarrior,
   },
   // RYG sept and god cards share the sept/god background.
   'ryg-sept': {
     native:  { w: 890, h: 1270 },
-    printMm: [63, 89],
-    bleedMm: [69, 95],
+    printMm: [89, 127],
+    bleedMm: [95, 133],
     bg:      bgRygSeptGod,
   },
   'ryg-god': {
     native:  { w: 890, h: 1270 },
-    printMm: [63, 89],
-    bleedMm: [69, 95],
+    printMm: [89, 127],
+    bleedMm: [95, 133],
     bg:      bgRygSeptGod,
   },
 };

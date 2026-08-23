@@ -79,7 +79,11 @@ const GAME_PRINT_FALLBACKS: Record<string, { print: [number, number]; bleed: [nu
   'blood-bowl':      { print: [63,  88], bleed: [69,  94] },
   'halo-flashpoint': { print: [127, 89], bleed: [133, 95] },
   'kill-team':       { print: [127, 89], bleed: [133, 95] },
-  'ryg':             { print: [63,  89], bleed: [69,  95] },
+  // 89×127 mm with 3 mm bleed — matches the games row, and the card art, which
+  // exports at 890×1270 / 950×1330 px (10 px per mm). The old 63×89 here was
+  // poker-sized and would have silently printed RYG cards at the wrong size had
+  // the DB columns ever come back empty.
+  'ryg':             { print: [89, 127], bleed: [95, 133] },
 };
 
 /** Pick a valid [w, h] mm pair: prefer DB value, fall back to the per-game
