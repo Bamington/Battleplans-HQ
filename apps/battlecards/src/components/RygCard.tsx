@@ -211,6 +211,18 @@ export interface RygSpell {
   name:         string;
   spellType:    string;
   fateModifier: string;
+  /** Range in inches. 0 or undefined = self / no range, and is not shown. */
+  range?:       number;
+  /** Radius in inches for area spells. Only set on some; hidden when absent. */
+  radius?:      number;
+  /** Who or what the spell may be cast on, e.g. "One Enemy". */
+  target?:      string;
+  /**
+   * The spell's rules text — what it actually does. This is the body of the
+   * row, because it's what a player needs mid-game.
+   */
+  effect?:      string;
+  /** Flavour text. Optional in the data, and rendered as secondary. */
   description:  string;
 }
 
@@ -624,15 +636,39 @@ export default function RygCard({
                   <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, lineHeight: 1.2 }}>
                     {sp.name}
                   </span>
-                  <span style={{ ...BASKERVILLE, fontSize: 18, color: TEXT_DARK, opacity: 0.7 }}>
-                    {[sp.spellType, sp.fateModifier ? `Fate ${sp.fateModifier}` : ''].filter(Boolean).join(' · ')}
+                  {/* Stat line — type, range, radius, target and fate, in the
+                      order a player reads them: what it is, how far, at whom,
+                      what it costs. Absent values drop out rather than showing
+                      a placeholder, so a self-cast spell doesn't read 'Range 0'. */}
+                  <span style={{ ...BASKERVILLE, fontSize: 18, color: TEXT_DARK, opacity: 0.7, lineHeight: 1.25 }}>
+                    {[
+                      sp.spellType,
+                      sp.range ? `Range ${sp.range}"` : '',
+                      sp.radius ? `Radius ${sp.radius}"` : '',
+                      sp.target,
+                      sp.fateModifier ? `Fate ${sp.fateModifier}` : '',
+                    ].filter(Boolean).join(' · ')}
                   </span>
                 </div>
-                {/* Description — remaining width */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                  <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
-                    {sp.description}
-                  </span>
+                {/* Effect (the rules) with flavour beneath — remaining width */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                  {sp.effect && (
+                    <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
+                      {sp.effect}
+                    </span>
+                  )}
+                  {sp.description && (
+                    <span style={{
+                      ...BASKERVILLE,
+                      fontSize:   17,
+                      fontStyle:  'italic',
+                      color:      TEXT_DARK,
+                      opacity:    0.65,
+                      lineHeight: 1.25,
+                    }}>
+                      {sp.description}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

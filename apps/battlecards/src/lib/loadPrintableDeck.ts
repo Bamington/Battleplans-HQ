@@ -561,8 +561,21 @@ async function loadRygCards(client: SupabaseClient, deckId: string) {
           } else if (slug === 'items') {
             items.push({ id: ca.addon_id, name, cost: typeof ws.cost === 'number' ? ws.cost : 0, description: ca.addons!.description ?? '' });
           } else if (slug === 'spells') {
-            const ss = ws as { type?: string; fateModifier?: string };
-            spells.push({ id: ca.addon_id, name, spellType: ss.type ?? '', fateModifier: ss.fateModifier ?? '', description: ca.addons!.description ?? '' });
+            const ss = ws as {
+              type?: string; fateModifier?: string; range?: number;
+              radius?: number; target?: string; effect?: string;
+            };
+            spells.push({
+              id:           ca.addon_id,
+              name,
+              spellType:    ss.type ?? '',
+              fateModifier: ss.fateModifier ?? '',
+              range:        ss.range,
+              radius:       ss.radius,
+              target:       ss.target,
+              effect:       ss.effect,
+              description:  ca.addons!.description ?? '',
+            });
           } else if (slug === 'talents') {
             const params = (ca.params ?? {}) as Record<string, string[]>;
             const vals: string[] = [];

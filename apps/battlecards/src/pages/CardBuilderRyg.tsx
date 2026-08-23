@@ -129,6 +129,12 @@ interface LocalSpell {
   name:         string;
   spellType:    string;
   fateModifier: string;
+  range?:       number;
+  radius?:      number;
+  target?:      string;
+  /** The spell's rules text — the body of the row on the card. */
+  effect?:      string;
+  /** Flavour text, shown beneath the effect where present. */
   description:  string;
 }
 
@@ -506,7 +512,17 @@ const CardBuilderRyg = () => {
                   items.push({ addonId: ca.addon_id, name: addon.name, cost: num((addon.stats as Record<string,unknown>).cost), description: addon.description ?? '' });
                 } else if (slug === 'spells') {
                   const ss = (addon.stats ?? {}) as RygSpellStats;
-                  spells.push({ addonId: ca.addon_id, name: addon.name, spellType: ss.type ?? '', fateModifier: ss.fateModifier ?? '', description: addon.description ?? '' });
+                  spells.push({
+                    addonId:      ca.addon_id,
+                    name:         addon.name,
+                    spellType:    ss.type ?? '',
+                    fateModifier: ss.fateModifier ?? '',
+                    range:        ss.range,
+                    radius:       ss.radius,
+                    target:       ss.target,
+                    effect:       ss.effect,
+                    description:  addon.description ?? '',
+                  });
                 }
               }
 
@@ -941,7 +957,17 @@ const CardBuilderRyg = () => {
     weapons:            card.weapons.map(w => ({ id: w.addonId, name: w.name, damage: w.damage, range: w.range, cost: w.cost, description: w.description, keywords: w.keywords, keywordList: w.weaponKeywords.map(kw => ({ name: kw.keywordName, description: kw.description })) })),
     armor:              card.armor.map(a => ({ id: a.addonId, name: a.name, cost: a.cost, description: a.description })),
     items:              card.items.map(i => ({ id: i.addonId, name: i.name, cost: i.cost, description: i.description })),
-    spells:             card.spells.map((s): RygSpell => ({ id: s.addonId, name: s.name, spellType: s.spellType, fateModifier: s.fateModifier, description: s.description })),
+    spells:             card.spells.map((s): RygSpell => ({
+      id:           s.addonId,
+      name:         s.name,
+      spellType:    s.spellType,
+      fateModifier: s.fateModifier,
+      range:        s.range,
+      radius:       s.radius,
+      target:       s.target,
+      effect:       s.effect,
+      description:  s.description,
+    })),
     portrait:           card.portraitUrl ?? undefined,
   });
 
@@ -2013,6 +2039,10 @@ const CardBuilderRyg = () => {
                     name:         addon.name,
                     spellType:    ss.type ?? '',
                     fateModifier: ss.fateModifier ?? '',
+                    range:        ss.range,
+                    radius:       ss.radius,
+                    target:       ss.target,
+                    effect:       ss.effect,
                     description:  addon.description ?? '',
                   }],
                 });

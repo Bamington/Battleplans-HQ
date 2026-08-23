@@ -136,8 +136,32 @@ const DEMO_RYG_ITEMS: RygItem[] = [
   { id: 'i1', name: 'Vial of Ash', cost: 1, description: 'Once per battle, ignore a single wound.' },
 ];
 
+// Three shapes worth seeing together: a fully-specified spell, an area spell
+// with a radius, and one with no flavour text — the case that used to render a
+// blank body before the card read `effect`.
 const DEMO_RYG_SPELLS: RygSpell[] = [
-  { id: 's1', name: 'Whisper of Rust', spellType: 'Hex', fateModifier: '-1', description: 'Target weapon loses 1 Damage until the end of the round.' },
+  {
+    id: 's1', name: 'Whisper of Rust', spellType: 'Hex', fateModifier: '-1',
+    range: 12, target: 'One Enemy',
+    effect: 'Target weapon loses 1 Damage until the end of the round.',
+    description: 'Iron remembers every promise it was forged to keep.',
+  },
+  {
+    id: 's2', name: 'Ashen Bloom', spellType: 'Sorcery',
+    fateModifier: '0 (−1 per additional target beyond the caster)',
+    range: 18, radius: 3, target: 'All models within radius',
+    // Deliberately near the longest effect in real data (~550 characters), so
+    // the gallery shows the worst case the card has to survive rather than a
+    // comfortable one.
+    effect: 'Each model within the radius suffers D3 damage and is Pinned until it next activates. A model reduced to 0 Life by this spell is not removed immediately; instead it remains standing until the end of the round, and any model in base contact with it when it falls suffers a further D3 damage. The caster may choose to extend the radius by 3" for each additional point of Fate spent, to a maximum of 9". Models with the Warded keyword ignore the Pinned result but still suffer damage, and models that cannot be Pinned are unaffected by the secondary effect.',
+    description: '',
+  },
+  {
+    id: 's3', name: 'Sanguine Song', spellType: 'Blood Magic', fateModifier: '-2',
+    range: 3, target: 'One friendly model that has been destroyed',
+    effect: 'Return the target to play with 1 Life. The caster suffers D3+3 damage.',
+    description: '',
+  },
 ];
 
 // ── Demo data for the carousel ───────────────────────────────────────────────
