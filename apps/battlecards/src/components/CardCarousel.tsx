@@ -124,8 +124,25 @@ const CardCarousel = <T extends { id: string }>({
   const [zoomLevel,    setZoomLevel]    = useState(initialZoom);
   const [fitScale,     setFitScale]     = useState(0);   // 0 until first measure
   const [containerW,   setContainerW]   = useState(0);
+  const [containerH,   setContainerH]   = useState(0);
   const [zoomAnim,     setZoomAnim]     = useState(false); // true during a zoom transition
   const cardScale = fitScale * zoomLevel;
+
+  // ── Fill-width zoom ───────────────────────────────────────────────────────
+  //
+  // One level above the usual maximum: the card spans the viewport edge to
+  // edge, with nothing either side. Because zoom is expressed as a multiple of
+  // fitScale, the level itself has to be computed — fitScale already includes
+  // the 0.8 width fraction and may be height-bound, so the multiplier needed to
+  // reach full width varies with the viewport and the card's shape. It is
+  // always above 1: fitScale never exceeds 0.8 × width / cardWidth.
+  const fillWidthZoom = fitScale > 0 ? (containerW / cardWidth) / fitScale : 1;
+  const atFillWidth   = zoomLevel > 1;
+
+  // At fill width a portrait card is routinely taller than the strip — roughly
+  // 2.5× on a desktop-sized viewport — so the strip gains a vertical axis.
+  const contentH        = cardHeight * cardScale;
+  const overflowsHeight = containerH > 0 && contentH > containerH;
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cardEls     = useRef(new Map<string, HTMLDivElement>());
@@ -148,7 +165,7 @@ const CardCarousel = <T extends { id: string }>({
     if (!el) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      setContainerW(r.width);
+      setContainerW(r.width); setContainerH(r.height);
       setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, Math.max(0, r.height - GLOW_MARGIN * 2) / cardHeight));
     };
     const ro = new ResizeObserver(() => measure());
@@ -162,7 +179,7 @@ const CardCarousel = <T extends { id: string }>({
     const el = scrollerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setContainerW(r.width);
+    setContainerW(r.width); setContainerH(r.height);
     setFitScale(Math.min((r.width * FIT_WIDTH_FRACTION) / cardWidth, Math.max(0, r.height - GLOW_MARGIN * 2) / cardHeight));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, layoutDeps ?? []);
@@ -203,8 +220,16 @@ const CardCarousel = <T extends { id: string }>({
       centreActiveNow();
     }, ZOOM_MS + 40);
   };
-  const zoomOut = () => runZoom(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(1))));
-  const zoomIn  = () => runZoom(z => Math.min(1.0, parseFloat((z + 0.1).toFixed(1))));
+  // Steps run 0.5 → 1.0 in tenths, then one jump to fill-width. That last step
+  // is deliberately uneven (1.25× or more, against the usual 0.1) because it
+  // isn't "a bit bigger" — it's a different intent: show the card as large as
+  // the screen allows.
+  const zoomOut = () => runZoom(z => (
+    z > 1 ? 1 : Math.max(0.5, parseFloat((z - 0.1).toFixed(1)))
+  ));
+  const zoomIn  = () => runZoom(z => (
+    z >= 1 ? fillWidthZoom : Math.min(1.0, parseFloat((z + 0.1).toFixed(1)))
+  ));
 
   // ── Centre a card in the viewport ─────────────────────────────────────────
   const centerCard = useCallback((id: string, behavior: ScrollBehavior) => {
@@ -386,9 +411,19 @@ const CardCarousel = <T extends { id: string }>({
           onPointerDown={handlePointerDown}
           onClickCapture={handleClickCapture}
           onDragStart={(e) => e.preventDefault()}
-          className="absolute inset-0 flex items-center overflow-x-auto overflow-y-hidden
-                     snap-x snap-mandatory select-none
-                     [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className={[
+            'absolute inset-0 flex overflow-x-auto',
+            'snap-x snap-mandatory select-none',
+            '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+            // Taller than the strip (fill-width on anything but a phone) → let
+            // it pan vertically. items-start matters: a centred flex item that
+            // overflows spills equally in both directions, and the half above
+            // the container is unreachable by scrolling — you'd never see the
+            // top of the card.
+            overflowsHeight
+              ? 'overflow-y-auto items-start'
+              : 'overflow-y-hidden items-center',
+          ].join(' ')}
           style={scrollerStyle}
         >
           {/* Leading spacer — lets the first card scroll to centre. */}
@@ -411,7 +446,12 @@ const CardCarousel = <T extends { id: string }>({
                   filter:          CARD_SHADOW,
                 }}
               >
-                {use3D ? (
+                {/* The hover-tilt is dropped at fill width. It reads as a nice
+                    flourish on a card sitting in space; on one that runs edge
+                    to edge — and usually past the top and bottom of the strip —
+                    tilting the whole viewport under the cursor just fights the
+                    panning. */}
+                {use3D && !atFillWidth ? (
                   <Card3DWrapper style={{ width: d.width, height: d.height }}>
                     {renderItem(item, isActive ? 'active' : 'prev')}
                   </Card3DWrapper>
@@ -454,7 +494,7 @@ const CardCarousel = <T extends { id: string }>({
         {bottomRightSlot && <div className="absolute bottom-4 right-4 z-40">{bottomRightSlot}</div>}
         {!hideZoomControls && zoomControlsInline && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40">
-            <ZoomControls zoomLevel={zoomLevel} onZoomOut={zoomOut} onZoomIn={zoomIn} />
+            <ZoomControls zoomLevel={zoomLevel} onZoomOut={zoomOut} onZoomIn={zoomIn} max={fillWidthZoom} />
           </div>
         )}
       </div>
@@ -462,7 +502,7 @@ const CardCarousel = <T extends { id: string }>({
       {/* Zoom controls — default position: a row below the viewport. */}
       {!hideZoomControls && !zoomControlsInline && (
         <div className="shrink-0 flex items-center justify-center py-3">
-          <ZoomControls zoomLevel={zoomLevel} onZoomOut={zoomOut} onZoomIn={zoomIn} />
+          <ZoomControls zoomLevel={zoomLevel} onZoomOut={zoomOut} onZoomIn={zoomIn} max={fillWidthZoom} />
         </div>
       )}
     </div>

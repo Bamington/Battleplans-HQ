@@ -2294,6 +2294,10 @@ const ComponentGallery = () => {
             items={CAROUSEL_ITEMS}
             activeId={carouselActive}
             onActiveChange={setCarouselActive}
+            // Without a height the carousel's root doesn't fill the frame
+            // above, and it measured a zero-height viewport — which meant this
+            // demo rendered nothing at all.
+            className="w-full h-full"
             cardWidth={340}
             cardHeight={520}
             renderItem={(item, role) => (
