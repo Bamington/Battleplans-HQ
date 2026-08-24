@@ -39,6 +39,7 @@ import DeckCardList from '../components/DeckCardList';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
 import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import EnemyCard from '../components/EnemyCard';
 import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
@@ -543,6 +544,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-card-forms',            label: 'Card Forms',            icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-addon-forms',           label: 'Addon Forms',           icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-enemy-card',            label: 'Enemy Card',            icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-print-mixed',           label: 'Print Mixed Types',     icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-play-session-prompt',   label: 'Play Session Prompt',   icon: <Play className="w-5 h-5" /> },
   { href: '#nav-deck-panel-menu',       label: 'Deck Panel Menu',       icon: <Pen2 className="w-5 h-5" /> },
@@ -2528,6 +2530,35 @@ const ComponentGallery = () => {
 
       <GallerySection id="nav-ryg-forms" title="Addon Forms / Repent Ye Foolish Gods">
         <AddonFormHarness forms={RYG_ADDON_FORMS} />
+      </GallerySection>
+
+      <GallerySection id="nav-enemy-card" title="RYG Card / Enemy">
+        <div className="overflow-auto">
+          <EnemyCard
+            name="Paingiver"
+            enemyType="Champion"
+            aiType="Dross"
+            life={13}
+            offense={5}
+            defense={5}
+            tactics={5}
+            fate={5}
+            abilities={[{
+              id: 'a1',
+              // Same as the card name, so the title stays hidden.
+              title: 'Paingiver',
+              description: 'If this warrior is attacking while Hidden and successfully hits their target, the Defense value of the target is halved (rounding down), and the total damage is doubled for that attack. In addition, whenever this warrior reduces an enemy to 0 or less Life, they may immediately make one attack against a Secondary Objective within weapon range (if it is a Destroy objective), or attempt to Claim a Secondary Objective within 1" of this warrior (if it is a Claim objective), without any action.',
+            }]}
+            weapons={[
+              { id: 'w1', name: 'Battleaxe', damage: '1D6+3', range: 0,  cost: 0, keywords: 'Edged, One-Handed, Slicing' },
+              { id: 'w2', name: 'Crossbow',  damage: '1D6+2', range: 12, cost: 0, keywords: 'Edged, Two-Handed, Piercing' },
+            ]}
+            equipment={[
+              { id: 'e1', name: 'Heavy Armor', description: '-1 to enemy Offense.' },
+              { id: 'e2', name: 'Backpack', description: 'Warrior may carry 3 additional pieces of equipment. If more than 3 pieces of equipment are carried total (including the Backpack), the Warrior reduces their Movement by 1".' },
+            ]}
+          />
+        </div>
       </GallerySection>
 
       <GallerySection id="nav-print-mixed" title="PrintCardGrid / RYG mixed types (A4)">

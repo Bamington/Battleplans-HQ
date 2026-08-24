@@ -19,6 +19,7 @@ import type { HaloWeapon } from './HaloFlashpointCard';
 import RygCard, { type RygWeapon, type RygArmor, type RygItem, type RygSpell } from './RygCard';
 import SeptCard from './SeptCard';
 import GodCard from './GodCard';
+import EnemyCard, { type EnemyAbility, type EnemyEquipment } from './EnemyCard';
 
 // Print background assets — each is sized to the BLEED area (includes the
 // 3mm margin on each edge that the trimmer cuts away).
@@ -37,10 +38,11 @@ import bgPrintKillTeamRule    from '../assets/games/card assets/kill-team/bg-por
 // RYG doesn't have separate print backgrounds yet — reuse the standard card backgrounds.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import bgRygWarrior           from '../assets/games/card assets/ryg/bg-print.svg';
+import bgRygWarrior           from '../assets/games/card assets/ryg/bg-print.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import bgRygSeptGod           from '../assets/games/card assets/ryg/bg-septgod-print.png';
+import bgRygEnemy             from '../assets/games/card assets/ryg/bg-enemy-print.png';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,6 +145,21 @@ export interface PrintableRygSept {
   destinyCurse: string;
 }
 
+export interface PrintableEnemyCard {
+  id:        string;
+  name:      string;
+  enemyType: string;
+  aiType:    string;
+  offense:   number;
+  defense:   number;
+  life:      number;
+  tactics:   number;
+  fate:      number;
+  abilities: EnemyAbility[];
+  weapons:   RygWeapon[];
+  equipment: EnemyEquipment[];
+}
+
 export interface PrintableRygGod {
   id: string;
   godName: string;
@@ -177,6 +194,8 @@ export interface PrintCardGridProps {
   rygCards?: PrintableRygCard[];
   rygSeptCard?: PrintableRygSept | null;
   rygGodCard?: PrintableRygGod | null;
+  /** Enemy cards, printed after the warband — they sort to the end of a deck. */
+  rygEnemyCards?: PrintableEnemyCard[];
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -213,7 +232,7 @@ const MARGIN_MM = 10;
 // item types (background art, native canvas, visible card size) is applied per
 // item at render time.
 
-type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule' | 'ryg-warrior' | 'ryg-sept' | 'ryg-god';
+type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule' | 'ryg-warrior' | 'ryg-sept' | 'ryg-god' | 'ryg-enemy';
 
 interface PrintProfile {
   /** Native pixel dimensions of the card component (matches its SVG canvas). */
@@ -246,25 +265,40 @@ const ITEM_PROFILE_OVERRIDES: Partial<Record<PrintItemType, ProfileOverride>> = 
     bleedMm: [76, 126],
     bg:      bgPrintKillTeamRule,
   },
-  // RYG warrior cards use the warrior background.
+  // RYG cards are 89×127 mm with 3 mm bleed. Every RYG background exports at
+  // 890×1270 px inside a 950×1330 px bleed — 10 px per mm, the same convention
+  // the Kill Team rule card above uses, and what the games row specifies.
+  //
+  // These previously read 63×89 / 69×95, which printed the art at poker size:
+  // the aspect is near enough that it looked unremarkable, just a third
+  // smaller than designed.
   'ryg-warrior': {
     native:  { w: 890, h: 1270 },
-    printMm: [63, 89],
-    bleedMm: [69, 95],
+    printMm: [89, 127],
+    bleedMm: [95, 133],
     bg:      bgRygWarrior,
   },
   // RYG sept and god cards share the sept/god background.
   'ryg-sept': {
     native:  { w: 890, h: 1270 },
-    printMm: [63, 89],
-    bleedMm: [69, 95],
+    printMm: [89, 127],
+    bleedMm: [95, 133],
     bg:      bgRygSeptGod,
   },
   'ryg-god': {
     native:  { w: 890, h: 1270 },
-    printMm: [63, 89],
-    bleedMm: [69, 95],
+    printMm: [89, 127],
+    bleedMm: [95, 133],
     bg:      bgRygSeptGod,
+  },
+  // Enemies share the RYG card size but have their own chrome — a dark body
+  // rather than cream. Same slot size, so they print on the same sheets as
+  // warriors and gods.
+  'ryg-enemy': {
+    native:  { w: 890, h: 1270 },
+    printMm: [89, 127],
+    bleedMm: [95, 133],
+    bg:      bgRygEnemy,
   },
 };
 
@@ -278,6 +312,7 @@ const DEFAULT_NATIVE: Record<PrintItemType, { w: number; h: number }> = {
   'ryg-warrior': { w: 890,  h: 1270 },
   'ryg-sept':    { w: 890,  h: 1270 },
   'ryg-god':     { w: 890,  h: 1270 },
+  'ryg-enemy':   { w: 890,  h: 1270 },
 };
 
 const profileForItem = (
@@ -353,6 +388,7 @@ const PrintCardGrid = ({
   rygCards = [],
   rygSeptCard = null,
   rygGodCard = null,
+  rygEnemyCards = [],
 }: PrintCardGridProps) => {
   const paper = PAPER[paperSize];
   const pageW = (paper.w - MARGIN_MM * 2) * MM;
@@ -390,6 +426,10 @@ const PrintCardGrid = ({
     }
     if (rygGodCard && !excludedIds.has(rygGodCard.id)) {
       items.push({ id: rygGodCard.id, type: 'ryg-god', data: rygGodCard });
+    }
+    // Enemies last, matching their position in the deck.
+    for (const e of rygEnemyCards) {
+      if (!excludedIds.has(e.id)) items.push({ id: e.id, type: 'ryg-enemy', data: e });
     }
   } else {
     for (const c of haloCards) {
@@ -657,6 +697,24 @@ const PrintCardGrid = ({
                             destinyName={s.destinyName}
                             destinyDesc={s.destinyDesc}
                             destinyCurse={s.destinyCurse}
+                          />
+                        );
+                      })()}
+                      {item.type === 'ryg-enemy' && (() => {
+                        const e = item.data as PrintableEnemyCard;
+                        return (
+                          <EnemyCard
+                            name={e.name}
+                            enemyType={e.enemyType}
+                            aiType={e.aiType}
+                            offense={e.offense}
+                            defense={e.defense}
+                            life={e.life}
+                            tactics={e.tactics}
+                            fate={e.fate}
+                            abilities={e.abilities}
+                            weapons={e.weapons}
+                            equipment={e.equipment}
                           />
                         );
                       })()}
