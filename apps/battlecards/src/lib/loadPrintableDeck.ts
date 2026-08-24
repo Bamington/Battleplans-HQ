@@ -28,8 +28,10 @@ import type {
   PrintableRygCard,
   PrintableRygSept,
   PrintableRygGod,
+  PrintableEnemyCard,
 } from '../components/PrintCardGrid';
 import type { RygWeapon, RygArmor, RygItem, RygSpell } from '../components/RygCard';
+import type { EnemyAbility, EnemyEquipment } from '../components/EnemyCard';
 import type {
   BloodBowlStats,
   HaloFlashpointStats,
@@ -37,6 +39,7 @@ import type {
   RygSeptStats,
   RygDestinyStats,
   RygGodStats,
+  RygWeaponStats,
 } from './database.types';
 
 // ── Games with a finished card layout ────────────────────────────────────────
@@ -476,9 +479,10 @@ async function loadRygCards(client: SupabaseClient, deckId: string) {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
 
-    if (error || !data) return { warriors: [], septCard: null, godCard: null };
+    if (error || !data) return { warriors: [], septCard: null, godCard: null, enemies: [] };
 
     const warriors: PrintableRygCard[] = [];
+    const enemies:  PrintableEnemyCard[] = [];
     let septCard: PrintableRygSept | null = null;
     let godCard: PrintableRygGod | null = null;
 
@@ -533,6 +537,46 @@ async function loadRygCards(client: SupabaseClient, deckId: string) {
           lieutenants:    godStats.lieutenants    ?? '',
           champions:      godStats.champions      ?? '',
         };
+      } else if (row.card_type === 'enemy') {
+        // Enemy card. Abilities, weapons and equipment split by addon type,
+        // the same way the builder reads them back — armor and items are two
+        // pools but one block of equipment on the card.
+        const abilities: EnemyAbility[]   = [];
+        const eWeapons:  RygWeapon[]      = [];
+        const equipment: EnemyEquipment[] = [];
+
+        for (const ca of sortedAddons) {
+          const slug  = typeIdToSlug[ca.addons!.addon_type_id];
+          const addon = ca.addons!;
+          if (slug === 'enemy-abilities') {
+            abilities.push({ id: ca.addon_id, title: addon.name, description: addon.description ?? '' });
+          } else if (slug === 'weapons') {
+            const ws = (addon.stats ?? {}) as RygWeaponStats;
+            eWeapons.push({
+              id:       ca.addon_id,
+              name:     addon.name,
+              damage:   ws.damage ?? '',
+              range:    ws.range  ?? 0,
+              cost:     ws.cost   ?? 0,
+              keywords: addon.description ?? '',
+            });
+          } else if (slug === 'armor' || slug === 'items') {
+            equipment.push({ id: ca.addon_id, name: addon.name, description: addon.description ?? '' });
+          }
+        }
+
+        enemies.push({
+          id:        row.id,
+          name:      row.name,
+          enemyType: typeof s.enemyType === 'string' ? s.enemyType : '',
+          aiType:    typeof s.aiType    === 'string' ? s.aiType    : '',
+          offense:   typeof s.offense === 'number' ? s.offense : 0,
+          defense:   typeof s.defense === 'number' ? s.defense : 0,
+          life:      typeof s.life    === 'number' ? s.life    : 0,
+          tactics:   typeof s.tactics === 'number' ? s.tactics : 0,
+          fate:      typeof s.fate    === 'number' ? s.fate    : 0,
+          abilities, weapons: eWeapons, equipment,
+        });
       } else {
         // Warrior card (card_type='operative')
         const weapons:   RygWeapon[]  = [];
@@ -621,7 +665,7 @@ async function loadRygCards(client: SupabaseClient, deckId: string) {
       }
     }
 
-    return { warriors, septCard, godCard };
+    return { warriors, septCard, godCard, enemies };
 }
 
 // ── Orchestrator ─────────────────────────────────────────────────────────────
@@ -641,6 +685,8 @@ export interface PrintableDeck {
   rygCards:       PrintableRygCard[];
   rygSeptCard:    PrintableRygSept | null;
   rygGodCard:     PrintableRygGod | null;
+  /** Enemies, which sort to the end of a RYG deck. */
+  rygEnemyCards:  PrintableEnemyCard[];
 }
 
 export type LoadDeckResult =
@@ -656,6 +702,7 @@ const EMPTY = {
   rygCards:       [] as PrintableRygCard[],
   rygSeptCard:    null as PrintableRygSept | null,
   rygGodCard:     null as PrintableRygGod | null,
+  rygEnemyCards:  [] as PrintableEnemyCard[],
 };
 
 /**
@@ -705,8 +752,17 @@ export async function loadPrintableDeck(
   }
 
   if (slug === 'ryg') {
-    const { warriors, septCard, godCard } = await loadRygCards(client, deckId);
-    return { ok: true, deck: { ...base, rygCards: warriors, rygSeptCard: septCard, rygGodCard: godCard } };
+    const { warriors, septCard, godCard, enemies } = await loadRygCards(client, deckId);
+    return {
+      ok: true,
+      deck: {
+        ...base,
+        rygCards:      warriors,
+        rygSeptCard:   septCard,
+        rygGodCard:    godCard,
+        rygEnemyCards: enemies,
+      },
+    };
   }
 
   const [haloCards, rules] = await Promise.all([

@@ -26,6 +26,7 @@ import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import RygCard from '../components/RygCard';
+import EnemyCard from '../components/EnemyCard';
 import SeptCard from '../components/SeptCard';
 import GodCard from '../components/GodCard';
 import {
@@ -44,6 +45,7 @@ import type {
   PrintableRygCard,
   PrintableRygSept,
   PrintableRygGod,
+  PrintableEnemyCard,
 } from '../components/PrintCardGrid';
 
 // ── Card sizing ──────────────────────────────────────────────────────────────
@@ -56,7 +58,7 @@ import type {
 type ItemType =
   | 'blood-bowl' | 'halo-unit' | 'halo-rule'
   | 'kt-unit' | 'kt-rule'
-  | 'ryg-warrior' | 'ryg-sept' | 'ryg-god';
+  | 'ryg-warrior' | 'ryg-sept' | 'ryg-god' | 'ryg-enemy';
 
 const NATIVE: Record<ItemType, { w: number; h: number }> = {
   'blood-bowl':  { w: 750,  h: 1100 },
@@ -67,6 +69,7 @@ const NATIVE: Record<ItemType, { w: number; h: number }> = {
   'ryg-warrior': { w: 890,  h: 1270 },
   'ryg-sept':    { w: 890,  h: 1270 },
   'ryg-god':     { w: 890,  h: 1270 },
+  'ryg-enemy':   { w: 890,  h: 1270 },
 };
 
 interface DeckItem {
@@ -89,6 +92,8 @@ function itemsFor(deck: PrintableDeck): DeckItem[] {
     for (const c of deck.rygCards) items.push({ id: c.id, type: 'ryg-warrior', data: c });
     if (deck.rygSeptCard) items.push({ id: deck.rygSeptCard.id, type: 'ryg-sept', data: deck.rygSeptCard });
     if (deck.rygGodCard)  items.push({ id: deck.rygGodCard.id,  type: 'ryg-god',  data: deck.rygGodCard });
+    // Enemies last, matching their position in the deck.
+    for (const e of deck.rygEnemyCards) items.push({ id: e.id, type: 'ryg-enemy', data: e });
   } else {
     for (const c of deck.haloCards) items.push({ id: c.id, type: 'halo-unit', data: c });
     for (const r of deck.rules)     items.push({ id: r.id, type: 'halo-rule', data: r });
@@ -194,6 +199,24 @@ function renderCard(item: DeckItem) {
           destinyName={s.destinyName}
           destinyDesc={s.destinyDesc}
           destinyCurse={s.destinyCurse}
+        />
+      );
+    }
+    case 'ryg-enemy': {
+      const e = item.data as PrintableEnemyCard;
+      return (
+        <EnemyCard
+          name={e.name}
+          enemyType={e.enemyType}
+          aiType={e.aiType}
+          offense={e.offense}
+          defense={e.defense}
+          life={e.life}
+          tactics={e.tactics}
+          fate={e.fate}
+          abilities={e.abilities}
+          weapons={e.weapons}
+          equipment={e.equipment}
         />
       );
     }
