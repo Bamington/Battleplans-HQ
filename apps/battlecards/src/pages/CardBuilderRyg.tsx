@@ -168,7 +168,9 @@ function EnemyAttachSection({
         </div>
       ))}
 
-      <div className="flex gap-2">
+      {/* Stacked — the equipment section has two, and side by side they
+          crowded the narrow editor panel. */}
+      <div className="flex flex-col gap-2 items-start">
         <Button variant="outline" size="sm" leftIcon={<AddCircle className="w-4 h-4" />} onClick={onAdd}>
           {addLabel}
         </Button>

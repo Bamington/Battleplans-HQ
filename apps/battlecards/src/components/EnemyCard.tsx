@@ -50,7 +50,7 @@ const BASKERVILLE_BOLD = { ...BASKERVILLE, fontWeight: 700 } as const;
 
 const NAME_TOP     = 18;
 const NAME_H       = 112;
-const SUBTITLE_TOP = 145;
+const SUBTITLE_TOP = 125;
 
 const LIFE_LEFT = 32;
 const LIFE_TOP  = 181;
