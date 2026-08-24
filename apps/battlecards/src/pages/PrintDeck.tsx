@@ -27,6 +27,7 @@ import type {
   PrintableRygCard,
   PrintableRygSept,
   PrintableRygGod,
+  PrintableEnemyCard,
 } from '../components/PrintCardGrid';
 import { loadPrintableDeck } from '../lib/loadPrintableDeck';
 
@@ -59,6 +60,7 @@ const PrintDeck = () => {
   const [rygCards, setRygCards] = useState<PrintableRygCard[]>([]);
   const [rygSeptCard, setRygSeptCard] = useState<PrintableRygSept | null>(null);
   const [rygGodCard, setRygGodCard] = useState<PrintableRygGod | null>(null);
+  const [rygEnemyCards, setRygEnemyCards] = useState<PrintableEnemyCard[]>([]);
 
   // ── Dynamic @page size injection ─────────────────────────────────────────
   useEffect(() => {
@@ -97,6 +99,7 @@ const PrintDeck = () => {
       setRygCards(d.rygCards);
       setRygSeptCard(d.rygSeptCard);
       setRygGodCard(d.rygGodCard);
+      setRygEnemyCards(d.rygEnemyCards);
       setLoading(false);
     };
 
@@ -292,6 +295,7 @@ const PrintDeck = () => {
           rygCards={rygCards}
           rygSeptCard={rygSeptCard ?? undefined}
           rygGodCard={rygGodCard ?? undefined}
+          rygEnemyCards={rygEnemyCards}
         />
       </div>
     </div>

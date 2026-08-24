@@ -2582,6 +2582,15 @@ const ComponentGallery = () => {
               ]}
               rygSeptCard={{ id: 'rs1', septName: 'Ashborn', prohibited: 'Necromancy', required: 'Fire rites', restricted: 'Heavy armour', benefits: [{ name: 'Emberblood', description: 'Ignore the first burn each battle.' }], destinyName: 'The Long Ash', destinyDesc: 'Endure to be remembered.', destinyCurse: 'Never rest twice in one place.' }}
               rygGodCard={{ id: 'rg1', godName: 'Vashk the Unlit', specialAbility: 'Once per battle, reroll a fate die.', minions: 'Cinder rats', servants: 'Ash wardens', lieutenants: 'The Quenched', champions: 'Vessel of Smoke' }}
+              // An enemy shares the RYG slot size, so it packs onto the same
+              // sheets despite its own chrome — and sorts after the warband.
+              rygEnemyCards={[{
+                id: 're1', name: 'Paingiver', enemyType: 'Champion', aiType: 'Dross',
+                life: 13, offense: 5, defense: 5, tactics: 5, fate: 5,
+                abilities: [{ id: 'ra1', title: 'Paingiver', description: 'Attacks made while Hidden halve the target’s Defense and double the damage dealt.' }],
+                weapons: [{ id: 'rw9', name: 'Battleaxe', damage: '1D6+3', range: 0, cost: 0, keywords: 'Edged, One-Handed, Slicing' }],
+                equipment: [{ id: 're9', name: 'Heavy Armor', description: '-1 to enemy Offense.' }],
+              }]}
             />
           </div>
         </div>
