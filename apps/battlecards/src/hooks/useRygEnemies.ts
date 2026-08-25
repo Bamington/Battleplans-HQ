@@ -111,6 +111,31 @@ const enemyStats = (e: EnemyCardData) => ({
   fate:      e.fate,
 });
 
+/** Shape of the keyword rows hanging off a weapon addon. */
+type AddonKeywordRow = {
+  params:   Record<string, unknown> | null;
+  sort_order: number | null;
+  keywords: { name: string } | null;
+};
+
+/**
+ * "Edged, One-Handed, Piercing" from a weapon's keyword rows.
+ *
+ * Enemy weapons read the same addon_keywords the warrior card does, rather than
+ * a string kept in the addon's description — so a weapon shared between a
+ * warrior and an enemy reads identically on both, and the pack's canonical
+ * keyword data is what shows.
+ */
+const keywordString = (rows: AddonKeywordRow[] | null | undefined): string =>
+  [...(rows ?? [])]
+    .filter(r => r.keywords != null)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map(r => {
+      const x = r.params?.X;
+      return x != null ? `${r.keywords!.name} (${x})` : r.keywords!.name;
+    })
+    .join(', ');
+
 /** A card with no name and nothing attached isn't worth a row yet. */
 const isBlank = (e: EnemyCardData) =>
   e.name.trim() === '' && e.abilities.length === 0 &&
@@ -180,7 +205,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
 
       const { data, error } = await supabase
         .from('cards')
-        .select('id, name, stats, sort_order, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id))')
+        .select('id, name, stats, sort_order, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id, addon_keywords(params, sort_order, keywords(name))))')
         .eq('deck_id', deckId)
         .eq('card_type', 'enemy')
         .order('sort_order', { ascending: true });
@@ -191,7 +216,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
       type AddonRow = {
         addon_id: string;
         sort_order: number | null;
-        addons: { name: string; description: string | null; stats: unknown; addon_type_id: string } | null;
+        addons: { name: string; description: string | null; stats: unknown; addon_type_id: string; addon_keywords: AddonKeywordRow[] | null } | null;
       };
 
       const loaded: EnemyCardData[] = (data as unknown as {
@@ -220,7 +245,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
               name:     addon.name,
               damage:   ws.damage ?? '',
               range:    ws.range ?? 0,
-              keywords: addon.description ?? '',
+              keywords: keywordString(addon.addon_keywords),
             });
           } else if (EQUIPMENT_SLUGS.includes(slug)) {
             equipment.push({ addonId: ca.addon_id, name: addon.name, description: addon.description ?? '' });
@@ -372,7 +397,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
 
     const { data: tpl, error: tplErr } = await supabase
       .from('cards')
-      .select('id, name, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id))')
+      .select('id, name, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id, addon_keywords(params, sort_order, keywords(name))))')
       .eq('id', templateId)
       .single();
 
@@ -403,7 +428,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
     type SrcAddon = {
       addon_id: string;
       sort_order: number | null;
-      addons: { name: string; description: string | null; stats: unknown; addon_type_id: string } | null;
+      addons: { name: string; description: string | null; stats: unknown; addon_type_id: string; addon_keywords: AddonKeywordRow[] | null } | null;
     };
 
     const sources = [...((tpl.card_addons ?? []) as unknown as SrcAddon[])]
@@ -460,7 +485,7 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
         weapons.push({
           addonId, name: addon.name,
           damage: ws.damage ?? '', range: ws.range ?? 0,
-          keywords: addon.description ?? '',
+          keywords: keywordString(addon.addon_keywords),
         });
       } else if (EQUIPMENT_SLUGS.includes(slug)) {
         equipment.push({ addonId, name: addon.name, description: addon.description ?? '' });
