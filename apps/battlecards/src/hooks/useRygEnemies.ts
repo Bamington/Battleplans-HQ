@@ -116,9 +116,23 @@ const isBlank = (e: EnemyCardData) =>
   e.name.trim() === '' && e.abilities.length === 0 &&
   e.weapons.length === 0 && e.equipment.length === 0;
 
+/** An enemy offered by a pack, for the "add enemy" picker. */
+export interface PackEnemy {
+  /** cards.id of the pack's template row. */
+  id:        string;
+  name:      string;
+  enemyType: string;
+  aiType:    string;
+  packName:  string;
+}
+
 export interface UseRygEnemiesResult {
   enemies:     EnemyCardData[];
   loading:     boolean;
+  /** Enemies available from official or imported packs. */
+  packEnemies: PackEnemy[];
+  /** Copy a pack enemy into this deck, with its abilities, weapons and gear. */
+  addEnemyFromPack: (templateId: string) => Promise<string | null>;
   addEnemy:    () => string;
   updateEnemy: (id: string, patch: Partial<EnemyCardData>) => void;
   removeEnemy: (id: string) => Promise<void>;
@@ -135,6 +149,7 @@ export interface UseRygEnemiesResult {
 export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
   const [enemies, setEnemies] = useState<EnemyCardData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [packEnemies, setPackEnemies] = useState<PackEnemy[]>([]);
 
   // Ids of enemies changed since the last save, so a debounced write only
   // touches what moved — the same approach the warrior autosave uses.
@@ -237,6 +252,46 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
     return () => { cancelled = true; };
   }, [deckId]);
 
+  // ── Enemies offered by packs ──────────────────────────────────────────────
+  //
+  // No ownership filter is needed: the RLS on cards already exposes a pack's
+  // cards when the pack is public or the caller owns it, so this returns
+  // exactly what this user is entitled to see.
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPacks = async () => {
+      const { data: game } = await supabase
+        .from('games').select('id').eq('slug', 'ryg').single();
+      if (cancelled || !game) return;
+
+      const { data, error } = await supabase
+        .from('cards')
+        .select('id, name, stats, packs!inner(name, game_id)')
+        .eq('card_type', 'enemy')
+        .eq('is_template', true)
+        .eq('packs.game_id', game.id)
+        .order('name');
+
+      if (cancelled || error || !data) return;
+
+      setPackEnemies((data as unknown as {
+        id: string; name: string; stats: Record<string, unknown>;
+        packs: { name: string } | null;
+      }[]).map(row => ({
+        id:        row.id,
+        name:      row.name,
+        enemyType: typeof row.stats?.enemyType === 'string' ? row.stats.enemyType : '',
+        aiType:    typeof row.stats?.aiType    === 'string' ? row.stats.aiType    : '',
+        packName:  row.packs?.name ?? '',
+      })));
+    };
+
+    void loadPacks();
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Save ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -296,6 +351,144 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
     return fresh.id;
   }, []);
 
+  /**
+   * Copy a pack enemy into this deck.
+   *
+   * The card is written immediately rather than left to the autosave, because
+   * its attachments need a card id to hang off — and the addons are cloned into
+   * the player's own library rather than referenced in place. Referencing the
+   * pack's rows would read fine, but the player couldn't then edit the
+   * enemy's kit: addons_update is owner-scoped, and a pack's addons belong to
+   * whoever published it.
+   *
+   * A clone is reused when the player already has an addon of the same type and
+   * name, so adding three Carrion doesn't leave three Daggers in their library.
+   */
+  const addEnemyFromPack = useCallback(async (templateId: string): Promise<string | null> => {
+    if (!deckId) return null;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: tpl, error: tplErr } = await supabase
+      .from('cards')
+      .select('id, name, stats, card_addons(addon_id, sort_order, addons(name, description, stats, addon_type_id))')
+      .eq('id', templateId)
+      .single();
+
+    if (tplErr || !tpl) {
+      console.error('[BattleCards] Could not read the pack enemy:', tplErr);
+      return null;
+    }
+
+    const s = (tpl.stats ?? {}) as Record<string, unknown>;
+    const num = (v: unknown) => (typeof v === 'number' ? v : 0);
+
+    const { data: created, error: cardErr } = await supabase
+      .from('cards')
+      .insert({
+        deck_id:    deckId,
+        card_type:  'enemy',
+        name:       tpl.name,
+        stats:      s,
+        sort_order: ENEMY_SORT_BASE + enemies.length,
+      })
+      .select('id').single();
+
+    if (cardErr || !created) {
+      console.error('[BattleCards] Could not add the enemy:', cardErr);
+      return null;
+    }
+
+    type SrcAddon = {
+      addon_id: string;
+      sort_order: number | null;
+      addons: { name: string; description: string | null; stats: unknown; addon_type_id: string } | null;
+    };
+
+    const sources = [...((tpl.card_addons ?? []) as unknown as SrcAddon[])]
+      .filter(ca => ca.addons != null)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    const abilities: EnemyAttachment[] = [];
+    const weapons:   EnemyWeaponData[] = [];
+    const equipment: EnemyAttachment[] = [];
+    const links: { card_id: string; addon_id: string; sort_order: number }[] = [];
+
+    for (let i = 0; i < sources.length; i++) {
+      const src   = sources[i];
+      const addon = src.addons!;
+
+      // Reuse the player's matching addon where there is one.
+      const { data: mine } = await supabase
+        .from('addons')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('addon_type_id', addon.addon_type_id)
+        .eq('name', addon.name)
+        .is('pack_id', null)
+        .maybeSingle();
+
+      let addonId = mine?.id as string | undefined;
+
+      if (!addonId) {
+        const { data: clone, error: cloneErr } = await supabase
+          .from('addons')
+          .insert({
+            user_id:        user.id,
+            addon_type_id:  addon.addon_type_id,
+            name:           addon.name,
+            description:    addon.description,
+            stats:          addon.stats ?? {},
+            pack_source_id: src.addon_id,
+          })
+          .select('id').single();
+        if (cloneErr || !clone) {
+          console.error('[BattleCards] Could not copy an addon:', cloneErr);
+          continue;
+        }
+        addonId = clone.id as string;
+      }
+
+      links.push({ card_id: created.id as string, addon_id: addonId, sort_order: i });
+
+      const slug = typeSlugRef.current[addon.addon_type_id];
+      if (slug === ABILITY_SLUG) {
+        abilities.push({ addonId, name: addon.name, description: addon.description ?? '' });
+      } else if (slug === WEAPON_SLUG) {
+        const ws = (addon.stats ?? {}) as RygWeaponStats;
+        weapons.push({
+          addonId, name: addon.name,
+          damage: ws.damage ?? '', range: ws.range ?? 0,
+          keywords: addon.description ?? '',
+        });
+      } else if (EQUIPMENT_SLUGS.includes(slug)) {
+        equipment.push({ addonId, name: addon.name, description: addon.description ?? '' });
+      }
+    }
+
+    if (links.length > 0) await supabase.from('card_addons').insert(links);
+
+    const fresh: EnemyCardData = {
+      id:         crypto.randomUUID(),
+      dbId:       created.id as string,
+      kind:       'enemy',
+      name:       tpl.name,
+      enemyType:  typeof s.enemyType === 'string' ? s.enemyType : 'Minion',
+      aiType:     typeof s.aiType    === 'string' ? s.aiType    : 'Dross',
+      offense:    num(s.offense),
+      defense:    num(s.defense),
+      life:       num(s.life),
+      tactics:    num(s.tactics),
+      fate:       num(s.fate),
+      abilities, weapons, equipment,
+      tokenState: {},
+    };
+
+    setEnemies(list => [...list, fresh]);
+    return fresh.id;
+  }, [deckId, enemies.length]);
+
   const updateEnemy = useCallback((id: string, patch: Partial<EnemyCardData>) => {
     dirtyRef.current.add(id);
     setEnemies(list => list.map(e => (e.id === id ? { ...e, ...patch } : e)));
@@ -314,5 +507,8 @@ export function useRygEnemies(deckId: string | null): UseRygEnemiesResult {
     [],
   );
 
-  return { enemies, loading, addEnemy, updateEnemy, removeEnemy, patchEnemies };
+  return {
+    enemies, loading, packEnemies,
+    addEnemy, addEnemyFromPack, updateEnemy, removeEnemy, patchEnemies,
+  };
 }
