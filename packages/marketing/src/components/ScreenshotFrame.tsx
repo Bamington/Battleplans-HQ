@@ -72,14 +72,28 @@ export function ScreenshotFrame({
 
 /* ── Placeholder ───────────────────────────────────────────────────────── */
 
-export type MockVariant = 'columns' | 'booking' | 'battles' | 'stats' | 'store' | 'update';
+/*
+ * The shapes a placeholder can take. Each one is a LAYOUT, not an app: 'columns'
+ * is any multi-column screen and 'document' is any nav-plus-document editor, so
+ * a new app usually finds its screens already here rather than adding to this
+ * list. Add a variant when a screen's shape genuinely isn't in it — a mock that
+ *'s the wrong shape is worse than a generic one, because it tells the reader
+ * something false about the product.
+ */
+export type MockVariant =
+  | 'columns' | 'booking' | 'battles' | 'stats' | 'store' | 'update'
+  | 'document' | 'page' | 'list';
 
-/** The app's real background. Not a marketing token on purpose — this is
- *  standing in for a screenshot, and a screenshot is app-coloured. */
+/** The apps' real background. Not marketing tokens on purpose — this is
+ *  standing in for a screenshot, and a screenshot is app-coloured. The greys
+ *  are the same in every app; only the accent differs, so that one reads
+ *  through --mk-app-accent, which each brand block in marketing.css sets. */
 const APP_BG = '#030712';
 const APP_PANEL = '#111827';
 const APP_LINE = '#1f2937';
-const APP_ACCENT = '#8b5cf6';
+const APP_ACCENT = 'var(--mk-app-accent)';
+/** The same accent where an alpha is needed. See the brand blocks. */
+const APP_ACCENT_A = (a: number) => `rgb(var(--mk-app-accent-rgb) / ${a})`;
 
 function Bar({ w, h = 8, c = APP_LINE, r = 4 }: { w: string; h?: number; c?: string; r?: number }) {
   return <div style={{ width: w, height: h, background: c, borderRadius: r }} />;
@@ -101,9 +115,9 @@ function Card({ accent = false }: { accent?: boolean }) {
     <div
       className="p-2.5 flex flex-col gap-2"
       style={{
-        background: accent ? 'rgba(139,92,246,0.14)' : '#0b1220',
+        background: accent ? APP_ACCENT_A(0.14) : '#0b1220',
         borderRadius: 8,
-        border: `1px solid ${accent ? 'rgba(139,92,246,0.35)' : APP_LINE}`,
+        border: `1px solid ${accent ? APP_ACCENT_A(0.35) : APP_LINE}`,
       }}
     >
       <Bar w="70%" h={7} c={accent ? APP_ACCENT : '#374151'} />
@@ -129,6 +143,9 @@ export function AppMock({ variant = 'columns' }: { variant?: MockVariant }) {
       {variant === 'stats' && <MockStats />}
       {variant === 'store' && <MockStore />}
       {variant === 'update' && <MockUpdate />}
+      {variant === 'document' && <MockDocument />}
+      {variant === 'page' && <MockPage />}
+      {variant === 'list' && <MockList />}
     </div>
   );
 }
@@ -177,7 +194,7 @@ function MockBooking() {
           {[0, 1, 2, 3].map(i => (
             <div key={i} className="flex-1" style={{
               height: 22, borderRadius: 6,
-              background: i === 1 ? 'rgba(139,92,246,0.25)' : '#0b1220',
+              background: i === 1 ? APP_ACCENT_A(0.25) : '#0b1220',
               border: `1px solid ${i === 1 ? APP_ACCENT : APP_LINE}`,
             }} />
           ))}
@@ -273,12 +290,166 @@ function MockStore() {
           {Array.from({ length: 16 }).map((_, i) => (
             <div key={i} style={{
               aspectRatio: '1', borderRadius: 5,
-              background: [3, 6, 9, 10, 14].includes(i) ? 'rgba(139,92,246,0.5)' : '#16203a',
+              background: [3, 6, 9, 10, 14].includes(i) ? APP_ACCENT_A(0.5) : '#16203a',
             }} />
           ))}
         </div>
         <Bar w="60%" h={7} c="#374151" />
       </Panel>
+    </div>
+  );
+}
+
+/*
+ * A nav, a document and a form — BattlePack's editor, and the shape of any
+ * three-column builder. The centre column is deliberately the widest and the
+ * only one carrying paragraphs: it's the thing being written.
+ */
+function MockDocument() {
+  return (
+    <div className="grid grid-cols-[1fr_2fr_1.4fr] gap-3 h-[calc(100%-2rem)]">
+      <Panel>
+        <Bar w="60%" h={9} c="#4b5563" />
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="flex items-center gap-2" style={{ opacity: i === 1 ? 1 : 0.65 }}>
+            <div style={{
+              width: 14, height: 14, borderRadius: 4,
+              background: i === 1 ? APP_ACCENT : '#2a3547',
+            }} />
+            <Bar w={`${72 - (i % 3) * 12}%`} h={7} c={i === 1 ? '#6b7280' : '#374151'} />
+          </div>
+        ))}
+      </Panel>
+
+      <Panel>
+        {/* The banner the document opens on. */}
+        <div style={{
+          height: 34, borderRadius: 6,
+          background: `linear-gradient(160deg, ${APP_ACCENT_A(0.4)} 0%, #16203a 60%, #0a0f1c 100%)`,
+        }} />
+        <Bar w="72%" h={11} c="#6b7280" />
+        <Bar w="40%" h={7} c="#374151" />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="flex flex-col gap-1.5 mt-1">
+            <Bar w="34%" h={8} c="#4b5563" />
+            <Bar w="96%" h={6} c="#293244" />
+            <Bar w="88%" h={6} c="#293244" />
+            <Bar w={`${60 + i * 8}%`} h={6} c="#293244" />
+          </div>
+        ))}
+      </Panel>
+
+      <Panel>
+        <Bar w="52%" h={9} c="#4b5563" />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="flex flex-col gap-1.5">
+            <Bar w="30%" h={6} c="#374151" />
+            <div style={{ height: 22, borderRadius: 8, background: '#0b1220', border: `1px solid ${APP_LINE}` }} />
+          </div>
+        ))}
+        <div className="flex-1" style={{ borderRadius: 8, background: '#0b1220', border: `1px solid ${APP_LINE}` }} />
+        <div style={{ height: 24, borderRadius: 999, background: APP_ACCENT, width: '55%' }} />
+      </Panel>
+    </div>
+  );
+}
+
+/*
+ * A published page as a reader gets it: one centred column under a banner, with
+ * a boxed card of facts beside the prose. Narrower than the screen on purpose —
+ * a public page that ran the full width would be indistinguishable from the
+ * editor above.
+ */
+function MockPage() {
+  return (
+    <div className="h-[calc(100%-2rem)] flex justify-center">
+      <div className="w-[76%] flex flex-col gap-3">
+        <div style={{
+          height: 60, borderRadius: 10,
+          background: `linear-gradient(160deg, ${APP_ACCENT_A(0.45)} 0%, #16203a 55%, #0a0f1c 100%)`,
+          border: `1px solid ${APP_LINE}`,
+        }} />
+        <Bar w="58%" h={13} c="#6b7280" />
+        <Bar w="34%" h={7} c="#374151" />
+
+        <div className="grid grid-cols-[1.6fr_1fr] gap-3 flex-1 min-h-0">
+          <Panel>
+            <Bar w="30%" h={8} c="#4b5563" />
+            {['94%', '88%', '96%', '62%'].map((w, i) => <Bar key={i} w={w} h={6} c="#293244" />)}
+            <Bar w="34%" h={8} c="#4b5563" />
+            {['90%', '80%'].map((w, i) => <Bar key={i} w={w} h={6} c="#293244" />)}
+          </Panel>
+
+          <Panel>
+            <Bar w="52%" h={8} c="#4b5563" />
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex items-center justify-between gap-2">
+                <Bar w="38%" h={6} c="#374151" />
+                <Bar w="44%" h={6} c="#293244" />
+              </div>
+            ))}
+            {/* The calendar button, the card's last row. */}
+            <div style={{
+              height: 22, borderRadius: 999, marginTop: 2,
+              border: `1px solid ${APP_ACCENT_A(0.45)}`, background: APP_ACCENT_A(0.12),
+            }} />
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * One centred column of rows, each with a status. The shape of every "my
+ * things" screen in the suite — a venue's events, an organiser's packs — and
+ * the one shape the rest of this set was missing: everything else here is two
+ * or three columns, so a single-column screen had nothing to stand in for it.
+ *
+ * The rows vary in how much they carry on purpose. A column of identical rows
+ * reads as a table; the point of these screens is that the things in them are
+ * different sizes.
+ */
+function MockList() {
+  const ROWS = [
+    { w: '64%', sub: '38%', badge: APP_ACCENT_A(0.5) },
+    { w: '78%', sub: '44%', badge: APP_ACCENT_A(0.5) },
+    { w: '52%', sub: '30%', badge: APP_ACCENT_A(0.5) },
+    { w: '70%', sub: '36%', badge: '#2a3547' },
+    { w: '58%', sub: '42%', badge: '#2a3547' },
+  ];
+  return (
+    <div className="h-[calc(100%-2rem)] flex justify-center">
+      <div className="w-[62%] min-w-0">
+        <Panel className="h-full">
+          <Bar w="46%" h={10} c="#4b5563" />
+          {/* The filter row. */}
+          <div className="flex gap-1.5">
+            {['46px', '30px', '24px'].map((w, i) => (
+              <div key={i} style={{
+                width: w, height: 16, borderRadius: 999,
+                background: i === 0 ? APP_ACCENT_A(0.16) : '#0b1220',
+                border: `1px solid ${i === 0 ? APP_ACCENT_A(0.45) : APP_LINE}`,
+              }} />
+            ))}
+          </div>
+          {ROWS.map((row, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 px-2.5" style={{
+              height: 40, borderRadius: 8, background: '#0b1220', border: `1px solid ${APP_LINE}`,
+            }}>
+              <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                <Bar w={row.w} h={7} c="#4b5563" />
+                <Bar w={row.sub} h={6} c="#293244" />
+              </div>
+              <div style={{ width: 34, height: 10, borderRadius: 999, background: row.badge, flexShrink: 0 }} />
+            </div>
+          ))}
+          <div className="mt-auto" style={{
+            height: 24, borderRadius: 999,
+            border: `1px solid ${APP_ACCENT_A(0.45)}`, background: APP_ACCENT_A(0.1),
+          }} />
+        </Panel>
+      </div>
     </div>
   );
 }

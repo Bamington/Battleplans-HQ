@@ -169,3 +169,34 @@ export const Shield = (p: IconProps) => (
 export const Bolt = (p: IconProps) => (
   <Icon {...p}><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12Z" /></Icon>
 );
+
+/* ── Documents and links ───────────────────────────────────────────────── */
+
+export const Document = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 3h7l5 5v13H6ZM13 3v5h5" />
+    <path d="M9 13h6M9 16.5h4" />
+  </Icon>
+);
+
+export const Link = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1.2 1.2" />
+    <path d="M14 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1.2-1.2" />
+  </Icon>
+);
+
+export const Repeat = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 9a4 4 0 0 1 4-4h9M17 5l-2.5-2.5M17 5l-2.5 2.5" />
+    <path d="M20 15a4 4 0 0 1-4 4H7M7 19l2.5 2.5M7 19l2.5-2.5" />
+  </Icon>
+);
+
+export const Trophy = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.5 3h9v5a4.5 4.5 0 0 1-9 0Z" />
+    <path d="M7.5 4.5H5a2.5 2.5 0 0 0 2.5 5M16.5 4.5H19a2.5 2.5 0 0 1-2.5 5" />
+    <path d="M12 12.5V16M8.5 21h7l-.7-2.5h-5.6Z" />
+  </Icon>
+);

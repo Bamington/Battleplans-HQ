@@ -5,9 +5,17 @@
  * because one login across BattlePlan, BattleBox and BattlePack is a genuine
  * differentiator, and because it sets up the landing pages for the other two.
  *
- * Each card carries its own app's accent rather than the marketing violet.
- * It's the one place on the page where a colour other than the accent is
- * allowed to be saturated, and it earns it by being the point of the section.
+ * Each card carries its OWN app's accent rather than the accent of the site
+ * it's rendered on. It's the one place on a page where a colour other than the
+ * accent is allowed to be saturated, and it earns it by being the point of the
+ * section: three apps, told apart by the three colours they're told apart by
+ * everywhere else.
+ *
+ * Which is also why this lives in the shared package rather than in one app's
+ * directory. Every site wants this section, and every copy of it would have to
+ * be edited the day a fourth app ships.
+ *
+ * `current` is passed in rather than baked in, so each site marks itself.
  */
 
 import { Reveal, SectionHeading } from './Section';
@@ -17,23 +25,21 @@ const APPS = [
     name: 'BattlePlan',
     tagline: 'Book tables, log battles, track your record.',
     accent: '#8b5cf6',
-    current: true,
   },
   {
     name: 'BattleBox',
     tagline: 'Your collection and your paints, catalogued and photographed.',
     accent: '#f59e0b',
-    current: false,
   },
   {
     name: 'BattlePack',
     tagline: 'Run an event, and give players a page that tells them everything.',
-    accent: '#10b981',
-    current: false,
+    accent: '#22c55e',
   },
 ];
 
-export function SuiteSection() {
+/** @param current The app whose site this is, marked "You're here". */
+export function SuiteSection({ current }: { current: string }) {
   return (
     <>
       <Reveal>
@@ -63,7 +69,7 @@ export function SuiteSection() {
                   <h3 className="mk-display-3">{app.name}</h3>
                 </div>
                 <p className="mk-body-sm mt-4">{app.tagline}</p>
-                {app.current && (
+                {app.name === current && (
                   <p className="mk-caption mt-5" style={{ color: 'var(--mk-accent-400)' }}>
                     You're here
                   </p>

@@ -4,30 +4,19 @@
  * Sits on --mk-surface-well, the same floor as the screenshot frames. It's the
  * one place besides a screenshot where the page is allowed to go that dark,
  * and it gives the page a definite bottom edge.
+ *
+ * The wordmark, the tagline and the columns come from the brand in context —
+ * see brand.tsx. One rule survives the move and is worth keeping: every link
+ * goes somewhere. A column of placeholders pointing at pages that don't exist
+ * is furniture, and it's most of what the first version of this was.
  */
 
 import { Link } from 'react-router-dom';
-
-/*
- * One column, and every link goes somewhere.
- *
- * The suite, company and legal columns were placeholders pointing at pages that
- * don't exist — three quarters of the footer was furniture. What's left is only
- * what a reader can actually follow, which also means the '#' fallback below
- * has nothing to catch any more; it stays for whenever a real column returns.
- */
-const COLUMNS: { heading: string; links: { label: string; to: string; muted?: boolean }[] }[] = [
-  {
-    heading: 'BattlePlan',
-    links: [
-      { label: 'For players', to: '/' },
-      { label: 'For venues', to: '/venue' },
-      { label: 'Sign in', to: '/login' },
-    ],
-  },
-];
+import { useBrand } from '../brand';
 
 export function MarketingFooter() {
+  const brand = useBrand();
+
   return (
     <footer className="mk-surface-well" style={{ borderTop: '1px solid var(--mk-border-strong)' }}>
       <div className="mx-auto w-full max-w-[1200px] px-6 py-16 md:px-8 lg:px-12 lg:py-20">
@@ -39,14 +28,12 @@ export function MarketingFooter() {
               className="text-[1.375rem] tracking-[-0.01em]"
               style={{ fontFamily: 'var(--mk-font-display)', color: 'var(--mk-text-primary)' }}
             >
-              BattlePlan
+              {brand.wordmark}
             </span>
-            <p className="mk-caption mt-3 max-w-[24ch]">
-              Book the table. Log the battle. Know your record.
-            </p>
+            <p className="mk-caption mt-3 max-w-[24ch]">{brand.tagline}</p>
           </div>
 
-          {COLUMNS.map(column => (
+          {brand.footerColumns.map(column => (
             <div key={column.heading}>
               <h3
                 className="mb-4 text-[0.75rem] font-semibold uppercase"
@@ -86,8 +73,8 @@ export function MarketingFooter() {
           className="mt-14 flex flex-col gap-3 pt-8 sm:flex-row sm:items-center sm:justify-between"
           style={{ borderTop: '1px solid var(--mk-border-strong)' }}
         >
-          <p className="mk-caption">© {new Date().getFullYear()} BattlePlan</p>
-          <p className="mk-caption">Made for people who push little models around tables.</p>
+          <p className="mk-caption">© {new Date().getFullYear()} {brand.wordmark}</p>
+          <p className="mk-caption">{brand.footerNote}</p>
         </div>
       </div>
     </footer>

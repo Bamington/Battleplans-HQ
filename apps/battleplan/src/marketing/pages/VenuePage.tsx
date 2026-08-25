@@ -8,19 +8,17 @@
  * list has questions a player doesn't.
  */
 
-import { MarketingLayout } from '../MarketingLayout';
-import { Section } from '../components/Section';
-import { Hero } from '../components/Hero';
-import { PillarGrid, type Pillar } from '../components/PillarGrid';
-import { FeatureDeepDive } from '../components/FeatureDeepDive';
-import { TileGrid, type Tile } from '../components/TileGrid';
-import { FAQ, type FAQItem } from '../components/FAQ';
-import { Testimonials, type Testimonial } from '../components/Testimonials';
-import { ClosingCTA } from '../components/ClosingCTA';
+import {
+  MarketingLayout, Section, Hero, PillarGrid, FeatureDeepDive, TileGrid, FAQ,
+  Testimonials, ClosingCTA, Calendar, Store, Chart, Server, Phone, Mail,
+  Buildings, Bolt, type Pillar, type Tile, type FAQItem, type Testimonial,
+} from '@battleplans/marketing';
+import { BATTLEPLAN_BRAND } from '../brand';
+import { VenueLogos } from '../components/VenueLogos';
 import { VenueSignupForm } from '../components/VenueSignupForm';
 import { TablesDemo } from '../components/demos/TablesDemo';
 import { DayDemo } from '../components/demos/DayDemo';
-import { Calendar, Store, Chart, Server, Phone, Mail, Buildings, Bolt } from '../icons';
+import '../demos.css';
 
 /*
  * Screenshots of the real app against the Burrow Games fixture — an invented
@@ -116,6 +114,7 @@ const TESTIMONIALS: Testimonial[] = [
 export default function VenuePage() {
   return (
     <MarketingLayout
+      brand={BATTLEPLAN_BRAND}
       title="BattlePlan for venues — Your tables, booked."
       description="Players book your tables directly, you see the day on one screen, and you find out which games actually fill your floor. Completely free for stores and clubs."
     >
@@ -126,7 +125,7 @@ export default function VenuePage() {
         note="Completely free for stores and clubs."
         // Same strip, different question answered: a shop owner wants to know
         // which of their peers is already doing this.
-        logos={{ label: 'Already taking bookings at' }}
+        proof={<VenueLogos label="Already taking bookings at" />}
         /* No trustLine until the numbers are real — see LandingPage. */
         src={shotManageStore}
         srcMobile={shotManageStoreMobile}

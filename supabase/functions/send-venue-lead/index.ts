@@ -1,5 +1,12 @@
 /**
- * send-venue-lead — emails the platform owner when a venue signs up on /venue.
+ * send-venue-lead — emails the platform owner when a venue signs up.
+ *
+ * Serves two forms, not one: battleplan.app/venue and battlepack.app/stores.
+ * They ask a venue the same four questions and the answers go to the same
+ * inbox, so `venue_leads.app` says which door the lead came through and this
+ * function says so in the subject line. A row with no `app` is BattlePlan's —
+ * that is the column's default, and the fallback below means this function is
+ * safe to deploy either side of the migration that adds it.
  *
  * Called by the `venue_leads_notify` Postgres trigger, never by a browser. It
  * follows send-booking-notification's shape deliberately, including the shared
@@ -51,14 +58,32 @@ interface Lead {
   email:        string;
   venue_name:   string;
   role:         string;
+  app?:         string | null;
 }
 
+/** How each product is named to a human, and where its form lives. */
+const APPS: Record<string, { name: string; where: string; verb: string }> = {
+  battleplan: {
+    name:  'BattlePlan',
+    where: 'battleplan.app/venue',
+    verb:  'wants to list on BattlePlan',
+  },
+  battlepack: {
+    name:  'BattlePack',
+    where: 'battlepack.app/stores',
+    verb:  'wants BattlePack switched on',
+  },
+};
+
 function renderEmail(lead: Lead): { subject: string; html: string; text: string } {
+  const app = APPS[lead.app ?? 'battleplan'] ?? APPS.battleplan;
+
   const rows: [string, string][] = [
     ['Venue',   lead.venue_name],
     ['Contact', lead.contact_name],
     ['Role',    lead.role],
     ['Email',   lead.email],
+    ['Product', app.name],
   ];
 
   const html = `
@@ -83,8 +108,8 @@ function renderEmail(lead: Lead): { subject: string; html: string; text: string 
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏪 New venue signup</h1>
-            <p>${esc(lead.venue_name)} wants to list on BattlePlan</p>
+            <h1>🏪 New ${esc(app.name)} venue signup</h1>
+            <p>${esc(lead.venue_name)} ${esc(app.verb)}</p>
         </div>
 
         <div class="content">
@@ -99,21 +124,21 @@ ${rows.map(([label, value]) => `                <div class="detail-row">
         </div>
 
         <div class="footer">
-            <p>Submitted through the form at battleplan.app/venue. Lead #${esc(String(lead.id).slice(0, 8))}.</p>
+            <p>Submitted through the form at ${esc(app.where)}. Lead #${esc(String(lead.id).slice(0, 8))}.</p>
         </div>
     </div>
 </body>
 </html>
   `;
 
-  const text = `New venue signup — ${lead.venue_name}
+  const text = `New ${app.name} venue signup — ${lead.venue_name}
 
 ${rows.map(([label, value]) => `- ${label}: ${value}`).join('\n')}
 
 Reply to this email to reach ${lead.contact_name} directly.
-Submitted through the form at battleplan.app/venue. Lead #${String(lead.id).slice(0, 8)}.`;
+Submitted through the form at ${app.where}. Lead #${String(lead.id).slice(0, 8)}.`;
 
-  return { subject: `New venue signup: ${lead.venue_name}`, html, text };
+  return { subject: `New ${app.name} venue signup: ${lead.venue_name}`, html, text };
 }
 
 serve(async (req) => {
@@ -138,7 +163,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
     const { data, error } = await supabase
       .from('venue_leads')
-      .select('id, created_at, contact_name, email, venue_name, role')
+      /*
+       * '*' rather than a column list, so this function can be deployed either
+       * side of the migration that adds `venue_leads.app`. Naming the column
+       * explicitly would make a deploy that landed first fail every email with
+       * "column does not exist", and the fallback below already handles the
+       * value being absent.
+       */
+      .select('*')
       .eq('id', lead_id)
       .single();
     if (error || !data) throw new Error(`Failed to fetch lead: ${error?.message ?? 'not found'}`);

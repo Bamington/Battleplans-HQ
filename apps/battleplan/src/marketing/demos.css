@@ -1,0 +1,423 @@
+/*
+ * demos.css — BattlePlan's own interactive demo replicas
+ *
+ * The generic demo shell — the frame, the panel, the header, the scrollable
+ * list, the row, the pop-over dialog — lives in @battleplans/marketing, because
+ * every app's marketing site wants the same furniture. What's here is the part
+ * that only makes sense for BattlePlan: a battle card with a photograph, a
+ * friend's win/draw/loss bar, a venue's table switches, and a day's bookings
+ * grouped by timeslot.
+ *
+ * These are APP colours (--app-*, declared by .mk-demo in the shared package),
+ * not marketing tokens. Same reasoning as AppMock: the thing inside the frame
+ * is standing in for a screenshot, and a screenshot is app-coloured.
+ *
+ * Imported by the pages rather than by the demo components themselves, so the
+ * whole demo stylesheet arrives in one place and in a known order relative to
+ * the shared one.
+ */
+
+/* ── Battle gallery ──────────────────────────────────────────────────── */
+
+.mk-battle-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-battle-card:hover { border-color: var(--app-accent); }
+
+.mk-battle-card:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-battle-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  /* The photograph is the card. Everything else is a caption under it. */
+  display: block;
+}
+
+.mk-battle-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 0;
+}
+
+.mk-battle-game {
+  font-family: var(--mk-font-display);
+  font-size: 0.8125rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-battle-result {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Result colours are the app's, not the marketing palette — same reasoning as
+   everything else inside the frame. */
+.mk-battle-result.is-won  { color: #34d399; }
+.mk-battle-result.is-lost { color: #f87171; }
+.mk-battle-result.is-drew { color: #9ca3af; }
+
+.mk-battle-opp {
+  display: block;
+  padding: 2px 10px 10px;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-battle-dialog-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* ── Friends list ────────────────────────────────────────────────────── */
+
+.mk-friend-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-friend-row:hover { border-color: var(--app-accent); }
+
+.mk-friend-row:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+/* Initials, the way the app renders a profile with no picture. */
+.mk-friend-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #1f2937;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+}
+
+.mk-friend-avatar.is-large {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 10px;
+  font-size: 1.25rem;
+}
+
+.mk-friend-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-friend-handle {
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-accent);
+}
+
+.mk-friend-name { font-size: 0.9375rem; color: var(--app-muted); }
+
+/*
+ * Win / draw / loss as one bar, sized by the record itself.
+ *
+ * "0%" against Tom Ashworth is a statistic; a bar with no green in it is a
+ * feeling, and the feeling is what the section beside this is selling.
+ */
+.mk-friend-bar {
+  display: flex;
+  gap: 2px;
+  margin-top: 14px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mk-friend-bar > span { min-width: 0; }
+.mk-friend-bar .is-won  { background: #34d399; }
+.mk-friend-bar .is-drew { background: #6b7280; }
+.mk-friend-bar .is-lost { background: #f87171; }
+
+.mk-friend-games {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: #e5e7eb;
+}
+
+/* ── Venue tables ────────────────────────────────────────────────────── */
+
+.mk-table-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+/* Switched off reads as switched off, not merely labelled that way. */
+.mk-table-row.is-off { opacity: 0.55; }
+
+.mk-table-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-table-open:focus-visible,
+.mk-table-switch:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.mk-table-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-table-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #1f2937;
+  font-family: var(--mk-font-ui);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.mk-table-slots {
+  margin-top: 3px;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-table-state {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+.mk-table-state.is-on { color: #34d399; }
+
+/* A switch, sized to the 44px touch target the rest of the page keeps to. */
+.mk-table-switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #374151;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.mk-table-switch[aria-checked='true'] { background: var(--app-accent); }
+
+.mk-table-switch-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #f9fafb;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mk-table-switch[aria-checked='true'] .mk-table-switch-knob {
+  transform: translateX(20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-table-switch-knob { transition: none; }
+}
+
+.mk-table-chips {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.mk-table-chip {
+  padding: 5px 10px;
+  border: 1px solid var(--app-line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--app-muted);
+}
+
+.mk-table-chip.is-on {
+  border-color: rgb(var(--app-accent-rgb) / 0.45);
+  background: rgb(var(--app-accent-rgb) / 0.12);
+  color: var(--mk-accent-300);
+}
+
+/* ── Booking day ─────────────────────────────────────────────────────── */
+
+.mk-day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 4px;
+  border-top: 1px solid var(--app-line);
+  border-bottom: 1px solid var(--app-line);
+}
+
+.mk-day-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--app-accent);
+  cursor: pointer;
+  transition: background-color 140ms ease, opacity 140ms ease;
+}
+
+.mk-day-arrow svg { width: 18px; height: 18px; }
+.mk-day-arrow:hover:not(:disabled) { background: rgb(var(--app-accent-rgb) / 0.14); }
+
+/* Disabled rather than wrapping: a diary that loops back to Friday when you
+   step past Tuesday is lying about what it is. */
+.mk-day-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.mk-day-arrow:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-day-label {
+  flex: 1;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+.mk-day-today {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--app-accent);
+}
+
+.mk-day-group { display: flex; flex-direction: column; gap: 8px; }
+.mk-day-group + .mk-day-group { margin-top: 14px; }
+
+.mk-day-slot {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+}
+
+.mk-day-booking {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--app-row);
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.mk-day-booking:hover { border-color: var(--app-accent); }
+
+.mk-day-booking:focus-visible {
+  outline: 2px solid var(--mk-accent-400);
+  outline-offset: 2px;
+}
+
+.mk-day-who {
+  font-family: var(--mk-font-display);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-text);
+}
+
+.mk-day-table {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.mk-day-game { font-size: 0.9375rem; color: #d1d5db; }
+
+.mk-day-empty {
+  padding: 28px 0;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--app-muted);
+}
+
+/* Scoped to beat the ".mk-demo-dialog-rows dd" rule in the shared
+   stylesheet, exactly as its siblings there are. */
+.mk-demo-dialog-rows .mk-friend-poor        { color: #f87171; }

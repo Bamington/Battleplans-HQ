@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@battleplans/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
+      '@battleplans/marketing': resolve(__dirname, '../../packages/marketing/src/index.ts'),
     },
   },
   server: {

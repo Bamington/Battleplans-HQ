@@ -1,6 +1,14 @@
 /* ── Base styles (shared tokens, fonts, Tailwind) ───────────────────────── */
 @import '../../../packages/ui/src/index.css';
 
+/* Scan the shared marketing package for Tailwind class names. Needed for the
+   same reason packages/ui's own stylesheet does it: the package lives outside
+   this Vite project root, so automatic content detection never reaches it, and
+   the marketing components' utilities would be silently dropped from the build.
+   Its stylesheet can't declare this itself — it is imported from TSX rather
+   than into this file, so it isn't part of the graph Tailwind generates from. */
+@source '../../../packages/marketing/src';
+
 /*
  * BattlePlan theme — violet primary
  *

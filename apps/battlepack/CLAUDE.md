@@ -35,12 +35,27 @@ What is already decided and should be kept to:
   route, declared LAST in `App.tsx` so the specific routes win. That namespace
   is shared with this app's own routes, so every path added to `App.tsx` is
   permanently reserved against slugs. Currently reserved: `app`, `login`,
-  `auth`, `gallery`. Adding another silently makes that word unusable as a slug
-  — **the list now lives in THREE places and all three have to agree**:
-  `App.tsx`, the database trigger's reserved list, and the rewrite in
-  [vercel.json](vercel.json) that sends slugs to the social-preview function.
-  Miss the last one and that route is served the preview function instead of
-  the app.
+  `auth`, `gallery`, `stores`. Adding another silently makes that word unusable
+  as a slug — **the list now lives in FOUR places and all four have to agree**:
+  `App.tsx`, the database's `battlepack_reserved_slugs()`, the rewrite in
+  [vercel.json](vercel.json) that sends slugs to the social-preview function,
+  and this file. Miss the vercel one and that route is served the preview
+  function instead of the app.
+
+  Reserving a word a live pack is already published at would take that URL away
+  from everyone holding the link — the trigger only validates on write, so the
+  row survives and simply stops resolving. `20260825000000` guards against it
+  with a `DO $$ … $$` block that fails the migration instead; copy that block
+  when reserving anything else.
+
+- **The marketing site is at `/` and `/stores`.** The root used to bounce to
+  `/app` or `/login`; it now serves the organiser landing page to everyone,
+  signed in or not. See [src/marketing/CLAUDE.md](src/marketing/CLAUDE.md) —
+  and note that the design system is `packages/marketing`, deliberately exempt
+  from the UI component rules at the bottom of this file. The one thing to know
+  from here: **the site must never offer a signup**, because access is not
+  self-serve (see the access rules below). Its call to action is the form on
+  `/stores`, which writes a `venue_leads` row.
 - **The social preview is server-rendered by [api/og.ts](api/og.ts).** No
   crawler runs JavaScript, so for a SPA the tags have to be in the HTML on
   arrival — `vercel.json` rewrites `/<slug>` to an edge function that looks the

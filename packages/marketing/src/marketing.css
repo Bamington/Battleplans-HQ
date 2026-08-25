@@ -1,14 +1,15 @@
 /*
- * marketing.css — The BattlePlan marketing design system
+ * marketing.css — The Battleplans marketing design system
  *
- * This is deliberately NOT the app's design system. The app optimises for
- * repeated use: tight spacing, neutral greys, functional density. A landing
- * page has to sell in one scroll, so everything here is broader, softer and
- * slower — bigger radii, 160px section rhythm, negative display tracking.
+ * Shared by every app's public marketing site. This is deliberately NOT the
+ * apps' design system. An app optimises for repeated use: tight spacing,
+ * neutral greys, functional density. A landing page has to sell in one scroll,
+ * so everything here is broader, softer and slower — bigger radii, 160px
+ * section rhythm, negative display tracking.
  *
  * The two systems are siblings, not twins. What they share on purpose:
  *   - Tanker as the display face, Space Grotesk for UI text
- *   - A violet accent, drawn from the app's primary
+ *   - An accent drawn from the app's own primary
  *   - An 8px base unit, so both divide the same way
  *   - A dark base
  *
@@ -16,23 +17,24 @@
  *   - Token names. These are all --mk-*, so nothing here can be resolved by an
  *     app component and nothing in the app can be resolved by a marketing one.
  *     If a marketing component ever renders with app colours, that's the bug.
- *   - Surfaces. The app is near-black neutral grey; this is a lifted, violet
- *     tinted charcoal. See the note on screenshot separation below.
- *   - Tracking. The app sets display type wide; this sets it tight.
+ *   - Surfaces. The apps are near-black neutral grey; these are lifted, tinted
+ *     charcoals. See the note on screenshot separation below.
+ *   - Tracking. The apps set display type wide; this sets it tight.
  *
  * FONTS: the spec called for copying the woff2 files so the two systems share
- * no assets at all. We deliberately don't, because index.html warns that a
- * second source for these faces downloads them twice, and these pages are
- * routes inside the same SPA — packages/ui's stylesheet is already loaded by
- * the time anyone sees them. Revisit if marketing ever moves to its own build.
+ * no assets at all. We deliberately don't, because each app's index.html warns
+ * that a second source for these faces downloads them twice, and the marketing
+ * pages are routes inside the same SPA — packages/ui's stylesheet is already
+ * loaded by the time anyone sees them. Revisit if marketing ever moves to its
+ * own build.
  */
 
 /*
  * ── The screenshot problem ─────────────────────────────────────────────────
  *
- * The app's background is #030712 — effectively black. On a dark marketing
- * page every screenshot would dissolve into the page, which is the usual
- * reason product shots end up on white.
+ * An app's background is #030712 — effectively black. On a dark marketing page
+ * every screenshot would dissolve into the page, which is the usual reason
+ * product shots end up on white.
  *
  * So the page is LIGHTER than the app. --mk-surface-base sits well above the
  * app's near-black, which lets a screenshot read as a well: the deepest thing
@@ -45,11 +47,32 @@
  * the screenshot.
  */
 
+/*
+ * ── Brands ─────────────────────────────────────────────────────────────────
+ *
+ * One system, one set of token NAMES, and a hue per app. `.mk` below carries
+ * BattlePlan's violet as the fallback, so a page that forgets its brand still
+ * renders complete rather than colourless; every other app overrides the two
+ * things that actually differ — the accent ramp and the surface tint — in its
+ * own block further down. Nothing else is themeable, and that's the point: the
+ * sites are meant to look like one family seen in different light.
+ *
+ * MarketingLayout writes the attribute these blocks key off, so adding an app
+ * is one block here and one entry in brands.ts. Set --mk-accent-rgb as a
+ * SPACE-SEPARATED TRIPLET — every translucent accent in this file is written
+ * rgb(var(--mk-accent-rgb) / <alpha>), so one line re-tints the glows, the
+ * frame hovers, the focus rings and the callout panels together.
+ */
+
 .mk {
   /* ── Surfaces — violet-tinted charcoal ──────────────────────────────── */
   --mk-surface-well:    #06060c;  /* screenshot wells + footer. The floor.   */
   --mk-surface-base:    #0c0a14;  /* page background                        */
   --mk-surface-raised:  #14111f;  /* alternating sections                    */
+  /* The same two, as triplets. The nav needs the base at 92% and the closing
+     panel needs the raised at 90%, and a hex can't be given an alpha. */
+  --mk-surface-base-rgb:   12 10 20;
+  --mk-surface-raised-rgb: 20 17 31;
   --mk-surface-card:    #1b1729;  /* cards, tiles, quote panels              */
   --mk-border-strong:   #272038;  /* card borders, visible dividers          */
   --mk-border-hairline: #332a47;  /* frame edges                             */
@@ -57,7 +80,9 @@
   /*
    * ── Text ────────────────────────────────────────────────────────────
    * Never pure white — it blooms on dark and makes long copy tiring.
-   * Contrast against --mk-surface-base: 17.7:1 / 8.4:1 / 5.0:1.
+   * Brand-independent: the surfaces move by hue, not by lightness, so these
+   * hold their contrast against every one of them (17.0:1 / 8.0:1 / 4.7:1 at
+   * the worst brand, which is within a whisker of the best).
    */
   --mk-text-primary:   #f4f2f8;
   --mk-text-secondary: #ada6bc;
@@ -65,7 +90,7 @@
 
   /*
    * ── Accent — electric violet ─────────────────────────────────────────
-   * A sibling to the app's #8b5cf6, pushed brighter so it holds up as the
+   * A sibling to BattlePlan's #8b5cf6, pushed brighter so it holds up as the
    * only saturated thing on a dark page.
    *
    * Contrast, checked rather than guessed:
@@ -75,14 +100,26 @@
    *
    * Which is why the primary button is dark ink on a bright fill, and not the
    * white-on-violet the app uses. The accessible option and the distinctive
-   * option happen to be the same option.
+   * option happen to be the same option — and it holds for every brand here,
+   * because a fill bright enough to carry a dark page is always too bright to
+   * take white text.
    */
+  --mk-accent-rgb: 155 107 255;
   --mk-accent-300: #c9aeff;
   --mk-accent-400: #b490ff;
   --mk-accent-500: #9b6bff;
   --mk-accent-600: #7c45f0;
   --mk-accent-700: #5b2ec4;
-  --mk-accent-glow: rgba(155, 107, 255, 0.35);
+  --mk-accent-glow: rgb(var(--mk-accent-rgb) / 0.35);
+
+  /*
+   * The accent of the APP being photographed, for the demo replicas and the
+   * placeholder mock. Not a marketing token in spirit — it belongs to the other
+   * design system — but it has to vary per brand, and a CSS variable is the
+   * only way the shared stylesheet can be told which one.
+   */
+  --mk-app-accent: #8b5cf6;
+  --mk-app-accent-rgb: 139 92 246;
 
   /* ── Type ───────────────────────────────────────────────────────────── */
   --mk-font-display: 'Tanker', serif;
@@ -104,6 +141,52 @@
    * scrolling so it reads as film grain on the screen, not texture on the page.
    */
   position: relative;
+}
+
+/*
+ * ── BattlePack — emerald ───────────────────────────────────────────────────
+ *
+ * The surfaces are BattlePlan's, re-hued to 158° at 85% of their saturation:
+ * the same lightness ramp, so a screenshot separates from the page by exactly
+ * as much as it does on the violet site, and the same steps between base,
+ * raised and card. Green reads hotter than violet at equal saturation, which is
+ * what the 0.85 is for.
+ *
+ * The accent is a sibling to BattlePack's own #22c55e, pushed brighter and a
+ * shade cooler. Green carries far more luminance than violet at the same
+ * saturation, so this ramp lands HIGHER on contrast than the violet one rather
+ * than matching it step for step:
+ *
+ *   --mk-accent-500 as text on --mk-surface-base   8.3:1  passes AA
+ *   --mk-surface-well ink on --mk-accent-500 fill  8.7:1  passes AA
+ *   white on --mk-accent-500 fill                  2.3:1  FAILS, harder
+ *
+ * Matching violet's ratios exactly was tried and rejected: it puts accent-500
+ * at #10a064, a forest green that reads as a "success" state rather than as the
+ * brightest thing on the page. Hue does the separating here, not luminance —
+ * which is also why --mk-accent-300 stays saturated instead of going pale. It
+ * sits only 1.45x below --mk-text-primary (violet's is 1.72x), so the heading
+ * transit is carried by the colour being green rather than by it being darker.
+ */
+.mk[data-mk-brand='battlepack'] {
+  --mk-surface-well:    #060c0a;
+  --mk-surface-base:    #0b1310;
+  --mk-surface-raised:  #121e1a;
+  --mk-surface-base-rgb:   11 19 16;
+  --mk-surface-raised-rgb: 18 30 26;
+  --mk-surface-card:    #182822;
+  --mk-border-strong:   #22362f;
+  --mk-border-hairline: #2c453c;
+
+  --mk-accent-rgb: 22 196 122;
+  --mk-accent-300: #4fe89f;
+  --mk-accent-400: #2fd98a;
+  --mk-accent-500: #16c47a;
+  --mk-accent-600: #0fa564;
+  --mk-accent-700: #0a7d4b;
+
+  --mk-app-accent: #22c55e;
+  --mk-app-accent-rgb: 34 197 94;
 }
 
 .mk::before {
@@ -253,6 +336,36 @@
 .mk-measure    { max-width: 68ch; }
 .mk-measure-sm { max-width: 52ch; }
 
+/*
+ * Anything a link can jump to clears the fixed nav.
+ *
+ * The bar is 72px and sits over the page, so an anchor jump would otherwise
+ * land with the target's first line underneath it. 96 leaves a little air as
+ * well, which is what stops the jump reading as a mistake.
+ */
+.mk section[id] {
+  scroll-margin-top: 96px;
+}
+
+/*
+ * ── Nav ────────────────────────────────────────────────────────────────
+ *
+ * Transparent over the hero, so the hero's glow runs behind it uninterrupted;
+ * the page's own base at 92% once anything has scrolled. Both states are here
+ * rather than inline on the element because the solid one has to re-tint with
+ * the brand, and an inline literal would have been violet on every site.
+ */
+.mk-nav {
+  background: transparent;
+  border-bottom: 1px solid transparent;
+}
+
+.mk-nav[data-solid='true'] {
+  background: rgb(var(--mk-surface-base-rgb) / 0.92);
+  border-bottom-color: var(--mk-border-strong);
+  backdrop-filter: blur(12px);
+}
+
 /* ── Buttons ──────────────────────────────────────────────────────────── */
 
 .mk-btn {
@@ -333,6 +446,39 @@
 }
 
 /*
+ * The accent-edged panel a Callout sits in. Barely-there fill, a visible edge:
+ * enough to lift one paragraph out of a bulleted list without competing with
+ * the closing CTA, which is the page's other accent panel and twenty times the
+ * size.
+ */
+.mk-callout {
+  background: rgb(var(--mk-accent-rgb) / 0.07);
+  border: 1px solid rgb(var(--mk-accent-rgb) / 0.28);
+  border-radius: var(--mk-radius-card);
+}
+
+/*
+ * The closing CTA's panel — the page's second and last accent moment.
+ *
+ * The gradient runs from a tinted top-left corner down to the raised surface,
+ * so the panel reads as lit from the same direction as every screenshot frame
+ * above it. The floor is --mk-surface-raised at 90% rather than the base: the
+ * panel sits ON the base, and ending the gradient at the colour behind it would
+ * make the bottom corner dissolve.
+ */
+.mk-cta-panel {
+  border-radius: var(--mk-radius-frame);
+  background: linear-gradient(
+    160deg,
+    rgb(var(--mk-accent-rgb) / 0.16) 0%,
+    rgb(var(--mk-accent-rgb) / 0.05) 45%,
+    rgb(var(--mk-surface-raised-rgb) / 0.9) 100%
+  );
+  border: 1px solid rgb(var(--mk-accent-rgb) / 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/*
  * The screenshot frame. Three layers doing three jobs:
  *   inset rim   — separates the frame from the page
  *   accent glow — stops the well reading as a hole
@@ -374,10 +520,10 @@
  */
 .mk-frame:hover {
   transform: scale(1.012);
-  border-color: rgba(155, 107, 255, 0.4);
+  border-color: rgb(var(--mk-accent-rgb) / 0.4);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 50px 150px -18px rgba(155, 107, 255, 0.55),
+    0 50px 150px -18px rgb(var(--mk-accent-rgb) / 0.55),
     0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
@@ -395,7 +541,7 @@
   transform: scale(1.008);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 70px 210px -28px rgba(155, 107, 255, 0.5),
+    0 70px 210px -28px rgb(var(--mk-accent-rgb) / 0.5),
     0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
@@ -434,8 +580,8 @@
   z-index: 0;
   background: radial-gradient(
     ellipse at center,
-    rgba(155, 107, 255, 0.18) 0%,
-    rgba(155, 107, 255, 0.06) 40%,
+    rgb(var(--mk-accent-rgb) / 0.18) 0%,
+    rgb(var(--mk-accent-rgb) / 0.06) 40%,
     transparent 70%
   );
 }
@@ -510,7 +656,8 @@
   --app-panel:  #111827;
   --app-line:   #1f2937;
   --app-row:    #0b1220;
-  --app-accent: #8b5cf6;
+  --app-accent: var(--mk-app-accent);
+  --app-accent-rgb: var(--mk-app-accent-rgb);
   --app-text:   #f9fafb;
   --app-muted:  #6b7280;
 
@@ -652,413 +799,14 @@
   outline-offset: 2px;
 }
 
-/* ── Battle gallery ──────────────────────────────────────────────────── */
+/* ── Two-up grid ─────────────────────────────────────────────────────── */
 
-/* Two up, like the app's gallery view. */
+/* A pair of cards per row, the way most of the apps lay a gallery out. */
 .mk-demo-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   gap: 10px;
-}
-
-.mk-battle-card {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  overflow: hidden;
-  text-align: left;
-  background: var(--app-row);
-  border: 1px solid var(--app-line);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color 140ms ease;
-}
-
-.mk-battle-card:hover { border-color: var(--app-accent); }
-
-.mk-battle-card:focus-visible {
-  outline: 2px solid var(--mk-accent-400);
-  outline-offset: 2px;
-}
-
-.mk-battle-photo {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  /* The photograph is the card. Everything else is a caption under it. */
-  display: block;
-}
-
-.mk-battle-meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px 0;
-}
-
-.mk-battle-game {
-  font-family: var(--mk-font-display);
-  font-size: 0.8125rem;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--app-text);
-}
-
-.mk-battle-result {
-  flex-shrink: 0;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* Result colours are the app's, not the marketing palette — same reasoning as
-   everything else inside the frame. */
-.mk-battle-result.is-won  { color: #34d399; }
-.mk-battle-result.is-lost { color: #f87171; }
-.mk-battle-result.is-drew { color: #9ca3af; }
-
-.mk-battle-opp {
-  display: block;
-  padding: 2px 10px 10px;
-  font-size: 0.8125rem;
-  color: var(--app-muted);
-}
-
-.mk-battle-dialog-photo {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
-/* ── Friends list ────────────────────────────────────────────────────── */
-
-.mk-friend-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px;
-  text-align: left;
-  background: var(--app-row);
-  border: 1px solid var(--app-line);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color 140ms ease;
-}
-
-.mk-friend-row:hover { border-color: var(--app-accent); }
-
-.mk-friend-row:focus-visible {
-  outline: 2px solid var(--mk-accent-400);
-  outline-offset: 2px;
-}
-
-/* Initials, the way the app renders a profile with no picture. */
-.mk-friend-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: #1f2937;
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #9ca3af;
-}
-
-.mk-friend-avatar.is-large {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto;
-  border-radius: 10px;
-  font-size: 1.25rem;
-}
-
-.mk-friend-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.mk-friend-handle {
-  font-family: var(--mk-font-display);
-  font-size: 1rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--app-accent);
-}
-
-.mk-friend-name { font-size: 0.9375rem; color: var(--app-muted); }
-
-/*
- * Win / draw / loss as one bar, sized by the record itself.
- *
- * "0%" against Tom Ashworth is a statistic; a bar with no green in it is a
- * feeling, and the feeling is what the section beside this is selling.
- */
-.mk-friend-bar {
-  display: flex;
-  gap: 2px;
-  margin-top: 14px;
-  height: 8px;
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.mk-friend-bar > span { min-width: 0; }
-.mk-friend-bar .is-won  { background: #34d399; }
-.mk-friend-bar .is-drew { background: #6b7280; }
-.mk-friend-bar .is-lost { background: #f87171; }
-
-.mk-friend-games {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  color: #e5e7eb;
-}
-
-/* ── Venue tables ────────────────────────────────────────────────────── */
-
-.mk-table-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: var(--app-row);
-  border: 1px solid var(--app-line);
-  border-radius: 8px;
-  transition: opacity 160ms ease, border-color 160ms ease;
-}
-
-/* Switched off reads as switched off, not merely labelled that way. */
-.mk-table-row.is-off { opacity: 0.55; }
-
-.mk-table-open {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  cursor: pointer;
-}
-
-.mk-table-open:focus-visible,
-.mk-table-switch:focus-visible {
-  outline: 2px solid var(--mk-accent-400);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
-
-.mk-table-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mk-font-display);
-  font-size: 1rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--app-text);
-}
-
-.mk-table-badge {
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: #1f2937;
-  font-family: var(--mk-font-ui);
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #9ca3af;
-}
-
-.mk-table-slots {
-  margin-top: 3px;
-  font-size: 0.8125rem;
-  color: var(--app-muted);
-}
-
-.mk-table-state {
-  margin-top: 2px;
-  font-size: 0.8125rem;
-  color: #9ca3af;
-}
-.mk-table-state.is-on { color: #34d399; }
-
-/* A switch, sized to the 44px touch target the rest of the page keeps to. */
-.mk-table-switch {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  width: 46px;
-  height: 26px;
-  padding: 3px;
-  border-radius: 999px;
-  background: #374151;
-  cursor: pointer;
-  transition: background-color 160ms ease;
-}
-
-.mk-table-switch[aria-checked='true'] { background: var(--app-accent); }
-
-.mk-table-switch-knob {
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: #f9fafb;
-  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.mk-table-switch[aria-checked='true'] .mk-table-switch-knob {
-  transform: translateX(20px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mk-table-switch-knob { transition: none; }
-}
-
-.mk-table-chips {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 14px;
-}
-
-.mk-table-chip {
-  padding: 5px 10px;
-  border: 1px solid var(--app-line);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  color: var(--app-muted);
-}
-
-.mk-table-chip.is-on {
-  border-color: rgba(139, 92, 246, 0.45);
-  background: rgba(139, 92, 246, 0.12);
-  color: var(--mk-accent-300);
-}
-
-/* ── Booking day ─────────────────────────────────────────────────────── */
-
-.mk-day-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-shrink: 0;
-  padding: 8px 4px;
-  border-top: 1px solid var(--app-line);
-  border-bottom: 1px solid var(--app-line);
-}
-
-.mk-day-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  color: var(--app-accent);
-  cursor: pointer;
-  transition: background-color 140ms ease, opacity 140ms ease;
-}
-
-.mk-day-arrow svg { width: 18px; height: 18px; }
-.mk-day-arrow:hover:not(:disabled) { background: rgba(139, 92, 246, 0.14); }
-
-/* Disabled rather than wrapping: a diary that loops back to Friday when you
-   step past Tuesday is lying about what it is. */
-.mk-day-arrow:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.mk-day-arrow:focus-visible {
-  outline: 2px solid var(--mk-accent-400);
-  outline-offset: 2px;
-}
-
-.mk-day-label {
-  flex: 1;
-  text-align: center;
-  font-size: 0.875rem;
-  color: #d1d5db;
-}
-
-.mk-day-today {
-  display: block;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--app-accent);
-}
-
-.mk-day-group { display: flex; flex-direction: column; gap: 8px; }
-.mk-day-group + .mk-day-group { margin-top: 14px; }
-
-.mk-day-slot {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--app-muted);
-}
-
-.mk-day-booking {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px 10px;
-  width: 100%;
-  padding: 10px;
-  text-align: left;
-  background: var(--app-row);
-  border: 1px solid var(--app-line);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color 140ms ease;
-}
-
-.mk-day-booking:hover { border-color: var(--app-accent); }
-
-.mk-day-booking:focus-visible {
-  outline: 2px solid var(--mk-accent-400);
-  outline-offset: 2px;
-}
-
-.mk-day-who {
-  font-family: var(--mk-font-display);
-  font-size: 1rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--app-text);
-}
-
-.mk-day-table {
-  grid-row: 1 / span 2;
-  grid-column: 2;
-  align-self: center;
-  font-size: 0.8125rem;
-  color: var(--app-muted);
-}
-
-.mk-day-game { font-size: 0.9375rem; color: #d1d5db; }
-
-.mk-day-empty {
-  padding: 28px 0;
-  text-align: center;
-  font-size: 0.9375rem;
-  color: var(--app-muted);
 }
 
 /* ── Demo dialog ─────────────────────────────────────────────────────── */
@@ -1159,7 +907,6 @@
 .mk-demo-dialog-rows .mk-demo-dialog-ok     { color: #34d399; }
 .mk-demo-dialog-rows .mk-demo-dialog-handle { color: var(--app-accent); }
 .mk-demo-dialog-rows .mk-demo-dialog-none   { color: var(--app-muted); font-style: italic; }
-.mk-demo-dialog-rows .mk-friend-poor        { color: #f87171; }
 
 .mk-demo-dialog-actions {
   display: flex;
@@ -1170,7 +917,7 @@
 
 .mk-demo-dialog-action {
   padding: 9px;
-  border: 1px solid rgba(139, 92, 246, 0.4);
+  border: 1px solid rgb(var(--app-accent-rgb) / 0.4);
   border-radius: 999px;
   font-size: 0.875rem;
   color: var(--app-accent);
@@ -1216,7 +963,7 @@
   text-align: center;
   font-size: 1rem;
   color: var(--app-accent);
-  border: 1px solid rgba(139, 92, 246, 0.4);
+  border: 1px solid rgb(var(--app-accent-rgb) / 0.4);
   border-radius: 999px;
 }
 
@@ -1272,7 +1019,7 @@
 .mk-input:focus {
   outline: none;
   border-color: var(--mk-accent-500);
-  box-shadow: 0 0 0 3px rgba(155, 107, 255, 0.22);
+  box-shadow: 0 0 0 3px rgb(var(--mk-accent-rgb) / 0.22);
 }
 
 /* The select needs its own arrow — the native one renders light-on-light in
@@ -1300,7 +1047,7 @@ select.mk-input option {
   padding: 14px 16px;
   border: 1px solid var(--mk-accent-500);
   border-radius: var(--mk-radius-chip);
-  background: rgba(155, 107, 255, 0.08);
+  background: rgb(var(--mk-accent-rgb) / 0.08);
   font-size: 0.9375rem;
   line-height: 1.5;
   color: var(--mk-text-secondary);

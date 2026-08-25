@@ -8,18 +8,17 @@
  * All testimonial content is placeholder and marked as such on screen.
  */
 
-import { MarketingLayout } from '../MarketingLayout';
-import { Section } from '../components/Section';
-import { Hero } from '../components/Hero';
-import { PillarGrid, type Pillar } from '../components/PillarGrid';
-import { FeatureDeepDive } from '../components/FeatureDeepDive';
-import { Callout } from '../components/Callout';
-import { Testimonials, type Testimonial } from '../components/Testimonials';
-import { ClosingCTA } from '../components/ClosingCTA';
+import {
+  MarketingLayout, Section, Hero, PillarGrid, FeatureDeepDive, Callout,
+  Testimonials, ClosingCTA, Calendar, Dice, Chart, Users,
+  type Pillar, type Testimonial,
+} from '@battleplans/marketing';
+import { BATTLEPLAN_BRAND } from '../brand';
+import { VenueLogos } from '../components/VenueLogos';
 import { BookingsDemo } from '../components/demos/BookingsDemo';
 import { BattlesDemo } from '../components/demos/BattlesDemo';
 import { FriendsDemo } from '../components/demos/FriendsDemo';
-import { Calendar, Dice, Chart, Users } from '../icons';
+import '../demos.css';
 
 /*
  * Screenshots of the real app, captured against the Burrow Games fixture by
@@ -91,6 +90,7 @@ const TESTIMONIALS: Testimonial[] = [
 export default function LandingPage() {
   return (
     <MarketingLayout
+      brand={BATTLEPLAN_BRAND}
       title="BattlePlan — Book the table. Log the battle. Know your record."
       description="Book a table at your local game store, log the battles you fight there, and find out who actually beats you. Free to use."
     >
@@ -107,7 +107,7 @@ export default function LandingPage() {
         primaryCta={{ to: '/login', label: 'Create your free account' }}
         secondaryCta={{ to: '/venue', label: 'See it for a venue' }}
         note="Free to use."
-        logos={{ label: 'Book a table at' }}
+        proof={<VenueLogos label="Book a table at" />}
         /* No trustLine until the numbers are real. Hero renders nothing when
            it's absent, so restoring it is one prop. */
         src={shotHome}

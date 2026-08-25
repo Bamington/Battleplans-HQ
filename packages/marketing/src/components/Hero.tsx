@@ -7,10 +7,10 @@
  * the fold.
  */
 
+import React from 'react';
 import { CTAButton, ArrowLink } from './Button';
 import { ScreenshotFrame, type MockVariant } from './ScreenshotFrame';
 import { Reveal } from './Section';
-import { VenueLogos } from './VenueLogos';
 
 interface HeroProps {
   title: React.ReactNode;
@@ -26,8 +26,12 @@ interface HeroProps {
   longTitle?: boolean;
   /** Small reassurance under the buttons — never a promise about future pricing. */
   note: string;
-  /** The venue strip, directly under the note. Proof before product. */
-  logos?: { label: string };
+  /**
+   * A proof strip directly under the note — BattlePlan puts its venue logos
+   * here. A slot rather than a component, because what counts as proof differs
+   * per app and the logos are one app's assets, not the system's.
+   */
+  proof?: React.ReactNode;
   /** Usage figures. Placeholder until there are real ones worth showing. */
   trustLine?: string;
   mock?: MockVariant;
@@ -47,7 +51,7 @@ export function Hero({
   secondaryCta,
   longTitle = false,
   note,
-  logos,
+  proof,
   trustLine,
   mock = 'columns',
   src,
@@ -84,11 +88,7 @@ export function Hero({
             <p className="mk-caption mt-5">{note}</p>
           </Reveal>
 
-          {logos && (
-            <Reveal delay={180}>
-              <VenueLogos label={logos.label} />
-            </Reveal>
-          )}
+          {proof && <Reveal delay={180}>{proof}</Reveal>}
         </div>
 
         <Reveal delay={240} className="mt-16 md:mt-20">
