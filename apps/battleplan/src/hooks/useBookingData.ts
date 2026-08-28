@@ -945,6 +945,57 @@ export interface UpcomingBooking {
 // Reads public_profiles, the sanctioned window past user_profiles' select-own
 // RLS — so a venue admin can name a staff member without needing to be them.
 
+// ── useBookingCustomer ────────────────────────────────────────────────────────
+
+/** Who a booking is for, as the venue sees them. */
+export interface BookingCustomer {
+  /** Their real name, or the name typed on the booking for a guest. */
+  name:   string | null;
+  email:  string | null;
+  /** Their public @handle. Null for a guest with no account. */
+  handle: string | null;
+}
+
+/**
+ * The customer behind a booking — name, email and @handle.
+ *
+ * None of this is reachable from the client directly: `user_profiles` is
+ * select-own, `public_profiles` drops the real name on purpose, and
+ * `auth.users` isn't exposed. It comes from the `booking_customer` function
+ * (20260828080000), which answers only for the venue the booking was made at
+ * and only for its admins and staff.
+ *
+ * Pass `enabled = false` for the customer's own view of their own booking —
+ * they are not staff, the function would refuse them, and there is nothing to
+ * tell them about themselves anyway.
+ */
+export function useBookingCustomer(bookingId: string | null, enabled: boolean) {
+  const [customer, setCustomer] = useState<BookingCustomer | null>(null);
+  const [loading,  setLoading]  = useState(false);
+
+  useEffect(() => {
+    if (!bookingId || !enabled) { setCustomer(null); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    supabase
+      .rpc('booking_customer', { p_booking_id: bookingId })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        // A refusal raises, and arrives here as an error. There is nothing
+        // useful to show a venue in that case, so the rows simply don't render
+        // rather than surfacing a permission message they can't act on.
+        const row = (!error && (data as BookingCustomer[] | null)?.[0]) || null;
+        setCustomer(row);
+        setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [bookingId, enabled]);
+
+  return { customer, loading };
+}
+
 export function useProfileLabel(userId: string | null) {
   const [label, setLabel] = useState<string | null>(null);
 

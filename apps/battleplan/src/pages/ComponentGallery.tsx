@@ -41,7 +41,7 @@ import { BattleItem, BattleCardBody } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
 import { BattleDetailsModal } from '../components/BattleDetailsModal';
 import { BlockedDateItem, BlockNewDateModal } from '../components/BlockedDates';
-import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
+import { BookingDetailModal, BookingInvitationModal, CustomerList } from '../components/BookingDetailModal';
 import { BookingItem } from '../components/BookingItem';
 import DatePickerInput from '../components/DatePickerInput';
 import { OpponentPicker } from '../components/OpponentPicker';
@@ -535,10 +535,30 @@ const ComponentGallery = () => {
           </Button>
           <GalleryNote>
             The owner view can share the booking with a friend and cancel it; the
-            store view shows the customer instead. The sharing panel reads and
-            writes booking_shares, so it needs a session — signed out you get its
-            empty state.
+            store view shows the customer instead, in two blocks — who booked it,
+            then when. The sharing panel reads and writes booking_shares, so it
+            needs a session — signed out you get its empty state.
+            <br />
+            The store view's name, email and @username come from the{' '}
+            <code>booking_customer</code> function, which only answers for a
+            venue you administer or staff. <strong className="text-white">Signed
+            out, or as anyone else, those rows are simply absent</strong> — which
+            is what you will see here.
           </GalleryNote>
+          {/* The customer block on its own, with literal data — the modal
+              above can only show it to a signed-in venue member, so this is
+              the only way to see the email and @username rows here. */}
+          <div className="w-full max-w-md flex flex-col gap-2 pt-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Customer block — an account holder
+            </p>
+            <CustomerList name="Chris Harrison" email="chris@example.com" handle="bamington" />
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 pt-2">
+              A guest the venue booked in — no account, so no @username
+            </p>
+            <CustomerList name="Walk-in customer" email="walkin@example.com" handle={null} />
+          </div>
+
           <BookingDetailModal
             open={bookingOpen}
             onClose={() => setBookingOpen(false)}

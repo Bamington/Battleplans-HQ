@@ -17,7 +17,7 @@
 import { useMemo, useState } from 'react';
 import {
   Modal, Button, Input, Dropdown, DropdownItem,
-  MapPin, Calendar, Notebook, Layers, InfoCircle, UserRounded, UserPlusRounded,
+  MapPin, Calendar, Notebook, Layers, Letter, UserCircle, InfoCircle, UserRounded, UserPlusRounded,
   CheckCircle, CloseCircle, ArrowRight, TrashBinMinimalistic, MenuDots,
   useBookingShares, useFriends,
   normaliseHandle, validateHandle,
@@ -25,7 +25,7 @@ import {
   type IncomingBookingShare, type OutgoingBookingShare,
 } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
-import { formatBookingTime, useProfileLabel, type Booking } from '../hooks/useBookingData';
+import { formatBookingTime, useProfileLabel, useBookingCustomer, type Booking } from '../hooks/useBookingData';
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
 
@@ -105,9 +105,44 @@ function DetailRow({ icon, children }: { icon: React.ReactNode; children: React.
   );
 }
 
+/**
+ * The customer block — only the store view gets this, and only for a venue the
+ * viewer works at. See the `booking_customer` function (20260828080000) for who
+ * is allowed to read it and why an email is fair game here.
+ *
+ * Each row is dropped when its value is missing rather than shown empty: a
+ * guest booked in at the counter has a name and maybe an email, but no
+ * @username, because there is no account behind them.
+ */
+export function CustomerList({
+  name, email, handle,
+}: {
+  name: string | null;
+  email: string | null;
+  handle: string | null;
+}) {
+  if (!name && !email && !handle) return null;
+
+  return (
+    <div className="flex flex-col rounded-xl overflow-hidden w-full divide-y divide-neutral-800">
+      {name && <DetailRow icon={<UserRounded className="w-full h-full" />}>{name}</DetailRow>}
+      {email && (
+        <DetailRow icon={<Letter className="w-full h-full" />}>
+          {/* Tappable: the point of showing a venue an address is so they can
+              write to it. `break-all` because an email has no spaces to wrap
+              on and would otherwise push the row wider than the modal. */}
+          <a href={`mailto:${email}`} className="text-primary-400 hover:underline break-all">{email}</a>
+        </DetailRow>
+      )}
+      {handle && <DetailRow icon={<UserCircle className="w-full h-full" />}>@{handle}</DetailRow>}
+    </div>
+  );
+}
+
 function DetailsList({
   address, date, timeslotLabel, tableLabel,
 }: {
+  /** Null in the store view — a venue knows where it is. */
   address: string | null;
   date: string;
   timeslotLabel: string;
@@ -274,6 +309,11 @@ export function BookingDetailModal({
       : null;
   const takenByStaffLabel = useProfileLabel(takenByStaffId);
 
+  // Who the booking is for. Only fetched in the store view — a customer
+  // looking at their own booking is not staff, and the function would refuse
+  // them. Also a hook, so it sits above the early return.
+  const { customer } = useBookingCustomer(booking?.id ?? null, isStore);
+
   if (!open || !booking) return null;
 
   const segBase = 'flex-1 flex items-center justify-center gap-2 px-3 py-2 font-body font-medium text-sm transition-colors';
@@ -308,11 +348,15 @@ export function BookingDetailModal({
             </Dropdown>
           </div>
 
+          {/* `bookedBy` only when a staff member took the booking. The customer
+              block below leads with their name, so an unconditional "Booked by
+              {name}" here would say the same thing twice — but "Booked by
+              {staff} on behalf of {customer}" says something the block can't. */}
           <BookingHeader
             gameName={booking.game?.name ?? 'No game'}
             gameSlug={booking.game?.slug ?? null}
             venue={booking.location.name}
-            bookedBy={isStore ? customerName : undefined}
+            bookedBy={isStore && takenByStaffLabel ? customerName : undefined}
             bookedOnBehalfBy={takenByStaffLabel ?? undefined}
           />
 
@@ -337,7 +381,24 @@ export function BookingDetailModal({
             </div>
           )}
 
-          {isStore || tab === 'details' ? (
+          {isStore ? (
+            /* Two blocks: WHO, then WHEN. A venue reads this to work out who to
+               contact and what to set up, and those are two different
+               questions. The address is dropped — a venue knows where it is. */
+            <>
+              <CustomerList
+                name={customer?.name ?? customerName ?? null}
+                email={customer?.email ?? null}
+                handle={customer?.handle ?? null}
+              />
+              <DetailsList
+                address={null}
+                date={booking.date}
+                timeslotLabel={`${booking.timeslot.name} (${formatBookingTime(booking.timeslot)})`}
+                tableLabel={booking.tableLabel}
+              />
+            </>
+          ) : tab === 'details' ? (
             <DetailsList
               address={booking.location.address}
               date={booking.date}
