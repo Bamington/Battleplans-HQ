@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@battleplans/ui';
+import { supabase, regionFor } from '@battleplans/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,13 @@ export interface Location {
   icon: string;
   /** Absent on older reads that predate the column being selected. */
   kind?: LocationKind;
+  /**
+   * Raw region columns — see packages/ui/src/lib/regions.ts. Carried on the
+   * row rather than pre-derived so callers can pass a Location straight to
+   * `inRegionOf`. Null on either means the venue is never filtered out.
+   */
+  country?:  string | null;
+  postcode?: string | null;
 }
 
 /**
@@ -257,7 +264,7 @@ export function useLocations() {
   useEffect(() => {
     supabase
       .from('locations')
-      .select('id, name, icon, kind')
+      .select('id, name, icon, kind, country, postcode')
       // Spaces are never offered: a room a club borrows is where a booking
       // happens, not something a player picks from a list. RLS won't do that
       // for us, because whoever created the space CAN read it.
@@ -266,6 +273,10 @@ export function useLocations() {
       // the people attached to it — its admins, organisers and members — and by
       // nobody else, so a member finds their club here and a stranger does not
       // see it exists. Browsing clubs to ask to join is a separate thing.
+      //
+      // Region is NOT filtered here. It is a preference the user can see past
+      // with "Show all venues", so the full list has to be in hand — unlike
+      // spaces and unreadable clubs, which must never arrive at all.
       .neq('kind', 'space')
       .order('name')
       .then(({ data }) => {
@@ -284,19 +295,27 @@ export function useLocations() {
 export interface UserProfile {
   username: string | null;
   preferredLocationId: string | null;
+  /**
+   * Where the user says they are — the derived region, not the raw postcode.
+   * Null when they haven't told us, or when the postcode doesn't resolve; both
+   * mean "don't filter", so no caller has to distinguish them.
+   */
+  region: string | null;
 }
 
+const EMPTY_PROFILE: UserProfile = { username: null, preferredLocationId: null, region: null };
+
 export function useUserProfile(userId: string | null) {
-  const [profile, setProfile] = useState<UserProfile>({ username: null, preferredLocationId: null });
+  const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) { setProfile({ username: null, preferredLocationId: null }); setLoading(false); return; }
+    if (!userId) { setProfile(EMPTY_PROFILE); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     supabase
       .from('user_profiles')
-      .select('username, preferred_location_id')
+      .select('username, preferred_location_id, country, postcode')
       .eq('id', userId)
       .single()
       .then(({ data }) => {
@@ -304,6 +323,7 @@ export function useUserProfile(userId: string | null) {
         setProfile({
           username:            (data?.username as string | null) ?? null,
           preferredLocationId: (data?.preferred_location_id as string | null) ?? null,
+          region:              regionFor(data?.country as string | null, data?.postcode as string | null),
         });
         setLoading(false);
       });

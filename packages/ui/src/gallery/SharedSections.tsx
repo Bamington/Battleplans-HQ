@@ -30,6 +30,7 @@ import React, { useState } from 'react';
 import { GallerySection, GalleryNote, type GalleryNavItem } from './GalleryShell';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from './colors';
 import { setImpersonatedRole } from '../lib/impersonation';
+import { inRegionOf, regionFor, validatePostcode } from '../lib/regions';
 import heroImage from '../assets/hero.png';
 import logoBloodBowl from '../assets/games/logos/logo-blood-bowl.png';
 import logoHaloFlashpoint from '../assets/games/logos/logo-halo-flashpoint.png';
@@ -86,7 +87,8 @@ import Text from '../components/Text';
 import TextLink from '../components/TextLink';
 import UpdateModal from '../components/UpdateModal';
 import VR from '../components/VR';
-import { ProfileFields, WelcomeModalView } from '../components/WelcomeModal';
+import { ProfileFields, WelcomeModalView, WelcomeStepView } from '../components/WelcomeModal';
+import type { WelcomeStep } from '../components/WelcomeModal';
 import AddCircle from '../icons/AddCircle';
 import AltArrowDown from '../icons/AltArrowDown';
 import AltArrowLeft from '../icons/AltArrowLeft';
@@ -320,29 +322,96 @@ const FriendsModalsGalleryDemo = () => {
 
 // ── WelcomeModalGalleryDemo ──────────────────────────────────────────────────
 
-/** Presentational preview of the onboarding WelcomeModalView. The real
- *  WelcomeModal self-fetches the signed-in user's profile and blocks until the
- *  required fields are saved; here we drive it with local state and mock
- *  locations, and "Continue" just closes it. Toggles between the BattleCards
- *  (name only) and BattlePlan (name + preferred location) field sets.
+/** Presentational preview of a welcome FLOW — intro steps, then an optional
+ *  form. The real WelcomeModal self-fetches the profile, decides from
+ *  `seen_welcome_flows` whether the flow is unseen, and blocks until it is
+ *  done; here we drive the same views with local state and mock locations.
+ *
+ *  Three buttons, matching the three shapes a flow can take:
+ *    Announcement  — intro steps only, asks for nothing.
+ *    Onboarding    — one intro step, then the name form (BattleCards).
+ *    Multi-step    — two intro steps, then the full form (BattlePlan).
  *
  *  Note "Your Name" is the `username` column and "Username" is the `handle`
  *  column — the two cross over between code and interface. */
 const WelcomeModalGalleryDemo = () => {
-  const [variant,    setVariant]    = useState<null | 'cards' | 'plan'>(null);
+  const [variant,    setVariant]    = useState<null | 'announce' | 'cards' | 'plan' | 'topup'>(null);
+  // Which intro step is showing, or 'form' once they're done.
+  const [stage,      setStage]      = useState<number | 'form'>(0);
   const [username,   setUsername]   = useState('Chris');
   const [locationId, setLocationId] = useState('');
+  const [country,    setCountry]    = useState('AU');
+  const [postcode,   setPostcode]   = useState('');
   const [error,      setError]      = useState<string | null>(null);
   const [avatar,     setAvatar]     = useState<Blob | null | undefined>(undefined);
   const [handle,     setHandle]     = useState('');
 
+  // Deliberately spread across two states and a third country, so typing a
+  // postcode into the BattlePlan variant visibly narrows the venue list.
   const MOCK_LOCATIONS = [
-    { id: 'loc-1', name: 'Battleground North' },
-    { id: 'loc-2', name: 'Battleground South' },
+    { id: 'loc-1', name: 'Battleground North', country: 'AU', postcode: '3065' },
+    { id: 'loc-2', name: 'Battleground South', country: 'AU', postcode: '2000' },
+    { id: 'loc-3', name: 'Battleground Britain', country: 'GB', postcode: 'SW1A1AA' },
   ];
 
+  const offered = variant === 'plan'
+    ? inRegionOf(MOCK_LOCATIONS, regionFor(country, postcode))
+    : MOCK_LOCATIONS;
+
+  // The intro steps for each demo variant, standing in for a real flow's.
+  const DEMO_STEPS: Record<'announce' | 'cards' | 'plan' | 'topup', WelcomeStep[]> = {
+    announce: [{
+      title: 'Play sessions have landed',
+      body: [
+        'You can now log a whole evening of games in one go, instead of adding each battle separately.',
+        'Nothing you have already logged has changed.',
+      ],
+      cta: 'Got it',
+    }],
+    cards: [{
+      title: 'Welcome!',
+      body: ['A quick word about the two names on your profile — they do different jobs.'],
+      cta: 'Set up my profile',
+    }],
+    plan: [
+      {
+        title: 'Which venues should we show you?',
+        body: ['Stores in the UK are coming on board, so we need to know roughly where you are.'],
+        cta: 'Next',
+      },
+      {
+        title: 'It stays private',
+        body: ['Your postcode is never shown to other players or to stores.'],
+        cta: 'Set my location',
+      },
+    ],
+    topup: [{
+      title: 'Add your location',
+      body: ['Please add your Country and Postcode so we only show you stores nearby.'],
+      cta: 'Add my location',
+    }],
+  };
+
+  const steps = variant ? DEMO_STEPS[variant] : [];
+
+  // 'topup' is the case most real users hit: they already have a name and a
+  // home venue, so the form narrows to the one thing the intro asked about.
+  const isTopUp = variant === 'topup';
+  const showsVenueFields = variant === 'plan';
+
+  function openVariant(v: 'announce' | 'cards' | 'plan' | 'topup') {
+    setError(null);
+    setStage(0);
+    setVariant(v);
+  }
+
   function handleSave() {
-    if (!username.trim()) { setError('Please enter your name.'); return; }
+    // Top-up never shows the name field, so it can't be blank-checked here.
+    if (!isTopUp && !username.trim()) { setError('Please enter your name.'); return; }
+    if (variant === 'plan' || isTopUp) {
+      const postcodeError = validatePostcode(country, postcode);
+      if (postcodeError) { setError(postcodeError); return; }
+    }
     if (variant === 'plan' && !locationId) { setError('Please select a preferred location.'); return; }
     setError(null);
     setVariant(null);
@@ -350,34 +419,67 @@ const WelcomeModalGalleryDemo = () => {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button onClick={() => { setError(null); setVariant('cards'); }}>
-        BattleCards variant
+      <Button onClick={() => openVariant('cards')}>Onboarding (1 step + form)</Button>
+      <Button variant="outline" color="secondary" onClick={() => openVariant('plan')}>
+        Multi-step (2 steps + form)
       </Button>
-      <Button variant="outline" color="secondary" onClick={() => { setError(null); setVariant('plan'); }}>
-        BattlePlan variant
+      <Button variant="outline" color="secondary" onClick={() => openVariant('topup')}>
+        Top-up (existing user)
+      </Button>
+      <Button variant="outline" color="secondary" onClick={() => openVariant('announce')}>
+        Announcement (no form)
       </Button>
       <GalleryNote>
-        Blocking in-app; here "Continue" closes it. The picture is optional and
-        never blocks Continue.
+        Blocking in-app; here the last button closes it. A flow is intro steps
+        then an optional form — Announcement has no form and finishes on its own
+        step; Multi-step shows the "1 of 2" counter a single-step flow hides.
+        <strong className="text-white"> Top-up</strong> is what most existing
+        users see: the form narrows to only the fields they are actually missing,
+        so it asks for exactly what the intro promised — no picture, no name, no
+        venue. In the full form, type a postcode (3065 vs 2000 vs SW1A 1AA) to
+        watch the venue list narrow.
         {avatar instanceof Blob && ` Picked: ${Math.round(avatar.size / 1024)} KB.`}
       </GalleryNote>
-      {variant && (
+
+      {variant && typeof stage === 'number' && steps[stage] && (
+        <WelcomeStepView
+          step={steps[stage]}
+          index={stage + 1}
+          total={steps.length}
+          onContinue={() => {
+            if (stage < steps.length - 1) { setStage(stage + 1); return; }
+            // An announcement has nowhere to go next — it just closes.
+            if (variant === 'announce') { setVariant(null); return; }
+            setStage('form');
+          }}
+        />
+      )}
+
+      {variant && variant !== 'announce' && stage === 'form' && (
         <WelcomeModalView
-          appName={variant === 'plan' ? 'BattlePlan' : 'BattleCards'}
-          showAvatar
+          appName={variant === 'cards' ? 'BattleCards' : 'BattlePlan'}
+          // Top-up hides everything the user already has: no picture, no name,
+          // no @handle, no venue — just the region pair the intro promised.
+          showAvatar={!isTopUp}
           avatarInitials="CH"
           onAvatarChange={setAvatar}
-          showUsername
-          showPreferredLocation={variant === 'plan'}
+          showUsername={!isTopUp}
+          showPreferredLocation={showsVenueFields}
+          showRegion={variant === 'plan' || isTopUp}
+          country={country}
+          onCountryChange={setCountry}
+          postcode={postcode}
+          onPostcodeChange={setPostcode}
+          title={isTopUp ? 'Add your location' : undefined}
           showBookingEmailNote={variant === 'plan'}
-          showHandle
+          showHandle={!isTopUp}
           handle={handle}
           onHandleChange={setHandle}
           username={username}
           onUsernameChange={setUsername}
           preferredLocationId={locationId}
           onPreferredLocationChange={setLocationId}
-          locations={MOCK_LOCATIONS}
+          locations={offered}
           saving={false}
           error={error}
           onSave={handleSave}
@@ -399,11 +501,13 @@ const ProfileModalGalleryDemo = () => {
   const [username,   setUsername]   = useState('Chris');
   const [handle,     setHandle]     = useState('chris-h');
   const [locationId, setLocationId] = useState('loc-1');
+  const [country,    setCountry]    = useState('AU');
+  const [postcode,   setPostcode]   = useState('3065');
   const [error,      setError]      = useState<string | null>(null);
 
   const MOCK_LOCATIONS = [
-    { id: 'loc-1', name: 'Battleground North' },
-    { id: 'loc-2', name: 'Battleground South' },
+    { id: 'loc-1', name: 'Battleground North', country: 'AU', postcode: '3065' },
+    { id: 'loc-2', name: 'Battleground South', country: 'AU', postcode: '2000' },
   ];
 
   function handleSave() {
@@ -430,6 +534,11 @@ const ProfileModalGalleryDemo = () => {
               <ProfileFields
                 showUsername
                 showPreferredLocation={variant === 'full'}
+                showRegion={variant === 'full'}
+                country={country}
+                onCountryChange={setCountry}
+                postcode={postcode}
+                onPostcodeChange={setPostcode}
                 username={username}
                 onUsernameChange={setUsername}
                 showHandle
@@ -1174,6 +1283,8 @@ export interface SharedGallerySectionsProps {
 const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySectionsProps) => {
   // Drives the ColumnHeader demo's view toggle.
   const [columnHeaderView, setColumnHeaderView] = useState('list');
+  // Proves the TextLink action variant is really firing a handler.
+  const [linkActionCount, setLinkActionCount] = useState(0);
   const [counterDefault, setCounterDefault] = useState(1);
   const [counterSuccess, setCounterSuccess] = useState(3);
   const [counterError,   setCounterError]   = useState(0);
@@ -1583,6 +1694,30 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
             <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Button</span>
             <TextLink variant="button" to="/">Create a card</TextLink>
           </div>
+
+          {/* onClick renders a real <button>, not an <a href="#">, so a screen
+              reader is told this acts on the page rather than navigating. Any
+              variant can take it; the inline ones are what it is for. */}
+          <div className="flex items-center gap-2">
+            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Action</span>
+            <Text variant="paragraph">
+              Showing venues in Victoria.{' '}
+              <TextLink variant="paragraph" onClick={() => setLinkActionCount(n => n + 1)}>
+                Show all venues
+              </TextLink>
+            </Text>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-body text-xs text-gray-400 dark:text-gray-500 w-24">Disabled</span>
+            <TextLink variant="paragraph" disabled onClick={() => {}}>Show all venues</TextLink>
+          </div>
+
+          <GalleryNote>
+            The Action link is a &lt;button&gt; — it toggles state instead of
+            navigating. Clicked {linkActionCount}{' '}
+            {linkActionCount === 1 ? 'time' : 'times'}.
+          </GalleryNote>
 
         </div>
       </GallerySection>

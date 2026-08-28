@@ -9,17 +9,18 @@
  * battle. Photo operations apply immediately; Save persists the other fields.
  */
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   supabase, Modal, Button, SearchSelect, Input, Select, RichTextEditor, MarkdownBody,
   MenuDots, Pen2, TrashBinMinimalistic, UploadMinimalistic, CloseCircle, StarBold, Star,
-  AltArrowLeft, AltArrowRight, CheckCircle, Widget2, UserRounded,
+  AltArrowLeft, AltArrowRight, CheckCircle, Widget2, UserRounded, inRegionOf,
 } from '@battleplans/ui';
 import DatePickerInput from './DatePickerInput';
 import { OpponentPicker } from './OpponentPicker';
 import { GAME_ICONS } from './gameIcons';
+import { VenueScopeHint } from './VenueScopeHint';
 import type { Battle, BattleResult } from '../hooks/useBattles';
-import { useAllGames, useLocations } from '../hooks/useBookingData';
+import { useAllGames, useLocations, useUserProfile } from '../hooks/useBookingData';
 import { useOpponents, resolveOpponentIds, setBattleOpponents, type SelectedOpponent } from '../hooks/useOpponents';
 
 // ── Constants shared with the New Battle flow ─────────────────────────────────
@@ -149,7 +150,22 @@ export function BattleDetailsModal({
 
   const { games,     loading: gamesLoading }     = useAllGames(userId);
   const { locations, loading: locationsLoading } = useLocations();
+  const { region }                               = useUserProfile(userId);
   const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
+
+  // Nearby venues first, everything else behind a click — as in the New Battle
+  // form. The venue this battle ALREADY names is always kept in the list, so
+  // editing a battle played interstate can never quietly drop where it was.
+  const [showAllVenues, setShowAllVenues] = useState(false);
+
+  const offeredLocations = useMemo(() => {
+    if (showAllVenues) return locations;
+    const near = inRegionOf(locations, region);
+    const chosen = locations.find(l => l.id === venue);
+    return chosen && !near.includes(chosen) ? [...near, chosen] : near;
+  }, [locations, region, showAllVenues, venue]);
+
+  const hiddenVenueCount = locations.length - offeredLocations.length;
 
   // Reset to the view state whenever a different battle opens.
   useEffect(() => {
@@ -416,17 +432,25 @@ export function BattleDetailsModal({
                 options={RESULT_OPTIONS}
               />
 
-              <Select
-                label="Venue (Optional)"
-                value={venue}
-                onChange={e => setVenue(e.target.value)}
-                disabled={locationsLoading}
-                options={[
-                  { value: '', label: 'No venue' },
-                  ...locations.map(l => ({ value: l.id, label: l.name })),
-                  { value: OTHER_VENUE, label: 'Somewhere else…' },
-                ]}
-              />
+              <div className="flex flex-col gap-1.5">
+                <Select
+                  label="Venue (Optional)"
+                  value={venue}
+                  onChange={e => setVenue(e.target.value)}
+                  disabled={locationsLoading}
+                  options={[
+                    { value: '', label: 'No venue' },
+                    ...offeredLocations.map(l => ({ value: l.id, label: l.name })),
+                    { value: OTHER_VENUE, label: 'Somewhere else…' },
+                  ]}
+                />
+                <VenueScopeHint
+                  region={region}
+                  hiddenCount={hiddenVenueCount}
+                  showingAll={showAllVenues}
+                  onToggle={() => setShowAllVenues(v => !v)}
+                />
+              </div>
 
               {venue === OTHER_VENUE && (
                 <Input

@@ -31,6 +31,7 @@ import {
   SharedGallerySections,
   SHARED_GALLERY_NAV,
   Button,
+  WelcomeStepView,
   type GalleryNavItem,
 } from '@battleplans/ui';
 import { Widget2, Gallery, ListCheck, Shield, Bookmark, UsersGroupRounded, Home, Clipboard } from '@battleplans/ui';
@@ -45,6 +46,8 @@ import { BookingItem } from '../components/BookingItem';
 import DatePickerInput from '../components/DatePickerInput';
 import { OpponentPicker } from '../components/OpponentPicker';
 import { StoreSelector, StoreIcon } from '../components/StoreSelector';
+import { VenueScopeHint } from '../components/VenueScopeHint';
+import { VENUE_REGIONS_FLOW } from '../welcomeFlows.tsx';
 import { StoreTableItem, TableFormModal } from '../components/StoreTables';
 import { TimeslotItem, TimeslotFormModal } from '../components/Timeslots';
 import { BookingFeeItem, BookingFeeFormModal } from '../components/BookingFees';
@@ -255,6 +258,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-date-picker',       label: 'Date Picker Input',  icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-opponent-picker',   label: 'Opponent Picker',    icon: <UsersGroupRounded className="w-5 h-5" /> },
   { href: '#nav-store-selector',    label: 'Store Selector',     icon: <Home className="w-5 h-5" /> },
+  { href: '#nav-venue-scope-hint',  label: 'Venue Scope Hint',   icon: <Home className="w-5 h-5" /> },
+  { href: '#nav-welcome-flow',      label: 'Welcome Flow',       icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-timeslots',         label: 'Timeslots',          icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-store-tables',      label: 'Store Tables',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-blocked-dates',     label: 'Blocked Dates',      icon: <Clipboard className="w-5 h-5" /> },
@@ -279,6 +284,9 @@ const ComponentGallery = () => {
   const [date,           setDate]           = useState('2026-08-01');
   const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
+  const [scopeShowingAll, setScopeShowingAll] = useState(false);
+  // Which intro step of the real welcome flow is on screen; null = closed.
+  const [welcomeStep,    setWelcomeStep]    = useState<number | null>(null);
   const [emptyStore,     setEmptyStore]     = useState('');
 
   return (
@@ -624,6 +632,80 @@ const ComponentGallery = () => {
           <GalleryNote>
             Selected: {selectedStore || '(none)'}. The demo venues carry no icon, so
             StoreIcon shows its initials fallback.
+          </GalleryNote>
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-venue-scope-hint" title="Venue Scope Hint">
+        <div className="w-full max-w-md flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filtering — two venues hidden. Click the link to toggle.
+            </p>
+            <VenueScopeHint
+              region="AU-VIC"
+              hiddenCount={2}
+              showingAll={scopeShowingAll}
+              onToggle={() => setScopeShowingAll(v => !v)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              United Kingdom — one region for the whole country
+            </p>
+            <VenueScopeHint region="GB" hiddenCount={3} showingAll={false} onToggle={() => {}} />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Nothing hidden → renders nothing. This is the normal case today,
+              since every venue on the platform is Victorian.
+            </p>
+            <VenueScopeHint region="AU-VIC" hiddenCount={0} showingAll={false} onToggle={() => {}} />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              No region on the user → renders nothing, because their list is not
+              actually being filtered.
+            </p>
+            <VenueScopeHint region={null} hiddenCount={4} showingAll={false} onToggle={() => {}} />
+          </div>
+
+          <GalleryNote>
+            Sits under every venue picker — booking a table, logging a battle,
+            editing one. Two of the four cases above deliberately render nothing.
+          </GalleryNote>
+        </div>
+      </GallerySection>
+
+      {/* The REAL flow BattlePlan currently mounts, not a mock — so the copy
+          every user is made to read is reviewable here without signing in. The
+          shared gallery covers the mechanism; this covers the wording. */}
+      <GallerySection id="nav-welcome-flow" title="Welcome Flow">
+        <div className="w-full max-w-md flex flex-col gap-4">
+          <Button onClick={() => setWelcomeStep(0)}>Show the current flow</Button>
+
+          {welcomeStep !== null && VENUE_REGIONS_FLOW.steps[welcomeStep] && (
+            <WelcomeStepView
+              step={VENUE_REGIONS_FLOW.steps[welcomeStep]}
+              index={welcomeStep + 1}
+              total={VENUE_REGIONS_FLOW.steps.length}
+              onContinue={() =>
+                setWelcomeStep(s =>
+                  s !== null && s < VENUE_REGIONS_FLOW.steps.length - 1 ? s + 1 : null)
+              }
+            />
+          )}
+
+          <GalleryNote>
+            Flow key <code>{VENUE_REGIONS_FLOW.key}</code> —{' '}
+            {VENUE_REGIONS_FLOW.steps.length}{' '}
+            {VENUE_REGIONS_FLOW.steps.length === 1 ? 'intro step' : 'intro steps'},
+            then the profile form. In the app the form follows immediately; here
+            the last step just closes. Blocking in-app — no close button, and the
+            backdrop doesn't dismiss it.
           </GalleryNote>
         </div>
       </GallerySection>
