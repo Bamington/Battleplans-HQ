@@ -40,6 +40,7 @@ import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
 import PlaySessionPrompt from '../components/PlaySessionPrompt';
 import EnemyCard from '../components/EnemyCard';
+import AddEnemyModal from '../components/AddEnemyModal';
 import BloodBowlCard from '../components/BloodBowlCard';
 import StarPlayerCard from '../components/StarPlayerCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
@@ -346,6 +347,53 @@ const PlaySessionPromptGalleryDemo = () => {
   );
 };
 
+// ── AddEnemyModalGalleryDemo ─────────────────────────────────────────────────
+
+/** Both states that matter: packs available (pick one or go custom) and no
+ *  packs at all, where building from scratch becomes the only path and the
+ *  copy changes to say so. */
+const AddEnemyModalGalleryDemo = () => {
+  const [open, setOpen]     = useState(false);
+  const [withPacks, setWP]  = useState(true);
+  const [result, setResult] = useState('—');
+
+  const DEMO_PACK_ENEMIES = [
+    { id: 'e1', name: 'Paingiver',     enemyType: 'Champion',   aiType: 'Dross',     packName: 'Enemies' },
+    { id: 'e2', name: 'Slaughterborn', enemyType: 'Champion',   aiType: 'Hunter',    packName: 'Enemies' },
+    { id: 'e3', name: 'Dreadwarden',   enemyType: 'Lieutenant', aiType: 'Commander', packName: 'Enemies' },
+    { id: 'e4', name: 'Carrion',       enemyType: 'Minion',     aiType: 'Dross',     packName: 'Enemies' },
+  ];
+
+  return (
+    <div className="flex flex-col gap-2 items-start">
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => { setWP(true); setOpen(true); }}>
+          Open (packs available)
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => { setWP(false); setOpen(true); }}>
+          Open (no packs)
+        </Button>
+      </div>
+
+      <AddEnemyModal
+        open={open}
+        packEnemies={withPacks ? DEMO_PACK_ENEMIES : []}
+        onClose={() => { setResult('Dismissed'); setOpen(false); }}
+        onChoose={id => {
+          const picked = DEMO_PACK_ENEMIES.find(e => e.id === id);
+          setResult(`Added ${picked?.name ?? id} from the pack`);
+          setOpen(false);
+        }}
+        onCreateCustom={() => { setResult('Started a custom enemy'); setOpen(false); }}
+      />
+
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Last action: {result}
+      </p>
+    </div>
+  );
+};
+
 // ── DeckPanelMenuGalleryDemo ─────────────────────────────────────────────────
 
 /** Both states of the card-list header action: the ⋯ menu at rest, and the
@@ -546,6 +594,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-ryg-forms',             label: 'RYG Forms',             icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-enemy-card',            label: 'Enemy Card',            icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-print-mixed',           label: 'Print Mixed Types',     icon: <Bookmark className="w-5 h-5" /> },
+  { href: '#nav-add-enemy-modal',       label: 'Add Enemy Modal',       icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-play-session-prompt',   label: 'Play Session Prompt',   icon: <Play className="w-5 h-5" /> },
   { href: '#nav-deck-panel-menu',       label: 'Deck Panel Menu',       icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-share-deck-sheet',      label: 'Share Deck Sheet',      icon: <Gallery className="w-5 h-5" /> },
@@ -2294,6 +2343,10 @@ const ComponentGallery = () => {
             items={CAROUSEL_ITEMS}
             activeId={carouselActive}
             onActiveChange={setCarouselActive}
+            // Without a height the carousel's root doesn't fill the frame
+            // above, and it measured a zero-height viewport — which meant this
+            // demo rendered nothing at all.
+            className="w-full h-full"
             cardWidth={340}
             cardHeight={520}
             renderItem={(item, role) => (
@@ -2594,6 +2647,10 @@ const ComponentGallery = () => {
             />
           </div>
         </div>
+      </GallerySection>
+
+      <GallerySection id="nav-add-enemy-modal" title="Add Enemy Modal">
+        <AddEnemyModalGalleryDemo />
       </GallerySection>
 
       <GallerySection id="nav-play-session-prompt" title="Play Session Prompt">

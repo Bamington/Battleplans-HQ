@@ -28,6 +28,7 @@ import CenterViewport from '../components/CenterViewport';
 import DeckPanelMenu from '../components/DeckPanelMenu';
 import ShareDeckSheet from '../components/ShareDeckSheet';
 import PlaySessionPrompt from '../components/PlaySessionPrompt';
+import AddEnemyModal from '../components/AddEnemyModal';
 import { usePlaySessionEntry } from '../hooks/usePlaySessionEntry';
 import EnemyCard from '../components/EnemyCard';
 import {
@@ -340,7 +341,11 @@ const CardBuilderRyg = () => {
 
   // Enemy cards — loaded, edited and saved by their own hook, and always shown
   // after the warband.
-  const { enemies, addEnemy, updateEnemy, removeEnemy, patchEnemies } = useRygEnemies(deckId);
+  const {
+    enemies, packEnemies, addEnemy, addEnemyFromPack,
+    updateEnemy, removeEnemy, patchEnemies,
+  } = useRygEnemies(deckId);
+  const [addEnemyOpen, setAddEnemyOpen] = useState(false);
   const [activeEnemyId, setActiveEnemyId] = useState<string | null>(null);
   const activeEnemy = enemies.find(e => e.id === activeEnemyId) ?? null;
   /** Which attachment picker is open, if any. */
@@ -1301,7 +1306,7 @@ const CardBuilderRyg = () => {
                 variant="outline"
                 size="sm"
                 className="w-full mt-2"
-                onClick={() => { const id = addEnemy(); setActiveEnemyId(id); setActiveView('enemy'); }}
+                onClick={() => setAddEnemyOpen(true)}
               >
                 <AddCircle className="w-4 h-4" /> Add Enemy
               </Button>
@@ -2479,6 +2484,24 @@ const CardBuilderRyg = () => {
               deckName={deckName}
             />
           )}
+
+          <AddEnemyModal
+            open={addEnemyOpen}
+            packEnemies={packEnemies}
+            onClose={() => setAddEnemyOpen(false)}
+            onChoose={templateId => {
+              void addEnemyFromPack(templateId).then(id => {
+                setAddEnemyOpen(false);
+                if (id) { setActiveEnemyId(id); setActiveView('enemy'); }
+              });
+            }}
+            onCreateCustom={() => {
+              setAddEnemyOpen(false);
+              const id = addEnemy();
+              setActiveEnemyId(id);
+              setActiveView('enemy');
+            }}
+          />
 
           <PlaySessionPrompt
             open={playEntry.promptOpen}
