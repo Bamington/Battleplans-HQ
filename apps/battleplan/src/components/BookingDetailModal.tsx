@@ -17,7 +17,7 @@
 import { useMemo, useState } from 'react';
 import {
   Modal, Button, Input, Dropdown, DropdownItem,
-  MapPin, Calendar, Notebook, InfoCircle, UserRounded, UserPlusRounded,
+  MapPin, Calendar, Notebook, Layers, InfoCircle, UserRounded, UserPlusRounded,
   CheckCircle, CloseCircle, ArrowRight, TrashBinMinimalistic, MenuDots,
   useBookingShares, useFriends,
   normaliseHandle, validateHandle,
@@ -106,17 +106,34 @@ function DetailRow({ icon, children }: { icon: React.ReactNode; children: React.
 }
 
 function DetailsList({
-  address, date, timeslotLabel,
+  address, date, timeslotLabel, tableLabel,
 }: {
   address: string | null;
   date: string;
   timeslotLabel: string;
+  /**
+   * Which kind of table. Omitted entirely when null — which is every booking
+   * at a venue whose tables are all the same, and every booking made before
+   * the venue had more than one kind (see 20260817030000).
+   */
+  tableLabel?: string | null;
 }) {
   return (
     <div className="flex flex-col rounded-xl overflow-hidden w-full divide-y divide-neutral-800">
       {address && <DetailRow icon={<MapPin className="w-full h-full" />}>{address}</DetailRow>}
       <DetailRow icon={<Calendar className="w-full h-full" />}>{formatBookingDate(date)}</DetailRow>
       <DetailRow icon={<Notebook className="w-full h-full" />}>{timeslotLabel}</DetailRow>
+      {/* Last, because it is the narrowest detail — where, when, then what kind
+          of table.
+
+          Labelled rather than bare, and NOT "{label} table": the label is free
+          text a venue types, so it might be "Wargaming" (reads fine appended)
+          or "Painting Bench" (reads badly). A prefix is grammatical whatever
+          they wrote, and "Table type" is exactly what the booking form calls
+          the field — one name for one thing across both screens. */}
+      {tableLabel && (
+        <DetailRow icon={<Layers className="w-full h-full" />}>Table type: {tableLabel}</DetailRow>
+      )}
     </div>
   );
 }
@@ -325,6 +342,7 @@ export function BookingDetailModal({
               address={booking.location.address}
               date={booking.date}
               timeslotLabel={`${booking.timeslot.name} (${formatBookingTime(booking.timeslot)})`}
+              tableLabel={booking.tableLabel}
             />
           ) : (
             <InviteFriendsTab
@@ -411,7 +429,7 @@ export function BookingInvitationModal({
           invitedBy={{ id: share.sharer.id, handle: share.sharer.handle, avatarUrl: share.sharer.avatarUrl }}
         />
 
-        <DetailsList address={share.locationAddress} date={share.date} timeslotLabel={timeslotLabel} />
+        <DetailsList address={share.locationAddress} date={share.date} timeslotLabel={timeslotLabel} tableLabel={share.tableLabel} />
 
         {!accepted && (
           <div className="flex gap-3 items-center justify-center w-full">

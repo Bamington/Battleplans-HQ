@@ -221,6 +221,9 @@ const DEMO_BATTLE: Battle = {
 
 const DEMO_SHARE: IncomingBookingShare = {
   shareId: 'sh-1',
+  // An invitee sees the table type too, since 20260828070000 carries it
+  // through the share view.
+  tableLabel: 'Wargaming',
   status: 'pending',
   createdAt: '2026-07-24T09:00:00.000Z',
   respondedAt: null,
