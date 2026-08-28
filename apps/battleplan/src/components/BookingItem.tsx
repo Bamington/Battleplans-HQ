@@ -19,10 +19,16 @@ const MenuDotsIcon = () => (
  *   'user'  — My Bookings. Heading is the game; muted line is the venue.
  *   'store' — Store Admin. Heading is the customer; muted line is the game.
  *             The venue is omitted: the admin is already looking at it.
+ *
+ * The muted line also carries the TABLE TYPE, right-aligned against whatever
+ * sits on its left. It appears in both variants — a player wants to know they
+ * booked the painting bench, and a venue wants to know which kind of table to
+ * have ready — and it is absent entirely when the booking has no label, which
+ * is every booking at a venue whose tables are all the same.
  */
 export type BookingItemVariant = 'user' | 'store';
 
-export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, variant = 'user', onDeleted, onClick }: {
+export function BookingItem({ bookingId, gameIcon, gameName, location, date, time, customerName, tableLabel, variant = 'user', onDeleted, onClick }: {
   bookingId: string;
   gameIcon?: string;
   gameName: string;
@@ -31,6 +37,11 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
   date: string;
   time: string;
   customerName?: string;
+  /**
+   * Which kind of table was booked. Null/absent for a booking with no label —
+   * the line then renders exactly as it did before.
+   */
+  tableLabel?: string | null;
   variant?: BookingItemVariant;
   onDeleted?: () => void;
   /** Makes the card tappable (opens the booking modal). The menu stops propagation. */
@@ -70,8 +81,18 @@ export function BookingItem({ bookingId, gameIcon, gameName, location, date, tim
           <span className="font-heading text-lg text-white leading-6 line-clamp-2">
             {variant === 'store' ? (customerName ?? 'Guest') : gameName}
           </span>
-          <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
-            {variant === 'store' ? gameName : location}
+          {/* Venue (or game) on the left, table type hard right. The left side
+              truncates and the right does not — a venue with a long name should
+              lose its tail rather than push the table type off the card. */}
+          <span className="flex items-baseline justify-between gap-2">
+            <span className="font-body text-sm font-bold text-neutral-300 leading-5 opacity-50 truncate">
+              {variant === 'store' ? gameName : location}
+            </span>
+            {tableLabel && (
+              <span className="font-body text-sm text-neutral-300 leading-5 opacity-50 shrink-0">
+                {tableLabel}
+              </span>
+            )}
           </span>
           <span className="font-body text-sm text-neutral-50 leading-5 truncate">{date}</span>
           <span className="font-body text-sm text-neutral-50 leading-5 truncate">{time}</span>

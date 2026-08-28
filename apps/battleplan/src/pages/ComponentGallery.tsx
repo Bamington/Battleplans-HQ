@@ -199,6 +199,7 @@ const DEMO_BOOKING: Booking = {
   // Harrison". Set created_by_user_id to a DIFFERENT id to see the counter
   // variant, "Booked by {staff} on behalf of Chris Harrison".
   created_by_user_id: 'u-1',
+  tableLabel: 'Wargaming',
   game:     { id: 'g-1', name: 'Blood Bowl', slug: 'blood-bowl' },
   location: { id: 'loc-1', name: 'Battleground North', address: '12 Guild Street, Sheffield' },
   timeslot: { id: 'ts-2', name: 'Afternoon', start_time: '13:00', end_time: '17:00' },
@@ -464,7 +465,7 @@ const ComponentGallery = () => {
         <div className="w-full max-w-xl flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-              variant="user" — your own booking
+              variant="user" — your own booking, no table type (unlabelled venue)
             </p>
             <BookingItem
               bookingId="bk-1"
@@ -478,7 +479,7 @@ const ComponentGallery = () => {
           </div>
           <div className="flex flex-col gap-2">
             <p className="font-body text-xs text-gray-400 dark:text-gray-500">
-              variant="store" — the venue's view, with the customer's name
+              variant="store" — the venue's view, with the customer's name and the table type
             </p>
             <BookingItem
               bookingId="bk-2"
@@ -488,7 +489,24 @@ const ComponentGallery = () => {
               date="2026-08-02"
               time="18:00 – 22:00"
               customerName="Chris Harrison"
+              tableLabel="Wargaming"
               variant="store"
+              onClick={() => alert('Open booking')}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              A long venue name against a table type — the venue truncates, the
+              table type does not
+            </p>
+            <BookingItem
+              bookingId="bk-3"
+              gameIcon={iconBloodBowl}
+              gameName="Blood Bowl"
+              location="The Extremely Long Named Battleground of North Melbourne"
+              date="2026-08-03"
+              time="10:00 – 14:00"
+              tableLabel="Painting Bench"
               onClick={() => alert('Open booking')}
             />
           </div>

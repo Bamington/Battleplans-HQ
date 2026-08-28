@@ -786,6 +786,7 @@ function BookingCard({ userId }: { userId: string | null }) {
                         location={row.booking.location.name}
                         date={bookingDateLabel(row.booking.date)}
                         time={formatBookingTime(row.booking.timeslot)}
+                        tableLabel={row.booking.tableLabel}
                         variant="user"
                         onDeleted={refetch}
                         onClick={() => setViewing(row.booking)}
@@ -1428,6 +1429,7 @@ function renderBookingRow(row: BookingRow, onDeleted: () => void, onOpen: (b: Up
       date={formatBookingDate(b.date)}
       time={formatBookingTime(b.timeslot)}
       customerName={b.user_name ?? undefined}
+      tableLabel={b.tableLabel}
       variant="store"
       onDeleted={onDeleted}
       onClick={() => onOpen(b)}

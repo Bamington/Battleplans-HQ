@@ -65,6 +65,12 @@ export interface Booking {
   id:        string;
   date:      string;
   user_name: string | null;
+  /**
+   * Which KIND of table was booked, matching store_tables.label. Null means
+   * "any" — every booking made before the venue had more than one kind, and
+   * every booking at a venue that still has only one. See 20260817030000.
+   */
+  tableLabel: string | null;
   /** Whose booking it is. Null for a guest the venue booked in. */
   user_id:            string | null;
   /** Who took the booking. Differs from user_id when a venue booked for someone. */
@@ -88,6 +94,7 @@ interface RawBookingRow {
   timeslot_name:        string | null;
   timeslot_start_time:  string | null;
   timeslot_end_time:    string | null;
+  table_label:          string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null } | null;
   timeslot:  { id: string; name: string; start_time: string; end_time: string } | null;
@@ -97,7 +104,7 @@ interface RawBookingRow {
 // the live joins as a fallback for rows that predate the snapshot.
 const BOOKING_SELECT = `
   id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id,
-  location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
+  location_name, timeslot_name, timeslot_start_time, timeslot_end_time, table_label,
   game:game_catalogue(id, name, slug),
   location:locations(id, name, address),
   timeslot:timeslots(id, name, start_time, end_time)
@@ -111,6 +118,8 @@ function mapBookingRow(r: RawBookingRow): Booking {
     id:        r.id,
     date:      r.date,
     user_name: r.user_name,
+    // Blank strings would render an empty chip; treat them as "unlabelled".
+    tableLabel: r.table_label?.trim() || null,
     user_id:            r.user_id ?? null,
     created_by_user_id: r.created_by_user_id ?? null,
     game:      r.game ?? null,
@@ -922,6 +931,8 @@ export interface UpcomingBooking {
   id:        string;
   date:      string;
   user_name: string | null;
+  /** As Booking.tableLabel — same select, same mapper. */
+  tableLabel: string | null;
   user_id:            string | null;
   created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
@@ -2104,6 +2115,10 @@ export function useSuggestedBattles(userId: string | null) {
         // date and game, never who booked it.
         user_id:            null,
         created_by_user_id: null,
+        // The share view doesn't carry it, and this shape never reaches a
+        // booking card — it exists only to feed the nudge, which reads the date
+        // and the game. Null is the honest value rather than a guess.
+        tableLabel: null,
         game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
         location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
         timeslot: { id: '', name: '', start_time: '', end_time: '' },
