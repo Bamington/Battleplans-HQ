@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW, inRegionOf } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -14,6 +14,7 @@ import DatePickerInput from '../components/DatePickerInput';
 import { StoreSelector } from '../components/StoreSelector';
 import { useSelectedVenue } from '../hooks/useSelectedVenue';
 import { BookingItem } from '../components/BookingItem';
+import { VenueScopeHint } from '../components/VenueScopeHint';
 import { BookingDetailModal, BookingInvitationModal } from '../components/BookingDetailModal';
 import { GAME_ICONS } from '../components/gameIcons';
 import {
@@ -113,7 +114,7 @@ function NewBookingModal({
 
   const { games,     loading: gamesLoading }     = useGames();
   const { locations, loading: locationsLoading } = useLocations();
-  const { username, preferredLocationId }        = useUserProfile(userId);
+  const { username, preferredLocationId, region } = useUserProfile(userId);
   const { gameIds: recentGameIds }               = useRecentBookedGames(userId, 5);
   const { timeslots, loading: timeslotsLoading } = useTimeslots(locationId || null, date || null);
   const { kinds, available, loading: availLoading } = useTableAvailability(locationId || null, date || null, timeslotId || null);
@@ -225,6 +226,28 @@ function NewBookingModal({
   // Reset downstream fields when upstream selection changes
   const handleLocationChange = (id: string) => { setLocationId(id); setDate(''); setTimeslotId(''); };
   const handleDateChange     = (d: string)  => { setDate(d); setTimeslotId(''); };
+
+  // ── Which venues get offered ──────────────────────────────────────────────
+  // Venues far from the user are hidden by default, not removed — someone
+  // travelling interstate, or living either side of a border, still has to be
+  // able to book. The toggle resets with each open so the default is what
+  // people actually see.
+  //
+  // `region` is null for anyone who hasn't given us a postcode, and inRegionOf
+  // returns everything in that case — so this is a no-op until onboarding has
+  // asked. The already-chosen venue is always kept, or picking one and then
+  // toggling the filter back on would blank the field the user just filled.
+  const [showAllVenues, setShowAllVenues] = useState(false);
+  useEffect(() => { if (open) setShowAllVenues(false); }, [open]);
+
+  const offeredLocations = useMemo(() => {
+    if (showAllVenues) return locations;
+    const near = inRegionOf(locations, region);
+    const chosen = locations.find(l => l.id === locationId);
+    return chosen && !near.includes(chosen) ? [...near, chosen] : near;
+  }, [locations, region, showAllVenues, locationId]);
+
+  const hiddenVenueCount = locations.length - offeredLocations.length;
 
   const trimmedIdentifier = identifier.trim();
   const identifierIsEmail = EMAIL_RE.test(trimmedIdentifier);
@@ -421,6 +444,7 @@ function NewBookingModal({
 
         {/* Opened from the store view, the venue is already decided. */}
         {!lockedLocationId && (
+        <div className="flex flex-col gap-1.5">
         <SearchSelect
           label="Location"
           placeholder="Choose a Venue"
@@ -429,7 +453,7 @@ function NewBookingModal({
           onChange={handleLocationChange}
           disabled={locationsLoading}
           emptyLabel="No venues match your search."
-          options={locations.map(l => {
+          options={offeredLocations.map(l => {
             const isUrl = l.icon?.startsWith('http');
             return {
               value: l.id,
@@ -446,6 +470,14 @@ function NewBookingModal({
             };
           })}
         />
+
+        <VenueScopeHint
+          region={region}
+          hiddenCount={hiddenVenueCount}
+          showingAll={showAllVenues}
+          onToggle={() => setShowAllVenues(v => !v)}
+        />
+        </div>
         )}
 
         {locationId && (
@@ -754,6 +786,7 @@ function BookingCard({ userId }: { userId: string | null }) {
                         location={row.booking.location.name}
                         date={bookingDateLabel(row.booking.date)}
                         time={formatBookingTime(row.booking.timeslot)}
+                        tableLabel={row.booking.tableLabel}
                         variant="user"
                         onDeleted={refetch}
                         onClick={() => setViewing(row.booking)}
@@ -854,7 +887,24 @@ function NewBattleModal({
   // Battles can be against any supported game, plus the user's own games.
   const { games,     loading: gamesLoading }     = useAllGames(userId);
   const { locations, loading: locationsLoading } = useLocations();
+  const { region }                               = useUserProfile(userId);
   const { opponents: roster, refetch: refetchOpponents } = useOpponents(userId);
+
+  // Same nearby-first treatment as the booking form. A battle is a record of
+  // somewhere you already played, so the far-away venue is a real answer here
+  // more often than it is when booking — but it stays one click away rather
+  // than cluttering the list for everyone.
+  const [showAllVenues, setShowAllVenues] = useState(false);
+  useEffect(() => { if (open) setShowAllVenues(false); }, [open]);
+
+  const offeredLocations = useMemo(() => {
+    if (showAllVenues) return locations;
+    const near = inRegionOf(locations, region);
+    const chosen = locations.find(l => l.id === venue);
+    return chosen && !near.includes(chosen) ? [...near, chosen] : near;
+  }, [locations, region, showAllVenues, venue]);
+
+  const hiddenVenueCount = locations.length - offeredLocations.length;
 
   // When opened from a suggestion, prefill game/venue/date. Runs when the modal
   // opens so each open reflects the current suggestion (or a blank manual add).
@@ -997,17 +1047,25 @@ function NewBattleModal({
           options={RESULT_OPTIONS}
         />
 
-        <Select
-          label="Venue (Optional)"
-          value={venue}
-          onChange={e => setVenue(e.target.value)}
-          disabled={locationsLoading}
-          options={[
-            { value: '', label: 'No venue' },
-            ...locations.map(l => ({ value: l.id, label: l.name })),
-            { value: OTHER_VENUE, label: 'Somewhere else…' },
-          ]}
-        />
+        <div className="flex flex-col gap-1.5">
+          <Select
+            label="Venue (Optional)"
+            value={venue}
+            onChange={e => setVenue(e.target.value)}
+            disabled={locationsLoading}
+            options={[
+              { value: '', label: 'No venue' },
+              ...offeredLocations.map(l => ({ value: l.id, label: l.name })),
+              { value: OTHER_VENUE, label: 'Somewhere else…' },
+            ]}
+          />
+          <VenueScopeHint
+            region={region}
+            hiddenCount={hiddenVenueCount}
+            showingAll={showAllVenues}
+            onToggle={() => setShowAllVenues(v => !v)}
+          />
+        </div>
 
         {venue === OTHER_VENUE && (
           <Input
@@ -1371,6 +1429,7 @@ function renderBookingRow(row: BookingRow, onDeleted: () => void, onOpen: (b: Up
       date={formatBookingDate(b.date)}
       time={formatBookingTime(b.timeslot)}
       customerName={b.user_name ?? undefined}
+      tableLabel={b.tableLabel}
       variant="store"
       onDeleted={onDeleted}
       onClick={() => onOpen(b)}

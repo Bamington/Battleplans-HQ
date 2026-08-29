@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import CollectionStatsPage from './pages/CollectionStatsPage.tsx';
@@ -22,7 +22,7 @@ export function appRoutes() {
     <Route element={
       <ProtectedRoute>
         <AppAccessRoute appName="BattleBench">
-          <WelcomeModal appName="BattleBench" fields={{ username: true }} />
+          <WelcomeModal appName="BattleBench" flow={PROFILE_ONBOARDING_FLOW} />
           <Outlet />
         </AppAccessRoute>
       </ProtectedRoute>

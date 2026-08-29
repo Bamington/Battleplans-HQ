@@ -49,7 +49,7 @@ import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
 import ManagePacks from './pages/ManagePacks';
 import ManageUpdates from './pages/ManageUpdates';
-import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -140,7 +140,7 @@ export function appRoutes() {
         <Route element={
           <ProtectedRoute>
             <AppAccessRoute appName="BattleCards">
-              <WelcomeModal appName="BattleCards" fields={{ username: true }} />
+              <WelcomeModal appName="BattleCards" flow={PROFILE_ONBOARDING_FLOW} />
               <Outlet />
             </AppAccessRoute>
           </ProtectedRoute>
