@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
-import { ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import PackEditor from './pages/PackEditor.tsx';
@@ -29,7 +29,7 @@ export function appRoutes() {
     <Route element={
       <ProtectedRoute>
         <AppAccessRoute appName="BattlePack">
-          <WelcomeModal appName="BattlePack" fields={{ username: true }} />
+          <WelcomeModal appName="BattlePack" flow={PROFILE_ONBOARDING_FLOW} />
           <Outlet />
         </AppAccessRoute>
       </ProtectedRoute>

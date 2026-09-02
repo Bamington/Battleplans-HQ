@@ -257,6 +257,8 @@ The build date and version shown in the app are injected at build time from
 `package.json` — no other files need updating. That injection is the
 `__APP_VERSION__` / `__APP_BUILD_DATE__` `define` block in `vite.config.ts`.
 
+**After bumping the version, ask whether they want an update note** — a News & Updates entry published through Manage Updates. Ask; never write one unprompted, and never skip asking. If the change is something users must understand before carrying on, ask whether it warrants a welcome flow too. See the root `CLAUDE.md` for both.
+
 ## UI Components
 
 - **Always use existing components first.** Before writing any UI, check `packages/ui/src/components/` and then `src/components/`, and use what's already there. Do not recreate something that exists.
