@@ -1069,9 +1069,33 @@ export async function deleteSegment(segmentId: string): Promise<void> {
 
 /** Renumber days after one is removed, so the sequence has no holes. */
 export async function reorderSegments(segments: ScheduleSegment[]): Promise<void> {
-  await Promise.all(segments.map((s, i) =>
-    supabase.from('battlepack_schedule_segments').update({ ordinal: i + 1 }).eq('id', s.id),
-  ));
+  await writeSegmentOrder(segments.map((s, i) => ({ id: s.id, pack_id: s.pack_id, ordinal: i + 1 })));
+}
+
+/**
+ * Renumber segments in ONE statement, which is the only way it can work.
+ *
+ * `(pack_id, ordinal)` is unique and DEFERRABLE INITIALLY DEFERRED — deferred
+ * to the end of the TRANSACTION. One UPDATE per row through PostgREST is one
+ * transaction per row, so swapping rounds 1 and 2 writes ordinal 1 onto a row
+ * while another still holds it, violates the constraint, and fails. That is
+ * what a swap did: the dates were re-laid for the new order and the order
+ * itself never changed, so the names appeared to stay put while everything
+ * around them moved. A single upsert is a single transaction, and the moment
+ * two rows share a number is never visible — the same shape reorderSchedule
+ * has always used for items.
+ *
+ * `pack_id` rides along because an upsert is an INSERT first and the column
+ * is NOT NULL; it never changes.
+ */
+async function writeSegmentOrder(
+  rows: { id: string; pack_id: string; ordinal: number; starts_on?: string | null }[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  const { error } = await supabase
+    .from('battlepack_schedule_segments')
+    .upsert(rows, { onConflict: 'id' });
+  if (error) throw error;
 }
 
 /**
@@ -1134,13 +1158,11 @@ export async function moveSegment(
   const dates = ordered.map(sg => sg.starts_on);
   const redated = next.map((sg, i) => ({ ...sg, ordinal: i + 1, starts_on: dates[i] }));
 
-  await Promise.all(redated.map(sg =>
-    supabase
-      .from('battlepack_schedule_segments')
-      .update({ ordinal: sg.ordinal, starts_on: sg.starts_on })
-      .eq('id', sg.id)
-      .then(({ error }) => { if (error) throw error; }),
-  ));
+  // Ordinals and dates together, in the one statement — see writeSegmentOrder
+  // for why it cannot be one write per row.
+  await writeSegmentOrder(redated.map(sg => ({
+    id: sg.id, pack_id: sg.pack_id, ordinal: sg.ordinal, starts_on: sg.starts_on,
+  })));
   return redated;
 }
 
