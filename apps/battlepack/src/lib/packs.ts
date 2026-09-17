@@ -11,7 +11,7 @@
  */
 
 import { supabase } from '@battleplans/ui';
-import { layOutLeague, withLeagueDates } from './leagues';
+import { addDays, daysBetween, layOutLeague, withLeagueDates } from './leagues';
 import type { PendingBanner } from '@battleplans/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -1072,6 +1072,76 @@ export async function reorderSegments(segments: ScheduleSegment[]): Promise<void
   await Promise.all(segments.map((s, i) =>
     supabase.from('battlepack_schedule_segments').update({ ordinal: i + 1 }).eq('id', s.id),
   ));
+}
+
+/**
+ * Move one segment to a new position, and keep the calendar making sense.
+ *
+ * THE DATES STAY WHERE THEY ARE; THE CONTENT MOVES. Dragging Sunday's
+ * timetable above Saturday's means the organiser wants that timetable on the
+ * Saturday — not that the event now runs Sunday-then-Saturday, which is not a
+ * thing. So for a tournament the dates are gathered in the order they were,
+ * and handed back out in the new order. Times go with the content: a day that
+ * started at nine still starts at nine wherever it lands.
+ *
+ * A league needs none of that bookkeeping. Its rounds date themselves from the
+ * order, so moving one is a renumber followed by the same layout every other
+ * change runs.
+ *
+ * One function for both the arrow buttons and the drag handles, because two
+ * paths to "move a day" that disagreed about what happens to the dates would
+ * be the bug that only one of them shows.
+ */
+export async function moveSegment(
+  pack: Pick<Pack, 'schedule_shape' | 'round_length_weeks'>,
+  segments: ScheduleSegment[],
+  from: number,
+  to: number,
+): Promise<ScheduleSegment[]> {
+  const ordered = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+  if (from === to || from < 0 || to < 0 || from >= ordered.length || to >= ordered.length) return ordered;
+
+  const next = [...ordered];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+
+  if (pack.schedule_shape === 'periods') {
+    // THE LEAGUE STILL STARTS WHEN IT STARTED. The anchor is the old first
+    // segment's date, not whichever one lands first now — dragging Round 3 to
+    // the top must not shift the whole league forward to Round 3's old date.
+    const anchor = ordered[0]?.starts_on ?? null;
+
+    // A dragged Event slots in where it was dropped. Left pinned to its old
+    // date, the layout would honour that pin as a deliberate gap and the Event
+    // would stay on its old dates with the rounds shuffled around it — which
+    // is not what dropping it between two rounds means. It keeps its length;
+    // re-pinning it to the anchor (never later than any cursor) is how the
+    // layout is told "fall in behind whatever precedes you".
+    const settled = next.map((sg, i) => {
+      if (sg.id !== moved.id || sg.kind !== 'event' || !anchor) return { ...sg, ordinal: i + 1 };
+      const span = sg.starts_on && sg.ends_on && sg.ends_on >= sg.starts_on
+        ? daysBetween(sg.starts_on, sg.ends_on)
+        : 7;
+      return { ...sg, ordinal: i + 1, starts_on: anchor, ends_on: addDays(anchor, span - 1) };
+    });
+
+    await reorderSegments(settled);
+    return syncLeagueDates(settled, anchor, pack.round_length_weeks || 1);
+  }
+
+  // The dates as a column, in the order they were. An undated day keeps a null
+  // in that column, so "day two has no date yet" survives the move.
+  const dates = ordered.map(sg => sg.starts_on);
+  const redated = next.map((sg, i) => ({ ...sg, ordinal: i + 1, starts_on: dates[i] }));
+
+  await Promise.all(redated.map(sg =>
+    supabase
+      .from('battlepack_schedule_segments')
+      .update({ ordinal: sg.ordinal, starts_on: sg.starts_on })
+      .eq('id', sg.id)
+      .then(({ error }) => { if (error) throw error; }),
+  ));
+  return redated;
 }
 
 export async function getSchedule(packId: string): Promise<ScheduleItem[]> {

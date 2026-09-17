@@ -131,6 +131,20 @@ export interface CategoryFormProps extends CategoryContext {
    */
   onTypeChange: (next: PackTimeline) => void;
   /**
+   * Which day or round the editor wants open, when it has an opinion.
+   *
+   * Set when the organiser clicks a row in the document: the Schedule panel
+   * should open on THAT day, not on whichever it was last showing. Null means
+   * no opinion, and the form keeps its own selection. Only the Schedule form
+   * reads it; every other form ignores it.
+   *
+   * AN OBJECT, NOT A BARE ID, and a new one per click. The form reacts to the
+   * value changing — so a bare id would go quiet the second time the same row
+   * is clicked, which matters the moment the organiser has picked a different
+   * day from the chips in between. A fresh object is a fresh request.
+   */
+  focusSegment?: { id: string } | null;
+  /**
    * Re-read the pack's data from the database.
    *
    * Forms that write outside the pack row do their own writes (they know their

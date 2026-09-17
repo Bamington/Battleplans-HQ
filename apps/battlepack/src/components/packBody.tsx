@@ -129,6 +129,19 @@ export interface CategoryBodyArgs {
   /** The days or periods. Always at least one — see ScheduleSegment. */
   segments: ScheduleSegment[];
   schedule: ScheduleItem[];
+  /**
+   * What the EDITOR can do to the document that a reader cannot.
+   *
+   * Absent on the public page, and that absence is the whole contract: this
+   * file renders the same document for both, so anything an organiser can
+   * click has to be an optional extra rather than a branch on who is looking.
+   */
+  editing?: {
+    /** Open the Schedule panel on THIS day or round, not just on Schedule. */
+    onSelectSegment: (segmentId: string) => void;
+    /** Drag a league round to a new position. Indices into the ordered list. */
+    onMoveSegment: (from: number, to: number) => void;
+  };
 }
 
 /**
@@ -167,7 +180,7 @@ export function segmentLabel(segment: ScheduleSegment, index: number): string {
 }
 
 /** What one category contributes to the document. */
-export function categoryBody({ category: c, pack, rows, segments, schedule }: CategoryBodyArgs): ReactNode {
+export function categoryBody({ category: c, pack, rows, segments, schedule, editing }: CategoryBodyArgs): ReactNode {
   if (c.key === 'rounds-breaks') {
     const notes = readScheduleNotes(rows[c.key]?.content);
 
@@ -189,17 +202,24 @@ export function categoryBody({ category: c, pack, rows, segments, schedule }: Ca
       const names = leagueLabels(periods);
       const table = periods.length === 0
         ? <EmptySection hint="No rounds yet." />
-        : <ScheduleTable rows={periods.map(s => ({
-            ordinal: s.ordinal,
-            // An Event is not play, and the row says so: it takes the same
-            // recessive styling a break does on a tournament day.
-            kind: (s.kind === 'event' ? 'event' : 'round') as ScheduleKind,
-            label: names.get(s.id) ?? 'Round',
-            time: periodRange(s),
-            icon: s.kind === 'event'
-              ? <Trophy className="w-4 h-4" />
-              : <ListCheck className="w-4 h-4" />,
-          }))} />;
+        : <ScheduleTable
+            // A league's rows ARE its segments, so this is the one table where
+            // a row can be dragged: moving a row moves a round, and the dates
+            // follow from the new order.
+            reorder={editing ? { onMove: editing.onMoveSegment } : undefined}
+            rows={periods.map(s => ({
+              ordinal: s.ordinal,
+              // An Event is not play, and the row says so: it takes the same
+              // recessive styling a break does on a tournament day.
+              kind: (s.kind === 'event' ? 'event' : 'round') as ScheduleKind,
+              label: names.get(s.id) ?? 'Round',
+              time: periodRange(s),
+              icon: s.kind === 'event'
+                ? <Trophy className="w-4 h-4" />
+                : <ListCheck className="w-4 h-4" />,
+              onSelect: editing ? () => editing.onSelectSegment(s.id) : undefined,
+            }))}
+          />;
 
       return notes
         ? (
@@ -246,6 +266,11 @@ export function categoryBody({ category: c, pack, rows, segments, schedule }: Ca
                       label: s.label ?? SCHEDULE_FALLBACK[s.kind]?.label(s.ordinal) ?? 'Break',
                       time: timed[i] ? formatTimeRange(timed[i].startsAt, timed[i].endsAt) : `${s.duration_minutes} min`,
                       icon: SCHEDULE_FALLBACK[s.kind]?.icon ?? <ListCheck className="w-4 h-4" />,
+                      // A row belongs to a day; clicking it opens THAT day,
+                      // which is where the round it names is edited.
+                      onSelect: editing && day.segment.id !== 'pack'
+                        ? () => editing.onSelectSegment(day.segment.id)
+                        : undefined,
                     }))} />}
               </div>
             );

@@ -74,7 +74,7 @@ import type { SaveSection } from '../components/forms/SectionForm';
 import type { ScheduleOps } from '../components/forms/RoundsBreaksForm';
 import { CATEGORY_REGISTRY, visibleCategories } from '../registry/categories';
 import { timeSchedule } from '../lib/packs';
-import { leagueLabels, withLeagueDates } from '../lib/leagues';
+import { addDays, daysBetween, leagueLabels, withLeagueDates } from '../lib/leagues';
 import type {
   GameOption, LocationOption, Pack, PackCategoryRow, PackTimeline, PublicPack,
   ScheduleItem, ScheduleKind, ScheduleSegment,
@@ -274,6 +274,9 @@ const RoundsBreaksFormDemo = () => {
   // Stateful, so the Round Length control actually re-dates the rounds here
   // rather than looking like it might.
   const [roundWeeks, setRoundWeeks] = useState(1);
+  // A click on a document row asks the form to open that day — the same
+  // request the editor makes, so the demo exercises it too.
+  const [focus, setFocus] = useState<{ id: string } | null>(null);
 
   const pack: Pack = {
     id: 'demo', name: 'July RTT', game_id: 'g1', location_id: null, host_location_id: null,
@@ -361,6 +364,32 @@ const RoundsBreaksFormDemo = () => {
       setDemoDays(laid);
       return laid;
     },
+    // The same rule the real write follows: a tournament's dates stay put and
+    // the content moves onto them; a league re-dates from the new order.
+    moveDay: async (demoPack, segs, from, to) => {
+      const ordered = [...segs].sort((a, b) => a.ordinal - b.ordinal);
+      const next = [...ordered];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      const dates  = ordered.map(d => d.starts_on);
+      const anchor = ordered[0]?.starts_on ?? null;
+      const redated = demoPack.schedule_shape === 'periods'
+        ? withLeagueDates(
+            next.map((d, i) => (
+              // A dragged Event re-pins to the anchor so it slots in where it
+              // landed — see moveSegment.
+              d.id === moved.id && d.kind === 'event' && anchor
+                ? { ...d, ordinal: i + 1, starts_on: anchor,
+                    ends_on: addDays(anchor, (d.starts_on && d.ends_on ? daysBetween(d.starts_on, d.ends_on) : 7) - 1) }
+                : { ...d, ordinal: i + 1 }
+            )),
+            anchor,
+            demoPack.round_length_weeks,
+          )
+        : next.map((d, i) => ({ ...d, ordinal: i + 1, starts_on: dates[i] }));
+      setDemoDays(redated);
+      return redated;
+    },
     updateDay: async (id, patch) => {
       setDemoDays(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
     },
@@ -403,6 +432,7 @@ const RoundsBreaksFormDemo = () => {
           segments={demoDays}
           onSegmentChange={() => {}}
           onTypeChange={() => {}}
+          focusSegment={focus}
           games={[]}
           venues={[]}
           categoryKey="rounds-breaks"
@@ -431,11 +461,15 @@ const RoundsBreaksFormDemo = () => {
                 // here either.
                 const names = leagueLabels(ordered);
                 return <ScheduleTable
+                  // Drag a round and the dates re-lay out — the same write
+                  // the editor's document runs.
+                  reorder={{ onMove: (from, to) => { void ops.moveDay(pack, ordered, from, to); } }}
                   rows={ordered.map(seg => ({
                     ordinal: seg.ordinal,
                     kind: (seg.kind === 'event' ? 'event' : 'round') as ScheduleKind,
                     label: names.get(seg.id) ?? 'Round',
                     time: periodRange(seg),
+                    onSelect: () => setFocus({ id: seg.id }),
                   }))}
                 />;
               })()

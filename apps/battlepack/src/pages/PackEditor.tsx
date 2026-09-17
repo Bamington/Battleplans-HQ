@@ -42,7 +42,7 @@ import {
   getPack, getCategoryRows, getSchedule, getSegments, updatePack, hideCategory, showCategory,
   listGames, listMyLocations, publishPack, unpublishPack, bannerUrl,
   listMyClubs, calendarAudienceSize, pendingNotifyCount, updateSegment, addSegment, deleteSegment,
-  syncLeagueDates,
+  syncLeagueDates, moveSegment,
 } from '../lib/packs';
 import AddCategoryModal from '../components/AddCategoryModal';
 import { categoryBody, formatDate, formatTime, keyInfoRows as keyInfoRowsShared } from '../components/packBody';
@@ -201,6 +201,14 @@ export default function PackEditor() {
   /** A day-destroying change, held until confirmed. See ConfirmDays. */
   const [confirmDays, setConfirmDays] = useState<ConfirmDays | null>(null);
   const [editingName, setEditingName] = useState(false);
+  /**
+   * The day or round the document was last clicked on.
+   *
+   * Handed to the Schedule form so a click on a row opens that row's day rather
+   * than whichever day the panel last had open — the old behaviour, which was
+   * responsive to the section and deaf to the row.
+   */
+  const [focusSegment, setFocusSegment] = useState<{ id: string } | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // ── Load ───────────────────────────────────────────────────────────────────
@@ -429,6 +437,42 @@ export default function PackEditor() {
   }, [segments, pack?.status, pack?.schedule_shape, pack?.round_length_weeks, packId, reload]);
 
   /**
+   * Move a day or round to a new position, from a drag on the document.
+   *
+   * Goes through the same stop as a date edit, because for a tournament it IS
+   * one: the dates stay in place and the content moves, so somebody holding
+   * Day 2 in their calendar now has Day 1's timetable at that date. A league
+   * re-dates its rounds from the new order, which moves them just as surely.
+   */
+  const moveSegmentChecked = useCallback(async (from: number, to: number) => {
+    if (!pack || from === to) return;
+
+    const run = async () => {
+      setSaveError(null);
+      try {
+        await moveSegment(pack, segments, from, to);
+        await reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : 'Could not move that.');
+        await reload();
+      }
+    };
+
+    if (pack.status !== 'published') return run();
+    const count = await calendarAudienceSize(packId);
+    if (count === 0) return run();
+
+    const ordered = [...segments].sort((a, b) => a.ordinal - b.ordinal);
+    const moved = ordered[from];
+    setPendingNotify({
+      kind: 'moved',
+      count,
+      becomes: `${moved?.label?.trim() || (pack.schedule_shape === 'periods' ? 'This round' : 'This day')} moves to position ${to + 1}`,
+      run,
+    });
+  }, [pack, segments, packId, reload]);
+
+  /**
    * Change what kind of event this is.
    *
    * Several writes, so it lives here rather than in the form: the shape column,
@@ -600,7 +644,13 @@ export default function PackEditor() {
   /** What one category contributes to the document — shared with the public
    *  page at /:slug, so the organiser and the attendee see one document. */
   const bodyFor = (c: typeof categories[number]) =>
-    categoryBody({ category: c, pack, rows, segments, schedule });
+    categoryBody({
+      category: c, pack, rows, segments, schedule,
+      editing: {
+        onSelectSegment: id => { setFocusSegment({ id }); selectCategory('rounds-breaks'); },
+        onMoveSegment: (from, to) => { void moveSegmentChecked(from, to); },
+      },
+    });
 
   /**
    * The tab's sections, with paired ones sharing a row.
@@ -880,6 +930,7 @@ export default function PackEditor() {
               onChange={savePackFieldsChecked}
               onSegmentChange={saveSegmentChecked}
               onTypeChange={changeEventType}
+              focusSegment={focusSegment}
               reload={reload}
             />
           ) : (

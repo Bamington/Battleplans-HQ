@@ -24,15 +24,15 @@
 import { useEffect, useState } from 'react';
 import {
   Button, ButtonPair, PanelSection, EditableListItem, Input, Select, Callout, RichTextEditor,
-  AddCircle,
+  AddCircle, AltArrowUp, AltArrowDown,
 } from '@battleplans/ui';
 import type { CategoryFormProps } from '../../registry/categories';
-import type { ScheduleItem, ScheduleSegment, SegmentKind } from '../../lib/packs';
+import type { Pack, ScheduleItem, ScheduleSegment, SegmentKind } from '../../lib/packs';
 import { useDebouncedSave } from '../../hooks/useDebouncedSave';
 import type { SaveSection } from './SectionForm';
 import {
   addScheduleItem, deleteScheduleItem, reorderSchedule, updateScheduleItem, timeSchedule,
-  addSegment, updateSegment, deleteSegment, reorderSegments, syncLeagueDates,
+  addSegment, updateSegment, deleteSegment, reorderSegments, syncLeagueDates, moveSegment,
   saveCategoryContent,
 } from '../../lib/packs';
 import { ROUND_LENGTH_WEEKS, addDays as afterDays, leagueLabels, weeksLabel } from '../../lib/leagues';
@@ -68,6 +68,12 @@ export interface ScheduleOps {
    * between rounds one and two moves everything behind it.
    */
   syncLeague: (segments: ScheduleSegment[], startsOn: string | null, weeks: number) => Promise<ScheduleSegment[]>;
+  /**
+   * Move a day or round to a new position. Dates follow — a tournament's stay
+   * in place while the content moves; a league re-dates its rounds from the
+   * new order. Same operation the document's drag handles run.
+   */
+  moveDay: (pack: Pick<Pack, 'schedule_shape' | 'round_length_weeks'>, segments: ScheduleSegment[], from: number, to: number) => Promise<ScheduleSegment[]>;
 }
 
 const LIVE_OPS: ScheduleOps = {
@@ -80,6 +86,7 @@ const LIVE_OPS: ScheduleOps = {
   removeDay: deleteSegment,
   reorderDays: reorderSegments,
   syncLeague: syncLeagueDates,
+  moveDay: moveSegment,
 };
 
 /** The same four the create flow offers — see ROUND_LENGTH_WEEKS. */
@@ -109,7 +116,7 @@ export function readScheduleNotes(content: unknown): string {
 }
 
 const RoundsBreaksForm = ({
-  pack, schedule, segments, rows, categoryKey, reload, onChange, ops = LIVE_OPS,
+  pack, schedule, segments, rows, categoryKey, reload, onChange, focusSegment, ops = LIVE_OPS,
   save: saveFn = saveCategoryContent,
 }: CategoryFormProps & { ops?: ScheduleOps; save?: SaveSection }) => {
   const [allItems, setAllItems] = useState<ScheduleItem[]>(schedule);
@@ -123,6 +130,11 @@ const RoundsBreaksForm = ({
    * it — an index would quietly start editing a different day.
    */
   const [dayId, setDayId] = useState<string | null>(null);
+
+  // The editor's opinion wins when it has one. A click on a row in the
+  // document says "this day", and the panel opening on the day it happened to
+  // be showing last was the bug — responsive to the section, deaf to the row.
+  useEffect(() => { if (focusSegment) setDayId(focusSegment.id); }, [focusSegment]);
 
   useEffect(() => { setAllItems(schedule); }, [schedule]);
 
@@ -298,6 +310,15 @@ const RoundsBreaksForm = ({
       setDayId(created.id);
     });
 
+  /** Shift the open day or round one place up or down the sequence. */
+  const nudgeDay = (delta: -1 | 1) => {
+    if (!day) return;
+    const from = days.indexOf(day);
+    const to   = from + delta;
+    if (to < 0 || to >= days.length) return;
+    persist(async () => { await ops.moveDay(pack, days, from, to); });
+  };
+
   /**
    * Change how long every round runs for.
    *
@@ -457,6 +478,40 @@ const RoundsBreaksForm = ({
         {day && (many || periods) && (
           <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-800 border border-gray-700">
 
+            {/* ── Where it sits ────────────────────────────────────────────
+                One place up or down. The dates follow: a tournament's stay
+                where they are and the timetable moves onto them; a league's
+                rounds re-date from the new order. The document's drag
+                handles do the same thing with the same write — this is the
+                version for a keyboard, a phone, or a one-place nudge. */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-body text-sm font-medium text-white">
+                {segmentName(day, days.indexOf(day))}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  color="secondary"
+                  aria-label="Move earlier"
+                  disabled={busy || days.indexOf(day) === 0}
+                  onClick={() => nudgeDay(-1)}
+                >
+                  <AltArrowUp className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  color="secondary"
+                  aria-label="Move later"
+                  disabled={busy || days.indexOf(day) === days.length - 1}
+                  onClick={() => nudgeDay(1)}
+                >
+                  <AltArrowDown className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
             {/* ── When it runs ─────────────────────────────────────────────
                 A ROUND IS NOT DATED BY HAND. Its dates fall out of the
                 league's start, the round length and everything ahead of it —
@@ -531,7 +586,13 @@ const RoundsBreaksForm = ({
               </>
             )}
 
+            {/* KEYED ON THE DAY. This is uncontrolled — `defaultValue`, committed
+                on blur — so React does not repaint it when the selected day
+                changes, and the previous day's typing sat in the box until the
+                organiser noticed. The key remounts it per day, which is the
+                behaviour an uncontrolled input should have had all along. */}
             <Input
+              key={day.id}
               size="sm"
               label="Name (optional)"
               placeholder={segmentName(day, days.indexOf(day))}

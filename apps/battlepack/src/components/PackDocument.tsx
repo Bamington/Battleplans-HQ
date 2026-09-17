@@ -16,7 +16,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { HR, MenuDots, Text } from '@battleplans/ui';
+import { HR, HamburgerMenu, MenuDots, Text } from '@battleplans/ui';
 import type { ScheduleKind } from '../lib/packs';
 
 /** DOM id for a category's section, shared by the nav and the scroll target. */
@@ -337,6 +337,23 @@ export interface ScheduleRow {
   time?: string | null;
   /** 16px leading icon. The design varies it per item, not just per kind. */
   icon?: ReactNode;
+  /**
+   * EDITOR ONLY. Clicking the row opens whatever it belongs to — the day, or
+   * the league round — rather than just the Schedule category. The public page
+   * passes nothing, and a row with nothing to open is not a button.
+   */
+  onSelect?: () => void;
+}
+
+export interface ScheduleTableProps {
+  rows: ScheduleRow[];
+  /**
+   * EDITOR ONLY. When set, every row grows a handle and can be dragged to a new
+   * position; `onMove` gets the row indices. Native HTML drag, the same way
+   * BattleCards reorders a deck — no library, and the handle is the only thing
+   * draggable so a click on the row still selects it.
+   */
+  reorder?: { onMove: (from: number, to: number) => void };
 }
 
 /**
@@ -398,15 +415,52 @@ const ROW_STYLE: Record<ScheduleKind, {
  * Round labels are white, not the accent. Green is what every button and link
  * in the app uses, and a green row invites a click that does nothing here.
  */
-export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
+export const ScheduleTable = ({ rows, reorder }: ScheduleTableProps) => {
+  // Which row is in the air, and which one it is over. Local because it is
+  // gone the moment the drop lands and nothing outside the table needs it.
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [over,     setOver]     = useState<number | null>(null);
+
+  const endDrag = () => { setDragging(null); setOver(null); };
+
+  return (
   <div className="w-full flex flex-col rounded-xl overflow-hidden border border-gray-700">
-    {rows.map(row => {
+    {rows.map((row, index) => {
       const style = ROW_STYLE[row.kind] ?? ROW_STYLE.break;
+      const droppable = !!reorder && dragging !== null && dragging !== index;
       return (
         <div
           key={row.ordinal}
-          className={`w-full flex items-center gap-2 px-4 py-3 ${style.bg}`}
+          className={[
+            `w-full flex items-center gap-2 px-4 py-3 ${style.bg}`,
+            row.onSelect ? 'cursor-pointer hover:brightness-110' : '',
+            // The drop target is drawn as a line above the row the drag is
+            // over, which is where the dragged row will land.
+            droppable && over === index ? 'shadow-[inset_0_2px_0_0_theme(colors.primary.500)]' : '',
+            dragging === index ? 'opacity-40' : '',
+          ].join(' ')}
+          onClick={row.onSelect ? e => { e.stopPropagation(); row.onSelect!(); } : undefined}
+          onDragOver={droppable ? e => { e.preventDefault(); setOver(index); } : undefined}
+          onDrop={droppable ? e => {
+            e.preventDefault();
+            if (dragging !== null) reorder!.onMove(dragging, index);
+            endDrag();
+          } : undefined}
         >
+          {reorder && (
+            <span
+              draggable
+              onDragStart={e => { e.stopPropagation(); setDragging(index); }}
+              onDragEnd={endDrag}
+              // Not a click on the row: grabbing the handle must not open it.
+              onClick={e => e.stopPropagation()}
+              className="shrink-0 -ml-1 cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300"
+              aria-label="Drag to reorder"
+            >
+              <HamburgerMenu className="w-4 h-4" />
+            </span>
+          )}
+
           {row.icon && <span className={`shrink-0 ${style.icon}`}>{row.icon}</span>}
 
           <span className="shrink-0 w-6 text-center font-body font-bold text-base leading-6 text-gray-500 tabular-nums">
@@ -437,7 +491,8 @@ export const ScheduleTable = ({ rows }: { rows: ScheduleRow[] }) => (
       );
     })}
   </div>
-);
+  );
+};
 
 // ── Kebab ────────────────────────────────────────────────────────────────────
 
