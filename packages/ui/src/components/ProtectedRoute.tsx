@@ -1,47 +1,40 @@
-import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { useAuthStatus } from '../hooks/useAuthStatus';
 
 interface Props {
   children: React.ReactNode;
 }
 
 /**
- * Route guard for authenticated-only pages. Renders its children only when a
- * Supabase session exists; otherwise redirects to /login. While the session is
- * still being restored from storage it shows a lightweight loading screen.
+ * Route guard for authenticated-only pages.
+ *
+ * Renders its children when there is a usable session, and sends the user to
+ * /login only when there is NO session on this device at all. The case in
+ * between — a session in storage that cannot be refreshed because the server
+ * is unreachable — is not a reason to ask for a password, and treating it as
+ * one is what had people signing in every few days. See useAuthStatus for the
+ * evidence. That state waits, retrying, and says so.
  */
 export default function ProtectedRoute({ children }: Props) {
-  const [authed, setAuthed] = useState<boolean | null>(null);
+  const status = useAuthStatus();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    // onAuthStateChange fires immediately with INITIAL_SESSION once the Supabase
-    // client has restored the session from storage. Using it instead of
-    // getSession() avoids the race where getSession() resolves null before the
-    // session is fully hydrated.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!cancelled) setAuthed(!!session);
-      }
-    );
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  if (authed === null) {
+  if (status === 'checking' || status === 'unreachable') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <p className="font-body text-sm text-gray-400">Loading…</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-2 bg-gray-950 px-6 text-center">
+        <p className="font-body text-sm text-gray-400">
+          {status === 'unreachable' ? 'Reconnecting…' : 'Loading…'}
+        </p>
+        {status === 'unreachable' && (
+          <p className="font-body text-xs text-gray-500 max-w-xs">
+            You are still signed in — the server just cannot be reached right now.
+            This will carry on by itself when the connection comes back.
+          </p>
+        )}
       </div>
     );
   }
 
-  if (!authed) {
+  if (status === 'signed-out') {
     return <Navigate to="/login" replace />;
   }
 

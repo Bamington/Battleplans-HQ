@@ -27,9 +27,8 @@
  * corresponding <Route> inside the <Routes> block.
  */
 
-import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useSearchParams } from 'react-router-dom';
-import { supabase } from '@battleplans/ui';
+import { useAuthDestination } from '@battleplans/ui';
 import ComponentGallery from './pages/ComponentGallery';
 import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
 import CardBuilderHaloFlashpoint from './pages/CardBuilderHaloFlashpoint';
@@ -54,15 +53,14 @@ import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback,
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
 
+/**
+ * Signed in goes to the app, signed out to the login. Decided by
+ * useAuthDestination rather than one getSession() call, because getSession()
+ * answers null for a stored session it cannot refresh — and that null used to
+ * send signed-in people to the login form whenever the server was unreachable.
+ */
 function RootRedirect() {
-  const [target, setTarget] = useState<'/app' | '/login' | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setTarget(session ? '/app' : '/login');
-    });
-  }, []);
-
+  const target = useAuthDestination();
   if (!target) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
@@ -70,7 +68,6 @@ function RootRedirect() {
       </div>
     );
   }
-
   return <Navigate to={target} replace />;
 }
 

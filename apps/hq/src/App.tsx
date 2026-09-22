@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import {
-  supabase,
+  useAuthDestination,
   AuthCallback,
   ResetPassword,
   useCurrentApp,
@@ -44,16 +44,21 @@ const APP_ROUTES: Record<AppSlug, (() => React.ReactElement) | null> = {
 /** The app HQ opens on, and what it falls back to if an unknown slug is set. */
 const DEFAULT_APP: AppSlug = 'battleplan';
 
+/**
+ * Signed in goes to the app, signed out to the login. Decided by
+ * useAuthDestination rather than one getSession() call, because getSession()
+ * answers null for a stored session it cannot refresh — and that null used to
+ * send signed-in people to the login form whenever the server was unreachable.
+ */
 function RootRedirect() {
-  const [target, setTarget] = useState<'/app' | '/login' | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setTarget(session ? '/app' : '/login');
-    });
-  }, []);
-
-  if (target === null) return null;
+  const target = useAuthDestination();
+  if (!target) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <p className="font-body text-sm text-gray-400">Loading…</p>
+      </div>
+    );
+  }
   return <Navigate to={target} replace />;
 }
 

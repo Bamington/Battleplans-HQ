@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, authRedirectTo, signInWithProvider, Input, Button, Checkbox } from '@battleplans/ui';
+import { supabase, authRedirectTo, useAuthDestination, signInWithProvider, Input, Button } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 
 declare const __APP_VERSION__: string;
@@ -41,6 +41,17 @@ type Mode = 'signin' | 'signup';
 
 export default function Login() {
   const navigate = useNavigate();
+  // ALREADY SIGNED IN? THEN THIS IS NOT THE PAGE. A bookmark, a home-screen
+  // icon saved from here, or the landing page's own Log in button all arrive
+  // with a perfectly good session in storage, and the form used to be shown
+  // regardless — so people signed in again, and again. Straight through to
+  // the app instead. Waits while the server is unreachable rather than
+  // showing the form: the session is still there, the network is not.
+  const destination = useAuthDestination('/app', '/login');
+  useEffect(() => {
+    if (destination === '/app') navigate('/app', { replace: true });
+  }, [destination, navigate]);
+
 
   const [mode,            setMode]            = useState<Mode>('signin');
   const [email,           setEmail]           = useState('');
@@ -196,9 +207,12 @@ export default function Login() {
                   />
                 )}
 
+                {/* No "Remember me": the session is ALWAYS kept on this
+                    device, so a switch for it would be a promise about
+                    behaviour that does not change. The one that was here was
+                    wired to nothing and defaulted to off. */}
                 {isSignIn && (
-                  <div className="flex items-center justify-between w-full">
-                    <Checkbox label="Remember me" />
+                  <div className="flex items-center justify-end w-full">
                     <a
                       href="#"
                       className="font-body font-medium text-base text-primary-400 underline"

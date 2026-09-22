@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { useAuthDestination, ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import CollectionStatsPage from './pages/CollectionStatsPage.tsx';
@@ -36,16 +35,21 @@ export function appRoutes() {
   );
 }
 
+/**
+ * Signed in goes to the app, signed out to the login. Decided by
+ * useAuthDestination rather than one getSession() call, because getSession()
+ * answers null for a stored session it cannot refresh — and that null used to
+ * send signed-in people to the login form whenever the server was unreachable.
+ */
 function RootRedirect() {
-  const [target, setTarget] = useState<'/app' | '/login' | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setTarget(session ? '/app' : '/login');
-    });
-  }, []);
-
-  if (target === null) return null;
+  const target = useAuthDestination();
+  if (!target) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <p className="font-body text-sm text-gray-400">Loading…</p>
+      </div>
+    );
+  }
   return <Navigate to={target} replace />;
 }
 

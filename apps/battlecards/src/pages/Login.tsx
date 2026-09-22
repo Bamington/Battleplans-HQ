@@ -11,13 +11,12 @@
  * Route: /login
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase, authRedirectTo } from '@battleplans/ui';
+import { supabase, authRedirectTo, useAuthDestination } from '@battleplans/ui';
 import { Input } from '@battleplans/ui';
 import { Button } from '@battleplans/ui';
-import { Checkbox } from '@battleplans/ui';
 
 // ── Inline icons ──────────────────────────────────────────────────────────────
 
@@ -67,6 +66,17 @@ type Mode = 'signin' | 'signup';
 
 export default function Login() {
   const navigate = useNavigate();
+  // ALREADY SIGNED IN? THEN THIS IS NOT THE PAGE. A bookmark, a home-screen
+  // icon saved from here, or the landing page's own Log in button all arrive
+  // with a perfectly good session in storage, and the form used to be shown
+  // regardless — so people signed in again, and again. Straight through to
+  // the app instead. Waits while the server is unreachable rather than
+  // showing the form: the session is still there, the network is not.
+  const destination = useAuthDestination('/app', '/login');
+  useEffect(() => {
+    if (destination === '/app') navigate('/app', { replace: true });
+  }, [destination, navigate]);
+
   const [searchParams] = useSearchParams();
   const next = safeNext(searchParams.get('next'));
 
@@ -255,10 +265,13 @@ export default function Login() {
                   />
                 )}
 
-                {/* Remember me + Lost password — sign in only */}
+                {/* Lost password — sign in only */}
+                {/* No "Remember me": the session is ALWAYS kept on this
+                    device, so a switch for it would be a promise about
+                    behaviour that does not change. The one that was here was
+                    wired to nothing and defaulted to off. */}
                 {isSignIn && (
-                  <div className="flex items-center justify-between w-full">
-                    <Checkbox label="Remember me" />
+                  <div className="flex items-center justify-end w-full">
                     <a
                       href="#"
                       className="font-body font-medium text-base text-blue-400 underline"
