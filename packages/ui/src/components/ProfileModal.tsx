@@ -9,6 +9,10 @@
  *     only stores you book with and friends you accept ever see it.
  *   • "Username"         — always editable. The `handle` column. Public and
  *     unique; this is what people search for.
+ *   • Country + Postcode — shown only if a country is already stored, which
+ *     means the user has been through BattlePlan's onboarding. Private: they
+ *     decide which venues get offered, and are never shown to anyone else.
+ *     This is where somebody who MOVES corrects them.
  *   • Preferred location — shown only if the user has ever picked one (i.e. the
  *     stored preferred_location_id is set). BattleCards-only users who never
  *     touched BattlePlan won't see it.
@@ -26,6 +30,7 @@ import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import { publishProfileDisplay } from '../lib/profileDisplay';
 import { validateHandle, describeProfileSaveError } from '../lib/handles';
+import { normalisePostcode, validatePostcode, regionFor, inRegionOf } from '../lib/regions';
 import Modal from './Modal';
 import Button from './Button';
 import { ProfileFields, getInitials, type WelcomeLocation } from './WelcomeModal';
@@ -48,6 +53,9 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
   const [email,               setEmail]               = useState<string | null>(null);
   const [showLocation,        setShowLocation]        = useState(false);
   const [preferredLocationId, setPreferredLocationId] = useState('');
+  const [showRegion,          setShowRegion]          = useState(false);
+  const [country,             setCountry]             = useState('');
+  const [postcode,            setPostcode]            = useState('');
   const [locations,           setLocations]           = useState<WelcomeLocation[]>([]);
   const [savedAvatarUrl,      setSavedAvatarUrl]      = useState<string | null>(null);
   // undefined = untouched, Blob = new picture to upload, null = remove.
@@ -68,7 +76,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, handle, preferred_location_id, avatar_path')
+        .select('username, handle, preferred_location_id, country, postcode, avatar_path')
         .eq('id', user.id)
         .single();
       if (cancelled) return;
@@ -85,13 +93,19 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       setOriginalHandle(profile?.handle ?? null);
       setShowLocation(hasLocation);
       setPreferredLocationId(profile?.preferred_location_id ?? '');
+      // Same rule as the location above: offered for editing only once
+      // onboarding has captured it, so a BattleCards-only user isn't asked for
+      // a postcode by an app that has no venues.
+      setShowRegion(!!profile?.country);
+      setCountry(profile?.country ?? '');
+      setPostcode(profile?.postcode ?? '');
       setSavedAvatarUrl(avatarUrl(profile?.avatar_path));
       setPendingAvatar(undefined);
 
       if (hasLocation) {
         const { data: locs } = await supabase
           .from('locations')
-          .select('id, name')
+          .select('id, name, country, postcode')
           .neq('kind', 'space')   // never a home venue — see useLocations
           .order('name');
         if (!cancelled && locs) setLocations(locs as WelcomeLocation[]);
@@ -109,6 +123,11 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
     const trimmed = username.trim();
     if (!trimmed) { setError('Please enter your name.'); return; }
+    if (showRegion) {
+      if (!country) { setError('Please choose your country.'); return; }
+      const postcodeError = validatePostcode(country, postcode);
+      if (postcodeError) { setError(postcodeError); return; }
+    }
     if (showLocation && !preferredLocationId) {
       setError('Please select a preferred location.');
       return;
@@ -121,10 +140,16 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       username: string;
       handle?: string;
       preferred_location_id?: string;
+      country?: string;
+      postcode?: string | null;
       avatar_path?: string | null;
     } = { username: trimmed };
     if (handle !== originalHandle) update.handle = handle;
     if (showLocation) update.preferred_location_id = preferredLocationId;
+    if (showRegion) {
+      update.country  = country;
+      update.postcode = normalisePostcode(postcode);
+    }
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
     // row first could leave avatar_path pointing at an object that never landed.
@@ -158,6 +183,14 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
   if (!open) return null;
 
+  // Mirrors the onboarding modal: the home-venue list narrows to the postcode
+  // as it's edited, and whatever is already saved stays listed so correcting a
+  // postcode can never silently blank out a venue the user chose.
+  const region = regionFor(country, postcode);
+  const offeredLocations = inRegionOf(locations, region)
+    .concat(locations.filter(l => l.id === preferredLocationId
+                               && !inRegionOf([l], region).length));
+
   return (
     <Modal open onClose={saving ? () => {} : onClose} className="max-w-md">
       <div className="p-5 flex flex-col gap-4">
@@ -190,11 +223,16 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
               selfId={userId}
               showUsername
               showPreferredLocation={showLocation}
+              showRegion={showRegion}
+              country={country}
+              onCountryChange={setCountry}
+              postcode={postcode}
+              onPostcodeChange={setPostcode}
               username={username}
               onUsernameChange={setUsername}
               preferredLocationId={preferredLocationId}
               onPreferredLocationChange={setPreferredLocationId}
-              locations={locations}
+              locations={offeredLocations}
               error={error}
             />
 

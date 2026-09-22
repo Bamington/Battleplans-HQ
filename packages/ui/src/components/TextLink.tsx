@@ -7,10 +7,16 @@
  * For in-app navigation use the `to` prop (React Router).
  * For external URLs use the `href` prop — external links automatically
  * open in a new tab with rel="noopener noreferrer" for security.
+ * For something that acts on the page rather than navigating — a toggle, a
+ * "show more" — use `onClick`, which renders a real <button> in the same
+ * styles. That last case is why this component exists rather than a bare <a>:
+ * an anchor with href="#" that only flips state is a lie to a screen reader,
+ * and the alternative was hand-rolled markup at each call site.
  *
  * USAGE EXAMPLES:
  *   <TextLink href="https://example.com">External link</TextLink>
  *   <TextLink to="/library">Go to Library</TextLink>
+ *   <TextLink onClick={() => setOpen(o => !o)}>Show all venues</TextLink>
  *   <TextLink variant="button" to="/create">Create Card</TextLink>
  *   <TextLink variant="icon" href="https://example.com" icon={<ArrowIcon />}>
  *     Learn more
@@ -38,6 +44,13 @@ export interface TextLinkProps {
   href?: string;
   /** Internal route path (React Router) */
   to?: string;
+  /**
+   * Acts on the page instead of navigating — renders a <button>, not an <a>.
+   * Ignored when `to` or `href` is given, since those are navigation.
+   */
+  onClick?: () => void;
+  /** Only meaningful with `onClick`. */
+  disabled?: boolean;
   /**
    * Icon element displayed to the left of the label.
    * Only used when variant='icon'.
@@ -88,12 +101,32 @@ const TextLink = ({
   variant = 'default',
   href,
   to,
+  onClick,
+  disabled = false,
   icon,
   className = '',
   children,
 }: TextLinkProps) => {
 
   const finalClasses = `${variantClasses[variant]} ${className}`.trim();
+
+  // ── Action (no navigation) ─────────────────────────────────────────────────
+  // Checked before `to`/`href` only in the sense that all three are mutually
+  // exclusive; navigation wins if a caller passes both, because a link that
+  // goes somewhere is the safer reading of an ambiguous call.
+  if (!to && !href && onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`${finalClasses} cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        {variant === 'icon' && icon}
+        {children}
+      </button>
+    );
+  }
 
   // ── Internal link (React Router) ───────────────────────────────────────────
   if (to) {

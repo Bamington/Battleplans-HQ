@@ -30,6 +30,8 @@ Before every production deploy, bump the version in `package.json`:
 
 The build date and version shown in the app are injected automatically at build time from `package.json` — no other files need updating.
 
+**After bumping the version, ask whether they want an update note** — a News & Updates entry published through Manage Updates. Ask; never write one unprompted, and never skip asking. If the change is something users must understand before carrying on, ask whether it warrants a welcome flow too. See the root `CLAUDE.md` for both.
+
 This is also the Android binary. A version bump here is the one users see in the
 store listing, and it is independent of the three apps' own versions — bumping
 BattlePlan does not bump HQ.

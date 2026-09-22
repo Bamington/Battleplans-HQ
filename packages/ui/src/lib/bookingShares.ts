@@ -34,6 +34,8 @@ export interface IncomingBookingShare {
   gameId: string | null
   gameName: string | null
   gameSlug: string | null
+  /** Which kind of table the booking is for. Null means any. */
+  tableLabel: string | null
   /** The person who shared it — public identity only, never their real name. */
   sharer: { id: string; handle: string; avatarUrl: string | null }
 }
@@ -83,6 +85,8 @@ export async function listIncomingBookingShares(): Promise<IncomingBookingShare[
     gameId:        (r.game_id as string | null) ?? null,
     gameName:      (r.game_name as string | null) ?? null,
     gameSlug:      (r.game_slug as string | null) ?? null,
+    // Blank strings are "unlabelled", same as null — see Booking.tableLabel.
+    tableLabel:    ((r.table_label as string | null) ?? '').trim() || null,
     sharer: {
       id:        r.sharer_id as string,
       handle:    r.sharer_handle as string,

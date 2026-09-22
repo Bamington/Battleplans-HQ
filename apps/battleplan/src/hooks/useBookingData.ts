@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@battleplans/ui';
+import { supabase, regionFor } from '@battleplans/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,13 @@ export interface Location {
   icon: string;
   /** Absent on older reads that predate the column being selected. */
   kind?: LocationKind;
+  /**
+   * Raw region columns — see packages/ui/src/lib/regions.ts. Carried on the
+   * row rather than pre-derived so callers can pass a Location straight to
+   * `inRegionOf`. Null on either means the venue is never filtered out.
+   */
+  country?:  string | null;
+  postcode?: string | null;
 }
 
 /**
@@ -58,6 +65,12 @@ export interface Booking {
   id:        string;
   date:      string;
   user_name: string | null;
+  /**
+   * Which KIND of table was booked, matching store_tables.label. Null means
+   * "any" — every booking made before the venue had more than one kind, and
+   * every booking at a venue that still has only one. See 20260817030000.
+   */
+  tableLabel: string | null;
   /** Whose booking it is. Null for a guest the venue booked in. */
   user_id:            string | null;
   /** Who took the booking. Differs from user_id when a venue booked for someone. */
@@ -81,6 +94,7 @@ interface RawBookingRow {
   timeslot_name:        string | null;
   timeslot_start_time:  string | null;
   timeslot_end_time:    string | null;
+  table_label:          string | null;
   game:      { id: string; name: string; slug: string } | null;
   location:  { id: string; name: string; address: string | null } | null;
   timeslot:  { id: string; name: string; start_time: string; end_time: string } | null;
@@ -90,7 +104,7 @@ interface RawBookingRow {
 // the live joins as a fallback for rows that predate the snapshot.
 const BOOKING_SELECT = `
   id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id,
-  location_name, timeslot_name, timeslot_start_time, timeslot_end_time,
+  location_name, timeslot_name, timeslot_start_time, timeslot_end_time, table_label,
   game:game_catalogue(id, name, slug),
   location:locations(id, name, address),
   timeslot:timeslots(id, name, start_time, end_time)
@@ -104,6 +118,8 @@ function mapBookingRow(r: RawBookingRow): Booking {
     id:        r.id,
     date:      r.date,
     user_name: r.user_name,
+    // Blank strings would render an empty chip; treat them as "unlabelled".
+    tableLabel: r.table_label?.trim() || null,
     user_id:            r.user_id ?? null,
     created_by_user_id: r.created_by_user_id ?? null,
     game:      r.game ?? null,
@@ -257,7 +273,7 @@ export function useLocations() {
   useEffect(() => {
     supabase
       .from('locations')
-      .select('id, name, icon, kind')
+      .select('id, name, icon, kind, country, postcode')
       // Spaces are never offered: a room a club borrows is where a booking
       // happens, not something a player picks from a list. RLS won't do that
       // for us, because whoever created the space CAN read it.
@@ -266,6 +282,10 @@ export function useLocations() {
       // the people attached to it — its admins, organisers and members — and by
       // nobody else, so a member finds their club here and a stranger does not
       // see it exists. Browsing clubs to ask to join is a separate thing.
+      //
+      // Region is NOT filtered here. It is a preference the user can see past
+      // with "Show all venues", so the full list has to be in hand — unlike
+      // spaces and unreadable clubs, which must never arrive at all.
       .neq('kind', 'space')
       .order('name')
       .then(({ data }) => {
@@ -284,19 +304,27 @@ export function useLocations() {
 export interface UserProfile {
   username: string | null;
   preferredLocationId: string | null;
+  /**
+   * Where the user says they are — the derived region, not the raw postcode.
+   * Null when they haven't told us, or when the postcode doesn't resolve; both
+   * mean "don't filter", so no caller has to distinguish them.
+   */
+  region: string | null;
 }
 
+const EMPTY_PROFILE: UserProfile = { username: null, preferredLocationId: null, region: null };
+
 export function useUserProfile(userId: string | null) {
-  const [profile, setProfile] = useState<UserProfile>({ username: null, preferredLocationId: null });
+  const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) { setProfile({ username: null, preferredLocationId: null }); setLoading(false); return; }
+    if (!userId) { setProfile(EMPTY_PROFILE); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     supabase
       .from('user_profiles')
-      .select('username, preferred_location_id')
+      .select('username, preferred_location_id, country, postcode')
       .eq('id', userId)
       .single()
       .then(({ data }) => {
@@ -304,6 +332,7 @@ export function useUserProfile(userId: string | null) {
         setProfile({
           username:            (data?.username as string | null) ?? null,
           preferredLocationId: (data?.preferred_location_id as string | null) ?? null,
+          region:              regionFor(data?.country as string | null, data?.postcode as string | null),
         });
         setLoading(false);
       });
@@ -902,6 +931,8 @@ export interface UpcomingBooking {
   id:        string;
   date:      string;
   user_name: string | null;
+  /** As Booking.tableLabel — same select, same mapper. */
+  tableLabel: string | null;
   user_id:            string | null;
   created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
@@ -913,6 +944,57 @@ export interface UpcomingBooking {
 // One user's display name, for attributing a booking to whoever took it.
 // Reads public_profiles, the sanctioned window past user_profiles' select-own
 // RLS — so a venue admin can name a staff member without needing to be them.
+
+// ── useBookingCustomer ────────────────────────────────────────────────────────
+
+/** Who a booking is for, as the venue sees them. */
+export interface BookingCustomer {
+  /** Their real name, or the name typed on the booking for a guest. */
+  name:   string | null;
+  email:  string | null;
+  /** Their public @handle. Null for a guest with no account. */
+  handle: string | null;
+}
+
+/**
+ * The customer behind a booking — name, email and @handle.
+ *
+ * None of this is reachable from the client directly: `user_profiles` is
+ * select-own, `public_profiles` drops the real name on purpose, and
+ * `auth.users` isn't exposed. It comes from the `booking_customer` function
+ * (20260828080000), which answers only for the venue the booking was made at
+ * and only for its admins and staff.
+ *
+ * Pass `enabled = false` for the customer's own view of their own booking —
+ * they are not staff, the function would refuse them, and there is nothing to
+ * tell them about themselves anyway.
+ */
+export function useBookingCustomer(bookingId: string | null, enabled: boolean) {
+  const [customer, setCustomer] = useState<BookingCustomer | null>(null);
+  const [loading,  setLoading]  = useState(false);
+
+  useEffect(() => {
+    if (!bookingId || !enabled) { setCustomer(null); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+
+    supabase
+      .rpc('booking_customer', { p_booking_id: bookingId })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        // A refusal raises, and arrives here as an error. There is nothing
+        // useful to show a venue in that case, so the rows simply don't render
+        // rather than surfacing a permission message they can't act on.
+        const row = (!error && (data as BookingCustomer[] | null)?.[0]) || null;
+        setCustomer(row);
+        setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [bookingId, enabled]);
+
+  return { customer, loading };
+}
 
 export function useProfileLabel(userId: string | null) {
   const [label, setLabel] = useState<string | null>(null);
@@ -2084,6 +2166,10 @@ export function useSuggestedBattles(userId: string | null) {
         // date and game, never who booked it.
         user_id:            null,
         created_by_user_id: null,
+        // The share view doesn't carry it, and this shape never reaches a
+        // booking card — it exists only to feed the nudge, which reads the date
+        // and the game. Null is the honest value rather than a guess.
+        tableLabel: null,
         game: s.game_id ? { id: s.game_id, name: s.game_name ?? '', slug: s.game_slug ?? '' } : null,
         location: { id: s.location_id ?? '', name: s.location_name ?? '', address: null },
         timeslot: { id: '', name: '', start_time: '', end_time: '' },

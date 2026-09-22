@@ -1,20 +1,56 @@
 /**
- * WelcomeModal.tsx — First-run onboarding dialog
+ * WelcomeModal.tsx — The welcome flow: announcements and onboarding
  *
- * Shown once, right after sign-in, to capture the profile details an app needs
- * before the user can proceed. It's a BLOCKING modal — there's no close button
- * and the backdrop doesn't dismiss it; it stays until the required fields are
- * saved. Which fields appear is driven by the `fields` prop, so each app asks
- * for only what it needs (and the form can grow over time):
+ * A BLOCKING modal shown right after sign-in — no close button, and the
+ * backdrop doesn't dismiss it. Every app mounts one, and what it shows is a
+ * WELCOME FLOW passed in by that app:
  *
- *   BattleCards  → { username: true }
- *   BattleBench  → { username: true }
- *   BattlePlan   → { username: true, preferredLocation: true, bookingEmailNote: true }
+ *   <WelcomeModal appName="BattlePlan" flow={VENUE_REGIONS_FLOW} />
  *
- * The profile picture is offered in every app and is always OPTIONAL — it never
- * gates the modal, or a user who simply doesn't want one could never get past it.
- * The same goes for the Username, which is auto-assigned at signup and only
- * offered here for editing.
+ * A flow is one or more INTRO STEPS, then an OPTIONAL FORM STEP:
+ *
+ *   { key, steps: [{ title, body, cta }, …], fields?: { username: true, … } }
+ *
+ * Both halves are optional in practice, and the two combinations are what make
+ * this reusable:
+ *
+ *   steps only          → an announcement. Explains something, asks for
+ *                         nothing, records that it was read.
+ *   steps + fields      → onboarding. Explains why, then collects it.
+ *
+ * WHAT MAKES IT REPEATABLE. `key`. It is written to
+ * `user_profiles.seen_welcome_flows` when the flow finishes, and it is the only
+ * thing deciding whether a user has already been through this one. Each release
+ * gets a new key and its own copy; nothing needs a migration, and no release
+ * inherits an earlier one's wording. This replaced a hardcoded intro screen
+ * behind a single `show_profile_intro` boolean, which could say exactly one
+ * thing exactly once — and which, on the next release that used the modal,
+ * showed sixty-eight people an announcement about a change from months earlier.
+ *
+ * TWO REASONS IT OPENS, and they are independent:
+ *   1. the flow key is unseen — the announcement half;
+ *   2. a required field is missing — the form half, which stands alone so a
+ *      user lacking a username is still asked, long after the flow is done.
+ * A user in case 2 only skips straight to the form; they are not walked back
+ * through copy they have already read.
+ *
+ * THE FORM ASKS ONLY FOR WHAT IS MISSING. `fields` says what a flow MAY ask
+ * for; what any given user actually sees is that list narrowed to what their
+ * profile hasn't got (see `asks`). Someone with a name and a home venue,
+ * arriving at a flow about locations, gets a country and a postcode and nothing
+ * else — a form that asks for more than its intro promised reads as a bait and
+ * switch, and re-confirming details the user set months ago is busywork.
+ *
+ * Two consequences worth knowing:
+ *   • the picture and the @handle ride along with the NAME field, not with the
+ *     form in general — they are what you offer someone setting up a profile;
+ *   • a flow whose fields are ALL already satisfied shows no form at all and
+ *     ends on its last intro step, which is what makes an announcement out of a
+ *     flow that could have collected something.
+ *
+ * WRITING A FLOW. Define it beside the app's other constants, not inline in
+ * JSX, so the copy is reviewable in one place. See the app CLAUDE.md files for
+ * the house rules on when to add one.
  *
  * NAMING — the two name fields cross over between code and interface:
  *
@@ -26,19 +62,19 @@
  * Each field states its own privacy rule; there is deliberately no general
  * summary line, which would only repeat them less precisely.
  *
+ * The profile picture is offered in every app and is always OPTIONAL — it never
+ * gates the modal, or a user who simply doesn't want one could never get past
+ * it. The same goes for the Username, auto-assigned at signup and offered here
+ * only for editing.
+ *
  * Data lives on `public.user_profiles` (username, handle, preferred_location_id,
- * avatar_path, onboarded). The gate re-reads that row on mount; if every
- * *required* field is already set — AND the user has been through onboarding
- * once (`onboarded`) — the modal never renders. A name set in one app therefore
- * carries over to the other — BattlePlan only additionally needs the preferred
- * location, and a user who lands there second gets another chance at a picture.
+ * country, postcode, avatar_path, seen_welcome_flows). `onboarded` is still
+ * written on save for the benefit of the deployed builds that gate on it, and
+ * `show_profile_intro` is deliberately no longer read at all.
  *
- * `onboarded` starts false for everyone (see the 20260724010000 migration) so
- * that the social-era release re-prompts every existing user once to review
- * their Username and set a Name; saving flips it true.
- *
- * `WelcomeModalView` is the presentational half (used by the component gallery);
- * `WelcomeModal` wraps it with the data-fetching + gating logic.
+ * `WelcomeStepView` and `WelcomeModalView` are the presentational halves (used
+ * by the component gallery); `WelcomeModal` wraps them with the data-fetching
+ * and gating.
  */
 
 import { useEffect, useState } from 'react';
@@ -46,6 +82,7 @@ import { supabase } from '../lib/supabase';
 import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import { publishProfileDisplay } from '../lib/profileDisplay';
 import { normaliseHandle, validateHandle, describeProfileSaveError } from '../lib/handles';
+import { COUNTRIES, normalisePostcode, validatePostcode, regionFor, inRegionOf } from '../lib/regions';
 import { useHandleAvailability } from '../hooks/useHandleAvailability';
 import Modal from './Modal';
 import Input from './Input';
@@ -55,11 +92,64 @@ import AvatarPicker from './AvatarPicker';
 
 // ── Field configuration ───────────────────────────────────────────────────────
 
+/**
+ * One intro screen.
+ *
+ * `body` is a list of paragraphs rather than a single string so a flow can bold
+ * a phrase or drop a link in without this component parsing anything.
+ */
+export interface WelcomeStep {
+  title: string;
+  body: React.ReactNode[];
+  /** Button label. Defaults to "Continue". */
+  cta?: string;
+}
+
+/**
+ * A welcome flow — what this modal shows, and what marks it done.
+ *
+ * ALWAYS at least one intro step. OPTIONALLY a form step after them, when the
+ * release needs something back from the user.
+ *
+ * `key` is the important part. It is written to `seen_welcome_flows` when the
+ * flow completes, and it is what stops the flow showing again. Give each
+ * release its own key and never reuse one — reusing a key means the new copy is
+ * silently withheld from everyone who finished the old flow.
+ */
+export interface WelcomeFlow {
+  /** Stable id, e.g. 'battleplan-venue-regions'. Never reuse across releases. */
+  key: string;
+  /** One or more intro screens, shown in order. */
+  steps: WelcomeStep[];
+  /**
+   * Heading for the FORM step. Defaults to "Welcome to {appName}".
+   *
+   * Override it whenever the flow is not a welcome. "Welcome to BattlePlan"
+   * over a country and a postcode, shown to somebody who has been booking
+   * tables for a year, is not a greeting — it is a component that has forgotten
+   * who it is talking to. Matching the intro step's title is usually right.
+   */
+  formTitle?: string;
+  /**
+   * The optional form step. Omit for an announcement that asks for nothing.
+   *
+   * This is what the flow MAY ask for, not what every user is shown — each
+   * field is dropped for anyone who already has it, and a user who has them all
+   * gets no form step at all.
+   */
+  fields?: WelcomeModalFields;
+}
+
 export interface WelcomeModalFields {
   /** Ask for a chosen username. */
   username?: boolean;
   /** Ask for a preferred booking location (BattlePlan). */
   preferredLocation?: boolean;
+  /**
+   * Ask for country + postcode, which decide which venues get offered
+   * (BattlePlan). See lib/regions.ts for what is done with them.
+   */
+  homeRegion?: boolean;
   /**
    * Add the line explaining that the user's email reaches stores when they
    * book. Only true where bookings exist (BattlePlan).
@@ -79,6 +169,9 @@ export function getInitials(name: string, email?: string | null): string {
 export interface WelcomeLocation {
   id: string;
   name: string;
+  /** Raw region columns, so the picker can narrow to the chosen postcode. */
+  country?: string | null;
+  postcode?: string | null;
 }
 
 // ── Shared fields ─────────────────────────────────────────────────────────────
@@ -97,6 +190,13 @@ export interface ProfileFieldsProps {
   onAvatarChange?: (blob: Blob | null) => void;
   showUsername: boolean;
   showPreferredLocation: boolean;
+  /** Show the country + postcode pair that decides which venues are offered. */
+  showRegion?: boolean;
+  /** Optional like the handle fields below — only meaningful with showRegion. */
+  country?: string;
+  onCountryChange?: (value: string) => void;
+  postcode?: string;
+  onPostcodeChange?: (value: string) => void;
   username: string;
   onUsernameChange: (value: string) => void;
   /** Show the unique @handle field. */
@@ -122,6 +222,11 @@ export function ProfileFields({
   onAvatarChange,
   showUsername,
   showPreferredLocation,
+  showRegion = false,
+  country = '',
+  onCountryChange,
+  postcode = '',
+  onPostcodeChange,
   username,
   onUsernameChange,
   showHandle = false,
@@ -185,6 +290,36 @@ export function ProfileFields({
         />
       )}
 
+      {/* Sits above the venue picker because it decides what that picker
+          contains — answering "where are you?" before "which shop?" is the
+          order the questions actually depend on each other in. */}
+      {showRegion && onCountryChange && onPostcodeChange && (
+        <>
+          <Select
+            label="Country"
+            value={country}
+            onChange={e => onCountryChange(e.target.value)}
+            state={error ? 'error' : 'default'}
+            required
+            disabled={disabled}
+            options={[
+              { value: '', label: 'Select a country…' },
+              ...COUNTRIES.map(c => ({ value: c.code, label: c.name })),
+            ]}
+          />
+          <Input
+            label="Postcode"
+            placeholder={country === 'GB' ? 'e.g. SW1A 1AA' : 'e.g. 3065'}
+            value={postcode}
+            onChange={e => onPostcodeChange(e.target.value)}
+            state={error ? 'error' : 'default'}
+            helperText="Used to show you venues near you. Never shown to anyone else."
+            required
+            disabled={disabled}
+          />
+        </>
+      )}
+
       {showPreferredLocation && (
         <Select
           label="Preferred location"
@@ -214,6 +349,13 @@ export interface WelcomeModalViewProps {
   onAvatarChange?: (blob: Blob | null) => void;
   showUsername: boolean;
   showPreferredLocation: boolean;
+  showRegion?: boolean;
+  country?: string;
+  onCountryChange?: (value: string) => void;
+  postcode?: string;
+  onPostcodeChange?: (value: string) => void;
+  /** Heading override. Defaults to "Welcome to {appName}". */
+  title?: string;
   /** Adds the "email is only shared with stores" line (BattlePlan). */
   showBookingEmailNote?: boolean;
   username: string;
@@ -239,6 +381,12 @@ export function WelcomeModalView({
   onAvatarChange,
   showUsername,
   showPreferredLocation,
+  showRegion,
+  country,
+  onCountryChange,
+  postcode,
+  onPostcodeChange,
+  title,
   showBookingEmailNote = false,
   username,
   onUsernameChange,
@@ -263,7 +411,7 @@ export function WelcomeModalView({
       >
         <div className="flex flex-col gap-1">
           <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
-            Welcome to {appName}
+            {title ?? `Welcome to ${appName}`}
           </h1>
           {/* No general privacy summary here — each field carries its own,
               stated precisely and next to the input it applies to. The email
@@ -282,6 +430,11 @@ export function WelcomeModalView({
           onAvatarChange={onAvatarChange}
           showUsername={showUsername}
           showPreferredLocation={showPreferredLocation}
+          showRegion={showRegion}
+          country={country}
+          onCountryChange={onCountryChange}
+          postcode={postcode}
+          onPostcodeChange={onPostcodeChange}
           username={username}
           onUsernameChange={onUsernameChange}
           showHandle={showHandle}
@@ -305,10 +458,12 @@ export function WelcomeModalView({
 }
 
 // ── Intro stage ───────────────────────────────────────────────────────────────
-// The first of the modal's two stages. It explains WHY the user is being asked
-// to look at their profile — the username/name split now drives friends and
-// booking invites — so a re-prompted user isn't just staring at the same
-// onboarding form again. "Review my Username" advances to the form.
+// An intro screen: a title, some paragraphs, and a button that advances. Every
+// flow has at least one; the copy comes from the flow definition, never from
+// here. See the WelcomeFlow docs above for why.
+//
+// Multi-step flows show "1 of 3" beneath the button so a reader knows how much
+// is left. A single-step flow shows nothing — "1 of 1" is just noise.
 
 const ArrowRightIcon = () => (
   <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" aria-hidden="true">
@@ -322,39 +477,38 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
-export function WelcomeIntroView({ onContinue }: { onContinue: () => void }) {
+export interface WelcomeStepViewProps {
+  step: WelcomeStep;
+  onContinue: () => void;
+  /** 1-based position, for the "1 of 3" counter. */
+  index?: number;
+  /** How many intro steps this flow has. 1 hides the counter. */
+  total?: number;
+}
+
+export function WelcomeStepView({ step, onContinue, index = 1, total = 1 }: WelcomeStepViewProps) {
   return (
     // Blocking, like the form stage — the backdrop can't dismiss it.
     <Modal open onClose={() => {}} className="max-w-md">
       <div className="p-5 flex flex-col gap-4">
         <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
-          Profiles have changed!
+          {step.title}
         </h1>
 
+        {/* Each entry is its own paragraph. Passing a ReactNode rather than a
+            string is what lets a flow bold a phrase mid-sentence without this
+            component knowing anything about the copy. */}
         <div className="flex flex-col gap-4 font-body text-base leading-6 text-gray-200">
-          <p>
-            We’ve added new social features that let you add friends, and invite
-            other players to your table bookings.
-          </p>
-          <p>
-            <strong className="font-semibold text-white">Your Username will be public</strong>
-            {' '}— other players will be able to see it, and this is how they’ll add
-            you as a friend.
-          </p>
-          <p>
-            Your <strong className="font-semibold text-white">Name is your real,
-            actual name</strong>. Only friends you accept and stores you book with
-            can see it.
-          </p>
-          <p>
-            Because of this change, please review your Name and Username before
-            continuing.
-          </p>
+          {step.body.map((paragraph, i) => <p key={i}>{paragraph}</p>)}
         </div>
 
         <Button className="w-full" onClick={onContinue} rightIcon={<ArrowRightIcon />}>
-          Review my Username
+          {step.cta ?? 'Continue'}
         </Button>
+
+        {total > 1 && (
+          <p className="font-body text-xs text-gray-500 text-center">{index} of {total}</p>
+        )}
       </div>
     </Modal>
   );
@@ -363,33 +517,54 @@ export function WelcomeIntroView({ onContinue }: { onContinue: () => void }) {
 // ── Smart wrapper ─────────────────────────────────────────────────────────────
 
 interface WelcomeModalProps {
-  /** Shown in the heading, e.g. "BattleCards". */
+  /** Shown in the form step's heading, e.g. "BattleCards". */
   appName: string;
-  /** Which fields to show and require. */
-  fields: WelcomeModalFields;
+  /** What to show, and what marks it done. */
+  flow: WelcomeFlow;
 }
 
 type Status = 'loading' | 'needed' | 'done';
 
-export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
+export default function WelcomeModal({ appName, flow }: WelcomeModalProps) {
+  const fields = flow.fields ?? {};
   const wantUsername = !!fields.username;
   const wantLocation = !!fields.preferredLocation;
+  const wantRegion   = !!fields.homeRegion;
   const wantEmailNote = !!fields.bookingEmailNote;
 
   const [status,              setStatus]              = useState<Status>('loading');
-  // Two-stage flow: an intro that explains why the profile matters now, then the
-  // form. Only users who predate the social features (show_profile_intro) see the
-  // intro — a brand-new signup has nothing that "changed" and starts on the form.
-  // load() sets the real starting stage once the profile is read.
-  const [stage,               setStage]               = useState<'intro' | 'form'>('form');
+  // Where in the flow we are: an index into flow.steps, or 'form' once the intro
+  // steps are done. load() decides the real starting point — a user who has
+  // already seen this flow and is only here because a required field is missing
+  // starts on the form, since re-reading an announcement they've read would be
+  // an odd way to ask them for a postcode.
+  const [stage,               setStage]               = useState<number | 'form'>(0);
   const [userId,              setUserId]              = useState<string | null>(null);
   const [username,            setUsername]            = useState('');
   const [handle,              setHandle]              = useState('');
   const [originalHandle,      setOriginalHandle]      = useState<string | null>(null);
   const [email,               setEmail]               = useState<string | null>(null);
   const [preferredLocationId, setPreferredLocationId] = useState('');
+  const [country,             setCountry]             = useState('');
+  const [postcode,            setPostcode]            = useState('');
   const [locations,           setLocations]           = useState<WelcomeLocation[]>([]);
   const [savedAvatarUrl,      setSavedAvatarUrl]      = useState<string | null>(null);
+  // The flow keys already on the profile, kept so handleSave can append to them
+  // rather than overwrite the column.
+  const [seenWelcomeFlows,    setSeenWelcomeFlows]    = useState<string[]>([]);
+  /**
+   * Which fields this user is actually asked for — decided once, at load, from
+   * what their profile is missing.
+   *
+   * The flow says what it CAN ask for; this says what it DOES. Someone who
+   * already has a name and a home venue, arriving at a flow about locations,
+   * gets a form with a country and a postcode on it and nothing else — the form
+   * matching what the intro promised is the whole point.
+   *
+   * Held in state rather than recomputed on render so the form doesn't shrink
+   * out from under someone as they fill it in.
+   */
+  const [asks, setAsks] = useState({ username: false, location: false, region: false });
   // undefined = untouched, Blob = new picture to upload, null = remove.
   const [pendingAvatar,       setPendingAvatar]       = useState<Blob | null | undefined>(undefined);
   const [saving,              setSaving]              = useState(false);
@@ -405,7 +580,7 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, handle, preferred_location_id, avatar_path, onboarded, show_profile_intro')
+        .select('username, handle, preferred_location_id, country, postcode, avatar_path, onboarded, seen_welcome_flows')
         .eq('id', user.id)
         .single();
 
@@ -413,25 +588,40 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
       const existingUsername = profile?.username ?? '';
       const existingLocation = profile?.preferred_location_id ?? '';
+      const existingCountry  = profile?.country ?? '';
 
-      // Neither the picture nor the handle gates this modal. The picture is
-      // optional, and the handle is auto-assigned at signup — so both are
-      // offered for editing here, but a blocking modal must never hinge on
-      // something the user already has or may not want.
+      // ── Two independent reasons to open ───────────────────────────────────
       //
-      // `onboarded` is the exception that makes everyone pass through once:
-      // username + name now power the social features, so on this release we
-      // re-prompt every existing user (all backfilled to onboarded = false) to
-      // review their auto-assigned Username and set a Name. handleSave flips it
-      // true, so it fires exactly once. The field gates above still apply on top
-      // — a user onboarded on BattleCards is re-shown here only for the location
-      // BattlePlan additionally needs.
-      const missing =
-        (wantUsername && !existingUsername) ||
-        (wantLocation && !existingLocation) ||
-        !profile?.onboarded;
+      // 1. The flow is UNSEEN. This is the announcement half: everyone who has
+      //    not completed this flow key sees it once, whatever their profile
+      //    looks like. `show_profile_intro` used to do this job for exactly one
+      //    release and is deliberately no longer read — a per-flow key is what
+      //    lets a second release say something without inheriting the first
+      //    release's copy.
+      //
+      // 2. A REQUIRED FIELD is missing. This is the form half, and it stands on
+      //    its own so a user who somehow lacks a username is asked for it even
+      //    though they finished the flow months ago.
+      //
+      // Neither the picture nor the handle can gate the modal: the picture is
+      // optional, and the handle is auto-assigned at signup. Both are offered
+      // for editing, but a blocking modal must never hinge on something the
+      // user already has or may not want.
+      const seenFlows  = (profile?.seen_welcome_flows as string[] | null) ?? [];
+      setSeenWelcomeFlows(seenFlows);
+      const flowUnseen = !seenFlows.includes(flow.key);
 
-      if (!missing) { setStatus('done'); return; }
+      // What the flow may ask for, narrowed to what this user hasn't got.
+      const nextAsks = {
+        username: wantUsername && !existingUsername,
+        location: wantLocation && !existingLocation,
+        region:   wantRegion   && !existingCountry,
+      };
+      setAsks(nextAsks);
+
+      const missingField = nextAsks.username || nextAsks.location || nextAsks.region;
+
+      if (!flowUnseen && !missingField) { setStatus('done'); return; }
 
       setUserId(user.id);
       setEmail(user.email ?? null);
@@ -446,19 +636,23 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
         '';
       setUsername(existingUsername || googleName);
       setPreferredLocationId(existingLocation);
+      setCountry(existingCountry);
+      setPostcode(profile?.postcode ?? '');
 
-      if (wantLocation) {
+      // Only fetch venues if a venue is actually going to be asked for.
+      if (nextAsks.location) {
         const { data: locs } = await supabase
           .from('locations')
-          .select('id, name')
+          .select('id, name, country, postcode')
           .neq('kind', 'space')   // never a home venue — see useLocations
           .order('name');
         if (!cancelled && locs) setLocations(locs as WelcomeLocation[]);
       }
 
-      // Existing users get the "Profiles have changed!" intro first; new signups
-      // skip it and land straight on the form.
-      setStage(profile?.show_profile_intro ? 'intro' : 'form');
+      // Someone here only because a field is missing has already read the
+      // intro — send them straight to the form rather than making them click
+      // through an announcement again to reach it.
+      setStage(flowUnseen && flow.steps.length > 0 ? 0 : 'form');
       setStatus('needed');
     }
 
@@ -466,35 +660,80 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
     return () => { cancelled = true; };
   }, [wantUsername, wantLocation]);
 
+  /**
+   * Close an announcement-only flow — one with intro steps and no form.
+   *
+   * Records the key and gets out of the way. Deliberately optimistic: the modal
+   * closes first and the write follows, because a failed write here means the
+   * user is shown the announcement again next login, which is a far better
+   * outcome than trapping them behind a blocking dialog over a note they have
+   * already read. The form path is the opposite — it holds the modal open on
+   * failure, because there the write is the whole point.
+   */
+  async function finishWithoutForm() {
+    setStatus('done');
+    if (!userId) return;
+    await supabase
+      .from('user_profiles')
+      .update({ seen_welcome_flows: [...seenWelcomeFlows, flow.key] })
+      .eq('id', userId);
+  }
+
   async function handleSave() {
     if (!userId) return;
     setError(null);
 
     const trimmedUsername = username.trim();
-    if (wantUsername && !trimmedUsername) {
+    if (asks.username && !trimmedUsername) {
       setError('Please enter your name.');
       return;
     }
-    if (wantLocation && !preferredLocationId) {
+    if (asks.region && !country) {
+      setError('Please choose your country.');
+      return;
+    }
+    if (asks.region) {
+      const postcodeError = validatePostcode(country, postcode);
+      if (postcodeError) { setError(postcodeError); return; }
+    }
+    if (asks.location && !preferredLocationId) {
       setError('Please select a preferred location.');
       return;
     }
-    const handleError = validateHandle(handle);
-    if (handleError) { setError(handleError); return; }
+    // Only when the handle field was on screen — it isn't shown to someone who
+    // is only here to add a postcode, so there is nothing to validate.
+    if (asks.username) {
+      const handleError = validateHandle(handle);
+      if (handleError) { setError(handleError); return; }
+    }
 
     setSaving(true);
     const update: {
       username?: string;
       handle?: string;
       preferred_location_id?: string;
+      country?: string;
+      postcode?: string | null;
       avatar_path?: string | null;
       onboarded?: boolean;
+      seen_welcome_flows?: string[];
     } = {};
-    if (wantUsername) update.username = trimmedUsername;
-    if (handle !== originalHandle) update.handle = handle;
-    if (wantLocation) update.preferred_location_id = preferredLocationId;
-    // Saving the modal is the one-time confirmation that closes the re-onboarding
-    // prompt for good; without this the user would be asked again next login.
+    if (asks.username) update.username = trimmedUsername;
+    if (asks.username && handle !== originalHandle) update.handle = handle;
+    if (asks.location) update.preferred_location_id = preferredLocationId;
+    if (asks.region) {
+      update.country  = country;
+      // Stored normalised so "SW1A 1AA" and "sw1a1aa" compare equal later.
+      update.postcode = normalisePostcode(postcode);
+    }
+    // Finishing the flow is what closes it for good. Appending rather than
+    // replacing preserves the keys of every earlier flow — the array read at
+    // load() is the one being extended here, so a flow completed in another tab
+    // in between would be lost, which is a trade worth making against a
+    // read-modify-write round trip on every login.
+    update.seen_welcome_flows = [...seenWelcomeFlows, flow.key];
+    // Still written for the deployed apps, which gate on it and know nothing
+    // about flow keys. Harmless once they no longer do.
     update.onboarded = true;
 
     // Upload first: if storage fails there's nothing to undo, whereas saving the
@@ -531,30 +770,82 @@ export default function WelcomeModal({ appName, fields }: WelcomeModalProps) {
 
   if (status !== 'needed') return null;
 
-  if (stage === 'intro') {
-    return <WelcomeIntroView onContinue={() => setStage('form')} />;
+  // Whether there is a form step at all. A flow can declare fields and still
+  // show no form — if this user already has everything it would ask for, there
+  // is nothing to put on it, and the flow ends on its last intro step.
+  const wantForm = asks.username || asks.location || asks.region;
+
+  // ── Intro steps ─────────────────────────────────────────────────────────────
+  // Advancing past the last one lands on the form, or — for a flow that asks
+  // for nothing — finishes the whole thing. An announcement-only flow therefore
+  // still records its key, which is what stops it reappearing next login.
+  if (typeof stage === 'number') {
+    const step = flow.steps[stage];
+    // A flow with no steps at all shouldn't reach here (load() sends it to the
+    // form), but a stage past the end would render nothing at all — so fall
+    // through to the form rather than a blank blocking modal.
+    if (step) {
+      const isLast = stage === flow.steps.length - 1;
+      return (
+        <WelcomeStepView
+          step={step}
+          index={stage + 1}
+          total={flow.steps.length}
+          onContinue={() => {
+            if (!isLast) { setStage(stage + 1); return; }
+            if (wantForm) { setStage('form'); return; }
+            finishWithoutForm();
+          }}
+        />
+      );
+    }
   }
+
+  // Past the intro steps with no form to show — nothing left to render.
+  if (!wantForm) return null;
+
+  // Narrow the home-venue list as soon as the postcode is typed, so the two
+  // fields visibly answer each other. There is no "show all" escape here: this
+  // is a HOME venue, and the one place where the far-away shop genuinely isn't
+  // the answer. Anything already saved stays listed regardless, so a user whose
+  // stored venue falls outside their region isn't forced to re-pick it here.
+  const region = regionFor(country, postcode);
+  const offeredLocations = inRegionOf(locations, region)
+    .concat(locations.filter(l => l.id === preferredLocationId
+                               && !inRegionOf([l], region).length));
 
   return (
     <WelcomeModalView
       appName={appName}
-      showAvatar
+      // The picture and the @handle ride along with the NAME, not with the form
+      // in general. Both are things you offer someone who is setting up a
+      // profile; neither belongs on a form whose intro promised to ask for a
+      // postcode. Both are optional and never block the save.
+      showAvatar={asks.username}
       avatarUrl={savedAvatarUrl}
       avatarInitials={getInitials(username, email)}
       onAvatarChange={setPendingAvatar}
-      showUsername={wantUsername}
-      showPreferredLocation={wantLocation}
-      showBookingEmailNote={wantEmailNote}
+      showUsername={asks.username}
+      showPreferredLocation={asks.location}
+      showRegion={asks.region}
+      country={country}
+      onCountryChange={setCountry}
+      postcode={postcode}
+      onPostcodeChange={setPostcode}
+      // The "your email reaches stores" line explains a consequence of booking,
+      // which only lands next to the fields booking needs.
+      title={flow.formTitle}
+      showBookingEmailNote={wantEmailNote && (asks.username || asks.location)}
       username={username}
       onUsernameChange={setUsername}
-      showHandle
+      showHandle={asks.username}
       handle={handle}
       onHandleChange={setHandle}
       originalHandle={originalHandle}
       selfId={userId}
       preferredLocationId={preferredLocationId}
       onPreferredLocationChange={setPreferredLocationId}
-      locations={locations}
+      locations={offeredLocations}
       saving={saving}
       error={error}
       onSave={handleSave}

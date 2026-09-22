@@ -21,6 +21,11 @@ import {
   UploadMinimalistic,
   UsersGroupRounded,
   supabase,
+  COUNTRIES,
+  normalisePostcode,
+  regionFor,
+  regionLabel,
+  validatePostcode,
 } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
 import type { LocationKind } from '../../hooks/useBookingData';
@@ -30,6 +35,14 @@ type LocationRow = {
   name: string;
   /** Null for a club — see locations_address_required_unless_club. */
   address: string | null;
+  /**
+   * ISO 3166-1 alpha-2, and the postcode beside it. Together they decide who
+   * gets offered this venue — see packages/ui/src/lib/regions.ts. A venue
+   * missing either is offered to EVERYONE, which is why the form requires them
+   * wherever it requires an address.
+   */
+  country: string | null;
+  postcode: string | null;
   icon: string | null;
   store_email: string | null;
   admins: string[] | null;
@@ -73,6 +86,8 @@ type StoreApp = {
 type LocationFormState = {
   name: string;
   address: string;    // required unless this is a club
+  country: string;    // required wherever an address is
+  postcode: string;   // required wherever an address is
   icon: string;       // URL or empty string
   store_email: string;
   admins: string[];   // user ids
@@ -86,8 +101,9 @@ type LocationFormState = {
 };
 
 const EMPTY_FORM: LocationFormState = {
-  name: '', address: '', icon: '', store_email: '', admins: [], apps: [],
-  kind: 'venue', owner_location_id: '', meets_at_id: '', is_test: false,
+  name: '', address: '', country: 'AU', postcode: '', icon: '', store_email: '',
+  admins: [], apps: [], kind: 'venue', owner_location_id: '', meets_at_id: '',
+  is_test: false,
 };
 
 const BattlePlanLogo = () => (
@@ -229,6 +245,57 @@ function AppsField({ apps, value, onChange, disabled }: {
   );
 }
 
+// ── Region ──────────────────────────────────────────────────────────────────
+
+/**
+ * Country + postcode — what decides which players are offered this venue.
+ *
+ * Follows the same local-helper shape as KindField and AppsField below, so the
+ * Add and Edit dialogs share one definition of the pair instead of two copies
+ * that can drift.
+ *
+ * The derived region is echoed back under the postcode ("Offered to players in
+ * Victoria") because the mapping from postcode to state is invisible otherwise
+ * — an admin typing a postcode has no other way to see whether it landed where
+ * they meant.
+ */
+function RegionField({ country, postcode, onChange, disabled }: {
+  country: string;
+  postcode: string;
+  onChange: (patch: { country?: string; postcode?: string }) => void;
+  disabled?: boolean;
+}) {
+  const region  = regionFor(country, postcode);
+  const problem = country ? validatePostcode(country, postcode) : null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="font-body text-xs text-neutral-500 uppercase tracking-wider">Region</p>
+      <div className="flex flex-col gap-3 mt-1">
+        <Select
+          options={COUNTRIES.map(c => ({ value: c.code, label: c.name }))}
+          value={country}
+          onChange={e => onChange({ country: e.target.value })}
+          disabled={disabled}
+        />
+        <Input
+          label="Postcode"
+          value={postcode}
+          onChange={e => onChange({ postcode: e.target.value })}
+          placeholder={country === 'GB' ? 'e.g. SW1A 1AA' : 'e.g. 3065'}
+          state={postcode && problem ? 'error' : 'default'}
+          helperText={
+            postcode && problem ? problem
+            : region        ? `Offered to players in ${regionLabel(region)}.`
+            : 'Decides which players are offered this venue.'
+          }
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Kind ────────────────────────────────────────────────────────────────────
 
 /**
@@ -332,6 +399,18 @@ function formIsValid(f: LocationFormState): boolean {
   // Mirrors locations_address_required_unless_club — saving without this would
   // be refused by the database rather than by the form.
   if (needsAddress(f.kind) && !f.address.trim()) return false;
+  // Nothing in the database enforces this one; the form is the only thing
+  // standing between an English shop with no postcode and every Australian
+  // player being offered it.
+  //
+  // Clubs are exempt, and safely so: a club has no address of its own to take a
+  // postcode from, and it is already invisible to anyone not attached to it —
+  // 20260814020000 limits the public read branch to `kind = 'venue'`. The
+  // region filter has nothing left to protect there.
+  if (needsAddress(f.kind)) {
+    if (!f.country) return false;
+    if (validatePostcode(f.country, f.postcode)) return false;
+  }
   if (f.kind === 'space' && !f.owner_location_id) return false;
   return true;
 }
@@ -440,7 +519,7 @@ function ManageLocationsInner() {
       .from('locations')
       // Every kind, unfiltered — this is the one screen where a space is
       // supposed to be visible.
-      .select('id, name, address, icon, store_email, admins, kind, owner_location_id, meets_at_id, is_test')
+      .select('id, name, address, country, postcode, icon, store_email, admins, kind, owner_location_id, meets_at_id, is_test')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -469,6 +548,10 @@ function ManageLocationsInner() {
         // NULL rather than '' for a club. An empty string would satisfy the
         // database check while still being an address nobody typed.
         address: needsAddress(addForm.kind) ? addForm.address.trim() : null,
+        // Null on a club for the same reason as the address: a club has no
+        // place of its own, so it has no region of its own to record.
+        country:  needsAddress(addForm.kind) ? addForm.country : null,
+        postcode: needsAddress(addForm.kind) ? normalisePostcode(addForm.postcode) : null,
         icon: addForm.icon || null,
         store_email: addForm.store_email.trim() || null,
         kind: addForm.kind,
@@ -508,6 +591,10 @@ function ManageLocationsInner() {
     setEditForm({
       name: loc.name,
       address: loc.address ?? '',
+      // Falls back to AU so an older row edited today gets a real country
+      // rather than an empty select the admin has to notice.
+      country: loc.country ?? 'AU',
+      postcode: loc.postcode ?? '',
       icon: loc.icon ?? '',
       store_email: loc.store_email ?? '',
       admins: loc.admins ?? [],
@@ -527,6 +614,8 @@ function ManageLocationsInner() {
     const next = {
       name: editForm.name.trim(),
       address: needsAddress(editForm.kind) ? editForm.address.trim() : null,
+      country:  needsAddress(editForm.kind) ? editForm.country : null,
+      postcode: needsAddress(editForm.kind) ? normalisePostcode(editForm.postcode) : null,
       icon: editForm.icon || null,
       store_email: editForm.store_email.trim() || null,
       admins: editForm.admins,
@@ -752,6 +841,14 @@ function ManageLocationsInner() {
                 disabled={adding}
               />
               )}
+              {needsAddress(addForm.kind) && (
+                <RegionField
+                  country={addForm.country}
+                  postcode={addForm.postcode}
+                  onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
+                  disabled={adding}
+                />
+              )}
               <Input
                 label="Store Email"
                 type="email"
@@ -831,6 +928,14 @@ function ManageLocationsInner() {
                     label="Address"
                     value={editForm.address}
                     onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                    disabled={saving}
+                  />
+                )}
+                {needsAddress(editForm.kind) && (
+                  <RegionField
+                    country={editForm.country}
+                    postcode={editForm.postcode}
+                    onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
                     disabled={saving}
                   />
                 )}

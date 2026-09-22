@@ -12,6 +12,7 @@ import ManageGames from './pages/admin/ManageGames.tsx';
 import ManageUpdates from './pages/admin/ManageUpdates.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
 import LandingPage from './marketing/pages/LandingPage.tsx';
+import { VENUE_REGIONS_FLOW } from './welcomeFlows.tsx';
 import VenuePage from './marketing/pages/VenuePage.tsx';
 
 /**
@@ -31,7 +32,7 @@ export function appRoutes() {
     <Route element={
       <ProtectedRoute>
         <AppAccessRoute appName="BattlePlan">
-          <WelcomeModal appName="BattlePlan" fields={{ username: true, preferredLocation: true, bookingEmailNote: true }} />
+          <WelcomeModal appName="BattlePlan" flow={VENUE_REGIONS_FLOW} />
           <Outlet />
         </AppAccessRoute>
       </ProtectedRoute>
