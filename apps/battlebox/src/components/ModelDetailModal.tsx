@@ -418,8 +418,11 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
     <Sheet open={modelId !== null} onClose={onClose} className="max-w-2xl">
       {model ? (
         <>
-          {/* Hero — sized to the tallest image (capped so a tall portrait can't
-              push the tabs off-screen); fixed frame for the fallback. */}
+          {/* The whole modal scrolls as one, hero included (on mobile the
+              Sheet already does this; on desktop this is the scroll region). */}
+          <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+          {/* Hero — sized to the tallest image (capped so a tall portrait
+              doesn't fill the whole dialog); fixed frame for the fallback. */}
           {model.images.length > 0 ? (
             <ImageCarousel
               images={model.images}
@@ -467,11 +470,12 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             <TabControl tab={tab} onChange={setTab} />
           </div>
 
-          {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
-          <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
+          {/* Body */}
+          <div className="px-5 py-4">
             {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
             {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
+          </div>
           </div>
 
           <Lightbox

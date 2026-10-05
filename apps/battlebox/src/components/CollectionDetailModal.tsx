@@ -79,6 +79,9 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
     <Sheet open={boxId !== null} onClose={onClose} className="max-w-2xl">
       {box ? (
         <>
+          {/* The whole modal scrolls as one, hero included (on mobile the
+              Sheet already does this; on desktop this is the scroll region). */}
+          <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
           {/* Hero — sized to the tallest image; fixed frame for the fallback. */}
           {box.images.length > 0 ? (
             <ImageCarousel
@@ -122,8 +125,8 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
             />
           </div>
 
-          {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
-          <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0 flex flex-col gap-4">
+          {/* Body */}
+          <div className="px-5 py-4 flex flex-col gap-4">
             <div className="bg-neutral-900 border border-neutral-700 rounded-lg flex flex-col divide-y divide-neutral-800">
               <DetailRow icon={<Box className="w-4 h-4" />}>{box.type}</DetailRow>
               <DetailRow icon={<UserRounded className="w-4 h-4" />}>
@@ -171,6 +174,7 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
                 Add New Model
               </Button>
             </div>
+          </div>
           </div>
 
           <Lightbox

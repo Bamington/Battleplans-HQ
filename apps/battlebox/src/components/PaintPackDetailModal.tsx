@@ -56,8 +56,9 @@ export function PaintPackDetailModal({ pack, busy, onClose, onAdd, onRemove }: {
       )}
     >
       {pack && (
-        <>
-          {/* Header */}
+        <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+          {/* Header — scrolls with the list (on mobile the Sheet already does
+              this; on desktop this wrapper is the scroll region). */}
           <div className="px-5 pt-4 pb-3 flex items-start gap-3 shrink-0">
             {paintPackImageUrl(pack.image_path) && (
               <div className="shrink-0 size-14 rounded-lg overflow-hidden bg-neutral-800 border border-neutral-700">
@@ -76,14 +77,14 @@ export function PaintPackDetailModal({ pack, busy, onClose, onAdd, onRemove }: {
           </div>
 
           {/* Paint list */}
-          <div className="px-5 pb-5 lg:overflow-y-auto lg:flex-1 lg:min-h-0 flex flex-col gap-1.5">
+          <div className="px-5 pb-5 flex flex-col gap-1.5">
             {loading ? (
               <p className="py-8 text-center font-body text-sm text-neutral-400">Loading paints…</p>
             ) : (
               paints.map(p => <PaintItem key={p.id} paint={p} />)
             )}
           </div>
-        </>
+        </div>
       )}
     </Sheet>
   );
