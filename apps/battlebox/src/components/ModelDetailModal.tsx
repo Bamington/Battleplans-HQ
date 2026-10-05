@@ -143,6 +143,9 @@ function RowMenu({ canEdit, onEdit, onDelete, label }: { canEdit: boolean; onEdi
   );
 }
 
+/** The bordered frame around one group on the Painting tab. */
+const PAINT_FRAME = 'bg-neutral-900 border border-neutral-700 rounded-lg';
+
 function PaintRow({ paint, menu }: { paint: PaintRef; menu?: React.ReactNode }) {
   const typeColor: BadgeColor = paint.type.toLowerCase() === 'spray' ? 'warning' : 'purple';
   return (
@@ -274,21 +277,28 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
         {!hasPaints ? (
           <p className="font-body text-sm text-neutral-500 py-2">No paints recorded yet.</p>
         ) : (
-          <div className="bg-neutral-900 border border-neutral-700 rounded-lg divide-y divide-neutral-800">
+          // Individual paints share one frame, listed first; each recipe then
+          // gets a frame of its own, so where one recipe ends is obvious.
+          <div className="flex flex-col gap-2">
+            {model.directPaints.length > 0 && (
+              <div className={`${PAINT_FRAME} divide-y divide-neutral-800`}>
+                {model.directPaints.map(p => (
+                  <PaintRow
+                    key={`p${p.hobbyItemId}`}
+                    paint={p}
+                    menu={<RowMenu canEdit={p.ownerId != null && p.ownerId === userId} onEdit={() => onEditPaint(p)} onDelete={() => onRemovePaint(p.hobbyItemId)} label={p.name} />}
+                  />
+                ))}
+              </div>
+            )}
             {model.recipes.map((r: ModelRecipeGroup, i) => (
-              <RecipeGroup
-                key={r.id || `r${i}`}
-                recipe={r}
-                menu={r.id ? <RowMenu canEdit onEdit={() => onEditRecipe(r.id)} onDelete={() => onRemoveRecipe(r.id, r.name)} label={r.name} /> : undefined}
-                onOpenPhoto={index => onOpenRecipePhoto(r, index)}
-              />
-            ))}
-            {model.directPaints.map(p => (
-              <PaintRow
-                key={`p${p.hobbyItemId}`}
-                paint={p}
-                menu={<RowMenu canEdit={p.ownerId != null && p.ownerId === userId} onEdit={() => onEditPaint(p)} onDelete={() => onRemovePaint(p.hobbyItemId)} label={p.name} />}
-              />
+              <div key={r.id || `r${i}`} className={PAINT_FRAME}>
+                <RecipeGroup
+                  recipe={r}
+                  menu={r.id ? <RowMenu canEdit onEdit={() => onEditRecipe(r.id)} onDelete={() => onRemoveRecipe(r.id, r.name)} label={r.name} /> : undefined}
+                  onOpenPhoto={index => onOpenRecipePhoto(r, index)}
+                />
+              </div>
             ))}
           </div>
         )}
