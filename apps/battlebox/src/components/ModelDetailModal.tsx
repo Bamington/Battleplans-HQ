@@ -232,7 +232,7 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
   );
 }
 
-function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe }: {
+function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe, onOpenRecipePhoto }: {
   model: ModelDetail;
   save: (p: { status?: ModelStatus; painting_notes?: string | null }) => void;
   userId: string | null;
@@ -241,6 +241,7 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   onEditRecipe: (recipeId: string) => void;
   onRemovePaint: (hobbyItemId: number) => void;
   onRemoveRecipe: (recipeId: string, recipeName: string) => void;
+  onOpenRecipePhoto: (recipe: ModelRecipeGroup, index: number) => void;
 }) {
   const hasPaints = model.recipes.length > 0 || model.directPaints.length > 0;
   return (
@@ -279,6 +280,7 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
                 key={r.id || `r${i}`}
                 recipe={r}
                 menu={r.id ? <RowMenu canEdit onEdit={() => onEditRecipe(r.id)} onDelete={() => onRemoveRecipe(r.id, r.name)} label={r.name} /> : undefined}
+                onOpenPhoto={index => onOpenRecipePhoto(r, index)}
               />
             ))}
             {model.directPaints.map(p => (
@@ -304,7 +306,12 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   );
 }
 
-function RecipeGroup({ recipe, menu }: { recipe: ModelRecipeGroup; menu?: React.ReactNode }) {
+function RecipeGroup({ recipe, menu, onOpenPhoto }: {
+  recipe: ModelRecipeGroup;
+  menu?: React.ReactNode;
+  /** Open the recipe's photos in the lightbox at this index. */
+  onOpenPhoto?: (index: number) => void;
+}) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
@@ -314,6 +321,16 @@ function RecipeGroup({ recipe, menu }: { recipe: ModelRecipeGroup; menu?: React.
         {menu}
       </div>
       {recipe.description && <p className="px-3 pb-1 font-body text-xs text-neutral-400">{recipe.description}</p>}
+      {recipe.images.length > 0 && (
+        <div className="flex gap-1.5 px-3 pt-1 pb-1.5 overflow-x-auto">
+          {recipe.images.map((url, i) => (
+            <button key={url} type="button" onClick={() => onOpenPhoto?.(i)} aria-label={`View photo ${i + 1} of ${recipe.name}`}
+              className="shrink-0 w-14 h-14 rounded-md overflow-hidden border border-neutral-700 hover:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <img src={url} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
       {recipe.paints.map((p, i) => <PaintRow key={i} paint={p} />)}
     </div>
   );
@@ -348,6 +365,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const userId = useUserId();
   const [tab, setTab] = useState<Tab>('details');
   const [lightbox, setLightbox] = useState<number | null>(null);
+  /** A recipe's photos, opened from its thumbnails on the Painting tab. */
+  const [recipePhotos, setRecipePhotos] = useState<{ recipe: ModelRecipeGroup; index: number } | null>(null);
   const [addKind, setAddKind] = useState<'paint' | 'recipe' | null>(null);
   const [editingPaint, setEditingPaint] = useState<PaintRef | null>(null);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
@@ -358,7 +377,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   // Reset transient overlays each time a model is opened.
   useEffect(() => {
     if (modelId) {
-      setTab('details'); setLightbox(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
+      setTab('details'); setLightbox(null); setRecipePhotos(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
       setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false);
     }
   }, [modelId]);
@@ -441,7 +460,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           {/* Body — the desktop scroll region (mobile scrolls with the sheet). */}
           <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0">
             {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
-            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} />}
+            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>
 
@@ -451,6 +470,13 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             startIndex={lightbox ?? 0}
             onClose={() => setLightbox(null)}
             alt={model.name}
+          />
+          <Lightbox
+            open={recipePhotos !== null}
+            images={recipePhotos?.recipe.images ?? []}
+            startIndex={recipePhotos?.index ?? 0}
+            onClose={() => setRecipePhotos(null)}
+            alt={recipePhotos?.recipe.name ?? ''}
           />
 
           <AddPaintRecipeModal

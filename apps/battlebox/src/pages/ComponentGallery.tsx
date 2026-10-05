@@ -67,8 +67,11 @@ import { Section, Accordion, Chip, DateRange, GameMultiSelect } from '../compone
 import { PickRow, ExistingPaintPicker, CloseIcon, CheckIcon, ChevronIcon } from '../components/paintPickerBits';
 import { EMPTY_MODEL_FILTERS, EMPTY_COLLECTION_FILTERS } from '../hooks/useCollection';
 import type {
-  CollectionBox, CollectionModel, ModelFilters, CollectionFilters, PaintRef, ModelRecipeGroup,
+  CollectionBox, CollectionModel, ModelFilters, CollectionFilters, PaintRef, ModelRecipeGroup, RecipeSummary,
 } from '../hooks/useCollection';
+import { RecipeItem, RecipeGridItem, RecipeCardBody } from '../components/RecipeItem';
+import { PhotoFinder } from '../components/PhotoFinder';
+import type { PendingPhoto, WebImage } from '../lib/imageSearch';
 import type { PaintPack, LibraryPaint } from '../hooks/usePaintPacks';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -176,7 +179,29 @@ const DEMO_RECIPE: ModelRecipeGroup = {
     DEMO_PAINT_REF,
     { hobbyItemId: 3, name: 'Nuln Oil', brand: 'Citadel', type: 'Paint', swatch: '#14100e', note: 'Recess shade', ownerId: null },
   ],
+  images: [PHOTO_A],
 };
+
+/** Recipes as listed in the Recipes column: with photos and in use, a long
+ *  paint list that overflows the swatch row, and a bare new recipe. */
+const DEMO_RECIPE_SUMMARY: RecipeSummary = { ...DEMO_RECIPE, images: [PHOTO_A, PHOTO_B], modelCount: 3 };
+const DEMO_RECIPE_LONG: RecipeSummary = {
+  id: 'rc-2',
+  name: 'Blood Angels Red',
+  description: 'Mephiston base, Carroburg wash, Evil Sunz layer, Wild Rider edge.',
+  paints: ['#960c0c', '#4a1010', '#b81d1d', '#e0402a', '#f07a4a', '#ffd0a0', '#14100e', '#2b2b2b', '#c9c9c9', '#ffffff']
+    .map((swatch, i) => ({ hobbyItemId: 100 + i, name: `Paint ${i + 1}`, brand: 'Citadel', type: 'Paint', swatch, note: null, ownerId: null })),
+  images: [],
+  modelCount: 1,
+};
+const DEMO_RECIPE_EMPTY: RecipeSummary = {
+  id: 'rc-3', name: 'Weathered Bone', description: null, paints: [], images: [], modelCount: 0,
+};
+
+/** Web results as the image-search function returns them. */
+const DEMO_WEB_RESULTS: WebImage[] = [PHOTO_A, PHOTO_B, PHOTO_A, PHOTO_B, PHOTO_A, PHOTO_B].map((url, i) => ({
+  thumbnail: url, image: `${url}&r=${i}`, title: `Result ${i + 1}`, source: i % 2 ? 'warhammer.com' : 'ebay.co.uk', width: 600, height: 600,
+}));
 
 const DEMO_PACK: PaintPack = {
   id: 'pk-1',
@@ -209,6 +234,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-navbar',              label: 'Navbar',                icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-box-item',            label: 'Box Item',              icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-model-item',          label: 'Model Item',            icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-recipe-item',         label: 'Recipe Item',           icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-collection-thumb',    label: 'Collection Thumb',      icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-paint-item',          label: 'Paint Item',            icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-paint-pack-item',     label: 'Paint Pack Item',       icon: <ListCheck className="w-5 h-5" /> },
@@ -221,6 +247,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-paint-picker-bits',   label: 'Paint Picker Bits',     icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-pickers',             label: 'Game & Collection Pickers', icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-image-editor',        label: 'Image Editor',          icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-photo-finder',        label: 'Photo Finder',          icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-add-modals',          label: 'Add Modals',            icon: <AddCircle className="w-5 h-5" /> },
   { href: '#nav-detail-modals',       label: 'Detail Modals',         icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-edit-modals',         label: 'Edit Modals',           icon: <Pen2 className="w-5 h-5" /> },
@@ -261,6 +288,12 @@ const ComponentGallery = () => {
   const [editModelOpen,     setEditModelOpen]     = useState(false);
   const [editPaintOpen,     setEditPaintOpen]     = useState(false);
   const [editRecipeOpen,    setEditRecipeOpen]    = useState(false);
+  const [createRecipeOpen,  setCreateRecipeOpen]  = useState(false);
+
+  // PhotoFinder demo state — one starting empty, one with picks and results.
+  const [finderEmpty,  setFinderEmpty]  = useState<PendingPhoto[]>([]);
+  const [finderPicked, setFinderPicked] = useState<PendingPhoto[]>(() => DEMO_WEB_RESULTS.slice(0, 2)
+    .map((image, i) => ({ id: `demo-${i}`, preview: image.thumbnail, source: { kind: 'web' as const, image } })));
 
   return (
     <GalleryShell appName="BattleBench" nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]} backTo="/app">
@@ -324,6 +357,41 @@ const ComponentGallery = () => {
           painted, and an empty box with no game and no photos — which falls back
           to the initials thumbnail. A box's carousel images are its own cover
           photos followed by one photo per member model.
+        </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          RECIPE ITEM
+          A paint recipe in the Recipes column. Same frame as Box/Model Item.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-recipe-item" title="Recipe Item / List, Grid & Body">
+        <div className="w-full flex flex-col gap-6">
+          <div className="max-w-xl flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">RecipeItem — the list row</p>
+            <RecipeItem recipe={DEMO_RECIPE_SUMMARY} onClick={() => alert('Open recipe')} />
+            <RecipeItem recipe={DEMO_RECIPE_LONG}    onClick={() => alert('Open recipe')} />
+            <RecipeItem recipe={DEMO_RECIPE_EMPTY} />
+          </div>
+
+          <div className="max-w-2xl">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">RecipeGridItem — the gallery tile</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <RecipeGridItem recipe={DEMO_RECIPE_SUMMARY} onClick={() => alert('Open')} />
+              <RecipeGridItem recipe={DEMO_RECIPE_LONG}    onClick={() => alert('Open')} />
+              <RecipeGridItem recipe={DEMO_RECIPE_EMPTY} />
+            </div>
+          </div>
+
+          <div className="max-w-xl rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">RecipeCardBody — the shared inner layout</p>
+            <RecipeCardBody recipe={DEMO_RECIPE_SUMMARY} />
+          </div>
+        </div>
+        <GalleryNote>
+          Three states: photographed and used on several models; a ten-paint
+          recipe whose swatches overflow into “+2” with no photo (falls back to
+          the name tile); and a brand-new recipe with no paints, photos or models
+          — the swatch row and model badge drop out.
         </GalleryNote>
       </GallerySection>
 
@@ -691,7 +759,34 @@ const ComponentGallery = () => {
           Manages the photo set for one model or box — upload, reorder, set the
           primary, delete. It loads and writes by id, so with this stub id it shows
           the empty state; uploads will fail without a session. Note deletes are
-          surgical: only the exact object key it created is removed.
+          surgical: only the exact object key it created is removed. Takes{' '}
+          <code>kind="model" | "box" | "recipe"</code>.
+        </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          PHOTO FINDER
+          Photos for a model/collection that doesn't exist yet.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-photo-finder" title="Photo Finder">
+        <div className="w-full flex flex-wrap gap-8 items-start">
+          <div className="w-80">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Empty, no name yet</p>
+            <PhotoFinder value={finderEmpty} onChange={setFinderEmpty} suggestedQuery=""
+              searchHint="Enter a name to search for a photo online." />
+          </div>
+          <div className="w-80">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Two picked, search open</p>
+            <PhotoFinder value={finderPicked} onChange={setFinderPicked}
+              suggestedQuery="Leviathan Box Set Warhammer 40,000" initialResults={DEMO_WEB_RESULTS} />
+          </div>
+        </div>
+        <GalleryNote>
+          Used in Add Model and Add Collection. Uploads and web picks are staged
+          as PendingPhotos (the first is the cover) and uploaded once the row
+          exists. The second demo is seeded with stub results; a live search
+          calls the <code>image-search</code> Edge Function and needs a session
+          and the BRAVE_SEARCH_API_KEY secret.
         </GalleryNote>
       </GallerySection>
 
@@ -803,11 +898,16 @@ const ComponentGallery = () => {
           <Button onClick={() => setEditModelOpen(true)}>Edit Model</Button>
           <Button variant="outline" color="secondary" onClick={() => setEditPaintOpen(true)}>Edit Paint</Button>
           <Button variant="outline" color="secondary" onClick={() => setEditRecipeOpen(true)}>Edit Recipe</Button>
+          <Button variant="outline" color="secondary" onClick={() => setCreateRecipeOpen(true)}>Add Recipe (create mode)</Button>
 
           <GalleryNote>
             Edit Paint and Edit Recipe take the row to edit as a prop, so those two
             are populated and truthful here. Edit Collection and Edit Model fetch by
-            id and will show their not-found state against these stub ids.
+            id and will show their not-found state against these stub ids. Edit
+            Recipe is shown as the Recipes column opens it — with Used On and
+            Delete; from a model those two are left off. Its photos load by id, so
+            they show empty here. With no recipe and an onCreate it's the Add
+            Recipe form (name and description only).
           </GalleryNote>
 
           <EditCollectionModal
@@ -834,6 +934,16 @@ const ComponentGallery = () => {
             onClose={() => setEditRecipeOpen(false)}
             recipe={DEMO_RECIPE}
             onChanged={() => {}}
+            models={[DEMO_MODEL, DEMO_MODEL_WIP]}
+            onOpenModel={() => alert('Open model')}
+            onDelete={() => setEditRecipeOpen(false)}
+          />
+          <EditRecipeModal
+            open={createRecipeOpen}
+            onClose={() => setCreateRecipeOpen(false)}
+            recipe={null}
+            onChanged={() => {}}
+            onCreate={async () => { setCreateRecipeOpen(false); return true; }}
           />
         </div>
       </GallerySection>
