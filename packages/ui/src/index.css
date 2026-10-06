@@ -435,4 +435,14 @@
   button:disabled, [role="button"][aria-disabled="true"] {
     cursor: not-allowed;
   }
+
+  /* Clickable cards (and anything else focusable that isn't a native control):
+     no focus outline after a tap or click — on a phone, tapping a card focuses
+     it and the outline stayed until you tapped elsewhere. Keyboard focus
+     (:focus-visible) still gets it, so Tab navigation stays usable. Cards that
+     draw their own ring should use `focus-visible:ring-*`, not `focus:ring-*`. */
+  [role="button"]:focus:not(:focus-visible),
+  [tabindex]:focus:not(:focus-visible) {
+    outline: none;
+  }
 }

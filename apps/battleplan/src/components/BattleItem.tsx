@@ -115,7 +115,7 @@ export function BattleItem({ photoUrl, onClick, ...fields }: BattleCardFields & 
   return (
     <div
       {...clickableProps(onClick)}
-      className={`relative bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden${onClick ? ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500' : ''}`}
+      className={`relative bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex gap-1.5 items-start shadow-md overflow-hidden${onClick ? ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500' : ''}`}
     >
       {/* Photographic fill — the battle's photo, faded into the card colour so
           the text stays readable. Only rendered when a photo exists. */}

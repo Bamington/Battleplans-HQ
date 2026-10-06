@@ -335,7 +335,7 @@ function RecipeGroup({ recipe, menu, onOpenPhoto }: {
         <div className="flex gap-1.5 px-3 pt-1 pb-1.5 overflow-x-auto">
           {recipe.images.map((url, i) => (
             <button key={url} type="button" onClick={() => onOpenPhoto?.(i)} aria-label={`View photo ${i + 1} of ${recipe.name}`}
-              className="shrink-0 w-14 h-14 rounded-md overflow-hidden border border-neutral-700 hover:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500">
+              className="shrink-0 w-14 h-14 rounded-md overflow-hidden border border-neutral-700 hover:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
               <img src={url} alt="" className="w-full h-full object-cover" />
             </button>
           ))}
