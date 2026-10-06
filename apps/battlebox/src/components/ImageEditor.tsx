@@ -1,7 +1,8 @@
 /**
- * ImageEditor.tsx — Manage the photos on a model, collection or recipe: add (upload),
- * remove, and pick which one is the cover. Operations apply immediately (there
- * is no separate save step), mirroring the battle-photo editor.
+ * ImageEditor.tsx — Manage the photos on a model, collection or recipe: add (upload,
+ * or find one online when given a `searchQuery`), remove, and pick which one
+ * is the cover. Operations apply immediately (there is no separate save step),
+ * mirroring the battle-photo editor.
  */
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
@@ -13,6 +14,10 @@ import {
   setModelPrimaryImage, setBoxPrimaryImage, setRecipePrimaryImage,
   type EditableImage,
 } from '../hooks/useCollection';
+import { StarIcon, TrashIcon, PlusIcon } from './paintPickerBits';
+import { PhotoFinder } from './PhotoFinder';
+import { pendingPhotoFile } from '../lib/imageSearch';
+import type { PendingPhoto } from '../lib/imageSearch';
 
 /** The photo operations for each kind of thing that has photos. */
 const OPS = {
@@ -21,40 +26,25 @@ const OPS = {
   recipe: { fetch: fetchRecipeImages, upload: uploadRecipeImage, remove: deleteRecipeImage, setPrimary: setRecipePrimaryImage },
 };
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-export const StarIcon = ({ filled = false, className = 'w-4 h-4' }: { filled?: boolean; className?: string }) => (
-  <svg viewBox="0 0 16 16" fill={filled ? 'currentColor' : 'none'} xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M8 1.8l1.7 3.6 3.9.5-2.9 2.7.8 3.9L8 12.7 4.5 12.8l.8-3.9L2.4 6.4l3.9-.5L8 1.8z"
-      stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-  </svg>
-);
-
-export const TrashIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
-  <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M3 4.5h10M6.5 4V3h3v1M5 4.5l.5 8h5l.5-8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-export const PlusIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
-  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M10 5v10M5 10h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ImageEditor({ kind, id, onChanged }: {
+export function ImageEditor({ kind, id, onChanged, searchQuery }: {
   kind: keyof typeof OPS;
   id: string;
   /** Bubble up so the detail modal + list refresh their carousels too. */
   onChanged?: () => void;
+  /** Offer "Find a photo online", searching for this by default (the name,
+   *  plus the game). Left out, there's no web search — e.g. recipes, whose
+   *  photos are of your own painting. */
+  searchQuery?: string;
 }) {
   const userId = useUserId();
   const [images, setImages] = useState<EditableImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Web results already saved from this editor, so they show as picked. */
+  const [webPicked, setWebPicked] = useState<PendingPhoto[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -63,7 +53,30 @@ export function ImageEditor({ kind, id, onChanged }: {
     setLoading(false);
   }, [kind, id]);
 
-  useEffect(() => { setLoading(true); refresh(); }, [refresh]);
+  useEffect(() => { setLoading(true); setWebPicked([]); refresh(); }, [refresh]);
+
+  /** A web result was tapped: download it (server-side) and save it like an
+   *  upload. It becomes the cover only if there were no photos yet. */
+  const handleWebPick = async (next: PendingPhoto[]) => {
+    const added = next.filter(p => !webPicked.some(w => w.id === p.id));
+    if (!added.length || !userId) return;
+    setWebPicked(next);
+    setBusy(true); setError(null);
+    let cover = images.length === 0;
+    const failed: string[] = [];
+    for (const photo of added) {
+      const file = await pendingPhotoFile(photo);
+      const err = file ? (await OPS[kind].upload(id, userId, file, cover)).error : 'download failed';
+      if (err) failed.push(photo.id); else cover = false;
+    }
+    setBusy(false);
+    if (failed.length) {
+      // Un-pick it, so it can be tried again or another chosen.
+      setWebPicked(prev => prev.filter(p => !failed.includes(p.id)));
+      setError('Couldn’t save that photo — some sites block downloads. Try another one.');
+    }
+    bubble();
+  };
 
   const bubble = () => { refresh(); onChanged?.(); };
 
@@ -144,6 +157,17 @@ export function ImageEditor({ kind, id, onChanged }: {
       <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAdd} />
       {busy && <span className="font-body text-xs text-neutral-400">Working…</span>}
       {error && <span className="font-body text-xs text-red-400">{error}</span>}
+
+      {searchQuery !== undefined && !loading && (
+        <PhotoFinder
+          searchOnly
+          value={webPicked}
+          onChange={handleWebPick}
+          suggestedQuery={searchQuery}
+          searchHint="Enter a name to search for a photo online."
+          disabled={busy || !userId}
+        />
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { Button, Input } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { GamePicker } from './GamePicker';
 import { ImageEditor } from './ImageEditor';
-import { fetchBoxEdit, updateBoxInfo } from '../hooks/useCollection';
+import { fetchBoxEdit, updateBoxInfo, useAllGames } from '../hooks/useCollection';
 
 export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
   open: boolean;
@@ -23,6 +23,9 @@ export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
   const [gameId, setGameId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const games = useAllGames(open);
+  /** What "Find a photo online" searches for — follows edits to the name/game. */
+  const searchQuery = [name.trim(), games.find(g => g.id === gameId)?.name ?? ''].filter(Boolean).join(' ');
 
   useEffect(() => {
     if (!open || !boxId) return;
@@ -85,7 +88,7 @@ export function EditCollectionModal({ open, onClose, boxId, onChanged }: {
                 className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </label>
 
-            {boxId && <ImageEditor kind="box" id={boxId} onChanged={onChanged} />}
+            {boxId && <ImageEditor kind="box" id={boxId} onChanged={onChanged} searchQuery={searchQuery} />}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>

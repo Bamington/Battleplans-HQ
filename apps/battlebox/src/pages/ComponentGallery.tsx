@@ -752,15 +752,24 @@ const ComponentGallery = () => {
           IMAGE EDITOR
       ════════════════════════════════════════════════════════════════ */}
       <GallerySection id="nav-image-editor" title="Image Editor">
-        <div className="w-full max-w-lg">
-          <ImageEditor kind="model" id="stub-model-id" onChanged={() => {}} />
+        <div className="w-full flex flex-wrap gap-8 items-start">
+          <div className="w-80">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Upload only (recipes)</p>
+            <ImageEditor kind="recipe" id="stub-recipe-id" onChanged={() => {}} />
+          </div>
+          <div className="w-80">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">With searchQuery (Edit Model / Edit Collection)</p>
+            <ImageEditor kind="box" id="stub-box-id" onChanged={() => {}} searchQuery="Leviathan Box Set Warhammer 40,000" />
+          </div>
         </div>
         <GalleryNote>
           Manages the photo set for one model or box — upload, reorder, set the
           primary, delete. It loads and writes by id, so with this stub id it shows
           the empty state; uploads will fail without a session. Note deletes are
           surgical: only the exact object key it created is removed. Takes{' '}
-          <code>kind="model" | "box" | "recipe"</code>.
+          <code>kind="model" | "box" | "recipe"</code>. Given a{' '}
+          <code>searchQuery</code> it adds “Find a photo online” (PhotoFinder in
+          searchOnly mode) — a tapped result is saved straight away.
         </GalleryNote>
       </GallerySection>
 
@@ -778,6 +787,11 @@ const ComponentGallery = () => {
           <div className="w-80">
             <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Two picked, search open</p>
             <PhotoFinder value={finderPicked} onChange={setFinderPicked}
+              suggestedQuery="Leviathan Box Set Warhammer 40,000" initialResults={DEMO_WEB_RESULTS} />
+          </div>
+          <div className="w-80">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">searchOnly (inside ImageEditor)</p>
+            <PhotoFinder searchOnly value={finderPicked} onChange={setFinderPicked}
               suggestedQuery="Leviathan Box Set Warhammer 40,000" initialResults={DEMO_WEB_RESULTS} />
           </div>
         </div>
