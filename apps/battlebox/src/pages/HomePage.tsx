@@ -16,6 +16,8 @@ import { AddModelModal } from '../components/AddModelModal';
 import { AddCollectionModal } from '../components/AddCollectionModal';
 import { AddModelsToCollectionModal } from '../components/AddModelsToCollectionModal';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
+import { RecipeItem, RecipeGridItem } from '../components/RecipeItem';
+import { EditRecipeModal } from '../components/EditRecipeModal';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
 import { PaintPackFilterSheet } from '../components/PaintPackFilterSheet';
@@ -26,8 +28,9 @@ import {
   useModels, useBoxes, useMatchingGameIds,
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
   EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, matchesCollectionPaint,
+  useRecipes, useRecipeDetail, createRecipe, deleteRecipe,
 } from '../hooks/useCollection';
-import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters } from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters, RecipeSummary } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -52,6 +55,16 @@ const PaintsHeaderIcon = () => (
     <circle cx="15" cy="20" r="2.2" fill="currentColor"/>
     <circle cx="24" cy="15" r="2.2" fill="currentColor"/>
     <circle cx="33" cy="20" r="2.2" fill="currentColor"/>
+  </svg>
+);
+
+/** A brush over a swatch card — a recipe is paints in an order. */
+const RecipesHeaderIcon = () => (
+  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="7" y="9" width="24" height="31" rx="3" stroke="currentColor" strokeWidth="2.5" />
+    <circle cx="14" cy="17" r="2.2" fill="currentColor" />
+    <path d="M19 17h6M12 25h13M12 32h9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M41 10 30 30l-2.5 5 4.5-3.5L43 12a1.4 1.4 0 0 0-2-2Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
   </svg>
 );
 
@@ -287,6 +300,86 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   );
 }
 
+// ── Your Recipes ──────────────────────────────────────────────────────────────
+
+function RecipesColumn({ userId, isDesktop, onOpenModel }: {
+  userId: string | null;
+  isDesktop: boolean;
+  onOpenModel: (id: string) => void;
+}) {
+  const [view,     setView]     = useState<View>('list');
+  const [search,   setSearch]   = useState('');
+  const [recipeId, setRecipeId] = useState<string | null>(null);
+  /** The Add Recipe form is open (and stays "creating" until the new row loads). */
+  const [creating, setCreating] = useState(false);
+  const query = useDebouncedValue(search.trim(), 300);
+
+  const { recipes, loading, loadingMore, hasMore, loadMore, refetch } = useRecipes(userId, query);
+  const detail = useRecipeDetail(recipeId);
+  // Ignore the previous recipe while the next one loads.
+  const current = detail.recipe?.id === recipeId ? detail.recipe : null;
+  const gallery = isDesktop && view === 'gallery';
+
+  useEffect(() => { if (current) setCreating(false); }, [current]);
+
+  const close = () => { setRecipeId(null); setCreating(false); };
+  const changed = () => { detail.refetch(); refetch(); };
+
+  return (
+    <>
+    <ScrollColumn<RecipeSummary>
+      icon={<RecipesHeaderIcon />}
+      title="Your Recipes"
+      description="Paint recipes you've saved."
+      toggle={isDesktop ? viewToggle(view, setView) : undefined}
+      wide={gallery}
+      beforeList={
+        <Input
+          size="sm" type="search" className="w-full shrink-0"
+          placeholder="Search recipes…"
+          leftIcon={<Magnifer className="w-4 h-4" />}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      }
+      items={recipes}
+      loading={loading}
+      empty={query ? 'No recipes match your search.' : 'No recipes yet.'}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={loadMore}
+      listClassName={gallery ? GRID_LIST : ROW_LIST}
+      getKey={r => r.id}
+      renderItem={r => (gallery
+        ? <RecipeGridItem recipe={r} onClick={() => setRecipeId(r.id)} />
+        : <RecipeItem     recipe={r} onClick={() => setRecipeId(r.id)} />)}
+      footer={<AddButton label="Add Recipe" onClick={() => { setRecipeId(null); setCreating(true); }} />}
+    />
+    <EditRecipeModal
+      open={creating || recipeId !== null}
+      recipe={current}
+      models={detail.models}
+      onClose={close}
+      onChanged={changed}
+      onOpenModel={id => { close(); onOpenModel(id); }}
+      onDelete={async () => {
+        if (!recipeId) return;
+        await deleteRecipe(recipeId);
+        close();
+        refetch();
+      }}
+      onCreate={creating ? async fields => {
+        const id = await createRecipe(fields);
+        if (!id) return false;
+        setRecipeId(id);
+        refetch();
+        return true;
+      } : undefined}
+    />
+    </>
+  );
+}
+
 // ── Paints (packs) ────────────────────────────────────────────────────────────
 
 function PaintsColumn({ userId }: { userId: string | null }) {
@@ -422,6 +515,7 @@ export default function HomePage() {
               userId={userId} isDesktop={isDesktop}
               boxId={boxId} onOpenBox={openBox} onCloseBox={() => setBoxId(null)} onOpenModel={openModel}
             />
+            <RecipesColumn userId={userId} isDesktop={isDesktop} onOpenModel={openModel} />
             <PaintsColumn userId={userId} />
           </div>
         </main>

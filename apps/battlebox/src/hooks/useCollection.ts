@@ -197,6 +197,8 @@ function usePagedCollection<Row, T>(
   map: (row: Row) => T,
   /** Adds filters to the query (e.g. status). Must be stable across renders. */
   applyFilter: QueryStep = NO_FILTER,
+  /** The column holding the row's owner — recipes call it `owner`. */
+  ownerColumn = 'user_id',
 ): PagedList<T> {
   const [items,       setItems]       = useState<T[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -218,12 +220,12 @@ function usePagedCollection<Row, T>(
       supabase
         .from(table)
         .select(select)
-        .eq('user_id', userId!)
+        .eq(ownerColumn, userId!)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false }))
       .range(from, to)
       .then(({ data }: { data: unknown }) => ((data as Row[]) ?? []).map(map)),
-    [userId, table, select, map, applyFilter]);
+    [userId, table, select, map, applyFilter, ownerColumn]);
 
   const load = useCallback(async () => {
     const gen = ++genRef.current;
@@ -476,6 +478,8 @@ export interface ModelRecipeGroup {
   name: string;
   description: string | null;
   paints: PaintRef[];
+  /** The recipe's photos as URLs, cover first. */
+  images: string[];
 }
 
 export interface ModelDetail {
@@ -501,6 +505,35 @@ export interface ModelDetail {
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
 
+/** A recipe with its ordered paints and its photos — shared by the model
+ *  detail embed and the Recipes column. */
+interface RecipeRow {
+  id: string;
+  name: string;
+  description: string | null;
+  recipe_items: { display_order: number; hobby_item: HobbyItemRef | null }[] | null;
+  recipe_images: ModelImageRow[] | null;
+}
+
+const RECIPE_SELECT =
+  'id, name, description, ' +
+  'recipe_items ( display_order, hobby_item:hobby_items ( id, name, brand, type, swatch, owner ) ), ' +
+  'recipe_images ( image_path, is_primary, display_order )';
+
+function mapRecipeGroup(r: RecipeRow): ModelRecipeGroup {
+  return {
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    paints: (r.recipe_items ?? [])
+      .slice()
+      .sort((a, b) => a.display_order - b.display_order)
+      .map(ri => paintRef(ri.hobby_item, null))
+      .filter((p): p is PaintRef => !!p),
+    images: modelCarouselImages(r.recipe_images, null),
+  };
+}
+
 interface ModelDetailRow {
   id: string;
   name: string;
@@ -518,7 +551,7 @@ interface ModelDetailRow {
   model_recipes: {
     description: string | null;
     sort_order: number;
-    recipe: { id: string; name: string; description: string | null; recipe_items: { display_order: number; hobby_item: HobbyItemRef | null }[] | null } | null;
+    recipe: RecipeRow | null;
   }[] | null;
   model_hobby_items: { section: string | null; sort_order: number; hobby_item: HobbyItemRef | null }[] | null;
 }
@@ -529,7 +562,7 @@ const MODEL_DETAIL_SELECT =
   'model_images ( image_path, is_primary, display_order ), ' +
   'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
     'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
-  'model_recipes ( description, sort_order, recipe:recipes ( id, name, description, recipe_items ( display_order, hobby_item:hobby_items ( id, name, brand, type, swatch, owner ) ) ) ), ' +
+  `model_recipes ( description, sort_order, recipe:recipes ( ${RECIPE_SELECT} ) ), ` +
   'model_hobby_items ( section, sort_order, hobby_item:hobby_items ( id, name, brand, type, swatch, owner ) )';
 
 function paintRef(h: HobbyItemRef | null, note: string | null): PaintRef | null {
@@ -555,16 +588,9 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
     recipes: (r.model_recipes ?? [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map(mr => ({
-        id: mr.recipe?.id ?? '',
-        name: mr.recipe?.name ?? 'Recipe',
-        description: mr.description || mr.recipe?.description || null,
-        paints: (mr.recipe?.recipe_items ?? [])
-          .slice()
-          .sort((a, b) => a.display_order - b.display_order)
-          .map(ri => paintRef(ri.hobby_item, null))
-          .filter(isPaint),
-      })),
+      .map(mr => mr.recipe
+        ? { ...mapRecipeGroup(mr.recipe), description: mr.description || mr.recipe.description || null }
+        : { id: '', name: 'Recipe', description: mr.description || null, paints: [], images: [] }),
     directPaints: (r.model_hobby_items ?? [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -1098,4 +1124,96 @@ export function addRecipeItems(recipeId: string, hobbyItemIds: number[], startOr
 /** Remove a paint from a recipe. */
 export function removeRecipeItem(recipeId: string, hobbyItemId: number) {
   return supabase.from('recipe_items').delete().eq('recipe_id', recipeId).eq('hobby_item_id', hobbyItemId);
+}
+
+// ── Recipe library (the Recipes column) ───────────────────────────────────────
+
+/** A recipe as listed in the Recipes column. */
+export interface RecipeSummary extends ModelRecipeGroup {
+  /** How many of the user's models use this recipe. */
+  modelCount: number;
+}
+
+interface RecipeListRow extends RecipeRow {
+  model_recipes: { model_id: string }[] | null;
+}
+
+const RECIPE_LIST_SELECT = `${RECIPE_SELECT}, model_recipes ( model_id )`;
+
+function mapRecipeSummary(r: RecipeListRow): RecipeSummary {
+  return { ...mapRecipeGroup(r), modelCount: r.model_recipes?.length ?? 0 };
+}
+
+/** The user's recipes, newest first, name-searched, paged as the column scrolls. */
+export function useRecipes(userId: string | null, search = '') {
+  const applyFilter = useCallback<QueryStep>(
+    q => (search ? q.ilike('name', `%${search}%`) : q),
+    [search],
+  );
+  const { items, ...rest } = usePagedCollection<RecipeListRow, RecipeSummary>(
+    userId, 'recipes', RECIPE_LIST_SELECT, mapRecipeSummary, applyFilter, 'owner');
+  return { recipes: items, ...rest };
+}
+
+/** One recipe in full, plus the models that use it — for the recipe modal. */
+export function useRecipeDetail(recipeId: string | null) {
+  const [recipe,  setRecipe]  = useState<ModelRecipeGroup | null>(null);
+  const [models,  setModels]  = useState<CollectionModel[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const refetch = useCallback(async () => {
+    if (!recipeId) { setRecipe(null); setModels([]); setLoading(false); return; }
+    setLoading(true);
+    const [r, m] = await Promise.all([
+      supabase.from('recipes').select(RECIPE_SELECT).eq('id', recipeId).maybeSingle(),
+      supabase.from('model_recipes').select(`model:models ( ${MODEL_SELECT} )`).eq('recipe_id', recipeId),
+    ]);
+    setRecipe(r.data ? mapRecipeGroup(r.data as unknown as RecipeRow) : null);
+    setModels(((m.data as unknown as { model: ModelRow | null }[]) ?? [])
+      .map(x => x.model).filter((x): x is ModelRow => !!x).map(mapModel)
+      .sort((a, b) => a.name.localeCompare(b.name)));
+    setLoading(false);
+  }, [recipeId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { recipe, models, loading, refetch };
+}
+
+/** Delete a recipe from the library. Its paint list, photo rows and every
+ *  model link go with it (ON DELETE CASCADE); the paints themselves stay. */
+export function deleteRecipe(recipeId: string) {
+  return supabase.from('recipes').delete().eq('id', recipeId);
+}
+
+// ── Recipe photos (recipe_images) ─────────────────────────────────────────────
+
+export async function fetchRecipeImages(recipeId: string): Promise<EditableImage[]> {
+  const { data } = await supabase.from('recipe_images')
+    .select('id, image_path, is_primary, display_order')
+    .eq('recipe_id', recipeId);
+  return ((data as { id: string; image_path: string; is_primary: boolean; display_order: number }[]) ?? [])
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
+    .map(r => ({ id: r.id, url: modelImageUrl(r.image_path) ?? '', isPrimary: r.is_primary, imagePath: r.image_path }))
+    .filter(i => i.url);
+}
+
+export async function uploadRecipeImage(recipeId: string, userId: string, file: File, isPrimary: boolean): Promise<{ error: string | null }> {
+  const path = newImagePath(userId, file.name);
+  const { error: upErr } = await supabase.storage.from('model-images')
+    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+  if (upErr) return { error: upErr.message };
+  const { error: insErr } = await supabase.from('recipe_images')
+    .insert({ recipe_id: recipeId, image_path: path, user_id: userId, is_primary: isPrimary });
+  return { error: insErr?.message ?? null };
+}
+
+/** Row only — the storage object stays, as with model and collection photos. */
+export function deleteRecipeImage(id: string) {
+  return supabase.from('recipe_images').delete().eq('id', id);
+}
+
+export async function setRecipePrimaryImage(recipeId: string, id: string) {
+  await supabase.from('recipe_images').update({ is_primary: false }).eq('recipe_id', recipeId);
+  return supabase.from('recipe_images').update({ is_primary: true }).eq('id', id);
 }

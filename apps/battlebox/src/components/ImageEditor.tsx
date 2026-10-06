@@ -1,5 +1,5 @@
 /**
- * ImageEditor.tsx — Manage the photos on a model or collection: add (upload),
+ * ImageEditor.tsx — Manage the photos on a model, collection or recipe: add (upload),
  * remove, and pick which one is the cover. Operations apply immediately (there
  * is no separate save step), mirroring the battle-photo editor.
  */
@@ -7,29 +7,36 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   useUserId,
-  fetchModelImages, fetchBoxImages,
-  uploadModelImage, uploadBoxImage,
-  deleteModelImage, deleteBoxImage,
-  setModelPrimaryImage, setBoxPrimaryImage,
+  fetchModelImages, fetchBoxImages, fetchRecipeImages,
+  uploadModelImage, uploadBoxImage, uploadRecipeImage,
+  deleteModelImage, deleteBoxImage, deleteRecipeImage,
+  setModelPrimaryImage, setBoxPrimaryImage, setRecipePrimaryImage,
   type EditableImage,
 } from '../hooks/useCollection';
 
+/** The photo operations for each kind of thing that has photos. */
+const OPS = {
+  model:  { fetch: fetchModelImages,  upload: uploadModelImage,  remove: deleteModelImage,  setPrimary: setModelPrimaryImage },
+  box:    { fetch: fetchBoxImages,    upload: uploadBoxImage,    remove: deleteBoxImage,    setPrimary: setBoxPrimaryImage },
+  recipe: { fetch: fetchRecipeImages, upload: uploadRecipeImage, remove: deleteRecipeImage, setPrimary: setRecipePrimaryImage },
+};
+
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
-const StarIcon = ({ filled = false, className = 'w-4 h-4' }: { filled?: boolean; className?: string }) => (
+export const StarIcon = ({ filled = false, className = 'w-4 h-4' }: { filled?: boolean; className?: string }) => (
   <svg viewBox="0 0 16 16" fill={filled ? 'currentColor' : 'none'} xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M8 1.8l1.7 3.6 3.9.5-2.9 2.7.8 3.9L8 12.7 4.5 12.8l.8-3.9L2.4 6.4l3.9-.5L8 1.8z"
       stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
   </svg>
 );
 
-const TrashIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+export const TrashIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M3 4.5h10M6.5 4V3h3v1M5 4.5l.5 8h5l.5-8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-const PlusIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+export const PlusIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M10 5v10M5 10h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
@@ -38,7 +45,7 @@ const PlusIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ImageEditor({ kind, id, onChanged }: {
-  kind: 'model' | 'box';
+  kind: keyof typeof OPS;
   id: string;
   /** Bubble up so the detail modal + list refresh their carousels too. */
   onChanged?: () => void;
@@ -51,7 +58,7 @@ export function ImageEditor({ kind, id, onChanged }: {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
-    const rows = kind === 'model' ? await fetchModelImages(id) : await fetchBoxImages(id);
+    const rows = await OPS[kind].fetch(id);
     setImages(rows);
     setLoading(false);
   }, [kind, id]);
@@ -68,8 +75,7 @@ export function ImageEditor({ kind, id, onChanged }: {
     let hadError = false;
     let firstUpload = images.length === 0;
     for (const file of files) {
-      const upload = kind === 'model' ? uploadModelImage : uploadBoxImage;
-      const { error: err } = await upload(id, userId, file, firstUpload);
+      const { error: err } = await OPS[kind].upload(id, userId, file, firstUpload);
       if (err) hadError = true; else firstUpload = false;
     }
     setBusy(false);
@@ -79,8 +85,7 @@ export function ImageEditor({ kind, id, onChanged }: {
 
   const handleRemove = async (imgId: string) => {
     setBusy(true); setError(null);
-    const del = kind === 'model' ? deleteModelImage : deleteBoxImage;
-    const { error: err } = await del(imgId);
+    const { error: err } = await OPS[kind].remove(imgId);
     setBusy(false);
     if (err) { setError('Could not remove the photo.'); return; }
     bubble();
@@ -88,8 +93,7 @@ export function ImageEditor({ kind, id, onChanged }: {
 
   const handleSetPrimary = async (imgId: string) => {
     setBusy(true); setError(null);
-    const set = kind === 'model' ? setModelPrimaryImage : setBoxPrimaryImage;
-    const { error: err } = await set(id, imgId);
+    const { error: err } = await OPS[kind].setPrimary(id, imgId);
     setBusy(false);
     if (err) { setError('Could not set the cover photo.'); return; }
     bubble();
