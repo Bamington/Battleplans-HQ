@@ -5,23 +5,21 @@
  * PendingPhotos, and the Add form uploads them once the row is created (see
  * uploadPendingPhotos). The first photo becomes the cover.
  *
- * Compare ImageEditor, which manages photos on a row that already exists.
+ * Compare ImageEditor, which manages photos on a row that already exists — it
+ * reuses this in `searchOnly` mode (just the web search), saving each pick
+ * the moment it's tapped.
  */
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Button, Input, Magnifer } from '@battleplans/ui';
-import { StarIcon, TrashIcon, PlusIcon } from './ImageEditor';
+import { StarIcon, TrashIcon, PlusIcon, CheckIcon } from './paintPickerBits';
 import { searchWebImages } from '../lib/imageSearch';
 import type { PendingPhoto, WebImage } from '../lib/imageSearch';
-
-const CheckIcon = ({ className = 'w-3 h-3' }: { className?: string }) => (
-  <svg viewBox="0 0 10 8" fill="none" className={className}><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-);
 
 let nextId = 0;
 const newId = () => `pending-${++nextId}`;
 
-export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initialResults }: {
+export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initialResults, searchOnly = false, disabled = false }: {
   value: PendingPhoto[];
   onChange: (photos: PendingPhoto[]) => void;
   /** What to search for by default — the name, plus the game when known. */
@@ -30,6 +28,12 @@ export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initi
   searchHint?: string;
   /** Gallery only: start with the search panel open on these results. */
   initialResults?: WebImage[];
+  /** Just the web search — no label, staged grid or Upload tile, and a picked
+   *  result can't be un-picked (the caller has already saved it). For
+   *  ImageEditor, which shows saved photos itself. */
+  searchOnly?: boolean;
+  /** Ignore taps on results (e.g. while the caller is saving one). */
+  disabled?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [searchOpen, setSearchOpen] = useState(!!initialResults);
@@ -62,7 +66,9 @@ export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initi
   const pickedImages = new Set(value.flatMap(p => (p.source.kind === 'web' ? [p.source.image.image] : [])));
 
   const toggleWeb = (img: WebImage) => {
+    if (disabled) return;
     if (pickedImages.has(img.image)) {
+      if (searchOnly) return;   // already saved — removing happens in the photo grid
       onChange(value.filter(p => !(p.source.kind === 'web' && p.source.image.image === img.image)));
     } else {
       onChange([...value, { id: newId(), preview: img.thumbnail, source: { kind: 'web', image: img } }]);
@@ -88,6 +94,7 @@ export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initi
 
   return (
     <div className="flex flex-col gap-2">
+      {!searchOnly && <>
       <span className="font-body text-sm font-medium text-white">Photos <span className="text-neutral-500 font-normal">(optional)</span></span>
 
       <div className="grid grid-cols-3 gap-2">
@@ -121,6 +128,7 @@ export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initi
         </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={addFiles} />
+      </>}
 
       {!searchOpen ? (
         <Button variant="outline" color="primary" size="sm" leftIcon={<Magnifer className="w-4 h-4" />}
@@ -147,7 +155,9 @@ export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initi
             <p className="font-body text-xs text-neutral-400 text-center py-3">No photos found. Try different words.</p>
           ) : results.length > 0 && (
             <>
-              <p className="font-body text-xs text-neutral-400">Tap the photos you want to use.</p>
+              <p className="font-body text-xs text-neutral-400">
+                {searchOnly ? 'Tap a photo to add it.' : 'Tap the photos you want to use.'}
+              </p>
               <div className={`grid grid-cols-3 gap-1.5 max-h-72 overflow-y-auto${searching ? ' opacity-50' : ''}`}>
                 {results.map(img => {
                   const picked = pickedImages.has(img.image);

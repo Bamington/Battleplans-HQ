@@ -12,7 +12,7 @@ import { GamePicker } from './GamePicker';
 import { CollectionPicker } from './CollectionPicker';
 import { PhotoFinder } from './PhotoFinder';
 import { Chip } from './filterControls';
-import { createModel, addModelToBox, uploadModelImage, useAllGames } from '../hooks/useCollection';
+import { createModel, addModelToBox, uploadModelImage, useAllGames, useRecentGameIds } from '../hooks/useCollection';
 import type { ModelStatus } from '../hooks/useCollection';
 import { uploadPendingPhotos, releasePendingPhotos } from '../lib/imageSearch';
 import type { PendingPhoto } from '../lib/imageSearch';
@@ -62,6 +62,7 @@ export function AddModelModal({
   /** Set when the model saved but some photos didn't — the form stays up to say so. */
   const [savedId, setSavedId] = useState<string | null>(null);
   const games = useAllGames(open);
+  const recentGameIds = useRecentGameIds(userId, open);
   const gameName = games.find(g => g.id === gameId)?.name ?? '';
 
   // Start from a clean form each time the modal opens — seeded with whatever
@@ -124,7 +125,7 @@ export function AddModelModal({
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Game</span>
-            <GamePicker value={gameId} onChange={setGameId} enabled={open} />
+            <GamePicker value={gameId} onChange={setGameId} enabled={open} recentIds={recentGameIds} />
           </div>
 
           <Input label="Model Count" type="number" min={1} value={String(count)} onChange={e => setCount(parseInt(e.target.value, 10) || 1)} />

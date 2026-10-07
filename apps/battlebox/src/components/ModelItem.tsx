@@ -42,7 +42,7 @@ export function clickableProps(onClick?: () => void) {
 }
 
 /** Interactive-card classes shared by list rows and gallery cards. */
-const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500';
+const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500';
 
 // ── Thumbnail ─────────────────────────────────────────────────────────────────
 // A square that bleeds to the card edges. Auto-rotates through the item's photos

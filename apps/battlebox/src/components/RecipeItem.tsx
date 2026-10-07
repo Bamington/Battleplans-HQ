@@ -12,7 +12,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 /** Swatches shown before the rest collapse into "+N". */
 const MAX_SWATCHES = 8;
 
-const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500';
+const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500';
 
 const PaletteIcon = () => (
   <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">

@@ -3,7 +3,7 @@ import { GAME_ICONS } from './gameIcons';
 import { CollectionThumb, CardHero, clickableProps } from './ModelItem';
 import type { CollectionBox } from '../hooks/useCollection';
 
-const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500';
+const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500';
 
 // ── Shared content body ───────────────────────────────────────────────────────
 

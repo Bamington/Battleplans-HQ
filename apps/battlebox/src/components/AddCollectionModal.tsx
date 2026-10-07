@@ -11,7 +11,7 @@ import { CloseIcon } from './paintPickerBits';
 import { GamePicker } from './GamePicker';
 import { PhotoFinder } from './PhotoFinder';
 import { Chip } from './filterControls';
-import { createBox, uploadBoxImage, useAllGames } from '../hooks/useCollection';
+import { createBox, uploadBoxImage, useAllGames, useRecentGameIds } from '../hooks/useCollection';
 import { uploadPendingPhotos, releasePendingPhotos } from '../lib/imageSearch';
 import type { PendingPhoto } from '../lib/imageSearch';
 
@@ -47,6 +47,7 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
   /** Set when the collection saved but some photos didn't — the form stays up to say so. */
   const [saved, setSaved] = useState<{ id: string; addModels: boolean } | null>(null);
   const games = useAllGames(open);
+  const recentGameIds = useRecentGameIds(userId, open);
   const gameName = games.find(g => g.id === gameId)?.name ?? '';
 
   // Start from a clean form each time the modal opens.
@@ -106,7 +107,7 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Game</span>
-            <GamePicker value={gameId} onChange={setGameId} enabled={open} />
+            <GamePicker value={gameId} onChange={setGameId} enabled={open} recentIds={recentGameIds} />
           </div>
 
           <div className="flex flex-col gap-1.5">

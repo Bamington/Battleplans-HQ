@@ -9,7 +9,7 @@ import { Button, Input } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { GamePicker } from './GamePicker';
 import { ImageEditor } from './ImageEditor';
-import { fetchModelEdit, updateModelInfo } from '../hooks/useCollection';
+import { fetchModelEdit, updateModelInfo, useAllGames } from '../hooks/useCollection';
 
 function DateField({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string | null) => void }) {
   return (
@@ -36,6 +36,9 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
   const [paintedDate, setPaintedDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const games = useAllGames(open);
+  /** What "Find a photo online" searches for — follows edits to the name/game. */
+  const searchQuery = [name.trim(), games.find(g => g.id === gameId)?.name ?? ''].filter(Boolean).join(' ');
 
   useEffect(() => {
     if (!open || !modelId) return;
@@ -90,7 +93,7 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
               <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
             </div>
 
-            {modelId && <ImageEditor kind="model" id={modelId} onChanged={onChanged} />}
+            {modelId && <ImageEditor kind="model" id={modelId} onChanged={onChanged} searchQuery={searchQuery} />}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>

@@ -25,7 +25,7 @@ export function BattleGridItem({ photoUrl, onClick, ...fields }: BattleCardField
   return (
     <div
       {...clickableProps(onClick)}
-      className={`bg-neutral-800 border border-neutral-700 rounded-lg flex flex-col gap-1.5 shadow-md overflow-hidden w-full max-w-[384px]${onClick ? ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500' : ''}`}
+      className={`bg-neutral-800 border border-neutral-700 rounded-lg flex flex-col gap-1.5 shadow-md overflow-hidden w-full max-w-[384px]${onClick ? ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500' : ''}`}
     >
       {/* Photo hero, or a game-branded placeholder when the battle has no photo:
           the game icon blurred as a colour backdrop with the crisp icon centred. */}
