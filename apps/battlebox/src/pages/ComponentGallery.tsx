@@ -743,7 +743,10 @@ const ComponentGallery = () => {
             empty states. CollectionPicker is scoped by <code>gameId</code> — that
             is why the add-model flow picks a game first — and{' '}
             <code>enabled={'{false}'}</code> is how it stays disabled until one is
-            chosen.
+            chosen. GamePicker also takes <code>recentIds</code> (from{' '}
+            <code>useRecentGameIds</code>): those games list first, above a
+            divider, then the rest A–Z — the Add Model / Add Collection forms
+            pass the user's recently used games.
           </GalleryNote>
         </div>
       </GallerySection>

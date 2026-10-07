@@ -752,6 +752,43 @@ export function useAllGames(enabled: boolean): GameOption[] {
   return games;
 }
 
+/** How much recent history (per table) to scan to find `limit` distinct games. */
+const RECENT_GAME_SCAN_ROWS = 50;
+
+/**
+ * The games on the user's most recently added collections and models, newest
+ * first and de-duplicated — floated to the top of the GamePicker. Mirrors
+ * BattlePlan's useRecentBookedGames, with "recently added" standing in for
+ * "recently booked".
+ */
+export function useRecentGameIds(userId: string | null, enabled: boolean, limit = 5): string[] {
+  const [ids, setIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!enabled || !userId) return;
+    let cancelled = false;
+    const recent = (table: 'boxes' | 'models') => supabase.from(table)
+      .select('game_id, created_at')
+      .eq('user_id', userId)
+      .not('game_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(RECENT_GAME_SCAN_ROWS);
+    Promise.all([recent('boxes'), recent('models')]).then(([b, m]) => {
+      if (cancelled) return;
+      type Row = { game_id: string; created_at: string | null };
+      const rows = [...((b.data as Row[] | null) ?? []), ...((m.data as Row[] | null) ?? [])]
+        .sort((x, y) => (y.created_at ?? '').localeCompare(x.created_at ?? ''));
+      const seen: string[] = [];
+      for (const r of rows) {
+        if (!seen.includes(r.game_id)) seen.push(r.game_id);
+        if (seen.length >= limit) break;
+      }
+      setIds(seen);
+    });
+    return () => { cancelled = true; };
+  }, [userId, enabled, limit]);
+  return ids;
+}
+
 export interface ModelEditFields { name: string; game_id: string | null; count: number; purchase_date: string | null; painted_date: string | null }
 export interface BoxEditFields   { name: string; type: 'Box' | 'Collection'; game_id: string | null; purchase_date: string | null; includes_string: string | null }
 
