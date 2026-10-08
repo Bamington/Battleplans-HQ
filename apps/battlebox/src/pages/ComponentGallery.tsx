@@ -203,9 +203,9 @@ const DEMO_RECIPE_EMPTY: RecipeSummary = {
 
 /** Shopping list items: plain, with notes + photo, and bought. */
 const DEMO_SHOPPING: ShoppingItem[] = [
-  { id: 'sh-1', title: 'Nuln Oil', notes: null, imageUrl: null, bought: false, boughtAt: null, createdAt: '2026-10-08T00:00:00Z' },
-  { id: 'sh-2', title: 'Leviathan Box Set', notes: 'Check the local store first — they had it for $20 less last month.', imageUrl: PHOTO_A, bought: false, boughtAt: null, createdAt: '2026-10-07T00:00:00Z' },
-  { id: 'sh-3', title: 'Super glue', notes: 'The thin one', imageUrl: null, bought: true, boughtAt: '2026-10-08T01:00:00Z', createdAt: '2026-10-01T00:00:00Z' },
+  { id: 'sh-1', title: 'Nuln Oil', category: 'paint', notes: null, imageUrl: null, bought: false, boughtAt: null, createdAt: '2026-10-08T00:00:00Z' },
+  { id: 'sh-2', title: 'Leviathan Box Set', category: 'model', notes: 'Check the local store first — they had it for $20 less last month.', imageUrl: PHOTO_A, bought: false, boughtAt: null, createdAt: '2026-10-07T00:00:00Z' },
+  { id: 'sh-3', title: 'Super glue', category: 'other', notes: 'The thin one', imageUrl: null, bought: true, boughtAt: '2026-10-08T01:00:00Z', createdAt: '2026-10-01T00:00:00Z' },
 ];
 
 /** Web results as the image-search function returns them. */
@@ -392,7 +392,8 @@ const ComponentGallery = () => {
         </div>
         <GalleryNote>
           States: a bare item, one with notes and a photo, and a bought item
-          (dimmed, struck through). The tick box toggles without opening the row.
+          (dimmed, struck through) — one of each category, so all three
+          category badges (Paint, Box/Model, Other) show. The tick box toggles without opening the row.
           The modal saves title/notes by id, so with these stub items Save fails
           and its photo editor shows empty — it's here for the layout. Its photo
           is ImageEditor with <code>kind="shopping"</code> and{' '}

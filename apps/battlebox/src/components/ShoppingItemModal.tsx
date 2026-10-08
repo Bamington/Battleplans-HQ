@@ -1,6 +1,6 @@
 /**
- * ShoppingItemModal.tsx — Edit a shopping list item: its title, notes and one
- * optional photo (upload, or "Find a photo online" searching for the title).
+ * ShoppingItemModal.tsx — Edit a shopping list item: its title, type
+ * (Box/Model, Paint, Other), notes and one optional photo (upload, or "Find a photo online" searching for the title).
  * Items are created from the column's quick-add field by name alone; this is
  * where the details go.
  *
@@ -14,8 +14,9 @@ import { Button, Input } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { ImageEditor } from './ImageEditor';
 import { ConfirmDialog } from './ConfirmDialog';
-import { updateShoppingItem } from '../hooks/useShoppingList';
-import type { ShoppingItem } from '../hooks/useShoppingList';
+import { Chip } from './filterControls';
+import { updateShoppingItem, SHOPPING_CATEGORIES } from '../hooks/useShoppingList';
+import type { ShoppingItem, ShoppingCategory } from '../hooks/useShoppingList';
 
 export function ShoppingItemModal({ item, onClose, onChanged, onDelete }: {
   /** The item to edit; null closes the modal. */
@@ -26,6 +27,7 @@ export function ShoppingItemModal({ item, onClose, onChanged, onDelete }: {
   onDelete: (item: ShoppingItem) => Promise<void> | void;
 }) {
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<ShoppingCategory>('other');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function ShoppingItemModal({ item, onClose, onChanged, onDelete }: {
 
   useEffect(() => {
     if (!item) return;
-    setTitle(item.title); setNotes(item.notes ?? '');
+    setTitle(item.title); setCategory(item.category); setNotes(item.notes ?? '');
     setSaving(false); setError(null); setConfirmDelete(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
@@ -42,7 +44,7 @@ export function ShoppingItemModal({ item, onClose, onChanged, onDelete }: {
 
   const save = async () => {
     setSaving(true); setError(null);
-    const { error: err } = await updateShoppingItem(item.id, { title: title.trim(), notes: notes.trim() || null });
+    const { error: err } = await updateShoppingItem(item.id, { title: title.trim(), category, notes: notes.trim() || null });
     setSaving(false);
     if (err) { setError('Could not save. Please try again.'); return; }
     onChanged();
@@ -59,6 +61,15 @@ export function ShoppingItemModal({ item, onClose, onChanged, onDelete }: {
 
         <div className="px-5 py-4 flex flex-col gap-4">
           <Input label="Title" required value={title} onChange={e => setTitle(e.target.value)} />
+
+          <div className="flex flex-col gap-1.5">
+            <span className="font-body text-sm font-medium text-white">Type</span>
+            <div className="flex flex-wrap gap-2">
+              {SHOPPING_CATEGORIES.map(c => (
+                <Chip key={c.value} label={c.label} selected={category === c.value} onClick={() => setCategory(c.value)} />
+              ))}
+            </div>
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Notes</span>

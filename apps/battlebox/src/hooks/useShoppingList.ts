@@ -1,8 +1,8 @@
 /**
  * useShoppingList.ts — The user's shopping list (shopping_list_items).
  *
- * Deliberately simple: a title, free-text notes, one optional photo, and a
- * bought flag. Ticking an item off just marks it bought — nothing is created
+ * Deliberately simple: a title, a category (Box/Model, Paint or Other — just a
+ * label for now), free-text notes, one optional photo, and a bought flag. Ticking an item off just marks it bought — nothing is created
  * elsewhere in the collection.
  */
 
@@ -11,9 +11,24 @@ import { supabase } from '@battleplans/ui';
 import { modelImageUrl } from './useCollection';
 import type { EditableImage } from './useCollection';
 
+/** What kind of thing an item is — asked for when it's added. Only a label
+ *  for now; later work will hang behaviour off it. */
+export type ShoppingCategory = 'model' | 'paint' | 'other';
+
+/** The categories in the order they're offered, with their display labels. */
+export const SHOPPING_CATEGORIES: { value: ShoppingCategory; label: string }[] = [
+  { value: 'model', label: 'Box/Model' },
+  { value: 'paint', label: 'Paint' },
+  { value: 'other', label: 'Other' },
+];
+
+export const shoppingCategoryLabel = (c: ShoppingCategory) =>
+  SHOPPING_CATEGORIES.find(x => x.value === c)?.label ?? 'Other';
+
 export interface ShoppingItem {
   id: string;
   title: string;
+  category: ShoppingCategory;
   notes: string | null;
   /** The photo's display URL, or null. */
   imageUrl: string | null;
@@ -25,6 +40,7 @@ export interface ShoppingItem {
 interface ShoppingRow {
   id: string;
   title: string;
+  category: ShoppingCategory;
   notes: string | null;
   image_path: string | null;
   bought: boolean;
@@ -32,7 +48,7 @@ interface ShoppingRow {
   created_at: string;
 }
 
-const SELECT = 'id, title, notes, image_path, bought, bought_at, created_at';
+const SELECT = 'id, title, category, notes, image_path, bought, bought_at, created_at';
 /** A shopping list is short; load it whole rather than paging. */
 const MAX_ITEMS = 500;
 
@@ -40,6 +56,7 @@ function mapItem(r: ShoppingRow): ShoppingItem {
   return {
     id: r.id,
     title: r.title,
+    category: r.category ?? 'other',
     notes: r.notes,
     imageUrl: modelImageUrl(r.image_path),
     bought: r.bought,
@@ -83,16 +100,16 @@ export function useShoppingList(userId: string | null) {
   return { items, loading, refetch, setBought, setItems };
 }
 
-/** Add an item by name; returns the new row, or null on failure. */
-export async function addShoppingItem(userId: string, title: string): Promise<ShoppingItem | null> {
+/** Add an item by name and category; returns the new row, or null on failure. */
+export async function addShoppingItem(userId: string, title: string, category: ShoppingCategory): Promise<ShoppingItem | null> {
   const { data, error } = await supabase.from('shopping_list_items')
-    .insert({ user_id: userId, title: title.trim() })
+    .insert({ user_id: userId, title: title.trim(), category })
     .select(SELECT).single();
   if (error) { console.error('[addShoppingItem]', error); return null; }
   return mapItem(data as ShoppingRow);
 }
 
-export function updateShoppingItem(id: string, fields: { title: string; notes: string | null }) {
+export function updateShoppingItem(id: string, fields: { title: string; category: ShoppingCategory; notes: string | null }) {
   return supabase.from('shopping_list_items').update(fields).eq('id', id);
 }
 

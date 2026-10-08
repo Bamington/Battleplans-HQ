@@ -19,8 +19,9 @@ import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { RecipeItem, RecipeGridItem } from '../components/RecipeItem';
 import { ShoppingListItem } from '../components/ShoppingListItem';
 import { ShoppingItemModal } from '../components/ShoppingItemModal';
-import { useShoppingList, addShoppingItem, deleteShoppingItem, sortShoppingItems } from '../hooks/useShoppingList';
-import type { ShoppingItem } from '../hooks/useShoppingList';
+import { Chip } from '../components/filterControls';
+import { useShoppingList, addShoppingItem, deleteShoppingItem, sortShoppingItems, SHOPPING_CATEGORIES } from '../hooks/useShoppingList';
+import type { ShoppingItem, ShoppingCategory } from '../hooks/useShoppingList';
 import { EditRecipeModal } from '../components/EditRecipeModal';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
@@ -318,6 +319,9 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
 function ShoppingListColumn({ userId }: { userId: string | null }) {
   const { items, loading, refetch, setBought, setItems } = useShoppingList(userId);
   const [draft, setDraft] = useState('');
+  /** Picked before the name. Kept after adding, so several paints in a row
+   *  don't each need Paint choosing again. */
+  const [category, setCategory] = useState<ShoppingCategory | null>(null);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -327,12 +331,13 @@ function ShoppingListColumn({ userId }: { userId: string | null }) {
   // there's something still to buy above it to separate it from.
   const firstBoughtId = items.some(i => !i.bought) ? items.find(i => i.bought)?.id : undefined;
 
-  /** Quick add: type a name, press Enter. Details come later, from the item. */
+  /** Quick add: pick a type, type a name, press Enter. Details come later,
+   *  from the item. */
   const add = async () => {
     const title = draft.trim();
-    if (!title || !userId || adding) return;
+    if (!title || !category || !userId || adding) return;
     setAdding(true); setAddError(null);
-    const item = await addShoppingItem(userId, title);
+    const item = await addShoppingItem(userId, title, category);
     setAdding(false);
     if (!item) { setAddError('Could not add that. Please try again.'); return; }
     setDraft('');
@@ -346,17 +351,23 @@ function ShoppingListColumn({ userId }: { userId: string | null }) {
       title="Shopping List"
       description="Things you're planning to buy."
       beforeList={
-        <form className="flex flex-col gap-1 w-full shrink-0" onSubmit={e => { e.preventDefault(); add(); }}>
+        <form className="flex flex-col gap-2 w-full shrink-0" onSubmit={e => { e.preventDefault(); add(); }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-body text-xs text-neutral-400">Type</span>
+            {SHOPPING_CATEGORIES.map(c => (
+              <Chip key={c.value} label={c.label} selected={category === c.value} onClick={() => setCategory(c.value)} />
+            ))}
+          </div>
           <div className="flex gap-2">
             <Input
               size="sm" className="flex-1 min-w-0"
-              placeholder="Add an item…"
+              placeholder={category ? 'Add an item…' : 'Choose a type first'}
               aria-label="New shopping list item"
               value={draft}
               onChange={e => setDraft(e.target.value)}
             />
             <Button type="submit" size="sm" color="primary" leftIcon={<AddCircle className="w-4 h-4" />}
-              disabled={!draft.trim() || adding || !userId} loading={adding}>
+              disabled={!draft.trim() || !category || adding || !userId} loading={adding}>
               Add
             </Button>
           </div>
