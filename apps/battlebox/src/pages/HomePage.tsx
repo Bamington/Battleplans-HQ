@@ -17,6 +17,10 @@ import { AddCollectionModal } from '../components/AddCollectionModal';
 import { AddModelsToCollectionModal } from '../components/AddModelsToCollectionModal';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { RecipeItem, RecipeGridItem } from '../components/RecipeItem';
+import { ShoppingListItem } from '../components/ShoppingListItem';
+import { ShoppingItemModal } from '../components/ShoppingItemModal';
+import { useShoppingList, addShoppingItem, deleteShoppingItem, sortShoppingItems } from '../hooks/useShoppingList';
+import type { ShoppingItem } from '../hooks/useShoppingList';
 import { EditRecipeModal } from '../components/EditRecipeModal';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
@@ -65,6 +69,15 @@ const RecipesHeaderIcon = () => (
     <circle cx="14" cy="17" r="2.2" fill="currentColor" />
     <path d="M19 17h6M12 25h13M12 32h9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     <path d="M41 10 30 30l-2.5 5 4.5-3.5L43 12a1.4 1.4 0 0 0-2-2Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+  </svg>
+);
+
+/** A shopping basket. */
+const ShoppingHeaderIcon = () => (
+  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 18h36l-4 20a3 3 0 0 1-3 2.4H13A3 3 0 0 1 10 38L6 18Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M16 18l6-10M32 18l-6-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M18 25v8M24 25v8M30 25v8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
   </svg>
 );
 
@@ -300,6 +313,84 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   );
 }
 
+// ── Shopping List ─────────────────────────────────────────────────────────────
+
+function ShoppingListColumn({ userId }: { userId: string | null }) {
+  const { items, loading, refetch, setBought, setItems } = useShoppingList(userId);
+  const [draft, setDraft] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = items.find(i => i.id === editingId) ?? null;
+
+  // The first bought item gets a "Bought" heading above it — but only when
+  // there's something still to buy above it to separate it from.
+  const firstBoughtId = items.some(i => !i.bought) ? items.find(i => i.bought)?.id : undefined;
+
+  /** Quick add: type a name, press Enter. Details come later, from the item. */
+  const add = async () => {
+    const title = draft.trim();
+    if (!title || !userId || adding) return;
+    setAdding(true); setAddError(null);
+    const item = await addShoppingItem(userId, title);
+    setAdding(false);
+    if (!item) { setAddError('Could not add that. Please try again.'); return; }
+    setDraft('');
+    setItems(prev => sortShoppingItems([item, ...prev]));
+  };
+
+  return (
+    <>
+    <ScrollColumn<ShoppingItem>
+      icon={<ShoppingHeaderIcon />}
+      title="Shopping List"
+      description="Things you're planning to buy."
+      beforeList={
+        <form className="flex flex-col gap-1 w-full shrink-0" onSubmit={e => { e.preventDefault(); add(); }}>
+          <div className="flex gap-2">
+            <Input
+              size="sm" className="flex-1 min-w-0"
+              placeholder="Add an item…"
+              aria-label="New shopping list item"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+            />
+            <Button type="submit" size="sm" color="primary" leftIcon={<AddCircle className="w-4 h-4" />}
+              disabled={!draft.trim() || adding || !userId} loading={adding}>
+              Add
+            </Button>
+          </div>
+          {addError && <span className="font-body text-xs text-red-400">{addError}</span>}
+        </form>
+      }
+      items={items}
+      loading={loading}
+      empty="Your shopping list is empty."
+      listClassName={ROW_LIST}
+      getKey={i => i.id}
+      renderItem={i => (
+        <>
+          {i.id === firstBoughtId && (
+            <span className="block pt-2 pb-0.5 font-body text-xs font-medium uppercase tracking-wide text-neutral-500">Bought</span>
+          )}
+          <ShoppingListItem item={i} onToggle={b => setBought(i.id, b)} onClick={() => setEditingId(i.id)} />
+        </>
+      )}
+    />
+    <ShoppingItemModal
+      item={editing}
+      onClose={() => setEditingId(null)}
+      onChanged={refetch}
+      onDelete={async item => {
+        await deleteShoppingItem(item.id);
+        setEditingId(null);
+        setItems(prev => prev.filter(i => i.id !== item.id));
+      }}
+    />
+    </>
+  );
+}
+
 // ── Your Recipes ──────────────────────────────────────────────────────────────
 
 function RecipesColumn({ userId, isDesktop, onOpenModel }: {
@@ -507,6 +598,7 @@ export default function HomePage() {
 
         <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
           <div className={`${COLUMN_ROW} pb-2 lg:pb-0`}>
+            <ShoppingListColumn userId={userId} />
             <ModelsColumn
               userId={userId} isDesktop={isDesktop}
               modelId={modelId} onOpenModel={openModel} onCloseModel={() => setModelId(null)} onOpenBox={openBox}

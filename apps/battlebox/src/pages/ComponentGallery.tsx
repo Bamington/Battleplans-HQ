@@ -71,6 +71,9 @@ import type {
 } from '../hooks/useCollection';
 import { RecipeItem, RecipeGridItem, RecipeCardBody } from '../components/RecipeItem';
 import { PhotoFinder } from '../components/PhotoFinder';
+import { ShoppingListItem } from '../components/ShoppingListItem';
+import { ShoppingItemModal } from '../components/ShoppingItemModal';
+import type { ShoppingItem } from '../hooks/useShoppingList';
 import type { PendingPhoto, WebImage } from '../lib/imageSearch';
 import type { PaintPack, LibraryPaint } from '../hooks/usePaintPacks';
 
@@ -198,6 +201,13 @@ const DEMO_RECIPE_EMPTY: RecipeSummary = {
   id: 'rc-3', name: 'Weathered Bone', description: null, paints: [], images: [], modelCount: 0,
 };
 
+/** Shopping list items: plain, with notes + photo, and bought. */
+const DEMO_SHOPPING: ShoppingItem[] = [
+  { id: 'sh-1', title: 'Nuln Oil', notes: null, imageUrl: null, bought: false, boughtAt: null, createdAt: '2026-10-08T00:00:00Z' },
+  { id: 'sh-2', title: 'Leviathan Box Set', notes: 'Check the local store first — they had it for $20 less last month.', imageUrl: PHOTO_A, bought: false, boughtAt: null, createdAt: '2026-10-07T00:00:00Z' },
+  { id: 'sh-3', title: 'Super glue', notes: 'The thin one', imageUrl: null, bought: true, boughtAt: '2026-10-08T01:00:00Z', createdAt: '2026-10-01T00:00:00Z' },
+];
+
 /** Web results as the image-search function returns them. */
 const DEMO_WEB_RESULTS: WebImage[] = [PHOTO_A, PHOTO_B, PHOTO_A, PHOTO_B, PHOTO_A, PHOTO_B].map((url, i) => ({
   thumbnail: url, image: `${url}&r=${i}`, title: `Result ${i + 1}`, source: i % 2 ? 'warhammer.com' : 'ebay.co.uk', width: 600, height: 600,
@@ -235,6 +245,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-box-item',            label: 'Box Item',              icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-model-item',          label: 'Model Item',            icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-recipe-item',         label: 'Recipe Item',           icon: <Clipboard className="w-5 h-5" /> },
+  { href: '#nav-shopping-list',       label: 'Shopping List',         icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-collection-thumb',    label: 'Collection Thumb',      icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-paint-item',          label: 'Paint Item',            icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-paint-pack-item',     label: 'Paint Pack Item',       icon: <ListCheck className="w-5 h-5" /> },
@@ -289,6 +300,8 @@ const ComponentGallery = () => {
   const [editPaintOpen,     setEditPaintOpen]     = useState(false);
   const [editRecipeOpen,    setEditRecipeOpen]    = useState(false);
   const [createRecipeOpen,  setCreateRecipeOpen]  = useState(false);
+  const [shopping,          setShopping]          = useState<ShoppingItem[]>(DEMO_SHOPPING);
+  const [shoppingEditing,   setShoppingEditing]   = useState<ShoppingItem | null>(null);
 
   // PhotoFinder demo state — one starting empty, one with picks and results.
   const [finderEmpty,  setFinderEmpty]  = useState<PendingPhoto[]>([]);
@@ -358,6 +371,40 @@ const ComponentGallery = () => {
           to the initials thumbnail. A box's carousel images are its own cover
           photos followed by one photo per member model.
         </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SHOPPING LIST
+          A row in the Shopping List column, and the item editor it opens.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-shopping-list" title="Shopping List / Item & Modal">
+        <div className="w-full max-w-md flex flex-col gap-1.5">
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">ShoppingListItem — tick the box, or click the row to open ShoppingItemModal</p>
+          {shopping.map(i => (
+            <ShoppingListItem
+              key={i.id}
+              item={i}
+              onToggle={b => setShopping(prev => prev.map(x => x.id === i.id ? { ...x, bought: b, boughtAt: b ? new Date().toISOString() : null } : x))}
+              onClick={() => setShoppingEditing(i)}
+            />
+          ))}
+          <ShoppingListItem item={{ ...DEMO_SHOPPING[0], id: 'sh-static', title: 'Not clickable (no onClick)' }} />
+        </div>
+        <GalleryNote>
+          States: a bare item, one with notes and a photo, and a bought item
+          (dimmed, struck through). The tick box toggles without opening the row.
+          The modal saves title/notes by id, so with these stub items Save fails
+          and its photo editor shows empty — it's here for the layout. Its photo
+          is ImageEditor with <code>kind="shopping"</code> and{' '}
+          <code>max={'{1}'}</code>: one photo, “Replace” instead of “Add”, no
+          cover star, and “Find a photo online” searching for the title.
+        </GalleryNote>
+        <ShoppingItemModal
+          item={shoppingEditing}
+          onClose={() => setShoppingEditing(null)}
+          onChanged={() => {}}
+          onDelete={item => { setShopping(prev => prev.filter(x => x.id !== item.id)); setShoppingEditing(null); }}
+        />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
