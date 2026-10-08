@@ -6,9 +6,18 @@
  * Bought items stay on the list, dimmed and struck through.
  */
 
-import { Checkbox } from '@battleplans/ui';
+import { Badge, Checkbox } from '@battleplans/ui';
+import type { BadgeColor } from '@battleplans/ui';
 import { clickableProps } from './ModelItem';
-import type { ShoppingItem } from '../hooks/useShoppingList';
+import { shoppingCategoryLabel } from '../hooks/useShoppingList';
+import type { ShoppingItem, ShoppingCategory } from '../hooks/useShoppingList';
+
+/** Purple for models (as on model cards), the app's amber for paints. */
+const CATEGORY_COLOR: Record<ShoppingCategory, BadgeColor> = {
+  model: 'purple',
+  paint: 'primary',
+  other: 'gray',
+};
 
 const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500';
 
@@ -42,6 +51,8 @@ export function ShoppingListItem({ item, onToggle, onClick }: {
         <span className={`font-body text-sm font-medium text-white truncate${item.bought ? ' line-through' : ''}`}>{item.title}</span>
         {item.notes && <span className="font-body text-xs text-neutral-400 line-clamp-1">{item.notes}</span>}
       </div>
+
+      <Badge color={CATEGORY_COLOR[item.category]}>{shoppingCategoryLabel(item.category)}</Badge>
     </div>
   );
 }
