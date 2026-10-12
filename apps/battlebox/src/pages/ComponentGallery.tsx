@@ -65,10 +65,11 @@ import { EditPaintModal } from '../components/EditPaintModal';
 import { EditRecipeModal } from '../components/EditRecipeModal';
 import { Section, Accordion, Chip, DateRange, GameMultiSelect } from '../components/filterControls';
 import { PickRow, ExistingPaintPicker, CloseIcon, CheckIcon, ChevronIcon } from '../components/paintPickerBits';
-import { EMPTY_MODEL_FILTERS, EMPTY_COLLECTION_FILTERS } from '../hooks/useCollection';
+import { EMPTY_MODEL_FILTERS, EMPTY_COLLECTION_FILTERS, EMPTY_RECIPE_FILTERS } from '../hooks/useCollection';
 import type {
-  CollectionBox, CollectionModel, ModelFilters, CollectionFilters, PaintRef, ModelRecipeGroup, RecipeSummary,
+  CollectionBox, CollectionModel, ModelFilters, CollectionFilters, PaintRef, ModelRecipeGroup, RecipeSummary, RecipeFilters,
 } from '../hooks/useCollection';
+import { RecipeFilterSheet } from '../components/RecipeFilterSheet';
 import { RecipeItem, RecipeGridItem, RecipeCardBody } from '../components/RecipeItem';
 import { PhotoFinder } from '../components/PhotoFinder';
 import { ShoppingListItem } from '../components/ShoppingListItem';
@@ -187,7 +188,7 @@ const DEMO_RECIPE: ModelRecipeGroup = {
 
 /** Recipes as listed in the Recipes column: with photos and in use, a long
  *  paint list that overflows the swatch row, and a bare new recipe. */
-const DEMO_RECIPE_SUMMARY: RecipeSummary = { ...DEMO_RECIPE, images: [PHOTO_A, PHOTO_B], modelCount: 3 };
+const DEMO_RECIPE_SUMMARY: RecipeSummary = { ...DEMO_RECIPE, images: [PHOTO_A, PHOTO_B], modelCount: 3, createdAt: '2026-10-01T00:00:00Z' };
 const DEMO_RECIPE_LONG: RecipeSummary = {
   id: 'rc-2',
   name: 'Blood Angels Red',
@@ -196,9 +197,11 @@ const DEMO_RECIPE_LONG: RecipeSummary = {
     .map((swatch, i) => ({ hobbyItemId: 100 + i, name: `Paint ${i + 1}`, brand: 'Citadel', type: 'Paint', swatch, note: null, ownerId: null })),
   images: [],
   modelCount: 1,
+  createdAt: '2026-09-20T00:00:00Z',
 };
 const DEMO_RECIPE_EMPTY: RecipeSummary = {
   id: 'rc-3', name: 'Weathered Bone', description: null, paints: [], images: [], modelCount: 0,
+  createdAt: '2026-10-10T00:00:00Z',
 };
 
 /** Shopping list items: plain, with notes + photo, and bought. */
@@ -274,6 +277,8 @@ const ComponentGallery = () => {
   const [modelFilterOpen,setModelFilterOpen]= useState(false);
   const [collFilters,    setCollFilters]    = useState<CollectionFilters>(EMPTY_COLLECTION_FILTERS);
   const [collFilterOpen, setCollFilterOpen] = useState(false);
+  const [recipeFilters,  setRecipeFilters]  = useState<RecipeFilters>(EMPTY_RECIPE_FILTERS);
+  const [recipeFilterOpen, setRecipeFilterOpen] = useState(false);
   const [confirmOpen,    setConfirmOpen]    = useState(false);
   const [game,           setGame]           = useState<string | null>(null);
   const [collection,     setCollection]     = useState<string | null>(null);
@@ -682,14 +687,20 @@ const ComponentGallery = () => {
           <Button variant="outline" color="secondary" onClick={() => setPackFilterOpen(true)}>
             Paint pack filters
           </Button>
+          <Button variant="outline" color="secondary" onClick={() => setRecipeFilterOpen(true)}>
+            Recipe filters
+          </Button>
 
           <GalleryNote>
-            All three are bottom sheets on mobile and centred dialogs at lg+. The
-            model and collection sheets load their game list and available years
-            from Supabase when opened, so signed out those groups are empty — the
-            status and type chips still work. The pack sheet takes its brands as a
-            prop, so it is fully live here. Applied model filters:{' '}
-            {JSON.stringify(modelFilters)}.
+            All four are bottom sheets on mobile and centred dialogs at lg+. The
+            model, collection and recipe sheets open with a single-choice “Sort
+            By” section (Newest added is the default and isn't counted as a
+            filter). The model and collection sheets load their game list and
+            available years from Supabase when opened, so signed out those groups
+            are empty — the sort, status and type chips still work. The pack and
+            recipe sheets take their brands as a prop, so they're fully live here.
+            Applied model filters: {JSON.stringify(modelFilters)}. Applied recipe
+            filters: {JSON.stringify(recipeFilters)}.
           </GalleryNote>
 
           <ModelFilterSheet
@@ -712,6 +723,13 @@ const ComponentGallery = () => {
             brands={['Citadel', 'Army Painter', 'Vallejo', 'Scale75']}
             value={packBrands}
             onApply={b => { setPackBrands(b); setPackFilterOpen(false); }}
+          />
+          <RecipeFilterSheet
+            open={recipeFilterOpen}
+            onClose={() => setRecipeFilterOpen(false)}
+            brands={['Citadel', 'OP Paints', 'Two Thin Coats']}
+            value={recipeFilters}
+            onApply={f => { setRecipeFilters(f); setRecipeFilterOpen(false); }}
           />
         </div>
       </GallerySection>

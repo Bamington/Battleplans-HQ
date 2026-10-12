@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Sheet, Lightbox, Select, Badge, InfoCircle, FileText, AddCircle } from '@battleplans/ui';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { Sheet, Lightbox, Select, Badge, Button, InfoCircle, FileText, AddCircle } from '@battleplans/ui';
 import type { BadgeColor } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { BoxItem } from './BoxItem';
@@ -10,7 +10,7 @@ import { EditRecipeModal } from './EditRecipeModal';
 import { EditModelModal } from './EditModelModal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { KebabMenu } from './KebabMenu';
-import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId } from '../hooks/useCollection';
+import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage } from '../hooks/useCollection';
 import type { ModelDetail, ModelStatus, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -412,6 +412,23 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
     setConfirmDeleteModel(false);
   };
 
+  // "Add Photo" on the empty hero: the system file picker, saved straight
+  // away as the cover (it's the first photo).
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  useEffect(() => { setUploadError(null); }, [modelId]);
+  const addPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !modelId || !userId) return;
+    setUploading(true); setUploadError(null);
+    const { error } = await uploadModelImage(modelId, userId, file, true);
+    setUploading(false);
+    if (error) { setUploadError('Could not upload the photo. Please try again.'); return; }
+    refresh();
+  };
+
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
 
   return (
@@ -434,14 +451,21 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             />
           ) : (
             <div className="h-56 shrink-0 relative overflow-hidden bg-neutral-950 flex items-center justify-center">
-              {iconUrl ? (
-                <>
-                  <img src={iconUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40" />
-                  <img src={iconUrl} alt="" className="relative w-24 h-24 rounded-lg object-cover shadow-lg" />
-                </>
-              ) : (
-                <span className="relative font-heading text-white text-lg text-center px-6">{model.name}</span>
+              {iconUrl && (
+                <img src={iconUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40" />
               )}
+              <div className="relative flex flex-col items-center gap-3">
+                {iconUrl
+                  ? <img src={iconUrl} alt="" className="w-24 h-24 rounded-lg object-cover shadow-lg" />
+                  : <span className="font-heading text-white text-lg text-center px-6">{model.name}</span>}
+                {/* No photo yet: offer one straight from the device. */}
+                <Button size="sm" variant="outline" color="primary" loading={uploading} disabled={!userId}
+                  onClick={() => photoRef.current?.click()}>
+                  Add Photo
+                </Button>
+                {uploadError && <span className="font-body text-xs text-red-400">{uploadError}</span>}
+              </div>
+              <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={addPhoto} />
             </div>
           )}
 

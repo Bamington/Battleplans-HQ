@@ -190,6 +190,47 @@ type QueryStep = (q: any) => any;
  *  each render, re-triggering the load effect and looping forever. */
 const NO_FILTER: QueryStep = q => q;
 
+/** One ORDER BY term. Nulls go last unless said otherwise. */
+interface OrderBy { column: string; ascending: boolean; nullsFirst?: boolean }
+
+/** Newest added first — the default order of every list. */
+const NEWEST_FIRST: OrderBy[] = [{ column: 'created_at', ascending: false }];
+
+// ── Sorting ───────────────────────────────────────────────────────────────────
+
+export type ModelSort =
+  | 'added_desc' | 'added_asc' | 'name_asc' | 'name_desc'
+  | 'purchase_desc' | 'purchase_asc' | 'painted_desc' | 'status';
+export type CollectionSort = Exclude<ModelSort, 'painted_desc' | 'status'>;
+
+/** Sort choices as offered in the filter sheets, in display order. */
+export const MODEL_SORTS: { value: ModelSort; label: string }[] = [
+  { value: 'added_desc',    label: 'Newest added' },
+  { value: 'added_asc',     label: 'Oldest added' },
+  { value: 'name_asc',      label: 'Name A–Z' },
+  { value: 'name_desc',     label: 'Name Z–A' },
+  { value: 'purchase_desc', label: 'Purchased (newest)' },
+  { value: 'purchase_asc',  label: 'Purchased (oldest)' },
+  { value: 'painted_desc',  label: 'Recently painted' },
+  { value: 'status',        label: 'Painting status' },
+];
+export const COLLECTION_SORTS = MODEL_SORTS
+  .filter((s): s is { value: CollectionSort; label: string } => s.value !== 'painted_desc' && s.value !== 'status');
+
+/** Each sort as ORDER BY terms. Ties fall back to newest added; items with no
+ *  purchase/painted date go last either way. Painting status runs Unpainted →
+ *  Painted (models.status_rank), then by name. */
+const SORT_ORDER: Record<ModelSort, OrderBy[]> = {
+  added_desc:    NEWEST_FIRST,
+  added_asc:     [{ column: 'created_at', ascending: true }],
+  name_asc:      [{ column: 'name', ascending: true }, ...NEWEST_FIRST],
+  name_desc:     [{ column: 'name', ascending: false }, ...NEWEST_FIRST],
+  purchase_desc: [{ column: 'purchase_date', ascending: false, nullsFirst: false }, ...NEWEST_FIRST],
+  purchase_asc:  [{ column: 'purchase_date', ascending: true,  nullsFirst: false }, ...NEWEST_FIRST],
+  painted_desc:  [{ column: 'painted_date',  ascending: false, nullsFirst: false }, ...NEWEST_FIRST],
+  status:        [{ column: 'status_rank', ascending: true }, { column: 'name', ascending: true }],
+};
+
 function usePagedCollection<Row, T>(
   userId: string | null,
   table: string,
@@ -199,6 +240,9 @@ function usePagedCollection<Row, T>(
   applyFilter: QueryStep = NO_FILTER,
   /** The column holding the row's owner — recipes call it `owner`. */
   ownerColumn = 'user_id',
+  /** ORDER BY terms; must be stable across renders. Paging needs a total
+   *  order, so `id` is always added last as the tie-break. */
+  order: OrderBy[] = NEWEST_FIRST,
 ): PagedList<T> {
   const [items,       setItems]       = useState<T[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -215,17 +259,13 @@ function usePagedCollection<Row, T>(
   // same page twice and produce duplicate keys.
   const loadingMoreRef = useRef(false);
 
-  const fetchRange = useCallback((from: number, to: number) =>
-    applyFilter(
-      supabase
-        .from(table)
-        .select(select)
-        .eq(ownerColumn, userId!)
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false }))
+  const fetchRange = useCallback((from: number, to: number) => {
+    let q = supabase.from(table).select(select).eq(ownerColumn, userId!);
+    for (const o of order) q = q.order(o.column, { ascending: o.ascending, nullsFirst: o.nullsFirst ?? false });
+    return applyFilter(q.order('id', { ascending: false }))
       .range(from, to)
-      .then(({ data }: { data: unknown }) => ((data as Row[]) ?? []).map(map)),
-    [userId, table, select, map, applyFilter, ownerColumn]);
+      .then(({ data }: { data: unknown }) => ((data as Row[]) ?? []).map(map));
+  }, [userId, table, select, map, applyFilter, ownerColumn, order]);
 
   const load = useCallback(async () => {
     const gen = ++genRef.current;
@@ -287,10 +327,14 @@ export interface ModelFilters {
   statuses:     ModelStatus[];
   /** Selected game ids (empty = any). */
   gameIds:      string[];
+  /** List order. Lives with the filters (same sheet, same saved state) but
+   *  isn't counted as one. */
+  sort:         ModelSort;
 }
 
 export const EMPTY_MODEL_FILTERS: ModelFilters = {
   purchaseFrom: null, purchaseTo: null, paintedFrom: null, paintedTo: null, statuses: [], gameIds: [],
+  sort: 'added_desc',
 };
 
 /** How many filter groups are active — for the "Filters (N)" badge. */
@@ -316,7 +360,7 @@ export function useModels(userId: string | null, filters: ModelFilters, search =
     return x;
   }, [filters, search]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
-    userId, 'models', MODEL_SELECT, mapModel, applyFilter);
+    userId, 'models', MODEL_SELECT, mapModel, applyFilter, 'user_id', SORT_ORDER[filters.sort] ?? NEWEST_FIRST);
   return { models: items, ...rest };
 }
 
@@ -381,10 +425,12 @@ export interface CollectionFilters {
   types:        ('Box' | 'Collection')[];
   paint:        CollectionPaint[];
   gameIds:      string[];
+  /** List order — not counted as a filter. */
+  sort:         CollectionSort;
 }
 
 export const EMPTY_COLLECTION_FILTERS: CollectionFilters = {
-  purchaseFrom: null, purchaseTo: null, types: [], paint: [], gameIds: [],
+  purchaseFrom: null, purchaseTo: null, types: [], paint: [], gameIds: [], sort: 'added_desc',
 };
 
 export function activeCollectionFilterCount(f: CollectionFilters): number {
@@ -428,7 +474,7 @@ export function useBoxes(userId: string | null, filters: CollectionFilters, sear
   }, [search, searchGameIds, filters]);
 
   const { items, ...rest } = usePagedCollection<BoxRow, CollectionBox>(
-    userId, 'boxes', BOX_SELECT, mapBox, applyFilter);
+    userId, 'boxes', BOX_SELECT, mapBox, applyFilter, 'user_id', SORT_ORDER[filters.sort] ?? NEWEST_FIRST);
   return { boxes: items, ...rest };
 }
 
@@ -1169,27 +1215,83 @@ export function removeRecipeItem(recipeId: string, hobbyItemId: number) {
 export interface RecipeSummary extends ModelRecipeGroup {
   /** How many of the user's models use this recipe. */
   modelCount: number;
+  createdAt: string;
 }
 
 interface RecipeListRow extends RecipeRow {
+  created_at: string | null;
   model_recipes: { model_id: string }[] | null;
 }
 
-const RECIPE_LIST_SELECT = `${RECIPE_SELECT}, model_recipes ( model_id )`;
+const RECIPE_LIST_SELECT = `${RECIPE_SELECT}, created_at, model_recipes ( model_id )`;
 
 function mapRecipeSummary(r: RecipeListRow): RecipeSummary {
-  return { ...mapRecipeGroup(r), modelCount: r.model_recipes?.length ?? 0 };
+  return { ...mapRecipeGroup(r), modelCount: r.model_recipes?.length ?? 0, createdAt: r.created_at ?? '' };
 }
 
-/** The user's recipes, newest first, name-searched, paged as the column scrolls. */
-export function useRecipes(userId: string | null, search = '') {
-  const applyFilter = useCallback<QueryStep>(
-    q => (search ? q.ilike('name', `%${search}%`) : q),
-    [search],
-  );
-  const { items, ...rest } = usePagedCollection<RecipeListRow, RecipeSummary>(
-    userId, 'recipes', RECIPE_LIST_SELECT, mapRecipeSummary, applyFilter, 'owner');
-  return { recipes: items, ...rest };
+export type RecipeSort = 'added_desc' | 'added_asc' | 'name_asc' | 'name_desc' | 'most_used';
+
+export const RECIPE_SORTS: { value: RecipeSort; label: string }[] = [
+  { value: 'added_desc', label: 'Newest added' },
+  { value: 'added_asc',  label: 'Oldest added' },
+  { value: 'name_asc',   label: 'Name A–Z' },
+  { value: 'name_desc',  label: 'Name Z–A' },
+  { value: 'most_used',  label: 'Most used' },
+];
+
+/** The Recipes column's sort + filter, saved like the other columns'. */
+export interface RecipeFilters {
+  sort: RecipeSort;
+  /** Only recipes using a paint from one of these brands (empty = any). */
+  brands: string[];
+}
+
+export const EMPTY_RECIPE_FILTERS: RecipeFilters = { sort: 'added_desc', brands: [] };
+
+/** Filters in effect, for the "Filters (N)" badge — sort isn't counted. */
+export const activeRecipeFilterCount = (f: RecipeFilters) => (f.brands.length ? 1 : 0);
+
+const byName = (a: RecipeSummary, b: RecipeSummary) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+const RECIPE_COMPARE: Record<RecipeSort, (a: RecipeSummary, b: RecipeSummary) => number> = {
+  added_desc: (a, b) => b.createdAt.localeCompare(a.createdAt),
+  added_asc:  (a, b) => a.createdAt.localeCompare(b.createdAt),
+  name_asc:   byName,
+  name_desc:  (a, b) => byName(b, a),
+  most_used:  (a, b) => b.modelCount - a.modelCount || byName(a, b),
+};
+
+/** A recipe library is small, so it's loaded whole and sorted/filtered here —
+ *  "most used" and "uses a Citadel paint" both read across related rows. */
+const MAX_RECIPES = 500;
+
+/**
+ * The user's recipes, name-searched, filtered by paint brand and sorted.
+ * Also returns every brand used across their recipes, for the filter sheet.
+ * Paging fields are kept (always "no more") so the column takes it like the
+ * other lists.
+ */
+export function useRecipes(userId: string | null, search = '', filters: RecipeFilters = EMPTY_RECIPE_FILTERS) {
+  const [all,     setAll]     = useState<RecipeSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    if (!userId) { setAll([]); setLoading(false); return; }
+    const { data } = await supabase.from('recipes').select(RECIPE_LIST_SELECT)
+      .eq('owner', userId).limit(MAX_RECIPES);
+    setAll(((data as unknown as RecipeListRow[]) ?? []).map(mapRecipeSummary));
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { setLoading(true); refetch(); }, [refetch]);
+
+  const term = search.toLowerCase();
+  const recipes = all
+    .filter(r => !term || r.name.toLowerCase().includes(term))
+    .filter(r => !filters.brands.length || r.paints.some(p => filters.brands.includes(p.brand)))
+    .sort(RECIPE_COMPARE[filters.sort] ?? RECIPE_COMPARE.added_desc);
+  const brands = [...new Set(all.flatMap(r => r.paints.map(p => p.brand)))].sort();
+
+  return { recipes, brands, loading, loadingMore: false, hasMore: false, loadMore: () => {}, refetch };
 }
 
 /** One recipe in full, plus the models that use it — for the recipe modal. */

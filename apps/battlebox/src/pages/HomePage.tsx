@@ -23,6 +23,7 @@ import { Chip } from '../components/filterControls';
 import { useShoppingList, addShoppingItem, deleteShoppingItem, sortShoppingItems, SHOPPING_CATEGORIES } from '../hooks/useShoppingList';
 import type { ShoppingItem, ShoppingCategory } from '../hooks/useShoppingList';
 import { EditRecipeModal } from '../components/EditRecipeModal';
+import { RecipeFilterSheet } from '../components/RecipeFilterSheet';
 import { PaintPackItem } from '../components/PaintPackItem';
 import { PaintPackDetailModal } from '../components/PaintPackDetailModal';
 import { PaintPackFilterSheet } from '../components/PaintPackFilterSheet';
@@ -34,8 +35,9 @@ import {
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
   EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, matchesCollectionPaint,
   useRecipes, useRecipeDetail, createRecipe, deleteRecipe,
+  EMPTY_RECIPE_FILTERS, activeRecipeFilterCount,
 } from '../hooks/useCollection';
-import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters, RecipeSummary } from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters, RecipeSummary, RecipeFilters } from '../hooks/useCollection';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -415,8 +417,11 @@ function RecipesColumn({ userId, isDesktop, onOpenModel }: {
   /** The Add Recipe form is open (and stays "creating" until the new row loads). */
   const [creating, setCreating] = useState(false);
   const query = useDebouncedValue(search.trim(), 300);
+  const [filters, setFilters] = useLocalStorageState<RecipeFilters>('battlebench:recipes-filters', EMPTY_RECIPE_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterCount = activeRecipeFilterCount(filters);
 
-  const { recipes, loading, loadingMore, hasMore, loadMore, refetch } = useRecipes(userId, query);
+  const { recipes, brands, loading, loadingMore, hasMore, loadMore, refetch } = useRecipes(userId, query, filters);
   const detail = useRecipeDetail(recipeId);
   // Ignore the previous recipe while the next one loads.
   const current = detail.recipe?.id === recipeId ? detail.recipe : null;
@@ -436,17 +441,11 @@ function RecipesColumn({ userId, isDesktop, onOpenModel }: {
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
       beforeList={
-        <Input
-          size="sm" type="search" className="w-full shrink-0"
-          placeholder="Search recipes…"
-          leftIcon={<Magnifer className="w-4 h-4" />}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <FilterControls count={filterCount} onOpen={() => setFilterOpen(true)} search={search} onSearch={setSearch} searchPlaceholder="Search recipes…" />
       }
       items={recipes}
       loading={loading}
-      empty={query ? 'No recipes match your search.' : 'No recipes yet.'}
+      empty={query || filterCount ? 'No recipes match your filters.' : 'No recipes yet.'}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}
@@ -477,6 +476,13 @@ function RecipesColumn({ userId, isDesktop, onOpenModel }: {
         refetch();
         return true;
       } : undefined}
+    />
+    <RecipeFilterSheet
+      open={filterOpen}
+      onClose={() => setFilterOpen(false)}
+      brands={brands}
+      value={filters}
+      onApply={f => { setFilters(f); setFilterOpen(false); }}
     />
     </>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sheet, Button } from '@battleplans/ui';
 import { Section, Accordion, DateRange, Chip, GameMultiSelect } from './filterControls';
-import { useOwnedGames, useAvailableYears, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount } from '../hooks/useCollection';
+import { useOwnedGames, useAvailableYears, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, COLLECTION_SORTS } from '../hooks/useCollection';
 import type { CollectionFilters, CollectionPaint } from '../hooks/useCollection';
 
 const PAINT: { value: CollectionPaint; label: string }[] = [
@@ -66,10 +66,20 @@ export function CollectionFilterSheet({ open, onClose, userId, value, onApply }:
       }
     >
       <div className="px-5 pt-5 pb-1 shrink-0">
-        <h2 className="font-heading text-xl text-white">Filter Collections</h2>
+        <h2 className="font-heading text-xl text-white">Sort &amp; Filter Collections</h2>
       </div>
 
       <div className="px-5 py-4 lg:overflow-y-auto lg:flex-1 lg:min-h-0 flex flex-col gap-6">
+        <Section title="Sort By" active={draft.sort !== 'added_desc'} onReset={() => setDraft(d => ({ ...d, sort: 'added_desc' }))}>
+          <div className="flex flex-wrap gap-2">
+            {COLLECTION_SORTS.map(s => (
+              <Chip key={s.value} label={s.label} selected={draft.sort === s.value} onClick={() => setDraft(d => ({ ...d, sort: s.value }))} />
+            ))}
+          </div>
+        </Section>
+
+        <hr className="border-neutral-800" />
+
         <Section title="Painted Status" active={draft.paint.length > 0} onReset={() => setDraft(d => ({ ...d, paint: [] }))}>
           <div className="flex flex-wrap gap-2">
             {PAINT.map(p => (
