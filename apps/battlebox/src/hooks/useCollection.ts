@@ -327,14 +327,29 @@ export interface ModelFilters {
   statuses:     ModelStatus[];
   /** Selected game ids (empty = any). */
   gameIds:      string[];
+  /** Has / needs the user's own photo (null = either). */
+  photo:        OwnPhotoFilter | null;
   /** List order. Lives with the filters (same sheet, same saved state) but
    *  isn't counted as one. */
   sort:         ModelSort;
 }
 
+/**
+ * "Your Photos": whether the user has added a photo of their own — one they
+ * uploaded, not one picked through the photo finder. Backed by the
+ * has_own_photo computed field (a model's legacy image_path counts; a
+ * collection counts only its own photos, not its models').
+ */
+export type OwnPhotoFilter = 'has' | 'needs';
+
+export const OWN_PHOTO_OPTIONS: { value: OwnPhotoFilter; label: string }[] = [
+  { value: 'has',   label: 'Has your photo' },
+  { value: 'needs', label: 'Needs your photo' },
+];
+
 export const EMPTY_MODEL_FILTERS: ModelFilters = {
   purchaseFrom: null, purchaseTo: null, paintedFrom: null, paintedTo: null, statuses: [], gameIds: [],
-  sort: 'added_desc',
+  photo: null, sort: 'added_desc',
 };
 
 /** How many filter groups are active — for the "Filters (N)" badge. */
@@ -343,7 +358,8 @@ export function activeModelFilterCount(f: ModelFilters): number {
     (f.purchaseFrom || f.purchaseTo ? 1 : 0) +
     (f.paintedFrom  || f.paintedTo  ? 1 : 0) +
     (f.statuses.length ? 1 : 0) +
-    (f.gameIds.length  ? 1 : 0)
+    (f.gameIds.length  ? 1 : 0) +
+    (f.photo ? 1 : 0)
   );
 }
 
@@ -357,6 +373,7 @@ export function useModels(userId: string | null, filters: ModelFilters, search =
     if (filters.purchaseTo)      x = x.lte('purchase_date', filters.purchaseTo);
     if (filters.paintedFrom)     x = x.gte('painted_date', filters.paintedFrom);
     if (filters.paintedTo)       x = x.lte('painted_date', filters.paintedTo);
+    if (filters.photo)           x = x.eq('has_own_photo', filters.photo === 'has');
     return x;
   }, [filters, search]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
@@ -425,12 +442,14 @@ export interface CollectionFilters {
   types:        ('Box' | 'Collection')[];
   paint:        CollectionPaint[];
   gameIds:      string[];
+  /** Has / needs the user's own photo — the collection's own photos only. */
+  photo:        OwnPhotoFilter | null;
   /** List order — not counted as a filter. */
   sort:         CollectionSort;
 }
 
 export const EMPTY_COLLECTION_FILTERS: CollectionFilters = {
-  purchaseFrom: null, purchaseTo: null, types: [], paint: [], gameIds: [], sort: 'added_desc',
+  purchaseFrom: null, purchaseTo: null, types: [], paint: [], gameIds: [], photo: null, sort: 'added_desc',
 };
 
 export function activeCollectionFilterCount(f: CollectionFilters): number {
@@ -438,7 +457,8 @@ export function activeCollectionFilterCount(f: CollectionFilters): number {
     (f.paint.length ? 1 : 0) +
     (f.types.length ? 1 : 0) +
     (f.gameIds.length ? 1 : 0) +
-    (f.purchaseFrom || f.purchaseTo ? 1 : 0)
+    (f.purchaseFrom || f.purchaseTo ? 1 : 0) +
+    (f.photo ? 1 : 0)
   );
 }
 
@@ -470,6 +490,7 @@ export function useBoxes(userId: string | null, filters: CollectionFilters, sear
     if (filters.types.length)   x = x.in('type', filters.types);
     if (filters.purchaseFrom)   x = x.gte('purchase_date', filters.purchaseFrom);
     if (filters.purchaseTo)     x = x.lte('purchase_date', filters.purchaseTo);
+    if (filters.photo)          x = x.eq('has_own_photo', filters.photo === 'has');
     return x;
   }, [search, searchGameIds, filters]);
 
@@ -1029,24 +1050,28 @@ function newImagePath(userId: string, fileName: string): string {
 }
 
 /** Upload a photo object then link it to a model. `isPrimary` sets the cover. */
-export async function uploadModelImage(modelId: string, userId: string, file: File, isPrimary: boolean): Promise<{ error: string | null }> {
+/** Where a photo came from: the user's device, or the photo finder's web
+ *  search. Drives the "Has your photo / Needs your photo" filter. */
+export type PhotoSource = 'upload' | 'web';
+
+export async function uploadModelImage(modelId: string, userId: string, file: File, isPrimary: boolean, source: PhotoSource = 'upload'): Promise<{ error: string | null }> {
   const path = newImagePath(userId, file.name);
   const { error: upErr } = await supabase.storage.from('model-images')
     .upload(path, file, { contentType: file.type || undefined, upsert: false });
   if (upErr) return { error: upErr.message };
   const { error: insErr } = await supabase.from('model_images')
-    .insert({ model_id: modelId, image_path: path, user_id: userId, is_primary: isPrimary });
+    .insert({ model_id: modelId, image_path: path, user_id: userId, is_primary: isPrimary, source });
   return { error: insErr?.message ?? null };
 }
 
 /** Upload a photo object then link it to a collection. */
-export async function uploadBoxImage(boxId: string, userId: string, file: File, isPrimary: boolean): Promise<{ error: string | null }> {
+export async function uploadBoxImage(boxId: string, userId: string, file: File, isPrimary: boolean, source: PhotoSource = 'upload'): Promise<{ error: string | null }> {
   const path = newImagePath(userId, file.name);
   const { error: upErr } = await supabase.storage.from('model-images')
     .upload(path, file, { contentType: file.type || undefined, upsert: false });
   if (upErr) return { error: upErr.message };
   const { error: insErr } = await supabase.from('box_images')
-    .insert({ box_id: boxId, image_path: path, user_id: userId, is_primary: isPrimary });
+    .insert({ box_id: boxId, image_path: path, user_id: userId, is_primary: isPrimary, source });
   return { error: insErr?.message ?? null };
 }
 

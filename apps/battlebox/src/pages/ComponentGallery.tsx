@@ -702,7 +702,9 @@ const ComponentGallery = () => {
             All four are bottom sheets on mobile and centred dialogs at lg+. The
             model, collection and recipe sheets open with a single-choice “Sort
             By” section (Newest added is the default and isn't counted as a
-            filter). The model and collection sheets load their game list and
+            filter), and a single-choice “Your Photos” section (has / needs a photo
+            the user uploaded — photo-search finds don’t count). The model and
+            collection sheets load their game list and
             available years from Supabase when opened, so signed out those groups
             are empty — the sort, status and type chips still work. The pack and
             recipe sheets take their brands as a prop, so they're fully live here.

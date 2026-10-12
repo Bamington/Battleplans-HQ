@@ -90,17 +90,19 @@ export async function pendingPhotoFile(photo: PendingPhoto): Promise<File | null
 
 /**
  * Upload every staged photo against a just-created row, first one as the
- * cover. Returns how many could not be saved.
+ * cover. Each is tagged with where it came from — a device file is the user's
+ * own ('upload'), a web pick isn't ('web'). Returns how many could not be saved.
  */
 export async function uploadPendingPhotos(
   photos: PendingPhoto[],
-  upload: (file: File, isPrimary: boolean) => Promise<{ error: string | null }>,
+  upload: (file: File, isPrimary: boolean, source: 'upload' | 'web') => Promise<{ error: string | null }>,
 ): Promise<number> {
   let failed = 0;
   let cover = true;
   for (const photo of photos) {
     const file = await pendingPhotoFile(photo);
-    const err = file ? (await upload(file, cover)).error : 'download failed';
+    const source = photo.source.kind === 'web' ? 'web' : 'upload';
+    const err = file ? (await upload(file, cover, source)).error : 'download failed';
     if (err) failed++; else cover = false;
   }
   return failed;
