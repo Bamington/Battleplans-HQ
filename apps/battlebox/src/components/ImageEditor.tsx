@@ -23,12 +23,18 @@ import type { PendingPhoto } from '../lib/imageSearch';
 /** The photo operations for each kind of thing that has photos. */
 const OPS = {
   model:  { fetch: fetchModelImages,  upload: uploadModelImage,  remove: deleteModelImage,  setPrimary: setModelPrimaryImage },
-  box:    { fetch: fetchBoxImages,    upload: uploadBoxImage,    remove: deleteBoxImage,    setPrimary: setBoxPrimaryImage },
+  // Only model photos can be Painting Desk progress photos; the rest ignore it.
+  box: {
+    fetch: fetchBoxImages,
+    upload: (id: string, userId: string, file: File, isPrimary: boolean, source?: PhotoSource, _progress?: boolean) => uploadBoxImage(id, userId, file, isPrimary, source),
+    remove: deleteBoxImage,
+    setPrimary: setBoxPrimaryImage,
+  },
   // Recipes and shopping items don't record a photo's source (only models and
   // collections have the "your photo" filter), so they ignore it.
   recipe: {
     fetch: fetchRecipeImages,
-    upload: (id: string, userId: string, file: File, isPrimary: boolean, _source?: PhotoSource) => uploadRecipeImage(id, userId, file, isPrimary),
+    upload: (id: string, userId: string, file: File, isPrimary: boolean, _source?: PhotoSource, _progress?: boolean) => uploadRecipeImage(id, userId, file, isPrimary),
     remove: deleteRecipeImage,
     setPrimary: setRecipePrimaryImage,
   },
@@ -36,7 +42,7 @@ const OPS = {
   // cover to choose. The "image id" is the item's own id.
   shopping: {
     fetch: fetchShoppingItemImages,
-    upload: (id: string, userId: string, file: File, _isPrimary: boolean, _source?: PhotoSource) => uploadShoppingItemImage(id, userId, file),
+    upload: (id: string, userId: string, file: File, _isPrimary: boolean, _source?: PhotoSource, _progress?: boolean) => uploadShoppingItemImage(id, userId, file),
     remove: removeShoppingItemImage,
     setPrimary: async (_id: string, _imgId: string) => ({ error: null }),
   },
@@ -44,7 +50,10 @@ const OPS = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ImageEditor({ kind, id, onChanged, searchQuery, max }: {
+export function ImageEditor({ kind, id, onChanged, searchQuery, max, progress = false }: {
+  /** The model is on the Painting Desk: photos uploaded from the device are
+   *  progress photos (never the cover). Web picks never are. Models only. */
+  progress?: boolean;
   kind: keyof typeof OPS;
   id: string;
   /** Bubble up so the detail modal + list refresh their carousels too. */
@@ -112,7 +121,7 @@ export function ImageEditor({ kind, id, onChanged, searchQuery, max }: {
     let hadError = false;
     let firstUpload = images.length === 0;
     for (const file of files) {
-      const { error: err } = await OPS[kind].upload(id, userId, file, firstUpload);
+      const { error: err } = await OPS[kind].upload(id, userId, file, firstUpload && !progress, 'upload', progress);
       if (err) hadError = true; else firstUpload = false;
     }
     setBusy(false);
@@ -152,8 +161,14 @@ export function ImageEditor({ kind, id, onChanged, searchQuery, max }: {
                   <StarIcon filled className="w-2.5 h-2.5" /> Cover
                 </span>
               )}
+              {img.isProgress && (
+                <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-black/70 text-neutral-200 text-[10px] font-body">
+                  Progress
+                </span>
+              )}
               <div className="absolute bottom-1 right-1 flex gap-1">
-                {!img.isPrimary && !single && (
+                {/* Progress photos can't be the cover. */}
+                {!img.isPrimary && !single && !img.isProgress && (
                   <button type="button" disabled={busy} onClick={() => handleSetPrimary(img.id)}
                     aria-label="Make cover photo" title="Make cover photo"
                     className="p-1 rounded-md bg-black/60 text-white hover:bg-black/80 disabled:opacity-50">
@@ -173,7 +188,7 @@ export function ImageEditor({ kind, id, onChanged, searchQuery, max }: {
           <button type="button" disabled={busy || !userId} onClick={() => fileRef.current?.click()}
             className="aspect-square rounded-lg border border-dashed border-neutral-600 flex flex-col items-center justify-center gap-1 text-neutral-400 hover:text-white hover:border-neutral-400 disabled:opacity-50 transition-colors">
             <PlusIcon />
-            <span className="font-body text-[11px]">{max !== undefined && images.length >= max ? 'Replace' : 'Add'}</span>
+            <span className="font-body text-[11px]">{max !== undefined && images.length >= max ? 'Replace' : progress ? 'Add progress' : 'Add'}</span>
           </button>
         </div>
       )}
