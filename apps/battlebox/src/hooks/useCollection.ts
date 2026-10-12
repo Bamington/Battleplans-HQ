@@ -774,11 +774,22 @@ export type ModelPatch = Partial<{
   painting_notes: string | null;
   lore_name: string | null;
   lore_description: string | null;
+  painted_date: string | null;
 }>;
+
+/**
+ * A model with a painted date is Painted. Every model save goes through this,
+ * so the rule holds wherever the date was set (Painting tab, Edit form).
+ * Moving a model *off* Painted clears its date — the Painting tab confirms
+ * that with the user first and sends both together.
+ */
+function withPaintedRule<P extends { status?: ModelStatus; painted_date?: string | null }>(patch: P): P {
+  return patch.painted_date ? { ...patch, status: 'Painted' } : patch;
+}
 
 /** Persist an inline edit to a model. RLS restricts this to the owner. */
 export function updateModel(modelId: string, patch: ModelPatch) {
-  return supabase.from('models').update(patch).eq('id', modelId);
+  return supabase.from('models').update(withPaintedRule(patch)).eq('id', modelId);
 }
 
 // ── Edit / delete a model or collection ───────────────────────────────────────
@@ -850,7 +861,7 @@ export async function fetchBoxEdit(boxId: string): Promise<BoxEditFields | null>
 }
 
 export function updateModelInfo(modelId: string, fields: ModelEditFields) {
-  return supabase.from('models').update(fields).eq('id', modelId);
+  return supabase.from('models').update(withPaintedRule<ModelEditFields & { status?: ModelStatus }>(fields)).eq('id', modelId);
 }
 export function updateBoxInfo(boxId: string, fields: Partial<BoxEditFields>) {
   return supabase.from('boxes').update(fields).eq('id', boxId);
@@ -880,7 +891,7 @@ export interface NewModelFields {
  *  model's Edit form, which needs the new row's id. */
 export async function createModel(userId: string, fields: NewModelFields): Promise<{ id: string | null; error: string | null }> {
   const { data, error } = await supabase.from('models')
-    .insert({ ...fields, user_id: userId })
+    .insert({ ...withPaintedRule(fields), user_id: userId })
     .select('id').single();
   return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
 }
