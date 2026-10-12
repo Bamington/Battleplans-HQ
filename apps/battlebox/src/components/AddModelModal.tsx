@@ -102,7 +102,7 @@ export function AddModelModal({
     });
     if (err || !id) { setSaving(false); setError('Could not add the model. Please try again.'); return; }
     if (boxId) await addModelToBox(id, boxId);
-    const failed = await uploadPendingPhotos(photos, (file, isPrimary) => uploadModelImage(id, userId, file, isPrimary));
+    const failed = await uploadPendingPhotos(photos, (file, isPrimary, source) => uploadModelImage(id, userId, file, isPrimary, source));
     setSaving(false);
     if (failed > 0) {
       setSavedId(id);

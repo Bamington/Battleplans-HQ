@@ -48,10 +48,9 @@ export function RecipeCardBody({ recipe }: { recipe: RecipeSummary }) {
   return (
     <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
       <div className="flex flex-col gap-1 min-w-0">
+        {/* No description here: a one-line clamp of it told you nothing, and
+            it made the card taller than its thumbnail. It's in the recipe. */}
         <span className="font-heading text-lg text-white leading-6 truncate">{recipe.name}</span>
-        {recipe.description && (
-          <span className="font-body text-sm text-neutral-400 leading-5 line-clamp-1">{recipe.description}</span>
-        )}
         <RecipeSwatches recipe={recipe} />
       </div>
       <div className="flex gap-1 items-center flex-wrap">

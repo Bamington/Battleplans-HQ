@@ -494,12 +494,19 @@ const ComponentGallery = () => {
           <CollectionThumb images={[]} iconUrl={GAME_ICON} name="Falls back to the game icon" />
           <CollectionThumb images={[]} iconUrl={null} name="Untouched Sprues" />
           <CollectionThumb images={[]} iconUrl={null} name="Small" className="w-[64px] h-[64px]" />
+          {/* In a row taller than 108px, as in a card with extra lines. */}
+          <div className="flex items-stretch h-[170px] w-72 rounded-lg overflow-hidden border border-gray-200 dark:border-neutral-700">
+            <CollectionThumb images={[PHOTO_A]} iconUrl={null} name="Stretched" />
+            <p className="p-3 font-body text-xs text-gray-500 dark:text-neutral-400">Taller card — the photo fills its full height.</p>
+          </div>
         </div>
         <GalleryNote>
-          The square photo thumbnail used by every list row and tile. With no
-          images it falls back to the game icon, then to the name's initials.
+          The photo thumbnail used by every list row. At least 108px square by
+          default, and it stretches to the card's full height when the card is
+          taller (the last example) — never a gap under the photo. With no images
+          it falls back to the game icon, then to the name's initials.{' '}
           <code>dots</code> adds the carousel indicator; <code>className</code>{' '}
-          sets the size.
+          sets the size (pass a fixed <code>h-*</code> to stop it stretching).
         </GalleryNote>
       </GallerySection>
 
@@ -695,7 +702,9 @@ const ComponentGallery = () => {
             All four are bottom sheets on mobile and centred dialogs at lg+. The
             model, collection and recipe sheets open with a single-choice “Sort
             By” section (Newest added is the default and isn't counted as a
-            filter). The model and collection sheets load their game list and
+            filter), and a single-choice “Your Photos” section (has / needs a photo
+            the user uploaded — photo-search finds don’t count). The model and
+            collection sheets load their game list and
             available years from Supabase when opened, so signed out those groups
             are empty — the sort, status and type chips still work. The pack and
             recipe sheets take their brands as a prop, so they're fully live here.

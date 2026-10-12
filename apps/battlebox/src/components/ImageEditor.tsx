@@ -12,7 +12,7 @@ import {
   uploadModelImage, uploadBoxImage, uploadRecipeImage,
   deleteModelImage, deleteBoxImage, deleteRecipeImage,
   setModelPrimaryImage, setBoxPrimaryImage, setRecipePrimaryImage,
-  type EditableImage,
+  type EditableImage, type PhotoSource,
 } from '../hooks/useCollection';
 import { StarIcon, TrashIcon, PlusIcon } from './paintPickerBits';
 import { PhotoFinder } from './PhotoFinder';
@@ -24,12 +24,19 @@ import type { PendingPhoto } from '../lib/imageSearch';
 const OPS = {
   model:  { fetch: fetchModelImages,  upload: uploadModelImage,  remove: deleteModelImage,  setPrimary: setModelPrimaryImage },
   box:    { fetch: fetchBoxImages,    upload: uploadBoxImage,    remove: deleteBoxImage,    setPrimary: setBoxPrimaryImage },
-  recipe: { fetch: fetchRecipeImages, upload: uploadRecipeImage, remove: deleteRecipeImage, setPrimary: setRecipePrimaryImage },
+  // Recipes and shopping items don't record a photo's source (only models and
+  // collections have the "your photo" filter), so they ignore it.
+  recipe: {
+    fetch: fetchRecipeImages,
+    upload: (id: string, userId: string, file: File, isPrimary: boolean, _source?: PhotoSource) => uploadRecipeImage(id, userId, file, isPrimary),
+    remove: deleteRecipeImage,
+    setPrimary: setRecipePrimaryImage,
+  },
   // One photo stored on the item row: uploading replaces it, and there's no
   // cover to choose. The "image id" is the item's own id.
   shopping: {
     fetch: fetchShoppingItemImages,
-    upload: (id: string, userId: string, file: File, _isPrimary: boolean) => uploadShoppingItemImage(id, userId, file),
+    upload: (id: string, userId: string, file: File, _isPrimary: boolean, _source?: PhotoSource) => uploadShoppingItemImage(id, userId, file),
     remove: removeShoppingItemImage,
     setPrimary: async (_id: string, _imgId: string) => ({ error: null }),
   },
@@ -82,7 +89,8 @@ export function ImageEditor({ kind, id, onChanged, searchQuery, max }: {
     const failed: string[] = [];
     for (const photo of added) {
       const file = await pendingPhotoFile(photo);
-      const err = file ? (await OPS[kind].upload(id, userId, file, cover)).error : 'download failed';
+      // Found online, so tagged 'web' — it doesn't count as the user's own photo.
+      const err = file ? (await OPS[kind].upload(id, userId, file, cover, 'web')).error : 'download failed';
       if (err) failed.push(photo.id); else cover = false;
     }
     setBusy(false);

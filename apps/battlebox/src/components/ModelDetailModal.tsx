@@ -11,7 +11,7 @@ import { EditModelModal } from './EditModelModal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { KebabMenu } from './KebabMenu';
 import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage } from '../hooks/useCollection';
-import type { ModelDetail, ModelStatus, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
+import type { ModelDetail, ModelStatus, ModelPatch, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
 
 function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe, onOpenRecipePhoto }: {
   model: ModelDetail;
-  save: (p: { status?: ModelStatus; painting_notes?: string | null }) => void;
+  save: (p: ModelPatch) => void;
   userId: string | null;
   onAdd: (kind: 'paint' | 'recipe') => void;
   onEditPaint: (paint: PaintRef) => void;
@@ -247,20 +247,57 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   onOpenRecipePhoto: (recipe: ModelRecipeGroup, index: number) => void;
 }) {
   const hasPaints = model.recipes.length > 0 || model.directPaints.length > 0;
+  /** A status change waiting on "this erases the painted date" confirmation. */
+  const [pendingStatus, setPendingStatus] = useState<ModelStatus | null>(null);
+
+  // A model with a painted date is Painted, so moving it off Painted clears the
+  // date — asked first, then both saved together.
+  const changeStatus = (s: ModelStatus) => {
+    if (s === model.status) return;
+    if (s !== 'Painted' && model.paintedDate) setPendingStatus(s);
+    else save({ status: s });
+  };
+  const painted = model.status === 'Painted';
+
   return (
     <div className="flex flex-col gap-4">
       <TabIntro>Record your hobby progress, and keep notes for the future.</TabIntro>
 
-      <div className="flex flex-col gap-2">
-        <Label>Painted Status</Label>
-        <Select
-          size="sm"
-          className="w-full"
-          value={model.status}
-          onChange={e => save({ status: e.target.value as ModelStatus })}
-          options={STATUS_OPTIONS}
-        />
+      <div className="flex gap-3">
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          <Label>Painted Status</Label>
+          <Select
+            size="sm"
+            className="w-full"
+            value={model.status}
+            onChange={e => changeStatus(e.target.value as ModelStatus)}
+            options={STATUS_OPTIONS}
+          />
+        </div>
+        {painted && (
+          <div className="w-40 shrink-0 flex flex-col gap-2">
+            <Label>Painted Date</Label>
+            <input
+              type="date"
+              aria-label="Painted date"
+              value={model.paintedDate ?? ''}
+              onChange={e => save({ painted_date: e.target.value || null })}
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 font-body text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={pendingStatus !== null}
+        title="Change status?"
+        message={model.paintedDate
+          ? `This model was painted on ${shortDate(model.paintedDate)}. Changing its status from Painted will erase that painted date.`
+          : undefined}
+        confirmLabel="Change status"
+        onConfirm={() => { if (pendingStatus) save({ status: pendingStatus, painted_date: null }); setPendingStatus(null); }}
+        onCancel={() => setPendingStatus(null)}
+      />
 
       <div className="flex flex-col gap-2">
         <Label>Painting Notes</Label>
@@ -392,7 +429,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
     }
   }, [modelId]);
 
-  const save = async (patch: { status?: ModelStatus; painting_notes?: string | null; lore_name?: string | null; lore_description?: string | null }) => {
+  const save = async (patch: ModelPatch) => {
     if (!modelId) return;
     await updateModel(modelId, patch);
     refetch();

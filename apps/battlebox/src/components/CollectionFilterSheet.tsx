@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sheet, Button } from '@battleplans/ui';
 import { Section, Accordion, DateRange, Chip, GameMultiSelect } from './filterControls';
-import { useOwnedGames, useAvailableYears, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, COLLECTION_SORTS } from '../hooks/useCollection';
+import { useOwnedGames, useAvailableYears, EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, COLLECTION_SORTS, OWN_PHOTO_OPTIONS } from '../hooks/useCollection';
 import type { CollectionFilters, CollectionPaint } from '../hooks/useCollection';
 
 const PAINT: { value: CollectionPaint; label: string }[] = [
@@ -86,6 +86,18 @@ export function CollectionFilterSheet({ open, onClose, userId, value, onApply }:
               <Chip key={p.value} label={p.label} selected={draft.paint.includes(p.value)} onClick={() => togglePaint(p.value)} />
             ))}
           </div>
+        </Section>
+
+        <hr className="border-neutral-800" />
+
+        <Section title="Your Photos" active={draft.photo !== null} onReset={() => setDraft(d => ({ ...d, photo: null }))}>
+          <div className="flex flex-wrap gap-2">
+            {OWN_PHOTO_OPTIONS.map(o => (
+              <Chip key={o.value} label={o.label} selected={draft.photo === o.value}
+                onClick={() => setDraft(d => ({ ...d, photo: d.photo === o.value ? null : o.value }))} />
+            ))}
+          </div>
+          <p className="font-body text-xs text-neutral-500 pt-2">Only photos you uploaded to the collection itself count — not ones found with the photo search, or its models' photos.</p>
         </Section>
 
         <hr className="border-neutral-800" />

@@ -73,7 +73,7 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
       purchase_date: purchaseDate,
     });
     if (err || !id) { setSaving(null); setError('Could not add the collection. Please try again.'); return; }
-    const failed = await uploadPendingPhotos(photos, (file, isPrimary) => uploadBoxImage(id, userId, file, isPrimary));
+    const failed = await uploadPendingPhotos(photos, (file, isPrimary, source) => uploadBoxImage(id, userId, file, isPrimary, source));
     setSaving(null);
     if (failed > 0) {
       setSaved({ id, addModels });
