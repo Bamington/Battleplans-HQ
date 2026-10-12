@@ -45,11 +45,16 @@ export function clickableProps(onClick?: () => void) {
 const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500';
 
 // ── Thumbnail ─────────────────────────────────────────────────────────────────
-// A square that bleeds to the card edges. Auto-rotates through the item's photos
-// (a carousel when there's more than one), falls back to the game icon, then to
-// the item name on a dark tile.
+// Bleeds to the card edges: at least square, and stretched to the card's full
+// height when the card is taller — never a strip of empty card below it.
+// Auto-rotates through the item's photos (a carousel when there's more than
+// one), falls back to the game icon, then to the item name on a dark tile.
+//
+// The default size is a MINIMUM height so `self-stretch` can grow it; the
+// content is absolutely positioned to fill whatever height that comes to (a
+// percentage height wouldn't resolve against a min-height parent).
 
-export function CollectionThumb({ images, iconUrl, name, className = 'w-[108px] h-[108px]', dots = false }: {
+export function CollectionThumb({ images, iconUrl, name, className = 'w-[108px] min-h-[108px]', dots = false }: {
   images: string[];
   iconUrl: string | null;
   name: string;
@@ -57,12 +62,14 @@ export function CollectionThumb({ images, iconUrl, name, className = 'w-[108px] 
   dots?: boolean;
 }) {
   return (
-    <div className={`shrink-0 self-stretch bg-[#0f131c] flex items-center justify-center overflow-hidden ${className}`.trim()}>
-      {images.length > 0
-        ? <ImageCarousel images={images} alt={name} dots={dots} className="w-full h-full" />
-        : iconUrl
-          ? <img src={iconUrl} alt="" className="w-full h-full object-cover" />
-          : <span className="font-heading text-white text-sm text-center px-2 leading-tight line-clamp-3">{name}</span>}
+    <div className={`relative shrink-0 self-stretch bg-[#0f131c] overflow-hidden ${className}`.trim()}>
+      <div className="absolute inset-0 flex items-center justify-center">
+        {images.length > 0
+          ? <ImageCarousel images={images} alt={name} dots={dots} className="w-full h-full" />
+          : iconUrl
+            ? <img src={iconUrl} alt="" className="w-full h-full object-cover" />
+            : <span className="font-heading text-white text-sm text-center px-2 leading-tight line-clamp-3">{name}</span>}
+      </div>
     </div>
   );
 }
