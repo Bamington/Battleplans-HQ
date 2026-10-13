@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
@@ -35,9 +35,13 @@ import {
   EMPTY_MODEL_FILTERS, activeModelFilterCount,
   EMPTY_COLLECTION_FILTERS, activeCollectionFilterCount, matchesCollectionPaint,
   useRecipes, useRecipeDetail, createRecipe, deleteRecipe,
+  useDeskModels, updateModel, removeFromDesk,
   EMPTY_RECIPE_FILTERS, activeRecipeFilterCount,
 } from '../hooks/useCollection';
-import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters, RecipeSummary, RecipeFilters } from '../hooks/useCollection';
+import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters, RecipeSummary, RecipeFilters, ModelStatus } from '../hooks/useCollection';
+import { DeskItem } from '../components/DeskItem';
+import { AddToDeskModal } from '../components/AddToDeskModal';
+import { MarkPaintedModal } from '../components/MarkPaintedModal';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -72,6 +76,15 @@ const RecipesHeaderIcon = () => (
     <circle cx="14" cy="17" r="2.2" fill="currentColor" />
     <path d="M19 17h6M12 25h13M12 32h9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     <path d="M41 10 30 30l-2.5 5 4.5-3.5L43 12a1.4 1.4 0 0 0-2-2Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+  </svg>
+);
+
+/** A brush over a paint pot — the painting desk. */
+const DeskHeaderIcon = () => (
+  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 30h22v8a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-8Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M6 30h26" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M42 7 27 25l-3 5 5-2.5L44 9a1.4 1.4 0 0 0-2-2Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
   </svg>
 );
 
@@ -160,15 +173,101 @@ function AddButton({ label, onClick }: { label: string; onClick?: () => void }) 
 const GRID_LIST = 'grid grid-cols-1 lg:grid-cols-2 gap-2.5';
 const ROW_LIST  = 'flex flex-col gap-1.5';
 
+// ── Painting Desk ─────────────────────────────────────────────────────────────
+// Models being painted right now (models.on_desk). Furthest along first, then
+// most recently started. Finishing one (Mark Painted) takes it off the desk.
+
+function DeskColumn({ userId, onOpenModel, tick, onChanged }: {
+  userId: string | null;
+  onOpenModel: (id: string) => void;
+  /** Bumped when models change elsewhere — refetch. */
+  tick: number;
+  /** Tell the other columns a model changed here. */
+  onChanged: () => void;
+}) {
+  const { models, loading, refetch } = useDeskModels(userId);
+  useRefetchOnTick(tick, refetch);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  /** The model being finished in the Mark Painted dialog. */
+  const [finishing, setFinishing] = useState<CollectionModel | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const changed = () => { refetch(); onChanged(); };
+
+  const nextStep = async (m: CollectionModel, next: ModelStatus) => {
+    setBusyId(m.id);
+    await updateModel(m.id, { status: next });
+    setBusyId(null);
+    changed();
+  };
+  const remove = async (m: CollectionModel) => {
+    setBusyId(m.id);
+    await removeFromDesk(m.id);
+    setBusyId(null);
+    changed();
+  };
+
+  return (
+    <>
+    <ScrollColumn<CollectionModel>
+      icon={<DeskHeaderIcon />}
+      title="Painting Desk"
+      description="What you're painting right now."
+      items={models}
+      loading={loading}
+      empty="Nothing on the desk yet."
+      listClassName={ROW_LIST}
+      getKey={m => m.id}
+      renderItem={m => (
+        <DeskItem
+          model={m}
+          busy={busyId === m.id}
+          onClick={() => onOpenModel(m.id)}
+          onNextStep={next => nextStep(m, next)}
+          onMarkPainted={() => setFinishing(m)}
+          onRemove={() => remove(m)}
+        />
+      )}
+      footer={<AddButton label="Add to Desk" onClick={() => setAddOpen(true)} />}
+    />
+    <AddToDeskModal
+      open={addOpen}
+      onClose={() => setAddOpen(false)}
+      userId={userId}
+      onAdded={changed}
+      onNewModel={() => setNewOpen(true)}
+    />
+    <AddModelModal
+      open={newOpen}
+      onClose={() => setNewOpen(false)}
+      userId={userId}
+      onCreated={changed}
+      forDesk
+    />
+    <MarkPaintedModal
+      model={finishing ? { id: finishing.id, name: finishing.name } : null}
+      userId={userId}
+      onClose={() => setFinishing(null)}
+      onDone={changed}
+    />
+    </>
+  );
+}
+
 // ── Your Models ───────────────────────────────────────────────────────────────
 
-function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, onOpenBox }: {
+function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, onOpenBox, tick, onChanged }: {
   userId: string | null;
   isDesktop: boolean;
   modelId: string | null;
   onOpenModel: (id: string) => void;
   onCloseModel: () => void;
   onOpenBox: (id: string) => void;
+  /** Bumped when models change elsewhere (the desk) — refetch. */
+  tick: number;
+  /** Tell the other columns a model changed here. */
+  onChanged: () => void;
 }) {
   const navigate = useNavigate();
   const [view,    setView]    = useState<View>('gallery');
@@ -179,6 +278,7 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
   const query = useDebouncedValue(search.trim(), 300);
 
   const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filters, query);
+  useRefetchOnTick(tick, refetch);
   // Gallery is a desktop-only view; mobile & tablet always show the list.
   const gallery = isDesktop && view === 'gallery';
   const filterCount = activeModelFilterCount(filters);
@@ -222,7 +322,7 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       userId={userId}
       onCreated={id => { refetch(); onOpenModel(id); }}
     />
-    <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={refetch} onOpenBox={onOpenBox} />
+    <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={() => { refetch(); onChanged(); }} onOpenBox={onOpenBox} />
     <ModelFilterSheet
       open={filterOpen}
       onClose={() => setFilterOpen(false)}
@@ -236,13 +336,16 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
 
 // ── Your Collections ──────────────────────────────────────────────────────────
 
-function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, onOpenModel }: {
+function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, onOpenModel, tick, onChanged }: {
   userId: string | null;
   isDesktop: boolean;
   boxId: string | null;
   onOpenBox: (id: string) => void;
   onCloseBox: () => void;
   onOpenModel: (id: string) => void;
+  /** Bumped when models change elsewhere — member statuses may have moved. */
+  tick: number;
+  onChanged: () => void;
 }) {
   const [view,    setView]    = useState<View>('list');
   const [filters, setFilters] = useLocalStorageState<CollectionFilters>('battlebench:collections-filters', EMPTY_COLLECTION_FILTERS);
@@ -255,6 +358,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   const searchGameIds = useMatchingGameIds(query);
 
   const { boxes, loading, loadingMore, hasMore, loadMore, refetch } = useBoxes(userId, filters, query, searchGameIds);
+  useRefetchOnTick(tick, refetch);
   const gallery = isDesktop && view === 'gallery';
   const filterCount = activeCollectionFilterCount(filters);
 
@@ -304,7 +408,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       onClose={() => setAddModelsBoxId(null)}
       onAdded={() => { refetch(); if (addModelsBoxId) onOpenBox(addModelsBoxId); }}
     />
-    <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} onChanged={refetch} />
+    <CollectionDetailModal boxId={boxId} onClose={onCloseBox} onOpenModel={onOpenModel} onChanged={() => { refetch(); onChanged(); }} />
     <CollectionFilterSheet
       open={filterOpen}
       onClose={() => setFilterOpen(false)}
@@ -571,6 +675,16 @@ function useDebouncedValue<T>(value: T, delay = 300): T {
   return debounced;
 }
 
+/** Refetch whenever `tick` moves on (not on mount — the list loads itself). */
+function useRefetchOnTick(tick: number, refetch: () => void) {
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
+}
+
 /** True from the `lg` breakpoint up (desktop). Gallery view is desktop-only. */
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(
@@ -598,6 +712,11 @@ export default function HomePage() {
   const openModel = (id: string) => { setBoxId(null);   setModelId(id); };
   const openBox   = (id: string) => { setModelId(null); setBoxId(id); };
 
+  // The desk, Models and Collections all show the same models; a change in
+  // one bumps this and the others refetch.
+  const [tick, setTick] = useState(0);
+  const bump = useCallback(() => setTick(t => t + 1), []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
@@ -616,13 +735,16 @@ export default function HomePage() {
         <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
           <div className={`${COLUMN_ROW} pb-2 lg:pb-0`}>
             <ShoppingListColumn userId={userId} />
+            <DeskColumn userId={userId} onOpenModel={openModel} tick={tick} onChanged={bump} />
             <ModelsColumn
               userId={userId} isDesktop={isDesktop}
               modelId={modelId} onOpenModel={openModel} onCloseModel={() => setModelId(null)} onOpenBox={openBox}
+              tick={tick} onChanged={bump}
             />
             <CollectionsColumn
               userId={userId} isDesktop={isDesktop}
               boxId={boxId} onOpenBox={openBox} onCloseBox={() => setBoxId(null)} onOpenModel={openModel}
+              tick={tick} onChanged={bump}
             />
             <RecipesColumn userId={userId} isDesktop={isDesktop} onOpenModel={openModel} />
             <PaintsColumn userId={userId} />

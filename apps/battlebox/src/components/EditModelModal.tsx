@@ -21,13 +21,15 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
   );
 }
 
-export function EditModelModal({ open, onClose, modelId, onChanged }: {
+export function EditModelModal({ open, onClose, modelId, onChanged, onDesk = false }: {
   open: boolean;
   onClose: () => void;
   modelId: string | null;
   /** Called after any change (metadata save or a photo edit) so the detail
    *  modal and list refresh. */
   onChanged: () => void;
+  /** The model is on the Painting Desk: photos uploaded now are progress photos. */
+  onDesk?: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -35,6 +37,7 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
   const [count, setCount] = useState(1);
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
   const [paintedDate, setPaintedDate] = useState<string | null>(null);
+  const [startedDate, setStartedDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const games = useAllGames(open);
   /** What "Find a photo online" searches for — follows edits to the name/game. */
@@ -47,6 +50,7 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
     fetchModelEdit(modelId).then(f => {
       if (cancelled || !f) return;
       setName(f.name); setGameId(f.game_id); setCount(f.count); setPurchaseDate(f.purchase_date); setPaintedDate(f.painted_date);
+      setStartedDate(f.started_painting_date);
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -57,7 +61,10 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
   const save = async () => {
     if (!modelId) return;
     setSaving(true);
-    await updateModelInfo(modelId, { name: name.trim(), game_id: gameId, count: Math.max(1, count || 1), purchase_date: purchaseDate, painted_date: paintedDate });
+    await updateModelInfo(modelId, {
+      name: name.trim(), game_id: gameId, count: Math.max(1, count || 1),
+      purchase_date: purchaseDate, painted_date: paintedDate, started_painting_date: startedDate,
+    });
     setSaving(false);
     onChanged();
     onClose();
@@ -88,12 +95,20 @@ export function EditModelModal({ open, onClose, modelId, onChanged }: {
               <span className="font-body text-sm font-medium text-white">Purchase Date</span>
               <div className="flex gap-3"><DateField label="Date" value={purchaseDate} onChange={setPurchaseDate} /></div>
             </div>
+            {/* Set when the model went on the Painting Desk; separate from
+                purchase date. Shown once it has one, or while on the desk. */}
+            {(startedDate || onDesk) && (
+              <div className="flex flex-col gap-1.5">
+                <span className="font-body text-sm font-medium text-white">Started Painting</span>
+                <div className="flex gap-3"><DateField label="Date" value={startedDate} onChange={setStartedDate} /></div>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <span className="font-body text-sm font-medium text-white">Painted Date</span>
               <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
             </div>
 
-            {modelId && <ImageEditor kind="model" id={modelId} onChanged={onChanged} searchQuery={searchQuery} />}
+            {modelId && <ImageEditor kind="model" id={modelId} onChanged={onChanged} searchQuery={searchQuery} progress={onDesk} />}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>

@@ -10,7 +10,11 @@ import { EditRecipeModal } from './EditRecipeModal';
 import { EditModelModal } from './EditModelModal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { KebabMenu } from './KebabMenu';
-import { useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage } from '../hooks/useCollection';
+import { MarkPaintedModal } from './MarkPaintedModal';
+import {
+  useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage,
+  addModelsToDesk, removeFromDesk,
+} from '../hooks/useCollection';
 import type { ModelDetail, ModelStatus, ModelPatch, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -215,6 +219,15 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
             <span className="font-body text-sm text-white">Purchased {shortDate(model.purchaseDate)}</span>
           </div>
         )}
+        {model.startedPaintingDate && (
+          <div className="flex items-center gap-2 px-3 py-2.5 text-primary-400">
+            <PaintRollerIcon />
+            <span className="font-body text-sm text-white">
+              Started painting {shortDate(model.startedPaintingDate)}
+              {model.onDesk && <span className="text-neutral-400"> · on the Painting Desk</span>}
+            </span>
+          </div>
+        )}
         {model.paintedDate && (
           <div className="flex items-center gap-2 px-3 py-2.5 text-primary-400">
             <PaintRollerIcon />
@@ -235,9 +248,11 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
   );
 }
 
-function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe, onOpenRecipePhoto }: {
+function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe, onOpenRecipePhoto, onMarkPainted }: {
   model: ModelDetail;
   save: (p: ModelPatch) => void;
+  /** A desk model chose Painted: finish it through the Mark Painted dialog. */
+  onMarkPainted: () => void;
   userId: string | null;
   onAdd: (kind: 'paint' | 'recipe') => void;
   onEditPaint: (paint: PaintRef) => void;
@@ -254,6 +269,8 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   // date — asked first, then both saved together.
   const changeStatus = (s: ModelStatus) => {
     if (s === model.status) return;
+    // On the desk, finishing goes through Mark Painted (date + photo).
+    if (s === 'Painted' && model.onDesk) { onMarkPainted(); return; }
     if (s !== 'Painted' && model.paintedDate) setPendingStatus(s);
     else save({ status: s });
   };
@@ -420,14 +437,23 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const [confirmRecipe, setConfirmRecipe] = useState<{ id: string; name: string } | null>(null);
   const [editingModel, setEditingModel] = useState(false);
   const [confirmDeleteModel, setConfirmDeleteModel] = useState(false);
+  /** The Mark Painted dialog (desk models choosing Painted). */
+  const [markingPainted, setMarkingPainted] = useState(false);
 
   // Reset transient overlays each time a model is opened.
   useEffect(() => {
     if (modelId) {
       setTab('details'); setLightbox(null); setRecipePhotos(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
-      setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false);
+      setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false); setMarkingPainted(false);
     }
   }, [modelId]);
+
+  /** Put this model on the Painting Desk, or take it off. */
+  const toggleDesk = async (on: boolean) => {
+    if (!modelId) return;
+    if (on) await addModelsToDesk([modelId]); else await removeFromDesk(modelId);
+    refresh();
+  };
 
   const save = async (patch: ModelPatch) => {
     if (!modelId) return;
@@ -495,11 +521,16 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
                 {iconUrl
                   ? <img src={iconUrl} alt="" className="w-24 h-24 rounded-lg object-cover shadow-lg" />
                   : <span className="font-heading text-white text-lg text-center px-6">{model.name}</span>}
-                {/* No photo yet: offer one straight from the device. */}
-                <Button size="sm" variant="outline" color="primary" loading={uploading} disabled={!userId}
-                  onClick={() => photoRef.current?.click()}>
-                  Add Photo
-                </Button>
+                {/* No photo yet: offer one straight from the device. Not while
+                    on the desk — a photo then is a progress photo, which this
+                    hero doesn't show, so the button would seem to do nothing.
+                    (Progress photos go in via Edit.) */}
+                {!model.onDesk && (
+                  <Button size="sm" variant="outline" color="primary" loading={uploading} disabled={!userId}
+                    onClick={() => photoRef.current?.click()}>
+                    Add Photo
+                  </Button>
+                )}
                 {uploadError && <span className="font-body text-xs text-red-400">{uploadError}</span>}
               </div>
               <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={addPhoto} />
@@ -521,6 +552,12 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
               label="Model actions"
               items={[
                 { label: 'Edit', onClick: () => setEditingModel(true) },
+                // Painted models can't go on the desk.
+                ...(model.onDesk
+                  ? [{ label: 'Remove from Painting Desk', onClick: () => toggleDesk(false) }]
+                  : model.status !== 'Painted'
+                    ? [{ label: 'Add to Painting Desk', onClick: () => toggleDesk(true) }]
+                    : []),
                 { label: 'Delete', onClick: () => setConfirmDeleteModel(true), danger: true },
               ]}
             />
@@ -534,7 +571,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           {/* Body */}
           <div className="px-5 py-4">
             {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
-            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} />}
+            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} onMarkPainted={() => setMarkingPainted(true)} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>
           </div>
@@ -591,6 +628,14 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             modelId={modelId}
             onClose={() => setEditingModel(false)}
             onChanged={refresh}
+            onDesk={model.onDesk}
+          />
+
+          <MarkPaintedModal
+            model={markingPainted ? { id: model.id, name: model.name } : null}
+            userId={userId}
+            onClose={() => setMarkingPainted(false)}
+            onDone={refresh}
           />
 
           <ConfirmDialog

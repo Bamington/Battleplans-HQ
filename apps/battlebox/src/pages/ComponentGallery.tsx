@@ -73,6 +73,9 @@ import { RecipeFilterSheet } from '../components/RecipeFilterSheet';
 import { RecipeItem, RecipeGridItem, RecipeCardBody } from '../components/RecipeItem';
 import { PhotoFinder } from '../components/PhotoFinder';
 import { ShoppingListItem } from '../components/ShoppingListItem';
+import { DeskItem } from '../components/DeskItem';
+import { AddToDeskModal } from '../components/AddToDeskModal';
+import { MarkPaintedModal } from '../components/MarkPaintedModal';
 import { ShoppingItemModal } from '../components/ShoppingItemModal';
 import type { ShoppingItem } from '../hooks/useShoppingList';
 import type { PendingPhoto, WebImage } from '../lib/imageSearch';
@@ -134,6 +137,8 @@ const DEMO_MODEL: CollectionModel = {
   images: [PHOTO_A, PHOTO_B],
   game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' },
   boxName: 'Leviathan Box Set',
+  onDesk: false,
+  startedPaintingDate: '2026-09-01',
 };
 
 const DEMO_MODEL_WIP: CollectionModel = {
@@ -144,6 +149,8 @@ const DEMO_MODEL_WIP: CollectionModel = {
   images: [PHOTO_B],
   game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' },
   boxName: 'Leviathan Box Set',
+  onDesk: true,
+  startedPaintingDate: '2026-10-02',
 };
 
 const DEMO_MODEL_BARE: CollectionModel = {
@@ -154,7 +161,18 @@ const DEMO_MODEL_BARE: CollectionModel = {
   images: [],
   game: null,
   boxName: null,
+  onDesk: false,
+  startedPaintingDate: null,
 };
+
+/** Desk models at different stages: a fresh one, one primed, one at the last
+ *  step (Partially Painted — only Mark Painted left). */
+const DEMO_DESK: CollectionModel[] = [
+  { ...DEMO_MODEL_WIP, id: 'd-3' },
+  { ...DEMO_MODEL_BARE, id: 'd-2', name: 'Kill Team Kommandos', status: 'Primed', images: [PHOTO_A],
+    game: { name: 'Kill Team', slug: 'kill-team' }, onDesk: true, startedPaintingDate: '2026-10-08' },
+  { ...DEMO_MODEL_BARE, id: 'd-1', onDesk: true, startedPaintingDate: '2026-10-12' },
+];
 
 const DEMO_PAINTS: LibraryPaint[] = [
   { id: 1, name: 'Macragge Blue',    brand: 'Citadel', sub_brand: 'Base',  type: 'Base',   swatch: '#0d407f' },
@@ -249,6 +267,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-model-item',          label: 'Model Item',            icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-recipe-item',         label: 'Recipe Item',           icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-shopping-list',       label: 'Shopping List',         icon: <ListCheck className="w-5 h-5" /> },
+  { href: '#nav-painting-desk',       label: 'Painting Desk',         icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-collection-thumb',    label: 'Collection Thumb',      icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-paint-item',          label: 'Paint Item',            icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-paint-pack-item',     label: 'Paint Pack Item',       icon: <ListCheck className="w-5 h-5" /> },
@@ -305,6 +324,9 @@ const ComponentGallery = () => {
   const [editPaintOpen,     setEditPaintOpen]     = useState(false);
   const [editRecipeOpen,    setEditRecipeOpen]    = useState(false);
   const [createRecipeOpen,  setCreateRecipeOpen]  = useState(false);
+  const [desk,              setDesk]              = useState<CollectionModel[]>(DEMO_DESK);
+  const [deskFinishing,     setDeskFinishing]     = useState<CollectionModel | null>(null);
+  const [addToDeskOpen,     setAddToDeskOpen]     = useState(false);
   const [shopping,          setShopping]          = useState<ShoppingItem[]>(DEMO_SHOPPING);
   const [shoppingEditing,   setShoppingEditing]   = useState<ShoppingItem | null>(null);
 
@@ -376,6 +398,55 @@ const ComponentGallery = () => {
           to the initials thumbnail. A box's carousel images are its own cover
           photos followed by one photo per member model.
         </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          PAINTING DESK
+          The desk card, the add-to-desk chooser, and the finish dialog.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-painting-desk" title="Painting Desk / Item, Add & Mark Painted">
+        <div className="w-full flex flex-col gap-4">
+          <div className="max-w-xl flex flex-col gap-1.5">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">DeskItem — Next step advances the demo; Mark Painted opens the dialog</p>
+            {desk.map(m => (
+              <DeskItem
+                key={m.id}
+                model={m}
+                onClick={() => alert('Open model')}
+                onNextStep={next => setDesk(prev => prev.map(x => x.id === m.id ? { ...x, status: next } : x))}
+                onMarkPainted={() => setDeskFinishing(m)}
+                onRemove={() => setDesk(prev => prev.filter(x => x.id !== m.id))}
+              />
+            ))}
+            <DeskItem model={{ ...DEMO_MODEL_BARE, id: 'd-static', name: 'Read-only (no handlers)', onDesk: true }} />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => setAddToDeskOpen(true)}>Add to Desk</Button>
+            <Button variant="outline" color="secondary" onClick={() => setDesk(DEMO_DESK)}>Reset demo</Button>
+          </div>
+        </div>
+        <GalleryNote>
+          DeskItem shows the four-step progress bar (Unpainted → Assembled →
+          Primed → Partially Painted), the started date, and Next step / Mark
+          Painted; at Partially Painted only Mark Painted is left. Remove from
+          desk is in its ⋯ menu. AddToDeskModal's lists and MarkPaintedModal's
+          save need a session, so here they show empty states / fail on save —
+          they're shown for the layout. MarkPaintedModal defaults the date to
+          today; its optional photo becomes the cover.
+        </GalleryNote>
+        <AddToDeskModal
+          open={addToDeskOpen}
+          onClose={() => setAddToDeskOpen(false)}
+          userId={null}
+          onAdded={() => {}}
+          onNewModel={() => alert('Opens Add Model in desk mode')}
+        />
+        <MarkPaintedModal
+          model={deskFinishing ? { id: deskFinishing.id, name: deskFinishing.name } : null}
+          userId={null}
+          onClose={() => setDeskFinishing(null)}
+          onDone={() => {}}
+        />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════

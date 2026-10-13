@@ -23,6 +23,10 @@ export interface CollectionModel {
   game: CollectionGame | null;
   /** Name of the first box/collection this model belongs to, if any. */
   boxName: string | null;
+  /** On the Painting Desk right now. */
+  onDesk: boolean;
+  /** "Started Painting" (YYYY-MM-DD) — set when it went on the desk. */
+  startedPaintingDate: string | null;
 }
 
 export interface CollectionBox {
@@ -64,6 +68,9 @@ interface ModelImageRow {
   image_path: string | null;
   is_primary: boolean;
   display_order: number;
+  /** Painting Desk work-in-progress photo — never a cover. (Recipe photos
+   *  share this shape and don't have it.) */
+  is_progress?: boolean;
 }
 
 interface ModelRow {
@@ -72,6 +79,8 @@ interface ModelRow {
   status: ModelStatus;
   count: number;
   image_path: string | null;
+  on_desk: boolean;
+  started_painting_date: string | null;
   game: CollectionGame | null;
   model_boxes: { box: { name: string } | null }[] | null;
   model_images: ModelImageRow[] | null;
@@ -95,8 +104,8 @@ interface BoxRow {
 }
 
 const MODEL_SELECT =
-  'id, name, status, count, image_path, game:games ( name, slug ), ' +
-  'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order )';
+  'id, name, status, count, image_path, on_desk, started_painting_date, game:games ( name, slug ), ' +
+  'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order, is_progress )';
 const BOX_SELECT =
   'id, name, type, includes_string, game:games ( name, slug ), ' +
   'model_boxes ( model:models ( image_path, status ) ), ' +
@@ -106,9 +115,12 @@ const BOX_SELECT =
 const PAGE_SIZE = 24;
 
 /** A model's photos as URLs, primary first then by display order; falls back to
- *  the model's own image_path when it has no model_images rows. */
+ *  the model's own image_path when it has no model_images rows. Progress
+ *  photos (Painting Desk work-in-progress) are left out — they're never the
+ *  cover, and a model with only progress photos shows as having none. */
 function modelCarouselImages(rows: ModelImageRow[] | null, fallbackPath: string | null): string[] {
   const urls = (rows ?? [])
+    .filter(r => !r.is_progress)
     .slice()
     .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
     .map(r => modelImageUrl(r.image_path))
@@ -127,6 +139,8 @@ function mapModel(r: ModelRow): CollectionModel {
     images: modelCarouselImages(r.model_images, r.image_path),
     game: r.game,
     boxName: r.model_boxes?.find(mb => mb.box)?.box?.name ?? null,
+    onDesk: r.on_desk ?? false,
+    startedPaintingDate: r.started_painting_date ?? null,
   };
 }
 
@@ -568,6 +582,10 @@ export interface ModelDetail {
   recipes: ModelRecipeGroup[];
   /** Individual paints applied outside a recipe. */
   directPaints: PaintRef[];
+  /** On the Painting Desk right now. */
+  onDesk: boolean;
+  /** "Started Painting" (YYYY-MM-DD). */
+  startedPaintingDate: string | null;
 }
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
@@ -612,6 +630,8 @@ interface ModelDetailRow {
   painting_notes: string | null;
   lore_name: string | null;
   lore_description: string | null;
+  on_desk: boolean;
+  started_painting_date: string | null;
   game: CollectionGame | null;
   model_images: ModelImageRow[] | null;
   model_boxes: { box: BoxRow | null }[] | null;
@@ -625,8 +645,8 @@ interface ModelDetailRow {
 
 const MODEL_DETAIL_SELECT =
   'id, name, status, count, image_path, purchase_date, painted_date, painting_notes, lore_name, lore_description, ' +
-  'game:games ( name, slug ), ' +
-  'model_images ( image_path, is_primary, display_order ), ' +
+  'on_desk, started_painting_date, game:games ( name, slug ), ' +
+  'model_images ( image_path, is_primary, display_order, is_progress ), ' +
   'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
     'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
   `model_recipes ( description, sort_order, recipe:recipes ( ${RECIPE_SELECT} ) ), ` +
@@ -663,6 +683,8 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(mhi => paintRef(mhi.hobby_item, mhi.section))
       .filter(isPaint),
+    onDesk: r.on_desk ?? false,
+    startedPaintingDate: r.started_painting_date ?? null,
   };
 }
 
@@ -713,6 +735,8 @@ interface BoxMemberRow {
   status: ModelStatus;
   count: number;
   image_path: string | null;
+  on_desk: boolean;
+  started_painting_date: string | null;
   game: CollectionGame | null;
   model_images: ModelImageRow[] | null;
 }
@@ -733,8 +757,8 @@ interface BoxDetailRow {
 const BOX_DETAIL_SELECT =
   'id, name, type, game_id, purchase_date, includes_string, image_path, game:games ( name, slug ), ' +
   'box_images ( image_path, image_url, is_primary, display_order ), ' +
-  'model_boxes ( model:models ( id, name, status, count, image_path, ' +
-    'game:games ( name, slug ), model_images ( image_path, is_primary, display_order ) ) )';
+  'model_boxes ( model:models ( id, name, status, count, image_path, on_desk, started_painting_date, ' +
+    'game:games ( name, slug ), model_images ( image_path, is_primary, display_order, is_progress ) ) )';
 
 /** A collection member, mapped for a ModelItem row. `boxName` is dropped (null)
  *  — it's redundant inside the collection it belongs to, so the row's subtitle
@@ -748,6 +772,8 @@ function mapMember(m: BoxMemberRow): CollectionModel {
     images: modelCarouselImages(m.model_images, m.image_path),
     game: m.game,
     boxName: null,
+    onDesk: m.on_desk ?? false,
+    startedPaintingDate: m.started_painting_date ?? null,
   };
 }
 
@@ -804,8 +830,11 @@ export type ModelPatch = Partial<{
  * Moving a model *off* Painted clears its date — the Painting tab confirms
  * that with the user first and sends both together.
  */
-function withPaintedRule<P extends { status?: ModelStatus; painted_date?: string | null }>(patch: P): P {
-  return patch.painted_date ? { ...patch, status: 'Painted' } : patch;
+function withPaintedRule<P extends { status?: ModelStatus; painted_date?: string | null; on_desk?: boolean }>(patch: P): P {
+  const p = patch.painted_date ? { ...patch, status: 'Painted' as const } : patch;
+  // A painted model is finished, so it's off the Painting Desk — however it
+  // got painted (the desk's Mark Painted, the status dropdown, the Edit form).
+  return p.status === 'Painted' ? { ...p, on_desk: false } : p;
 }
 
 /** Persist an inline edit to a model. RLS restricts this to the owner. */
@@ -867,13 +896,18 @@ export function useRecentGameIds(userId: string | null, enabled: boolean, limit 
   return ids;
 }
 
-export interface ModelEditFields { name: string; game_id: string | null; count: number; purchase_date: string | null; painted_date: string | null }
+export interface ModelEditFields {
+  name: string; game_id: string | null; count: number;
+  purchase_date: string | null; painted_date: string | null;
+  /** "Started Painting" — set by the Painting Desk, editable here. */
+  started_painting_date: string | null;
+}
 export interface BoxEditFields   { name: string; type: 'Box' | 'Collection'; game_id: string | null; purchase_date: string | null; includes_string: string | null }
 
 /** The raw editable fields for a model (includes game_id, which the detail
  *  view doesn't carry). */
 export async function fetchModelEdit(modelId: string): Promise<ModelEditFields | null> {
-  const { data } = await supabase.from('models').select('name, game_id, count, purchase_date, painted_date').eq('id', modelId).single();
+  const { data } = await supabase.from('models').select('name, game_id, count, purchase_date, painted_date, started_painting_date').eq('id', modelId).single();
   return (data as ModelEditFields) ?? null;
 }
 export async function fetchBoxEdit(boxId: string): Promise<BoxEditFields | null> {
@@ -906,6 +940,9 @@ export interface NewModelFields {
   status: ModelStatus;
   purchase_date: string | null;
   painted_date: string | null;
+  /** Created straight onto the Painting Desk. */
+  on_desk?: boolean;
+  started_painting_date?: string | null;
 }
 
 /** Add a model to the user's collection. Photos are added afterwards via the
@@ -1018,16 +1055,19 @@ export interface EditableImage {
   isPrimary: boolean;
   /** The bucket object key, or null for a box's external cover-art link. */
   imagePath: string | null;
+  /** A Painting Desk progress photo — labelled in the editor, never the cover. */
+  isProgress?: boolean;
 }
 
-/** A model's photos, primary first then by display order, for the editor. */
+/** A model's photos for the editor: finished photos first (cover leading),
+ *  then progress photos. */
 export async function fetchModelImages(modelId: string): Promise<EditableImage[]> {
   const { data } = await supabase.from('model_images')
-    .select('id, image_path, is_primary, display_order')
+    .select('id, image_path, is_primary, display_order, is_progress')
     .eq('model_id', modelId);
-  return ((data as { id: string; image_path: string; is_primary: boolean; display_order: number }[]) ?? [])
-    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
-    .map(r => ({ id: r.id, url: modelImageUrl(r.image_path) ?? '', isPrimary: r.is_primary, imagePath: r.image_path }))
+  return ((data as { id: string; image_path: string; is_primary: boolean; display_order: number; is_progress: boolean }[]) ?? [])
+    .sort((a, b) => Number(a.is_progress) - Number(b.is_progress) || Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
+    .map(r => ({ id: r.id, url: modelImageUrl(r.image_path) ?? '', isPrimary: r.is_primary && !r.is_progress, imagePath: r.image_path, isProgress: r.is_progress }))
     .filter(i => i.url);
 }
 
@@ -1054,14 +1094,20 @@ function newImagePath(userId: string, fileName: string): string {
  *  search. Drives the "Has your photo / Needs your photo" filter. */
 export type PhotoSource = 'upload' | 'web';
 
-export async function uploadModelImage(modelId: string, userId: string, file: File, isPrimary: boolean, source: PhotoSource = 'upload'): Promise<{ error: string | null }> {
+/** Upload a photo and link it to a model. `isProgress` marks a Painting Desk
+ *  work-in-progress photo (never primary). Returns the new row's id. */
+export async function uploadModelImage(
+  modelId: string, userId: string, file: File, isPrimary: boolean,
+  source: PhotoSource = 'upload', isProgress = false,
+): Promise<{ error: string | null; id?: string }> {
   const path = newImagePath(userId, file.name);
   const { error: upErr } = await supabase.storage.from('model-images')
     .upload(path, file, { contentType: file.type || undefined, upsert: false });
   if (upErr) return { error: upErr.message };
-  const { error: insErr } = await supabase.from('model_images')
-    .insert({ model_id: modelId, image_path: path, user_id: userId, is_primary: isPrimary, source });
-  return { error: insErr?.message ?? null };
+  const { data, error: insErr } = await supabase.from('model_images')
+    .insert({ model_id: modelId, image_path: path, user_id: userId, is_primary: isPrimary && !isProgress, source, is_progress: isProgress })
+    .select('id').single();
+  return { error: insErr?.message ?? null, id: (data as { id: string } | null)?.id };
 }
 
 /** Upload a photo object then link it to a collection. */
@@ -1391,4 +1437,124 @@ export function deleteRecipeImage(id: string) {
 export async function setRecipePrimaryImage(recipeId: string, id: string) {
   await supabase.from('recipe_images').update({ is_primary: false }).eq('recipe_id', recipeId);
   return supabase.from('recipe_images').update({ is_primary: true }).eq('id', id);
+}
+
+// ── Painting Desk ─────────────────────────────────────────────────────────────
+//
+// Models flagged on_desk. Collections are never on the desk: adding one puts
+// its unpainted models there. A model's progress runs through the ordinary
+// statuses — DESK_STEPS, then Painted, which takes it off the desk.
+
+/** The progress stages a model passes through on the desk, in order. */
+export const DESK_STEPS: ModelStatus[] = ['None', 'Assembled', 'Primed', 'Partially Painted'];
+
+/** The stage after `s`, or null when the next step is Mark Painted. */
+export function nextDeskStatus(s: ModelStatus): ModelStatus | null {
+  const i = DESK_STEPS.indexOf(s);
+  return i >= 0 && i < DESK_STEPS.length - 1 ? DESK_STEPS[i + 1] : null;
+}
+
+/** Today as YYYY-MM-DD in the user's own timezone (not UTC). */
+export function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The desk is a short working list — loaded whole. */
+const MAX_DESK = 200;
+
+/**
+ * The user's desk: furthest along first (Partially Painted at the top), then
+ * most recently started, then most recently added.
+ */
+export function useDeskModels(userId: string | null) {
+  const [models,  setModels]  = useState<CollectionModel[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    if (!userId) { setModels([]); setLoading(false); return; }
+    const { data } = await supabase.from('models').select(MODEL_SELECT)
+      .eq('user_id', userId).eq('on_desk', true)
+      .order('status_rank', { ascending: false })
+      .order('started_painting_date', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(MAX_DESK);
+    setModels(((data as unknown as ModelRow[]) ?? []).map(mapModel));
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { setLoading(true); refetch(); }, [refetch]);
+
+  return { models, loading, refetch };
+}
+
+/**
+ * Put models on the desk. Each keeps its status; any without a Started
+ * Painting date gets today (a model already part-way through keeps its own).
+ */
+export async function addModelsToDesk(modelIds: string[]): Promise<{ error: string | null }> {
+  if (!modelIds.length) return { error: null };
+  const { error } = await supabase.from('models').update({ on_desk: true }).in('id', modelIds);
+  if (error) return { error: error.message };
+  const { error: dateErr } = await supabase.from('models')
+    .update({ started_painting_date: todayISO() })
+    .in('id', modelIds).is('started_painting_date', null);
+  return { error: dateErr?.message ?? null };
+}
+
+/** Take a model off the desk without marking it painted (shelved, abandoned). */
+export function removeFromDesk(modelId: string) {
+  return supabase.from('models').update({ on_desk: false }).eq('id', modelId);
+}
+
+/**
+ * Finish a desk model: optionally upload a finished photo (the user's own, and
+ * the new cover), then set Painted with the chosen date — which also takes it
+ * off the desk (withPaintedRule).
+ */
+export async function markDeskModelPainted(
+  modelId: string, userId: string, paintedDate: string, photo: File | null,
+): Promise<{ error: string | null }> {
+  if (photo) {
+    const { error, id } = await uploadModelImage(modelId, userId, photo, false, 'upload', false);
+    if (error) return { error };
+    if (id) await setModelPrimaryImage(modelId, id);
+  }
+  const { error } = await updateModel(modelId, { status: 'Painted', painted_date: paintedDate });
+  return { error: error?.message ?? null };
+}
+
+/** A model that can go on the desk: not Painted, not already there. */
+export interface DeskModelOption { id: string; name: string; status: ModelStatus; gameName: string | null }
+
+export async function fetchDeskModelOptions(userId: string, search: string): Promise<DeskModelOption[]> {
+  let q = supabase.from('models').select('id, name, status, game:games ( name )')
+    .eq('user_id', userId).eq('on_desk', false).neq('status', 'Painted');
+  if (search.trim()) q = q.ilike('name', `%${search.trim()}%`);
+  const { data } = await q.order('name').limit(50);
+  return ((data as unknown as { id: string; name: string; status: ModelStatus; game: { name: string } | null }[]) ?? [])
+    .map(m => ({ id: m.id, name: m.name, status: m.status, gameName: m.game?.name ?? null }));
+}
+
+/** A collection with models that could go on the desk, and which ones. */
+export interface DeskCollectionOption { id: string; name: string; gameName: string | null; modelIds: string[] }
+
+export async function fetchDeskCollectionOptions(userId: string, search: string): Promise<DeskCollectionOption[]> {
+  let q = supabase.from('boxes')
+    .select('id, name, game:games ( name ), model_boxes ( model:models ( id, status, on_desk ) )')
+    .eq('user_id', userId);
+  if (search.trim()) q = q.ilike('name', `%${search.trim()}%`);
+  const { data } = await q.order('name').limit(50);
+  type Row = { id: string; name: string; game: { name: string } | null; model_boxes: { model: { id: string; status: ModelStatus; on_desk: boolean } | null }[] | null };
+  return ((data as unknown as Row[]) ?? [])
+    .map(b => ({
+      id: b.id,
+      name: b.name,
+      gameName: b.game?.name ?? null,
+      modelIds: (b.model_boxes ?? [])
+        .map(mb => mb.model)
+        .filter((m): m is NonNullable<typeof m> => !!m && m.status !== 'Painted' && !m.on_desk)
+        .map(m => m.id),
+    }))
+    .filter(b => b.modelIds.length > 0);
 }

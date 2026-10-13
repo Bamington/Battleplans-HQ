@@ -12,7 +12,7 @@ import { GamePicker } from './GamePicker';
 import { CollectionPicker } from './CollectionPicker';
 import { PhotoFinder } from './PhotoFinder';
 import { Chip } from './filterControls';
-import { createModel, addModelToBox, uploadModelImage, useAllGames, useRecentGameIds } from '../hooks/useCollection';
+import { createModel, addModelToBox, uploadModelImage, useAllGames, useRecentGameIds, todayISO } from '../hooks/useCollection';
 import type { ModelStatus } from '../hooks/useCollection';
 import { uploadPendingPhotos, releasePendingPhotos } from '../lib/imageSearch';
 import type { PendingPhoto } from '../lib/imageSearch';
@@ -38,12 +38,16 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
 export function AddModelModal({
   open, onClose, userId, onCreated,
   initialGameId = null, initialBoxId = null, initialPurchaseDate = null,
+  forDesk = false,
 }: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
   /** Called with the new model's id once it's saved. */
   onCreated: (id: string) => void;
+  /** A brand-new model for the Painting Desk: no status question — it starts
+   *  Unpainted, on the desk, with Started Painting set to today. */
+  forDesk?: boolean;
   /** Prefills, used when adding straight into a collection. */
   initialGameId?: string | null;
   initialBoxId?: string | null;
@@ -96,9 +100,10 @@ export function AddModelModal({
       name: name.trim(),
       game_id: gameId,
       count: Math.max(1, count || 1),
-      status,
+      status: forDesk ? 'None' : status,
       purchase_date: purchaseDate,
-      painted_date: status === 'Painted' ? paintedDate : null,
+      painted_date: !forDesk && status === 'Painted' ? paintedDate : null,
+      ...(forDesk ? { on_desk: true, started_painting_date: todayISO() } : {}),
     });
     if (err || !id) { setSaving(false); setError('Could not add the model. Please try again.'); return; }
     if (boxId) await addModelToBox(id, boxId);
@@ -116,7 +121,7 @@ export function AddModelModal({
     <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={close}>
       <div className="w-full max-w-md bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl max-h-[85vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 pt-4 pb-1 shrink-0">
-          <h2 className="font-heading text-xl text-white">Add Model</h2>
+          <h2 className="font-heading text-xl text-white">{forDesk ? 'New Model for the Desk' : 'Add Model'}</h2>
           <button type="button" onClick={close} aria-label="Close" className="text-neutral-400 hover:text-white"><CloseIcon /></button>
         </div>
 
@@ -130,14 +135,17 @@ export function AddModelModal({
 
           <Input label="Model Count" type="number" min={1} value={String(count)} onChange={e => setCount(parseInt(e.target.value, 10) || 1)} />
 
-          <div className="flex flex-col gap-1.5">
-            <span className="font-body text-sm font-medium text-white">Status</span>
-            <div className="flex flex-wrap gap-2">
-              {STATUSES.map(s => (
-                <Chip key={s.value} label={s.label} selected={status === s.value} onClick={() => pickStatus(s.value)} />
-              ))}
+          {/* Desk models always start Unpainted — progress happens on the desk. */}
+          {!forDesk && (
+            <div className="flex flex-col gap-1.5">
+              <span className="font-body text-sm font-medium text-white">Status</span>
+              <div className="flex flex-wrap gap-2">
+                {STATUSES.map(s => (
+                  <Chip key={s.value} label={s.label} selected={status === s.value} onClick={() => pickStatus(s.value)} />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Collection <span className="text-neutral-500 font-normal">(optional)</span></span>
@@ -157,7 +165,7 @@ export function AddModelModal({
             <div className="flex gap-3"><DateField label="Date" value={purchaseDate} onChange={setPurchaseDate} /></div>
           </div>
 
-          {status === 'Painted' && (
+          {!forDesk && status === 'Painted' && (
             <div className="flex flex-col gap-1.5">
               <span className="font-body text-sm font-medium text-white">Painted Date</span>
               <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
@@ -179,7 +187,7 @@ export function AddModelModal({
             ) : (
               <>
                 <Button variant="ghost" color="secondary" onClick={onClose}>Cancel</Button>
-                <Button color="primary" disabled={name.trim() === '' || saving || !userId} loading={saving} onClick={save}>Add Model</Button>
+                <Button color="primary" disabled={name.trim() === '' || saving || !userId} loading={saving} onClick={save}>{forDesk ? 'Add to Desk' : 'Add Model'}</Button>
               </>
             )}
           </div>

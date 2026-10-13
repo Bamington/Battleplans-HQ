@@ -118,6 +118,7 @@ export function ModelCardBody({ model }: { model: CollectionModel }) {
         <Badge color={status.color} icon={<PaintRollerIcon />}>
           {status.label}
         </Badge>
+        {model.onDesk && <Badge color="primary">On the desk</Badge>}
       </div>
     </div>
   );
