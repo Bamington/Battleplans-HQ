@@ -44,11 +44,18 @@ import { useAutoPageSize } from '../hooks/useAutoPageSize';
  * so the leftmost column becomes unreachable. Auto margins on the end children
  * centre exactly the same way when there is room, and collapse to zero when
  * there is not.
+ *
+ * THE SIDE GUTTER IS THE ROW'S OWN PADDING, at every width. It used to be
+ * `lg:px-0` with each page's <main> supplying `lg:px-9` — but this row is the
+ * scroller, so padding on its parent sits OUTSIDE the scrolling area: columns
+ * were clipped 36px in from each edge, leaving two empty bars that scrolled
+ * content vanished behind. Padding on the scroller itself scrolls with the
+ * content. Pages must not pad the <main> around this row horizontally.
  */
 export const COLUMN_ROW = [
   'flex flex-1 min-h-0 items-stretch gap-2.5',
   'overflow-x-auto snap-x snap-mandatory lg:snap-none',
-  'px-3 md:px-9 lg:px-0 scroll-px-3 md:scroll-px-9',
+  'px-3 md:px-9 scroll-px-3 md:scroll-px-9',
   'lg:[&>*:first-child]:ml-auto lg:[&>*:last-child]:mr-auto',
 ].join(' ');
 

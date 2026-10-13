@@ -732,7 +732,7 @@ export default function HomePage() {
 
         <AppNavbar fixed={false} logo={<BattleBenchLogo />} />
 
-        <main className="flex flex-1 min-h-0 items-stretch pt-2.5 lg:px-9 w-full">
+        <main className="flex flex-1 min-h-0 items-stretch pt-2.5 w-full">
           <div className={`${COLUMN_ROW} pb-2 lg:pb-0`}>
             <ShoppingListColumn userId={userId} />
             <DeskColumn userId={userId} onOpenModel={openModel} tick={tick} onChanged={bump} />

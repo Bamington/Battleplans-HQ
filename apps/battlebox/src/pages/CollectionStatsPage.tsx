@@ -347,7 +347,7 @@ export default function CollectionStatsPage() {
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
       <AppNavbar fixed={false} logo={<BattleBenchLogo />} breadcrumbs={[{ label: 'Home', href: '/app' }, { label: 'Stats' }]} />
 
-      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
+      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 w-full">
         <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
           <OverallColumn    models={models} collectionCount={collectionCount} loading={loading} />
           <ByGameColumn     models={models} loading={loading} />
