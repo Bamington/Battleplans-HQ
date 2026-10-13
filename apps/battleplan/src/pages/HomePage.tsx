@@ -1815,7 +1815,7 @@ export default function HomePage() {
         )}
       </AppNavbar>
 
-      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 lg:px-9 w-full">
+      <main className="flex flex-1 min-h-0 items-stretch pt-3 md:pt-9 w-full">
         <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
           {viewingStore ? (
             <>
