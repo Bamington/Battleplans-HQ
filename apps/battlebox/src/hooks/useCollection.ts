@@ -586,6 +586,8 @@ export interface ModelDetail {
   onDesk: boolean;
   /** "Started Painting" (YYYY-MM-DD). */
   startedPaintingDate: string | null;
+  /** How many Painting Desk progress photos it has (they aren't in `images`). */
+  progressPhotoCount: number;
 }
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
@@ -685,6 +687,7 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .filter(isPaint),
     onDesk: r.on_desk ?? false,
     startedPaintingDate: r.started_painting_date ?? null,
+    progressPhotoCount: (r.model_images ?? []).filter(i => i.is_progress).length,
   };
 }
 
