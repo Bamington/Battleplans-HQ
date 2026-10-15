@@ -492,6 +492,30 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
     refresh();
   };
 
+  // "Add Progress Photos" (desk models only): one or more photos from the
+  // device, saved straight away as progress photos — never the cover.
+  const progressRef = useRef<HTMLInputElement>(null);
+  const [addingProgress, setAddingProgress] = useState(false);
+  const [progressNote, setProgressNote] = useState<{ text: string; error: boolean } | null>(null);
+  useEffect(() => { setProgressNote(null); }, [modelId]);
+  const addProgressPhotos = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!files.length || !modelId || !userId) return;
+    setAddingProgress(true); setProgressNote(null);
+    let failed = 0;
+    for (const file of files) {
+      const { error } = await uploadModelImage(modelId, userId, file, false, 'upload', true);
+      if (error) failed++;
+    }
+    setAddingProgress(false);
+    const added = files.length - failed;
+    setProgressNote(failed
+      ? { text: `${failed === files.length ? 'Couldn’t add' : `Added ${added}, couldn’t add ${failed}`} — please try again.`, error: true }
+      : { text: `Added ${added} progress ${added === 1 ? 'photo' : 'photos'}.`, error: false });
+    refresh();
+  };
+
   const iconUrl = model?.game?.slug ? GAME_ICONS[model.game.slug] ?? null : null;
 
   return (
@@ -567,6 +591,26 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           <div className="px-5 pt-3 shrink-0">
             <TabControl tab={tab} onChange={setTab} />
           </div>
+
+          {/* On the desk: progress photos in one tap, whichever tab is open.
+              They don't show in the hero, so the count confirms they landed. */}
+          {model.onDesk && (
+            <div className="px-5 pt-3 flex flex-col gap-1.5 shrink-0">
+              <Button variant="outline" color="primary" size="sm" className="w-full justify-center"
+                leftIcon={<AddCircle className="w-4 h-4" />}
+                loading={addingProgress} disabled={!userId || addingProgress}
+                onClick={() => progressRef.current?.click()}>
+                Add Progress Photos
+              </Button>
+              <span className={`font-body text-xs text-center ${progressNote?.error ? 'text-red-400' : 'text-neutral-400'}`}>
+                {progressNote?.text
+                  ?? (model.progressPhotoCount
+                    ? `${model.progressPhotoCount} progress ${model.progressPhotoCount === 1 ? 'photo' : 'photos'} so far`
+                    : 'No progress photos yet')}
+              </span>
+              <input ref={progressRef} type="file" accept="image/*" multiple className="hidden" onChange={addProgressPhotos} />
+            </div>
+          )}
 
           {/* Body */}
           <div className="px-5 py-4">
