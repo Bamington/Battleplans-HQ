@@ -546,9 +546,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
                   ? <img src={iconUrl} alt="" className="w-24 h-24 rounded-lg object-cover shadow-lg" />
                   : <span className="font-heading text-white text-lg text-center px-6">{model.name}</span>}
                 {/* No photo yet: offer one straight from the device. Not while
-                    on the desk — a photo then is a progress photo, which this
-                    hero doesn't show, so the button would seem to do nothing.
-                    (Progress photos go in via Edit.) */}
+                    on the desk — there the Add Progress Photos button under the
+                    tabs is the way in, and its photos then show here. */}
                 {!model.onDesk && (
                   <Button size="sm" variant="outline" color="primary" loading={uploading} disabled={!userId}
                     onClick={() => photoRef.current?.click()}>
@@ -593,7 +592,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           </div>
 
           {/* On the desk: progress photos in one tap, whichever tab is open.
-              They don't show in the hero, so the count confirms they landed. */}
+              They show in the hero only until there's a finished photo, so the
+              count still confirms they landed. */}
           {model.onDesk && (
             <div className="px-5 pt-3 flex flex-col gap-1.5 shrink-0">
               <Button variant="outline" color="primary" size="sm" className="w-full justify-center"
