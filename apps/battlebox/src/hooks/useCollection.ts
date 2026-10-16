@@ -600,8 +600,10 @@ export interface ModelDetail {
   onDesk: boolean;
   /** "Started Painting" (YYYY-MM-DD). */
   startedPaintingDate: string | null;
-  /** How many Painting Desk progress photos it has (they aren't in `images`). */
-  progressPhotoCount: number;
+  /** Its Painting Desk progress photos as URLs, oldest first — the Painting
+   *  tab's progress strip. (They're in `images` too only while the model has
+   *  no finished photo.) */
+  progressImages: string[];
 }
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
@@ -701,7 +703,11 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .filter(isPaint),
     onDesk: r.on_desk ?? false,
     startedPaintingDate: r.started_painting_date ?? null,
-    progressPhotoCount: (r.model_images ?? []).filter(i => i.is_progress).length,
+    progressImages: (r.model_images ?? [])
+      .filter(i => i.is_progress)
+      .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
+      .map(i => modelImageUrl(i.image_path))
+      .filter((u): u is string => !!u),
   };
 }
 
