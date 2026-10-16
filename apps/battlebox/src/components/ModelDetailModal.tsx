@@ -248,9 +248,11 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
   );
 }
 
-function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe, onOpenRecipePhoto, onMarkPainted }: {
+function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, onRemovePaint, onRemoveRecipe, onOpenRecipePhoto, onMarkPainted, onOpenProgressPhoto }: {
   model: ModelDetail;
   save: (p: ModelPatch) => void;
+  /** Open the progress photos in the lightbox at this index. */
+  onOpenProgressPhoto: (index: number) => void;
   /** A desk model chose Painted: finish it through the Mark Painted dialog. */
   onMarkPainted: () => void;
   userId: string | null;
@@ -366,6 +368,23 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
           </button>
         </div>
       </div>
+
+      {/* Progress photos from the Painting Desk, oldest first — the story of
+          how it was painted. Tap one to view it full size. */}
+      {model.progressImages.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <Label>Progress Photos</Label>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {model.progressImages.map((url, i) => (
+              <button key={url} type="button" onClick={() => onOpenProgressPhoto(i)}
+                aria-label={`View progress photo ${i + 1} of ${model.progressImages.length}`}
+                className="shrink-0 w-20 h-20 rounded-md overflow-hidden border border-neutral-700 hover:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
+                <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -429,6 +448,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const userId = useUserId();
   const [tab, setTab] = useState<Tab>('details');
   const [lightbox, setLightbox] = useState<number | null>(null);
+  /** The progress-photo strip's lightbox (Painting tab). */
+  const [progressLightbox, setProgressLightbox] = useState<number | null>(null);
   /** A recipe's photos, opened from its thumbnails on the Painting tab. */
   const [recipePhotos, setRecipePhotos] = useState<{ recipe: ModelRecipeGroup; index: number } | null>(null);
   const [addKind, setAddKind] = useState<'paint' | 'recipe' | null>(null);
@@ -443,7 +464,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   // Reset transient overlays each time a model is opened.
   useEffect(() => {
     if (modelId) {
-      setTab('details'); setLightbox(null); setRecipePhotos(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
+      setTab('details'); setLightbox(null); setProgressLightbox(null); setRecipePhotos(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
       setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false); setMarkingPainted(false);
     }
   }, [modelId]);
@@ -546,9 +567,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
                   ? <img src={iconUrl} alt="" className="w-24 h-24 rounded-lg object-cover shadow-lg" />
                   : <span className="font-heading text-white text-lg text-center px-6">{model.name}</span>}
                 {/* No photo yet: offer one straight from the device. Not while
-                    on the desk — a photo then is a progress photo, which this
-                    hero doesn't show, so the button would seem to do nothing.
-                    (Progress photos go in via Edit.) */}
+                    on the desk — there the Add Progress Photos button under the
+                    tabs is the way in, and its photos then show here. */}
                 {!model.onDesk && (
                   <Button size="sm" variant="outline" color="primary" loading={uploading} disabled={!userId}
                     onClick={() => photoRef.current?.click()}>
@@ -593,7 +613,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           </div>
 
           {/* On the desk: progress photos in one tap, whichever tab is open.
-              They don't show in the hero, so the count confirms they landed. */}
+              They show in the hero only until there's a finished photo, so the
+              count still confirms they landed. */}
           {model.onDesk && (
             <div className="px-5 pt-3 flex flex-col gap-1.5 shrink-0">
               <Button variant="outline" color="primary" size="sm" className="w-full justify-center"
@@ -604,8 +625,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
               </Button>
               <span className={`font-body text-xs text-center ${progressNote?.error ? 'text-red-400' : 'text-neutral-400'}`}>
                 {progressNote?.text
-                  ?? (model.progressPhotoCount
-                    ? `${model.progressPhotoCount} progress ${model.progressPhotoCount === 1 ? 'photo' : 'photos'} so far`
+                  ?? (model.progressImages.length
+                    ? `${model.progressImages.length} progress ${model.progressImages.length === 1 ? 'photo' : 'photos'} so far`
                     : 'No progress photos yet')}
               </span>
               <input ref={progressRef} type="file" accept="image/*" multiple className="hidden" onChange={addProgressPhotos} />
@@ -615,7 +636,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
           {/* Body */}
           <div className="px-5 py-4">
             {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
-            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} onMarkPainted={() => setMarkingPainted(true)} />}
+            {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} onMarkPainted={() => setMarkingPainted(true)} onOpenProgressPhoto={setProgressLightbox} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>
           </div>
@@ -626,6 +647,13 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             startIndex={lightbox ?? 0}
             onClose={() => setLightbox(null)}
             alt={model.name}
+          />
+          <Lightbox
+            open={progressLightbox !== null}
+            images={model.progressImages}
+            startIndex={progressLightbox ?? 0}
+            onClose={() => setProgressLightbox(null)}
+            alt={`${model.name} — progress`}
           />
           <Lightbox
             open={recipePhotos !== null}

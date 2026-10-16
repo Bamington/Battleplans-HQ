@@ -68,9 +68,11 @@ interface ModelImageRow {
   image_path: string | null;
   is_primary: boolean;
   display_order: number;
-  /** Painting Desk work-in-progress photo — never a cover. (Recipe photos
-   *  share this shape and don't have it.) */
+  /** Painting Desk work-in-progress photo — shown only while the model has no
+   *  finished photo. (Recipe photos share this shape and don't have it.) */
   is_progress?: boolean;
+  /** Orders progress photos, newest first. */
+  created_at?: string | null;
 }
 
 interface ModelRow {
@@ -105,7 +107,7 @@ interface BoxRow {
 
 const MODEL_SELECT =
   'id, name, status, count, image_path, on_desk, started_painting_date, game:games ( name, slug ), ' +
-  'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order, is_progress )';
+  'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order, is_progress, created_at )';
 const BOX_SELECT =
   'id, name, type, includes_string, game:games ( name, slug ), ' +
   'model_boxes ( model:models ( image_path, status ) ), ' +
@@ -114,20 +116,32 @@ const BOX_SELECT =
 /** How many rows are fetched per page as the collection is scrolled. */
 const PAGE_SIZE = 24;
 
-/** A model's photos as URLs, primary first then by display order; falls back to
- *  the model's own image_path when it has no model_images rows. Progress
- *  photos (Painting Desk work-in-progress) are left out — they're never the
- *  cover, and a model with only progress photos shows as having none. */
+/**
+ * A model's photos as URLs — what every cover and carousel shows. In order of
+ * preference:
+ *   1. its finished photos, primary first then by display order;
+ *   2. else its legacy image_path (from the old app);
+ *   3. else its Painting Desk progress photos, most recent first.
+ * So progress photos are shown exactly like any other photo, but only until
+ * the model has a finished one — after that they're hidden (still kept, and
+ * listed in the Edit form).
+ */
 function modelCarouselImages(rows: ModelImageRow[] | null, fallbackPath: string | null): string[] {
-  const urls = (rows ?? [])
-    .filter(r => !r.is_progress)
-    .slice()
-    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order)
+  const urls = (list: ModelImageRow[]) => list
     .map(r => modelImageUrl(r.image_path))
     .filter((u): u is string => !!u);
-  if (urls.length) return urls;
-  const fb = modelImageUrl(fallbackPath);
-  return fb ? [fb] : [];
+
+  const finished = urls((rows ?? [])
+    .filter(r => !r.is_progress)
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.display_order - b.display_order));
+  if (finished.length) return finished;
+
+  const legacy = modelImageUrl(fallbackPath);
+  if (legacy) return [legacy];
+
+  return urls((rows ?? [])
+    .filter(r => r.is_progress)
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')));
 }
 
 function mapModel(r: ModelRow): CollectionModel {
@@ -586,8 +600,10 @@ export interface ModelDetail {
   onDesk: boolean;
   /** "Started Painting" (YYYY-MM-DD). */
   startedPaintingDate: string | null;
-  /** How many Painting Desk progress photos it has (they aren't in `images`). */
-  progressPhotoCount: number;
+  /** Its Painting Desk progress photos as URLs, oldest first — the Painting
+   *  tab's progress strip. (They're in `images` too only while the model has
+   *  no finished photo.) */
+  progressImages: string[];
 }
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
@@ -648,7 +664,7 @@ interface ModelDetailRow {
 const MODEL_DETAIL_SELECT =
   'id, name, status, count, image_path, purchase_date, painted_date, painting_notes, lore_name, lore_description, ' +
   'on_desk, started_painting_date, game:games ( name, slug ), ' +
-  'model_images ( image_path, is_primary, display_order, is_progress ), ' +
+  'model_images ( image_path, is_primary, display_order, is_progress, created_at ), ' +
   'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
     'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
   `model_recipes ( description, sort_order, recipe:recipes ( ${RECIPE_SELECT} ) ), ` +
@@ -687,7 +703,11 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .filter(isPaint),
     onDesk: r.on_desk ?? false,
     startedPaintingDate: r.started_painting_date ?? null,
-    progressPhotoCount: (r.model_images ?? []).filter(i => i.is_progress).length,
+    progressImages: (r.model_images ?? [])
+      .filter(i => i.is_progress)
+      .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
+      .map(i => modelImageUrl(i.image_path))
+      .filter((u): u is string => !!u),
   };
 }
 
@@ -761,7 +781,7 @@ const BOX_DETAIL_SELECT =
   'id, name, type, game_id, purchase_date, includes_string, image_path, game:games ( name, slug ), ' +
   'box_images ( image_path, image_url, is_primary, display_order ), ' +
   'model_boxes ( model:models ( id, name, status, count, image_path, on_desk, started_painting_date, ' +
-    'game:games ( name, slug ), model_images ( image_path, is_primary, display_order, is_progress ) ) )';
+    'game:games ( name, slug ), model_images ( image_path, is_primary, display_order, is_progress, created_at ) ) )';
 
 /** A collection member, mapped for a ModelItem row. `boxName` is dropped (null)
  *  — it's redundant inside the collection it belongs to, so the row's subtitle
