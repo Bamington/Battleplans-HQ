@@ -144,11 +144,17 @@ function SharedModelView({ model, openPhotos }: { model: SharedModel; openPhotos
   const paints = model.direct_paints.map(paintRef);
   const deskStatus = model.on_desk && model.status !== 'Painted';
 
+  // Only tabs with something in them. Details always has the model count and
+  // status; with nothing else to show, the picker itself goes.
+  const hasPainting = !!model.painting_notes || paints.length > 0 || recipes.length > 0 || progress.length > 0;
+  const hasLore = !!model.lore_name || !!model.lore_description;
+  const tabs: Tab[] = ['details', ...(hasPainting ? ['painting' as const] : []), ...(hasLore ? ['lore' as const] : [])];
+
   return (
     <div className="flex flex-col">
       <Hero images={images} name={model.name} gameSlug={model.game?.slug} onOpen={i => openPhotos(images, i, model.name)} />
       <div className="px-5 pt-4"><Title name={model.name} game={model.game} kindLabel="Model" /></div>
-      <div className="px-5 pt-3"><TabControl tab={tab} onChange={setTab} /></div>
+      {tabs.length > 1 && <div className="px-5 pt-3"><TabControl tab={tab} onChange={setTab} show={tabs} /></div>}
 
       <div className="px-5 py-4 flex flex-col gap-4">
         {tab === 'details' && (

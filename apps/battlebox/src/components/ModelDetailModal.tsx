@@ -177,12 +177,18 @@ export function PaintRow({ paint, menu }: { paint: PaintRef; menu?: React.ReactN
 
 export type Tab = 'details' | 'painting' | 'lore';
 
-export function TabControl({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+export function TabControl({ tab, onChange, show }: {
+  tab: Tab;
+  onChange: (t: Tab) => void;
+  /** Only these tabs (in the usual order) — e.g. the share page hides empty
+   *  ones. All three when left out. */
+  show?: Tab[];
+}) {
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = ([
     { id: 'details',  label: 'Details',  icon: <InfoCircle className="w-4 h-4" /> },
     { id: 'painting', label: 'Painting', icon: <PaintRollerIcon /> },
     { id: 'lore',     label: 'Lore',     icon: <FileText className="w-4 h-4" /> },
-  ];
+  ] as { id: Tab; label: string; icon: React.ReactNode }[]).filter(t => !show || show.includes(t.id));
   return (
     <div className="flex w-full">
       {tabs.map((t, i) => {
