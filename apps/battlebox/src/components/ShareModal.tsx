@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Input } from '@battleplans/ui';
 import { CloseIcon, PickRow } from './paintPickerBits';
-import { fetchShareState, setShareLevel, shareUrl } from '../lib/sharing';
+import { fetchShareState, setShareLevel, shareUrl, fetchMyHandle } from '../lib/sharing';
 import type { ShareKind, ShareLevel, ShareState } from '../lib/sharing';
 
 const KIND_LABEL: Record<ShareKind, string> = { model: 'model', box: 'collection', recipe: 'recipe' };
@@ -36,11 +36,14 @@ export function ShareModal({ kind, itemId, itemName, onClose }: {
   const [saving, setSaving] = useState<ShareLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  /** Your username, which goes in the link (/s/<username>/<code>). */
+  const [handle, setHandle] = useState<string | null>(null);
 
   useEffect(() => {
     if (!itemId) return;
     let cancelled = false;
     setState(null); setError(null); setCopied(false);
+    fetchMyHandle().then(h => { if (!cancelled) setHandle(h); });
     fetchShareState(kind, itemId).then(async s => {
       if (cancelled) return;
       // Public from the old app but no link yet: make one so there's
@@ -64,7 +67,7 @@ export function ShareModal({ kind, itemId, itemName, onClose }: {
     setState(next);
   };
 
-  const url = state?.token ? shareUrl(state.token) : null;
+  const url = state?.token ? shareUrl(state.token, handle) : null;
 
   const copy = async () => {
     if (!url) return;

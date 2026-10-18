@@ -20,15 +20,34 @@ export type ShareLevel = 'none' | 'link' | 'public';
 const TABLE: Record<ShareKind, string> = { model: 'models', box: 'boxes', recipe: 'recipes' };
 
 /**
- * Where share links point. Always the real site, except on a web preview
- * (*.vercel.app / localhost), where the preview's own address is used so the
- * link works there too. The native app runs from capacitor://, so it can't
- * use its own origin.
+ * A share link: /s/<username>/<code>. The CODE is what unlocks it — the
+ * username is there to read, never checked. So a link keeps working after a
+ * username change (the page corrects the address to the current one), and a
+ * user without a username gets plain /s/<code>.
+ *
+ * Always on the real site (www — the bare domain redirects there), except on a
+ * web preview (*.vercel.app / localhost), where the preview's own address is
+ * used so the link works there too. The native app runs from capacitor://, so
+ * it can't use its own origin.
  */
-export function shareUrl(token: string): string {
+export function shareUrl(token: string, handle?: string | null): string {
   const { protocol, host, origin } = window.location;
   const isWebPreview = protocol.startsWith('http') && (host.endsWith('.vercel.app') || host.startsWith('localhost'));
-  return `${isWebPreview ? origin : 'https://battlebench.app'}/s/${token}`;
+  return `${isWebPreview ? origin : 'https://www.battlebench.app'}${sharePath(token, handle)}`;
+}
+
+/** The path part of a share link (see shareUrl). */
+export function sharePath(token: string, handle?: string | null): string {
+  return handle ? `/s/${encodeURIComponent(handle)}/${token}` : `/s/${token}`;
+}
+
+/** The signed-in user's username, for building their share links. */
+export async function fetchMyHandle(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return null;
+  const { data } = await supabase.from('public_profiles').select('handle').eq('id', uid).maybeSingle();
+  return (data as { handle: string | null } | null)?.handle ?? null;
 }
 
 export interface ShareState { level: ShareLevel; token: string | null }

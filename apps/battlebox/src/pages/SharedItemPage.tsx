@@ -1,5 +1,6 @@
 /**
- * SharedItemPage.tsx — the public page behind a share link (/s/:token).
+ * SharedItemPage.tsx — the public page behind a share link
+ * (/s/:handle/:token, or the original /s/:token — only the code is looked up).
  *
  * Open to anyone, signed in or not, and strictly read-only. Everything comes
  * from get_shared_item(token): the shared model / collection / recipe and
@@ -13,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, Lightbox, Badge, Button, avatarUrl } from '@battleplans/ui';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { ModelItem } from '../components/ModelItem';
@@ -25,7 +26,7 @@ import {
 import type { Tab } from '../components/ModelDetailModal';
 import { modelCarouselImages, modelImageUrl } from '../hooks/useCollection';
 import type { CollectionModel, ModelRecipeGroup, ModelStatus, PaintRef } from '../hooks/useCollection';
-import { getSharedItem } from '../lib/sharing';
+import { getSharedItem, sharePath } from '../lib/sharing';
 import type { SharedPayload, SharedModel, SharedBox, SharedRecipe, SharedPaint, SharedImage } from '../lib/sharing';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -143,11 +144,17 @@ function SharedModelView({ model, openPhotos }: { model: SharedModel; openPhotos
   const paints = model.direct_paints.map(paintRef);
   const deskStatus = model.on_desk && model.status !== 'Painted';
 
+  // Only tabs with something in them. Details always has the model count and
+  // status; with nothing else to show, the picker itself goes.
+  const hasPainting = !!model.painting_notes || paints.length > 0 || recipes.length > 0 || progress.length > 0;
+  const hasLore = !!model.lore_name || !!model.lore_description;
+  const tabs: Tab[] = ['details', ...(hasPainting ? ['painting' as const] : []), ...(hasLore ? ['lore' as const] : [])];
+
   return (
     <div className="flex flex-col">
       <Hero images={images} name={model.name} gameSlug={model.game?.slug} onOpen={i => openPhotos(images, i, model.name)} />
       <div className="px-5 pt-4"><Title name={model.name} game={model.game} kindLabel="Model" /></div>
-      <div className="px-5 pt-3"><TabControl tab={tab} onChange={setTab} /></div>
+      {tabs.length > 1 && <div className="px-5 pt-3"><TabControl tab={tab} onChange={setTab} show={tabs} /></div>}
 
       <div className="px-5 py-4 flex flex-col gap-4">
         {tab === 'details' && (
@@ -276,7 +283,10 @@ function SharedRecipeView({ recipe, openPhotos }: { recipe: SharedRecipe; openPh
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SharedItemPage() {
-  const { token = '' } = useParams();
+  // /s/<username>/<code> or the original /s/<code>. Only the code is looked
+  // up; the username is for reading, and is corrected below.
+  const { token = '', handle: urlHandle } = useParams();
+  const navigate = useNavigate();
   const [payload, setPayload] = useState<SharedPayload | null | undefined>(undefined);
   const [viewerId, setViewerId] = useState<string | null>(null);
   /** A collection's model opened from its list (back returns to the list). */
@@ -293,6 +303,14 @@ export default function SharedItemPage() {
   const title = payload?.item.name;
   useEffect(() => { document.title = title ? `${title} — BattleBench` : 'BattleBench'; }, [title]);
   useEffect(() => { window.scrollTo(0, 0); }, [openModel]);
+
+  // Show the owner's CURRENT username in the address: upgrades an old
+  // /s/<code> link, and fixes one made before a username change.
+  const ownerHandle = payload?.owner?.handle ?? null;
+  useEffect(() => {
+    if (!ownerHandle || ownerHandle === urlHandle) return;
+    navigate(sharePath(token, ownerHandle), { replace: true });
+  }, [ownerHandle, urlHandle, token, navigate]);
 
   const owner = payload?.owner;
   const ownerAvatar = useMemo(() => avatarUrl(owner?.avatar_path), [owner?.avatar_path]);
