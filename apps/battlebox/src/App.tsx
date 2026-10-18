@@ -61,6 +61,8 @@ export default function App() {
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-gray-950" />} />
 
         {/* Share links — open to anyone, signed in or not; read-only. */}
+        {/* /s/<username>/<code>; the original /s/<code> still works. */}
+        <Route path="/s/:handle/:token" element={<SharedItemPage />} />
         <Route path="/s/:token" element={<SharedItemPage />} />
 
         {/* Component gallery — dev tool, not a user-facing screen */}

@@ -3,8 +3,9 @@
  *
  * Mirrors BattlePack's api/og.ts (read that for the full reasoning). BattleBench
  * is a single-page app and no chat app or social crawler runs JavaScript, so a
- * pasted /s/<code> link would preview as just "BattleBench". vercel.json sends
- * /s/<code> here: we look the shared item up, inject Open Graph tags into the
+ * pasted share link would preview as just "BattleBench". vercel.json sends
+ * /s/<username>/<code> (and the original /s/<code>) here — only the code is
+ * read: we look the shared item up, inject Open Graph tags into the
  * real index.html, and return it. The app then boots exactly as normal.
  *
  * Never breaks the page: every failure returns the untouched shell. Reads
@@ -125,7 +126,11 @@ export default async function handler(req: Request): Promise<Response> {
 
     const title = owner ? `${item.name} — ${kindLabel} by ${owner}` : `${item.name} — ${kindLabel}`;
     description = truncate(description.replace(/\s+/g, ' ').trim(), DESCRIPTION_LIMIT);
-    const canonical = `${origin}/s/${encodeURIComponent(token.trim())}`;
+    // /s/<username>/<code> with the owner's CURRENT username, whatever the
+    // address that was pasted said (only the code is ever looked up).
+    const canonical = data.owner?.handle
+      ? `${origin}/s/${encodeURIComponent(data.owner.handle)}/${encodeURIComponent(token.trim())}`
+      : `${origin}/s/${encodeURIComponent(token.trim())}`;
 
     const tags = [
       `<meta property="og:type" content="website" />`,
