@@ -40,7 +40,9 @@ export function DeskProgress({ status }: { status: ModelStatus }) {
   );
 }
 
-export function DeskItem({ model, onClick, onNextStep, onMarkPainted, onRemove, busy = false }: {
+export function DeskItem({ model, onClick, onNextStep, onMarkPainted, onRemove, onShare, busy = false }: {
+  /** Open the Share dialog for this model. */
+  onShare?: () => void;
   model: CollectionModel;
   /** Open the model. */
   onClick?: () => void;
@@ -72,9 +74,12 @@ export function DeskItem({ model, onClick, onNextStep, onMarkPainted, onRemove, 
               {[model.game?.name, model.startedPaintingDate && `Started ${shortDate(model.startedPaintingDate)}`].filter(Boolean).join(' · ')}
             </span>
           </div>
-          {onRemove && (
+          {(onRemove || onShare) && (
             <div onClick={stop} onKeyDown={stop}>
-              <KebabMenu label={`${model.name} actions`} items={[{ label: 'Remove from desk', onClick: onRemove }]} />
+              <KebabMenu label={`${model.name} actions`} items={[
+                ...(onShare ? [{ label: 'Share', onClick: onShare }] : []),
+                ...(onRemove ? [{ label: 'Remove from desk', onClick: onRemove }] : []),
+              ]} />
             </div>
           )}
         </div>

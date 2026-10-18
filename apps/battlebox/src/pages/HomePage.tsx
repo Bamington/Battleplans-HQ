@@ -42,6 +42,7 @@ import type { CollectionModel, CollectionBox, ModelFilters, CollectionFilters, R
 import { DeskItem } from '../components/DeskItem';
 import { AddToDeskModal } from '../components/AddToDeskModal';
 import { MarkPaintedModal } from '../components/MarkPaintedModal';
+import { ShareModal } from '../components/ShareModal';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_DATE__: string;
@@ -192,6 +193,8 @@ function DeskColumn({ userId, onOpenModel, tick, onChanged }: {
   /** The model being finished in the Mark Painted dialog. */
   const [finishing, setFinishing] = useState<CollectionModel | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** The desk model in the Share dialog. */
+  const [sharingModel, setSharingModel] = useState<CollectionModel | null>(null);
 
   const changed = () => { refetch(); onChanged(); };
 
@@ -227,6 +230,7 @@ function DeskColumn({ userId, onOpenModel, tick, onChanged }: {
           onNextStep={next => nextStep(m, next)}
           onMarkPainted={() => setFinishing(m)}
           onRemove={() => remove(m)}
+          onShare={() => setSharingModel(m)}
         />
       )}
       footer={<AddButton label="Add to Desk" onClick={() => setAddOpen(true)} />}
@@ -250,6 +254,12 @@ function DeskColumn({ userId, onOpenModel, tick, onChanged }: {
       userId={userId}
       onClose={() => setFinishing(null)}
       onDone={changed}
+    />
+    <ShareModal
+      kind="model"
+      itemId={sharingModel?.id ?? null}
+      itemName={sharingModel?.name ?? ''}
+      onClose={() => setSharingModel(null)}
     />
     </>
   );

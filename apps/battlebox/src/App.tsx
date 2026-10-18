@@ -8,6 +8,7 @@ import AdminPage from './pages/admin/AdminPage.tsx';
 import ManagePaintPacks from './pages/admin/ManagePaintPacks.tsx';
 import PaintPackEditor from './pages/admin/PaintPackEditor.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
+import SharedItemPage from './pages/SharedItemPage.tsx';
 
 /**
  * The app's own screens, as a route subtree.
@@ -58,6 +59,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-gray-950" />} />
+
+        {/* Share links — open to anyone, signed in or not; read-only. */}
+        <Route path="/s/:token" element={<SharedItemPage />} />
 
         {/* Component gallery — dev tool, not a user-facing screen */}
         <Route path="/gallery" element={<ComponentGallery />} />

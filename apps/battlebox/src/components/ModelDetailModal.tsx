@@ -11,6 +11,7 @@ import { EditModelModal } from './EditModelModal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { KebabMenu } from './KebabMenu';
 import { MarkPaintedModal } from './MarkPaintedModal';
+import { ShareModal } from './ShareModal';
 import {
   useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage,
   addModelsToDesk, removeFromDesk,
@@ -54,7 +55,7 @@ const STATUS_OPTIONS: { value: ModelStatus; label: string }[] = [
 // ── Date helper ───────────────────────────────────────────────────────────────
 
 /** "2026-04-25" -> "25/04/26" */
-function shortDate(iso: string): string {
+export function shortDate(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y.slice(2)}`;
 }
@@ -102,7 +103,7 @@ function AutoTextarea({ value, onSave, placeholder, rows = 4 }: {
 
 // ── Field labels / section headers ────────────────────────────────────────────
 
-const Label = ({ children }: { children: React.ReactNode }) => (
+export const Label = ({ children }: { children: React.ReactNode }) => (
   <label className="block font-body text-sm font-medium text-white">{children}</label>
 );
 
@@ -148,9 +149,9 @@ function RowMenu({ canEdit, onEdit, onDelete, label }: { canEdit: boolean; onEdi
 }
 
 /** The bordered frame around one group on the Painting tab. */
-const PAINT_FRAME = 'bg-neutral-900 border border-neutral-700 rounded-lg';
+export const PAINT_FRAME = 'bg-neutral-900 border border-neutral-700 rounded-lg';
 
-function PaintRow({ paint, menu }: { paint: PaintRef; menu?: React.ReactNode }) {
+export function PaintRow({ paint, menu }: { paint: PaintRef; menu?: React.ReactNode }) {
   const typeColor: BadgeColor = paint.type.toLowerCase() === 'spray' ? 'warning' : 'purple';
   return (
     <div className="flex items-start gap-2.5 px-3 py-2.5">
@@ -174,9 +175,9 @@ function PaintRow({ paint, menu }: { paint: PaintRef; menu?: React.ReactNode }) 
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'details' | 'painting' | 'lore';
+export type Tab = 'details' | 'painting' | 'lore';
 
-function TabControl({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+export function TabControl({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'details',  label: 'Details',  icon: <InfoCircle className="w-4 h-4" /> },
     { id: 'painting', label: 'Painting', icon: <PaintRollerIcon /> },
@@ -389,7 +390,7 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   );
 }
 
-function RecipeGroup({ recipe, menu, onOpenPhoto }: {
+export function RecipeGroup({ recipe, menu, onOpenPhoto }: {
   recipe: ModelRecipeGroup;
   menu?: React.ReactNode;
   /** Open the recipe's photos in the lightbox at this index. */
@@ -460,12 +461,14 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
   const [confirmDeleteModel, setConfirmDeleteModel] = useState(false);
   /** The Mark Painted dialog (desk models choosing Painted). */
   const [markingPainted, setMarkingPainted] = useState(false);
+  /** The Share dialog. */
+  const [sharing, setSharing] = useState(false);
 
   // Reset transient overlays each time a model is opened.
   useEffect(() => {
     if (modelId) {
       setTab('details'); setLightbox(null); setProgressLightbox(null); setRecipePhotos(null); setAddKind(null); setEditingPaint(null); setEditingRecipeId(null);
-      setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false); setMarkingPainted(false);
+      setConfirmRecipe(null); setEditingModel(false); setConfirmDeleteModel(false); setMarkingPainted(false); setSharing(false);
     }
   }, [modelId]);
 
@@ -596,6 +599,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
               label="Model actions"
               items={[
                 { label: 'Edit', onClick: () => setEditingModel(true) },
+                { label: 'Share', onClick: () => setSharing(true) },
                 // Painted models can't go on the desk.
                 ...(model.onDesk
                   ? [{ label: 'Remove from Painting Desk', onClick: () => toggleDesk(false) }]
@@ -708,6 +712,13 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
             userId={userId}
             onClose={() => setMarkingPainted(false)}
             onDone={refresh}
+          />
+
+          <ShareModal
+            kind="model"
+            itemId={sharing ? model.id : null}
+            itemName={model.name}
+            onClose={() => setSharing(false)}
           />
 
           <ConfirmDialog

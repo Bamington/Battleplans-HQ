@@ -76,6 +76,7 @@ import { ShoppingListItem } from '../components/ShoppingListItem';
 import { DeskItem } from '../components/DeskItem';
 import { AddToDeskModal } from '../components/AddToDeskModal';
 import { MarkPaintedModal } from '../components/MarkPaintedModal';
+import { ShareModal } from '../components/ShareModal';
 import { ShoppingItemModal } from '../components/ShoppingItemModal';
 import type { ShoppingItem } from '../hooks/useShoppingList';
 import type { PendingPhoto, WebImage } from '../lib/imageSearch';
@@ -268,6 +269,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-recipe-item',         label: 'Recipe Item',           icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-shopping-list',       label: 'Shopping List',         icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-painting-desk',       label: 'Painting Desk',         icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-share-modal',         label: 'Share Modal',           icon: <AddCircle className="w-5 h-5" /> },
   { href: '#nav-collection-thumb',    label: 'Collection Thumb',      icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-paint-item',          label: 'Paint Item',            icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-paint-pack-item',     label: 'Paint Pack Item',       icon: <ListCheck className="w-5 h-5" /> },
@@ -327,6 +329,7 @@ const ComponentGallery = () => {
   const [desk,              setDesk]              = useState<CollectionModel[]>(DEMO_DESK);
   const [deskFinishing,     setDeskFinishing]     = useState<CollectionModel | null>(null);
   const [addToDeskOpen,     setAddToDeskOpen]     = useState(false);
+  const [shareKind,         setShareKind]         = useState<"model" | "box" | "recipe" | null>(null);
   const [shopping,          setShopping]          = useState<ShoppingItem[]>(DEMO_SHOPPING);
   const [shoppingEditing,   setShoppingEditing]   = useState<ShoppingItem | null>(null);
 
@@ -447,6 +450,26 @@ const ComponentGallery = () => {
           onClose={() => setDeskFinishing(null)}
           onDone={() => {}}
         />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SHARE MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-share-modal" title="Share Modal">
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => setShareKind("model")}>Share a model</Button>
+          <Button variant="outline" color="secondary" onClick={() => setShareKind("box")}>Share a collection</Button>
+          <Button variant="outline" color="secondary" onClick={() => setShareKind("recipe")}>Share a recipe</Button>
+        </div>
+        <GalleryNote>
+          Three settings — Not shared, Anyone with the link, Public — saved the
+          moment one is picked; with a link it shows Copy and (where the device
+          has one) the native share sheet. It loads and saves by item id, so
+          signed out with these stub ids it stays on its loading state; open it
+          from a real model, collection or recipe to see it work. The public
+          page it links to is /s/:code (SharedItemPage).
+        </GalleryNote>
+        <ShareModal kind={shareKind ?? "model"} itemId={shareKind ? "stub-item-id" : null} itemName="Leviathan Box Set" onClose={() => setShareKind(null)} />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
