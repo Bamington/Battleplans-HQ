@@ -64,7 +64,7 @@ export function modelImageUrl(path: string | null | undefined): string | null {
 
 // ── Row shapes returned by the embedded selects ───────────────────────────────
 
-interface ModelImageRow {
+export interface ModelImageRow {
   image_path: string | null;
   is_primary: boolean;
   display_order: number;
@@ -126,7 +126,7 @@ const PAGE_SIZE = 24;
  * the model has a finished one — after that they're hidden (still kept, and
  * listed in the Edit form).
  */
-function modelCarouselImages(rows: ModelImageRow[] | null, fallbackPath: string | null): string[] {
+export function modelCarouselImages(rows: ModelImageRow[] | null, fallbackPath: string | null): string[] {
   const urls = (list: ModelImageRow[]) => list
     .map(r => modelImageUrl(r.image_path))
     .filter((u): u is string => !!u);

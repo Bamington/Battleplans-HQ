@@ -8,6 +8,7 @@ import { EditCollectionModal } from './EditCollectionModal';
 import { AddModelModal } from './AddModelModal';
 import { AddModelsToCollectionModal } from './AddModelsToCollectionModal';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ShareModal } from './ShareModal';
 import { useBoxDetail, deleteBox, useUserId, uploadBoxImage } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -57,12 +58,14 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** The Share dialog. */
+  const [sharing, setSharing] = useState(false);
   /** Pick existing models to add to this collection. */
   const [addExisting, setAddExisting] = useState(false);
   /** Create a brand-new model already filed into this collection. */
   const [addNew, setAddNew] = useState(false);
   useEffect(() => {
-    setLightbox(null); setEditing(false); setConfirmDelete(false);
+    setLightbox(null); setEditing(false); setConfirmDelete(false); setSharing(false);
     setAddExisting(false); setAddNew(false);
   }, [boxId]);
   const iconUrl = box?.game?.slug ? GAME_ICONS[box.game.slug] ?? null : null;
@@ -144,6 +147,7 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
               label="Collection actions"
               items={[
                 { label: 'Edit', onClick: () => setEditing(true) },
+                { label: 'Share', onClick: () => setSharing(true) },
                 { label: 'Delete', onClick: () => setConfirmDelete(true), danger: true },
               ]}
             />
@@ -207,6 +211,13 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
             startIndex={lightbox ?? 0}
             onClose={() => setLightbox(null)}
             alt={box.name}
+          />
+
+          <ShareModal
+            kind="box"
+            itemId={sharing ? box.id : null}
+            itemName={box.name}
+            onClose={() => setSharing(false)}
           />
 
           <EditCollectionModal

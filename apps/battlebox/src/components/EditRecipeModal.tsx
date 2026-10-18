@@ -22,6 +22,7 @@ import { AddPaintsToRecipeModal } from './AddPaintsToRecipeModal';
 import { ImageEditor } from './ImageEditor';
 import { ModelItem } from './ModelItem';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ShareModal } from './ShareModal';
 import { updateRecipe, removeRecipeItem } from '../hooks/useCollection';
 import type { ModelRecipeGroup, CollectionModel } from '../hooks/useCollection';
 
@@ -56,6 +57,7 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged, models, onOp
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const creating = !recipe && !!onCreate;
@@ -175,6 +177,9 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged, models, onOp
             {recipe && onDelete && (
               <Button variant="ghost" color="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
             )}
+            {recipe && (
+              <Button variant="ghost" color="primary" onClick={() => setSharing(true)}>Share</Button>
+            )}
             <div className="flex-1" />
             <Button variant="ghost" color="secondary" onClick={onClose}>{creating ? 'Cancel' : 'Close'}</Button>
             {creating ? (
@@ -200,6 +205,9 @@ export function EditRecipeModal({ open, onClose, recipe, onChanged, models, onOp
           excludeIds={recipe.paints.map(p => p.hobbyItemId)}
           onAdded={onChanged}
         />
+      )}
+      {recipe && (
+        <ShareModal kind="recipe" itemId={sharing ? recipe.id : null} itemName={recipe.name} onClose={() => setSharing(false)} />
       )}
       <ConfirmDialog
         open={confirmDelete}
