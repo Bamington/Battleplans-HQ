@@ -149,6 +149,35 @@ export function useColumnTabs(): ColumnTabsState {
       else if (c.right > right) delta = c.right - right
       if (Math.abs(delta) < SLACK) return
 
+      // Below lg the row snaps, and every panel is `snap-always`, which stops
+      // any scroll at the very next column — so a tab two columns away only
+      // ever got you one column along. Snapping is switched off for the jump,
+      // and the jump lands on a snap point so nothing moves when it's back on:
+      // going right, that's the first column start far enough along to bring
+      // the clicked column's right edge in. (Going left already lands on one.)
+      const snaps = style.scrollSnapType !== 'none'
+      if (snaps && delta > 0) {
+        for (const sibling of scroller.children) {
+          const start = sibling.getBoundingClientRect().left - left
+          if (start >= delta - SLACK) {
+            delta = start
+            break
+          }
+        }
+      }
+
+      if (snaps) {
+        scroller.style.scrollSnapType = 'none'
+        const restore = () => {
+          scroller.style.scrollSnapType = ''
+          scroller.removeEventListener('scrollend', restore)
+          clearTimeout(fallback)
+        }
+        // scrollend is missing in older Safari; a smooth scroll is well done by then.
+        const fallback = setTimeout(restore, 1000)
+        scroller.addEventListener('scrollend', restore)
+      }
+
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       scroller.scrollBy({ left: delta, behavior: reduce ? 'auto' : 'smooth' })
     },
