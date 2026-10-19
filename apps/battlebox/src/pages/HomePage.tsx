@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
-  ScrollColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
+  ScrollColumn, NewsColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
   COLUMN_ROW,
 } from '@battleplans/ui';
 import type { ColumnHeaderToggle } from '@battleplans/ui';
@@ -758,6 +758,7 @@ export default function HomePage() {
             />
             <RecipesColumn userId={userId} isDesktop={isDesktop} onOpenModel={openModel} />
             <PaintsColumn userId={userId} />
+            <NewsColumn app="battlebox" appName="BattleBench" />
           </div>
         </main>
 

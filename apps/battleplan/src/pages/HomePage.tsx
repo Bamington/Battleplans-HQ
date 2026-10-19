@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, UpdateModal, useUpdates, MarkdownBody, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW, inRegionOf } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, NewsColumn, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW, inRegionOf } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
-import type { AppUpdate } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
 import { BattleDetailsModal } from '../components/BattleDetailsModal';
@@ -40,24 +39,10 @@ const BoxIcon = () => (
   </svg>
 );
 
-const InfoCircleIcon = () => (
-  <svg className="w-12 h-12 text-primary-500" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="2.5"/>
-    <path d="M24 22v10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-    <circle cx="24" cy="16" r="1.5" fill="currentColor"/>
-  </svg>
-);
-
 const AddCircleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
     <path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-);
-
-const ArrowRightIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
@@ -624,7 +609,6 @@ function NewBookingModal({
 //            (5 lines of SM Regular, measured) + button ~38 + three 6px gaps.
 //            Rounded up: a slightly high value costs a little whitespace, a low
 //            one clips the last row.
-const NEWS_ITEM_H     = 230;
 // Suggestion card: 2 border + 26 padding + 40 icon row + 8 gap + ~34 button.
 const SUGGESTION_ITEM_H = 122;
 
@@ -1299,49 +1283,6 @@ function SuggestedBattlesCard({ userId, onLogged }: { userId: string | null; onL
   );
 }
 
-function NewsCard() {
-  const { updates, loading } = useUpdates('battleplan');
-  const [selected, setSelected] = useState<AppUpdate | null>(null);
-
-  return (
-    <>
-      <PaginatedColumn
-        icon={<InfoCircleIcon />}
-        title="News & Updates"
-        description="Find out what's happening with BattlePlan."
-        items={updates}
-        itemHeight={NEWS_ITEM_H}
-        loading={loading}
-        empty="No updates yet. Check back soon."
-        getKey={u => u.id}
-        renderItem={u => <NewsItem update={u} onRead={() => setSelected(u)} />}
-      />
-
-      <UpdateModal open={!!selected} onClose={() => setSelected(null)} update={selected} />
-    </>
-  );
-}
-
-function NewsItem({ update, onRead }: { update: AppUpdate; onRead: () => void }) {
-  return (
-    <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] flex flex-col gap-1.5 shadow-md w-full">
-      <h3 className="font-heading text-lg text-white leading-6">{update.title}</h3>
-
-      <hr className="border-neutral-700" />
-
-      <MarkdownBody className="text-sm leading-5 text-white line-clamp-5 overflow-hidden">
-        {update.body ?? ''}
-      </MarkdownBody>
-
-      <div className="flex justify-end">
-        <Button variant="ghost" color="primary" size="sm" rightIcon={<ArrowRightIcon />} onClick={onRead}>
-          Read Update
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // ── Today's Bookings ──────────────────────────────────────────────────────────
 
 const CalendarIcon = () => (
@@ -1839,7 +1780,7 @@ export default function HomePage() {
               <FriendsColumn resolveGameIcon={slug => GAME_ICONS[slug]} />
             </>
           )}
-          <NewsCard />
+          <NewsColumn app="battleplan" appName="BattlePlan" />
         </div>
       </main>
 

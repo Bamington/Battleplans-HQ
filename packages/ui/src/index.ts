@@ -268,6 +268,8 @@ export {
 export type { BookingShareStatus, IncomingBookingShare, OutgoingBookingShare } from './lib/bookingShares'
 export { useBookingShares } from './hooks/useBookingShares'
 export type { UseBookingShares } from './hooks/useBookingShares'
+export { default as NewsColumn, NewsItem } from './components/NewsColumn'
+export type { NewsColumnProps } from './components/NewsColumn'
 export { default as FriendsColumn } from './components/FriendsColumn'
 export type { FriendsColumnProps } from './components/FriendsColumn'
 export { default as AddFriendModal } from './components/AddFriendModal'
