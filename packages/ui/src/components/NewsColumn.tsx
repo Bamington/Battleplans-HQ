@@ -4,7 +4,7 @@
  * Each card previews the note; Read Update opens it in full in UpdateModal.
  *
  * Moved here from BattlePlan's home page so every app shows its news the same
- * way. (BattleCards still renders its own, built into its page layout.)
+ * way — used by BattlePlan, BattleBench and BattleCards.
  *
  *   <NewsColumn app="battlebox" appName="BattleBench" />
  */
