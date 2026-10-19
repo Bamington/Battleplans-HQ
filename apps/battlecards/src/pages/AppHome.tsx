@@ -670,7 +670,7 @@ export default function AppHome() {
           <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
 
             {/* ── Left panel: Packs ───────────────────────────────────── */}
-            <ColumnShell>
+            <ColumnShell tabLabel="Packs">
 
                 <ColumnHeader icon={<Box className="size-12 text-blue-400" />} title="Packs" />
 
@@ -834,7 +834,7 @@ export default function AppHome() {
             </ColumnShell>
 
             {/* ── Middle panel: Your Decks ────────────────────────────── */}
-            <ColumnShell>
+            <ColumnShell tabLabel="Decks">
 
                 {loading ? (
 

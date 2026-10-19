@@ -17,8 +17,9 @@
  * a bespoke body but the standard frame.
  */
 
-import { useEffect, useRef, useState, Fragment } from 'react';
+import { useEffect, useId, useRef, useState, Fragment } from 'react';
 import type { ReactNode, Key } from 'react';
+import { ColumnTabContext, registerColumnTab, unregisterColumnTab } from '../lib/columnTabs';
 import ColumnHeader from './ColumnHeader';
 import type { ColumnHeaderToggle } from './ColumnHeader';
 import Pagination from './Pagination';
@@ -91,17 +92,36 @@ export interface ColumnShellProps {
   wide?: boolean;
   /** Extra classes on the outer panel. */
   className?: string;
+  /**
+   * Short name for this column's tab in the navbar's <ColumnTabs> (e.g.
+   * "Battles"). Omit and the column gets no tab. The tab's icon comes from the
+   * column's ColumnHeader.
+   */
+  tabLabel?: string;
   children: ReactNode;
 }
 
 /** The panel frame + padded inner container shared by every column. */
-export function ColumnShell({ wide = false, className = '', children }: ColumnShellProps) {
+export function ColumnShell({ wide = false, className = '', tabLabel, children }: ColumnShellProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!tabLabel || !el) return;
+    registerColumnTab({ id, label: tabLabel, el });
+    return () => unregisterColumnTab(id);
+  }, [id, tabLabel]);
+
   return (
     <div
+      ref={ref}
       className={[wide ? COLUMN_PANEL_WIDE : COLUMN_PANEL, className].filter(Boolean).join(' ')}
     >
       <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
-        {children}
+        <ColumnTabContext.Provider value={tabLabel ? id : null}>
+          {children}
+        </ColumnTabContext.Provider>
       </div>
     </div>
   );
@@ -149,6 +169,8 @@ interface ColumnBaseProps<T> {
   wide?: boolean;
   /** Extra classes on the outer panel. */
   className?: string;
+  /** Short name for the navbar tab — see ColumnShell. Omit for no tab. */
+  tabLabel?: string;
 }
 
 const DEFAULT_LIST = 'flex flex-col gap-1.5';
@@ -168,7 +190,7 @@ export function PaginatedColumn<T>({
   icon, title, description, toggle,
   items, renderItem, getKey,
   loading = false, loadingLabel = 'Loading…', empty = 'Nothing here yet.',
-  listClassName = DEFAULT_LIST, beforeList, footer, wide, className,
+  listClassName = DEFAULT_LIST, beforeList, footer, wide, className, tabLabel,
   itemHeight, gap = 6, resetPageKey,
 }: PaginatedColumnProps<T>) {
   const listRef  = useRef<HTMLDivElement>(null);
@@ -185,7 +207,7 @@ export function PaginatedColumn<T>({
   useEffect(() => { setPage(0); }, [resetPageKey]);
 
   return (
-    <ColumnShell wide={wide} className={className}>
+    <ColumnShell wide={wide} className={className} tabLabel={tabLabel}>
       <ColumnHeader icon={icon} title={title} description={description} toggle={toggle} />
       {beforeList}
       <div ref={listRef} className={`w-full flex-1 min-h-0 overflow-hidden ${listClassName}`}>
@@ -218,7 +240,7 @@ export function ScrollColumn<T>({
   icon, title, description, toggle,
   items, renderItem, getKey,
   loading = false, loadingLabel = 'Loading…', empty = 'Nothing here yet.',
-  listClassName = DEFAULT_LIST, beforeList, footer, wide, className,
+  listClassName = DEFAULT_LIST, beforeList, footer, wide, className, tabLabel,
   hasMore = false, loadingMore = false, onLoadMore, loadingMoreLabel = 'Loading more…',
 }: ScrollColumnProps<T>) {
   const scrollRef   = useRef<HTMLDivElement>(null);
@@ -239,7 +261,7 @@ export function ScrollColumn<T>({
   }, [hasMore, onLoadMore, items.length]);
 
   return (
-    <ColumnShell wide={wide} className={className}>
+    <ColumnShell wide={wide} className={className} tabLabel={tabLabel}>
       <ColumnHeader icon={icon} title={title} description={description} toggle={toggle} />
       {beforeList}
       {/* Outer box scrolls; the inner flex/grid stays content-sized so items keep

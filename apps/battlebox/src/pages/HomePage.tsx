@@ -216,6 +216,7 @@ function DeskColumn({ userId, onOpenModel, tick, onChanged }: {
     <ScrollColumn<CollectionModel>
       icon={<DeskHeaderIcon />}
       title="Painting Desk"
+      tabLabel="Desk"
       description="What you're painting right now."
       items={models}
       loading={loading}
@@ -298,6 +299,7 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
     <ScrollColumn<CollectionModel>
       icon={<ModelsHeaderIcon />}
       title="Your Models"
+      tabLabel="Models"
       description="Miniatures you've added to your collection."
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
@@ -381,6 +383,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
     <ScrollColumn<CollectionBox>
       icon={<BoxHeaderIcon />}
       title="Your Collections"
+      tabLabel="Collections"
       description="Boxes and collections you've uploaded."
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
@@ -465,6 +468,7 @@ function ShoppingListColumn({ userId }: { userId: string | null }) {
     <ScrollColumn<ShoppingItem>
       icon={<ShoppingHeaderIcon />}
       title="Shopping List"
+      tabLabel="Shopping"
       description="Things you're planning to buy."
       beforeList={
         <form className="flex flex-col gap-2 w-full shrink-0" onSubmit={e => { e.preventDefault(); add(); }}>
@@ -551,6 +555,7 @@ function RecipesColumn({ userId, isDesktop, onOpenModel }: {
     <ScrollColumn<RecipeSummary>
       icon={<RecipesHeaderIcon />}
       title="Your Recipes"
+      tabLabel="Recipes"
       description="Paint recipes you've saved."
       toggle={isDesktop ? viewToggle(view, setView) : undefined}
       wide={gallery}
@@ -643,6 +648,7 @@ function PaintsColumn({ userId }: { userId: string | null }) {
     <ScrollColumn<PaintPack>
       icon={<PaintsHeaderIcon />}
       title="Paint Packs"
+      tabLabel="Paints"
       description="Add sets of paints to your collection."
       beforeList={
         <FilterControls count={brands.length} onOpen={() => setFilterOpen(true)} search={search} onSearch={setSearch} searchPlaceholder="Search packs…" />

@@ -170,6 +170,7 @@ export default function HomePage() {
           <ScrollColumn
             icon={<Shield className="w-12 h-12 text-primary-500" />}
             title="My Battlepacks"
+            tabLabel="Packs"
             description="Events you've created, and their BattlePacks."
             loading={loading}
             items={visible}

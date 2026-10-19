@@ -14,7 +14,9 @@
  * columns that need it (currently My Battles) pass one in.
  */
 
+import { useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { ColumnTabContext, setColumnTabIcon, clearColumnTabIcon } from '../lib/columnTabs';
 
 export interface ColumnHeaderToggleOption {
   /** Stable identifier returned by onChange and compared against value. */
@@ -88,6 +90,14 @@ export default function ColumnHeader({
   toggle,
   className = '',
 }: ColumnHeaderProps) {
+  // Lend the icon to this column's navbar tab, when the column has one.
+  const tabId = useContext(ColumnTabContext);
+  useEffect(() => {
+    if (!tabId) return;
+    setColumnTabIcon(tabId, icon);
+    return () => clearColumnTabIcon(tabId);
+  }, [tabId, icon]);
+
   return (
     <div className={`flex flex-col gap-1 items-start w-full ${className}`.trim()}>
 
