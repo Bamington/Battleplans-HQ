@@ -86,6 +86,8 @@ import Tabs from '../components/Tabs';
 import Text from '../components/Text';
 import TextLink from '../components/TextLink';
 import UpdateModal from '../components/UpdateModal';
+import NewsColumn, { NewsItem } from '../components/NewsColumn';
+import type { AppUpdate } from '../hooks/useUpdates';
 import VR from '../components/VR';
 import { ProfileFields, WelcomeModalView, WelcomeStepView } from '../components/WelcomeModal';
 import type { WelcomeStep } from '../components/WelcomeModal';
@@ -1253,6 +1255,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-welcome-modal',        label: 'Welcome Modal',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-profile-modal',        label: 'Profile Modal',        icon: <UserCircle className="w-5 h-5" /> },
   { href: '#nav-update-modal',         label: 'Update Modal',         icon: <Bell className="w-5 h-5" /> },
+  { href: '#nav-news-column',          label: 'News Column',          icon: <Bell className="w-5 h-5" /> },
   { href: '#nav-mode-toggle',          label: 'Mode Toggle',          icon: <Play className="w-5 h-5" /> },
   { href: '#nav-button-pair',          label: 'Button Pair',          icon: <Rocket className="w-5 h-5" /> },
   { href: '#nav-columns',              label: 'Columns',              icon: <Widget2 className="w-5 h-5" /> },
@@ -3407,6 +3410,30 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
         <div className="w-full space-y-6">
           <UpdateModalGalleryDemo />
         </div>
+      </GallerySection>
+
+      <GallerySection id="nav-news-column" title="News Column">
+        <div className="w-full flex flex-wrap gap-6 items-start">
+          <div className="w-full max-w-sm flex flex-col gap-2">
+            <Text size="sm" color="secondary">NewsItem — one update card</Text>
+            <NewsItem
+              update={{ id: 'demo-news', title: 'Painting Desk, Sharing & More', version: '0.25.1', apps: ['battlebox'],
+                published: true, visible: true, published_by_name: 'Bam Harrison', published_at: '2026-10-19T00:00:00Z',
+                body: "Hey folks,\n\nIt's been a busy few weeks, so this one's a **big update**! The headline is the brand new Painting Desk…" } as unknown as AppUpdate}
+              onRead={() => alert('Opens the full note in UpdateModal')}
+            />
+          </div>
+          <div className="w-full max-w-sm h-[520px]">
+            <NewsColumn app="battleplan" appName="BattlePlan" className="h-full" />
+          </div>
+        </div>
+        <GalleryNote>
+          NewsColumn is an app's “News &amp; Updates” home column: its published
+          notes from Manage Updates (useUpdates), paged to fit, each opening in
+          UpdateModal. Used by BattlePlan and BattleBench —{' '}
+          <code>{'<NewsColumn app="battlebox" appName="BattleBench" />'}</code>.
+          The live column on the right shows BattlePlan's real notes.
+        </GalleryNote>
       </GallerySection>
 
       <GallerySection id="nav-mode-toggle" title="ModeToggle / Edit &amp; Play">
