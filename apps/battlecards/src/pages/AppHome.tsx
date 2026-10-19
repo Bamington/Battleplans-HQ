@@ -43,7 +43,7 @@ import { useState, useEffect, useRef } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { AppFooter } from '@battleplans/ui';
 import { useIsAdmin } from '@battleplans/ui';
-import { NewsColumn, Pagination, useAutoPageSize, ColumnHeader, ColumnShell, COLUMN_ROW } from '@battleplans/ui';
+import { NewsColumn, Pagination, useAutoPageSize, ColumnHeader, ColumnShell, COLUMN_ROW, ColumnTabBar } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
@@ -948,6 +948,7 @@ export default function AppHome() {
 
         {/* ── Version footer ────────────────────────────────────────────────── */}
         <AppFooter className="shrink-0" appName="Battlecards" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+        <ColumnTabBar />
 
       </div>
 

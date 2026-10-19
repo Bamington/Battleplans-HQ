@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
   ScrollColumn, NewsColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
-  COLUMN_ROW,
+  COLUMN_ROW, ColumnTabBar,
 } from '@battleplans/ui';
 import type { ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -767,6 +767,7 @@ export default function HomePage() {
             <NewsColumn app="battlebox" appName="BattleBench" />
           </div>
         </main>
+        <ColumnTabBar />
 
       </div>
 

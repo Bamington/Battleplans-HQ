@@ -42,6 +42,8 @@ export { ColumnShell, PaginatedColumn, ScrollColumn, COLUMN_ROW, COLUMN_PANEL, C
 export type { ColumnShellProps, PaginatedColumnProps, ScrollColumnProps } from './components/Column'
 export { default as ColumnTabs } from './components/ColumnTabs'
 export type { ColumnTabsProps, ColumnTabItem } from './components/ColumnTabs'
+export { default as ColumnTabBar } from './components/ColumnTabBar'
+export type { ColumnTabBarProps } from './components/ColumnTabBar'
 export { useColumnTabs } from './lib/columnTabs'
 export type { ColumnTab, ColumnTabsState } from './lib/columnTabs'
 export { default as Counter } from './components/Counter'

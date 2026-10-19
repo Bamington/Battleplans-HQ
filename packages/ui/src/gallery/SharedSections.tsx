@@ -53,6 +53,7 @@ import Checkbox from '../components/Checkbox';
 import { ColumnShell, PaginatedColumn, ScrollColumn } from '../components/Column';
 import ColumnHeader from '../components/ColumnHeader';
 import ColumnTabs from '../components/ColumnTabs';
+import ColumnTabBar from '../components/ColumnTabBar';
 import Counter from '../components/Counter';
 import Dropdown, { DropdownDivider, DropdownHeader, DropdownItem } from '../components/Dropdown';
 import EditorPanel from '../components/EditorPanel';
@@ -1244,6 +1245,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-hr',                   label: 'HR',                   icon: <MinusCircle className="w-5 h-5" /> },
   { href: '#nav-column-header',        label: 'Column Header',        icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-column-tabs',          label: 'Column Tabs',          icon: <Widget2 className="w-5 h-5" /> },
+  { href: '#nav-column-tab-bar',       label: 'Column Tab Bar',       icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-rich-text-editor',     label: 'Rich Text Editor',     icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-multi-select',         label: 'Multi-Select',         icon: <CheckCircle className="w-5 h-5" /> },
   { href: '#nav-vr',                   label: 'VR',                   icon: <MinusCircle className="w-5 h-5" /> },
@@ -3138,6 +3140,29 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
         tab; the icon comes from its ColumnHeader. Every column fully in view is
         Selected. The tabs hide below <code>md</code>, and whenever they'd
         collide with the breadcrumbs or the right-hand controls.
+      </GalleryNote>
+
+      <GallerySection id="nav-column-tab-bar" title="Column Tab Bar / Phone">
+        <div className="w-full max-w-[375px] border border-neutral-700 rounded-lg overflow-hidden">
+          <ColumnTabBar
+            onSelect={() => {}}
+            tabs={[
+              { id: 'bookings',  label: 'Bookings',  icon: <Widget2 className="w-12 h-12 text-primary-500" /> },
+              { id: 'battles',   label: 'Battles',   icon: <Shield className="w-12 h-12 text-primary-500" />, active: true },
+              { id: 'suggested', label: 'Suggested', icon: <ListCheck className="w-12 h-12 text-primary-500" /> },
+              { id: 'friends',   label: 'Friends',   icon: <UserRounded className="w-12 h-12 text-primary-500" /> },
+              { id: 'news',      label: 'News',      icon: <InfoCircle className="w-12 h-12 text-primary-500" /> },
+            ]}
+          />
+        </div>
+      </GallerySection>
+      <GalleryNote>
+        The phone home for the column tabs. Mount it as the last thing in a home
+        page's viewport-height layout; it reads the same registry as the navbar,
+        shows only below <code>md</code> when the row has columns off screen, and
+        hides while a text field has focus so it doesn't ride up over the
+        keyboard. This demo passes a fixed <code>tabs</code> list, so it shows
+        at every width.
       </GalleryNote>
 
       <GallerySection id="nav-rich-text-editor" title="Rich Text Editor">

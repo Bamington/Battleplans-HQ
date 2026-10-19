@@ -18,7 +18,7 @@ import {
   AppFooter, Button, ButtonPair, Dropdown, DropdownItem, Input, Modal, ScrollColumn,
   Select, StoreSelector, useAdminLocations,
   supabase, AddCircle, GAME_ICONS, Magnifer, MenuDots, Shield, TrashBinMinimalistic,
-  COLUMN_ROW,
+  COLUMN_ROW, ColumnTabBar,
 } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import BattlepackListItem from '../components/BattlepackListItem';
@@ -247,6 +247,7 @@ export default function HomePage() {
       </main>
 
       <AppFooter className="shrink-0" appName="BattlePack" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+      <ColumnTabBar />
 
       <NewPackModal
         open={creating}
