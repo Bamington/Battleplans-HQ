@@ -43,13 +43,11 @@ import { useState, useEffect, useRef } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { AppFooter } from '@battleplans/ui';
 import { useIsAdmin } from '@battleplans/ui';
-import { useUpdates, MarkdownBody, UpdateModal, Pagination, useAutoPageSize, ColumnHeader } from '@battleplans/ui';
-import type { AppUpdate } from '@battleplans/ui';
+import { NewsColumn, Pagination, useAutoPageSize, ColumnHeader } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
 import PackListItem, { type PackBadge } from '../components/PackListItem';
-import BlogEntryPreview from '../components/BlogEntryPreview';
 import { Modal } from '@battleplans/ui';
 import GamePickerItem from '../components/GamePickerItem';
 import { Input } from '@battleplans/ui';
@@ -60,7 +58,6 @@ import { Pen2 } from '@battleplans/ui';
 import { Box } from '@battleplans/ui';
 import { Widget2 } from '@battleplans/ui';
 import { Layers } from '@battleplans/ui';
-import { InfoCircle } from '@battleplans/ui';
 import { AltArrowRight } from '@battleplans/ui';
 import { TrashBinMinimalistic } from '@battleplans/ui';
 import { UserRounded } from '@battleplans/ui';
@@ -161,37 +158,18 @@ const gameAssets = (slug: string) => GAMES.find(g => g.id === slug);
 // height — change a row's design, change the constant with it.
 //
 // DeckListItem   = 64 thumbnail + 2 padding (p-px) + 2 border            -> 68
-// BlogEntryPreview: measured at 227px with a fully-clamped 5-line SM body.
-// Rounded up: a high value costs a little whitespace, a low one clips a row.
 //
 // The Packs column is deliberately absent: its rows are content-driven heights
-// (wrapping badges, free-text descriptions), so it scrolls instead.
+// (wrapping badges, free-text descriptions), so it scrolls instead. News &
+// Updates is the shared NewsColumn, which sizes its own pages.
 const DECK_ITEM_H = 68;
 const DECK_GAP    = 12;  // gap-3
-const NEWS_ITEM_H = 232;
-const NEWS_GAP    = 12;  // gap-3
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AppHome() {
   const navigate = useNavigate();
   const { isAdmin } = useIsAdmin();
-
-  // ── News & Updates ─────────────────────────────────────────────────────────
-  const { updates, loading: updatesLoading } = useUpdates('battlecards');
-  const [selectedUpdate, setSelectedUpdate] = useState<AppUpdate | null>(null);
-
-  const newsListRef  = useRef<HTMLDivElement>(null);
-  const newsPageSize = useAutoPageSize(newsListRef, NEWS_ITEM_H, NEWS_GAP);
-  const [newsPage, setNewsPage] = useState(0);
-
-  const newsTotalPages = Math.max(1, Math.ceil(updates.length / newsPageSize));
-  const newsSafePage   = Math.min(newsPage, newsTotalPages - 1);
-  const newsPaginated  = updates.slice(newsSafePage * newsPageSize, (newsSafePage + 1) * newsPageSize);
-
-  useEffect(() => {
-    if (newsPage > newsTotalPages - 1) setNewsPage(newsTotalPages - 1);
-  }, [newsTotalPages, newsPage]);
 
   // ── Your Decks ─────────────────────────────────────────────────────────────
   const deckListRef  = useRef<HTMLDivElement>(null);
@@ -991,45 +969,8 @@ export default function AppHome() {
               </div>
             </div>
 
-            {/* ── Right panel: News & Updates ─────────────────────────── */}
-            <div
-              className={[
-                'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
-                'md:w-[40vw] md:max-w-[40vw]',
-                'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
-                'self-stretch flex flex-col min-h-0',
-                'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
-              ].join(' ')}
-            >
-              <div className="flex flex-col gap-4 items-center p-5 w-full flex-1 min-h-0">
-
-                <ColumnHeader
-                  icon={<InfoCircle className="size-12 text-blue-400" />}
-                  title="News & Updates"
-                  description="Find out what's happening with Battlecards."
-                />
-
-                <div ref={newsListRef} className="flex flex-col gap-3 w-full flex-1 min-h-0 overflow-hidden">
-                  {updatesLoading ? (
-                    <p className="font-body text-sm text-gray-500">Loading…</p>
-                  ) : updates.length === 0 ? (
-                    <p className="font-body text-sm text-gray-500 text-center">
-                      No updates yet. Check back soon.
-                    </p>
-                  ) : newsPaginated.map(u => (
-                    <BlogEntryPreview
-                      key={u.id}
-                      title={u.title}
-                      body={<MarkdownBody>{u.body ?? ''}</MarkdownBody>}
-                      onRead={() => setSelectedUpdate(u)}
-                    />
-                  ))}
-                </div>
-
-                <Pagination page={newsSafePage} totalPages={newsTotalPages} onPage={setNewsPage} />
-
-              </div>
-            </div>
+            {/* ── Right panel: News & Updates — the shared column ─────── */}
+            <NewsColumn app="battlecards" appName="Battlecards" />
 
           </div>
         </div>
@@ -1367,9 +1308,6 @@ export default function AppHome() {
 
         </div>
       </Modal>
-
-      {/* ── Full release note ─────────────────────────────────────────── */}
-      <UpdateModal open={!!selectedUpdate} onClose={() => setSelectedUpdate(null)} update={selectedUpdate} />
 
     </div>
   );

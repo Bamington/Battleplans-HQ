@@ -3430,7 +3430,7 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
         <GalleryNote>
           NewsColumn is an app's “News &amp; Updates” home column: its published
           notes from Manage Updates (useUpdates), paged to fit, each opening in
-          UpdateModal. Used by BattlePlan and BattleBench —{' '}
+          UpdateModal. Used by BattlePlan, BattleBench and BattleCards —{' '}
           <code>{'<NewsColumn app="battlebox" appName="BattleBench" />'}</code>.
           The live column on the right shows BattlePlan's real notes.
         </GalleryNote>
