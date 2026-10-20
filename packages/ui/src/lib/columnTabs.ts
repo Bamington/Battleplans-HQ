@@ -89,6 +89,25 @@ export interface ColumnTabsState {
 /** px of slack, so sub-pixel layout doesn't flicker a column in and out. */
 const SLACK = 1
 
+/**
+ * While a tab's jump is scrolling, the tabs show where it will LAND, not each
+ * column it passes on the way — otherwise every column in between lights up
+ * for a moment. Shared by every useColumnTabs (navbar and bottom bar alike),
+ * which is why it lives out here and not in a hook's state.
+ */
+let landing: Set<string> | null = null
+let jumpCount = 0
+const measurers = new Set<() => void>()
+
+function setLanding(next: Set<string> | null): void {
+  landing = next
+  measurers.forEach((m) => m())
+}
+
+function sameSet(a: Set<string>, b: Set<string>): boolean {
+  return a.size === b.size && [...a].every((id) => b.has(id))
+}
+
 export function useColumnTabs(): ColumnTabsState {
   const entriesNow = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const row = entriesNow[0]?.el.parentElement ?? null
@@ -107,24 +126,28 @@ export function useColumnTabs(): ColumnTabsState {
     }
 
     const measure = () => {
-      const r = row.getBoundingClientRect()
-      const next = new Set<string>()
-      for (const e of entries.values()) {
-        const c = e.el.getBoundingClientRect()
-        if (c.left >= r.left - SLACK && c.right <= r.right + SLACK) next.add(e.id)
+      let next = landing
+      if (!next) {
+        const r = row.getBoundingClientRect()
+        next = new Set<string>()
+        for (const e of entries.values()) {
+          const c = e.el.getBoundingClientRect()
+          if (c.left >= r.left - SLACK && c.right <= r.right + SLACK) next.add(e.id)
+        }
       }
-      setVisibleIds((prev) =>
-        prev.size === next.size && [...next].every((id) => prev.has(id)) ? prev : next,
-      )
+      const settled = next
+      setVisibleIds((prev) => (sameSet(prev, settled) ? prev : settled))
       setOverflowing(row.scrollWidth > row.clientWidth + SLACK)
     }
 
     measure()
+    measurers.add(measure)
     row.addEventListener('scroll', measure, { passive: true })
     const ro = new ResizeObserver(measure)
     ro.observe(row)
     entries.forEach((e) => ro.observe(e.el))
     return () => {
+      measurers.delete(measure)
       row.removeEventListener('scroll', measure)
       ro.disconnect()
     }
@@ -155,7 +178,8 @@ export function useColumnTabs(): ColumnTabsState {
       // and the jump lands on a snap point so nothing moves when it's back on:
       // going right, that's the first column start far enough along to bring
       // the clicked column's right edge in. (Going left already lands on one.)
-      const snaps = style.scrollSnapType !== 'none'
+      // A jump still in flight has set it to 'none' itself — that row snaps.
+      const snaps = style.scrollSnapType !== 'none' || scroller.style.scrollSnapType === 'none'
       if (snaps && delta > 0) {
         for (const sibling of scroller.children) {
           const start = sibling.getBoundingClientRect().left - left
@@ -166,17 +190,34 @@ export function useColumnTabs(): ColumnTabsState {
         }
       }
 
-      if (snaps) {
-        scroller.style.scrollSnapType = 'none'
-        const restore = () => {
-          scroller.style.scrollSnapType = ''
-          scroller.removeEventListener('scrollend', restore)
-          clearTimeout(fallback)
-        }
-        // scrollend is missing in older Safari; a smooth scroll is well done by then.
-        const fallback = setTimeout(restore, 1000)
-        scroller.addEventListener('scrollend', restore)
+      // Where the jump lands, clamped to the ends of the row — the tabs show
+      // that straight away and hold it until the scroll settles.
+      const max = scroller.scrollWidth - scroller.clientWidth
+      const shift = Math.min(max, Math.max(0, scroller.scrollLeft + delta)) - scroller.scrollLeft
+      const lands = new Set<string>()
+      for (const e of entries.values()) {
+        if (e.el.parentElement !== scroller) continue
+        const b = e.el.getBoundingClientRect()
+        if (b.left - shift >= r.left - SLACK && b.right - shift <= r.right + SLACK) lands.add(e.id)
       }
+      setLanding(lands)
+
+      // A tap mid-jump starts a new jump; only the latest one may finish it,
+      // or the first one's timeout would turn snapping back on mid-scroll.
+      const jump = ++jumpCount
+      if (snaps) scroller.style.scrollSnapType = 'none'
+      const done = () => {
+        scroller.removeEventListener('scrollend', done)
+        clearTimeout(fallback)
+        if (jump !== jumpCount) return
+        if (snaps) scroller.style.scrollSnapType = ''
+        // Back to measuring — which also corrects the prediction if a swipe
+        // interrupted the jump.
+        setLanding(null)
+      }
+      // scrollend is missing in older Safari; a smooth scroll is well done by then.
+      const fallback = setTimeout(done, 1000)
+      scroller.addEventListener('scrollend', done)
 
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       scroller.scrollBy({ left: delta, behavior: reduce ? 'auto' : 'smooth' })
