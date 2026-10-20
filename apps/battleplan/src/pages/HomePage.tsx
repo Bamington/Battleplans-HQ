@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, NewsColumn, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW, inRegionOf } from '@battleplans/ui';
+import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, NewsColumn, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, ColumnTabBar, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW, inRegionOf } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
@@ -729,7 +729,7 @@ function BookingCard({ userId }: { userId: string | null }) {
 
   return (
     <>
-      <ColumnShell>
+      <ColumnShell tabLabel="Bookings">
         <ColumnHeader
           icon={<BoxIcon />}
           title="Your Bookings"
@@ -1138,6 +1138,7 @@ function MyBattlesCard({ userId, refreshSignal = 0 }: { userId: string | null; r
       <ScrollColumn
         icon={<Shield className="w-12 h-12 text-primary-500" />}
         title="Your Battles"
+        tabLabel="Battles"
         description="The games you've played, and how they went."
         toggle={{
           value: view,
@@ -1257,6 +1258,7 @@ function SuggestedBattlesCard({ userId, onLogged }: { userId: string | null; onL
       <PaginatedColumn
         icon={<LightbulbIcon />}
         title="Suggested Battles"
+        tabLabel="Suggested"
         description="Games we think you played, from your bookings. Log them in a tap."
         items={suggestions}
         itemHeight={SUGGESTION_ITEM_H}
@@ -1404,6 +1406,7 @@ function TodaysBookingsCard({ bookings, loading, refetch, todayIso, onOpen, onTa
     <ScrollColumn
       icon={<TodayIcon />}
       title="Today's Bookings"
+      tabLabel="Today"
       description={formatDayDate(todayIso)}
       items={rows}
       loading={loading}
@@ -1454,6 +1457,7 @@ function UpcomingBookingsCard({ bookings, loading, refetch, todayIso, onOpen, is
     <ScrollColumn
       icon={<CalendarIcon />}
       title="Upcoming Bookings"
+      tabLabel="Upcoming"
       description="Table bookings from tomorrow onwards."
       items={rows}
       loading={loading}
@@ -1579,6 +1583,7 @@ function MyEventsCard({ userId }: { userId: string | null }) {
     <ScrollColumn
       icon={<Trophy className="w-12 h-12 text-primary-500" />}
       title="Your Events"
+      tabLabel="Events"
       description="BattlePacks you're running."
       items={events}
       loading={loading}
@@ -1613,6 +1618,7 @@ function UpcomingEventsCard({ locationId, userId, kind }: { locationId: string; 
     <ScrollColumn
       icon={<Trophy className="w-12 h-12 text-primary-500" />}
       title="Upcoming Events"
+      tabLabel="Events"
       description={`BattlePacks running at your ${orgNoun(kind)}.`}
       items={events}
       loading={loading}
@@ -1785,6 +1791,7 @@ export default function HomePage() {
       </main>
 
       <AppFooter className="shrink-0" appName="BattlePlan" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+      <ColumnTabBar />
 
     </div>
     </ProfileModalProvider>

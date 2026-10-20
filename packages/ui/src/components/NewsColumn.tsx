@@ -73,6 +73,7 @@ export default function NewsColumn({ app, appName, className }: NewsColumnProps)
       <PaginatedColumn
         icon={<InfoCircleIcon />}
         title="News & Updates"
+        tabLabel="News"
         description={`Find out what's happening with ${appName}.`}
         items={updates}
         itemHeight={NEWS_ITEM_H}

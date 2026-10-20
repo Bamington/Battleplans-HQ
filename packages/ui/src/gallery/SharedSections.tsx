@@ -52,6 +52,8 @@ import Card, { CardBody, CardImage } from '../components/Card';
 import Checkbox from '../components/Checkbox';
 import { ColumnShell, PaginatedColumn, ScrollColumn } from '../components/Column';
 import ColumnHeader from '../components/ColumnHeader';
+import ColumnTabs from '../components/ColumnTabs';
+import ColumnTabBar from '../components/ColumnTabBar';
 import Counter from '../components/Counter';
 import Dropdown, { DropdownDivider, DropdownHeader, DropdownItem } from '../components/Dropdown';
 import EditorPanel from '../components/EditorPanel';
@@ -1242,6 +1244,8 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-tabs',                 label: 'Tabs',                 icon: <Filter className="w-5 h-5" /> },
   { href: '#nav-hr',                   label: 'HR',                   icon: <MinusCircle className="w-5 h-5" /> },
   { href: '#nav-column-header',        label: 'Column Header',        icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-column-tabs',          label: 'Column Tabs',          icon: <Widget2 className="w-5 h-5" /> },
+  { href: '#nav-column-tab-bar',       label: 'Column Tab Bar',       icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-rich-text-editor',     label: 'Rich Text Editor',     icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-multi-select',         label: 'Multi-Select',         icon: <CheckCircle className="w-5 h-5" /> },
   { href: '#nav-vr',                   label: 'VR',                   icon: <MinusCircle className="w-5 h-5" /> },
@@ -1286,6 +1290,7 @@ export interface SharedGallerySectionsProps {
 const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySectionsProps) => {
   // Drives the ColumnHeader demo's view toggle.
   const [columnHeaderView, setColumnHeaderView] = useState('list');
+  const [columnTabsActive, setColumnTabsActive] = useState<string[]>(['battles', 'suggested', 'friends']);
   // Proves the TextLink action variant is really firing a handler.
   const [linkActionCount, setLinkActionCount] = useState(0);
   const [counterDefault, setCounterDefault] = useState(1);
@@ -3090,6 +3095,75 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
 
         </div>
       </GallerySection>
+
+      <GallerySection id="nav-column-tabs" title="Column Tabs / Default, Hover & Selected">
+        <div className="flex flex-col gap-6 w-full">
+
+          {/* Every state at once: Default (icon only) and Selected (label). Hover any tab. */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg py-3 w-fit">
+            <ColumnTabs
+              onSelect={() => {}}
+              tabs={[
+                { id: 'a', label: 'Bookings', icon: <Widget2 className="w-12 h-12 text-primary-500" /> },
+                { id: 'b', label: 'Battles',  icon: <Shield className="w-12 h-12 text-primary-500" />, active: true },
+                { id: 'c', label: 'News',     icon: <InfoCircle className="w-12 h-12 text-primary-500" /> },
+              ]}
+            />
+          </div>
+
+          {/* Interactive: click a tab to move a three-column "screen" so it's in view. */}
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg py-3 w-fit">
+            <ColumnTabs
+              onSelect={(id) => {
+                const order = ['bookings', 'battles', 'suggested', 'friends', 'news'];
+                const i = order.indexOf(id);
+                const start = columnTabsActive.includes(id)
+                  ? order.indexOf(columnTabsActive[0])
+                  : i < order.indexOf(columnTabsActive[0]) ? i : i - 2;
+                setColumnTabsActive(order.slice(start, start + 3));
+              }}
+              tabs={[
+                { id: 'bookings',  label: 'Bookings',  icon: <Widget2 className="w-12 h-12 text-primary-500" /> },
+                { id: 'battles',   label: 'Battles',   icon: <Shield className="w-12 h-12 text-primary-500" /> },
+                { id: 'suggested', label: 'Suggested', icon: <ListCheck className="w-12 h-12 text-primary-500" /> },
+                { id: 'friends',   label: 'Friends',   icon: <UserRounded className="w-12 h-12 text-primary-500" /> },
+                { id: 'news',      label: 'News',      icon: <InfoCircle className="w-12 h-12 text-primary-500" /> },
+              ].map((t) => ({ ...t, active: columnTabsActive.includes(t.id) }))}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+      <GalleryNote>
+        The Navbar shows these on its own, centred, when a page's column row
+        overflows the screen. Give a column a <code>tabLabel</code> to give it a
+        tab; the icon comes from its ColumnHeader. Every column fully in view is
+        Selected. The tabs hide below <code>md</code>, and whenever they'd
+        collide with the breadcrumbs or the right-hand controls.
+      </GalleryNote>
+
+      <GallerySection id="nav-column-tab-bar" title="Column Tab Bar / Phone">
+        <div className="w-full max-w-[375px] border border-neutral-700 rounded-lg overflow-hidden">
+          <ColumnTabBar
+            onSelect={() => {}}
+            tabs={[
+              { id: 'bookings',  label: 'Bookings',  icon: <Widget2 className="w-12 h-12 text-primary-500" /> },
+              { id: 'battles',   label: 'Battles',   icon: <Shield className="w-12 h-12 text-primary-500" />, active: true },
+              { id: 'suggested', label: 'Suggested', icon: <ListCheck className="w-12 h-12 text-primary-500" /> },
+              { id: 'friends',   label: 'Friends',   icon: <UserRounded className="w-12 h-12 text-primary-500" /> },
+              { id: 'news',      label: 'News',      icon: <InfoCircle className="w-12 h-12 text-primary-500" /> },
+            ]}
+          />
+        </div>
+      </GallerySection>
+      <GalleryNote>
+        The phone home for the column tabs. Mount it as the last thing in a home
+        page's viewport-height layout; it reads the same registry as the navbar,
+        shows only below <code>md</code> when the row has columns off screen, and
+        hides while a text field has focus so it doesn't ride up over the
+        keyboard. This demo passes a fixed <code>tabs</code> list, so it shows
+        at every width.
+      </GalleryNote>
 
       <GallerySection id="nav-rich-text-editor" title="Rich Text Editor">
         <div className="max-w-md space-y-4">
