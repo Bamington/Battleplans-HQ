@@ -662,12 +662,13 @@ const ComponentGallery = () => {
           </div>
           <div className="w-64">
             <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">
-              Clickable (opens a Lightbox in the app)
+              Swipeable + clickable (opens a Lightbox in the app)
             </p>
             <ImageCarousel
               images={[PHOTO_A, PHOTO_B]}
               alt="Model photos"
               dots
+              swipe
               onImageClick={() => alert('Open lightbox')}
             />
           </div>
@@ -680,7 +681,8 @@ const ComponentGallery = () => {
           Auto-rotates through the images it is given. <code>autoHeight</code> lets
           it size to the image instead of filling its box; in the detail modals it
           is paired with the shared &lt;Lightbox&gt; via{' '}
-          <code>onImageClick</code>.
+          <code>onImageClick</code>. <code>swipe</code> lets the user drag between
+          photos (heroes only — card thumbnails sit in rows that scroll sideways).
         </GalleryNote>
       </GallerySection>
 
