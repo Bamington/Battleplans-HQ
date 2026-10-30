@@ -43,7 +43,7 @@ import { useState, useEffect, useRef } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { AppFooter } from '@battleplans/ui';
 import { useIsAdmin } from '@battleplans/ui';
-import { NewsColumn, Pagination, useAutoPageSize, ColumnHeader } from '@battleplans/ui';
+import { NewsColumn, Pagination, useAutoPageSize, ColumnHeader, ColumnShell, COLUMN_ROW, ColumnTabBar } from '@battleplans/ui';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@battleplans/ui';
 import DeckListItem from '../components/DeckListItem';
@@ -665,30 +665,12 @@ export default function AppHome() {
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-h-0 pt-3 md:pt-9 lg:px-9">
 
-        {/* ── Main content ─────────────────────────────────────────────────
-            On desktop/tablet: fills remaining height, centres panels both
-            horizontally and vertically.
-            On mobile: allows horizontal scroll so both panels are reachable.
-        ─────────────────────────────────────────────────────────────────── */}
-        <div className="flex flex-1 min-h-0 items-stretch lg:justify-center">
-
-          {/* ── Panel row ─────────────────────────────────────────────────
-              Mobile: overflows horizontally (horizontal-scroll UX)
-              Desktop: centred flex row with gap
-          ────────────────────────────────────────────────────────────── */}
-          <div className="flex gap-2.5 min-h-0 items-stretch overflow-x-auto snap-x snap-mandatory lg:overflow-x-visible lg:snap-none w-full lg:w-auto lg:flex-1 lg:justify-center px-3 md:px-9 py-2 scroll-px-3 md:scroll-px-9 lg:p-0">
+        {/* ── Main content — the shared column row ─────────────────────── */}
+        <div className="flex flex-1 min-h-0 items-stretch">
+          <div className={`${COLUMN_ROW} py-2 lg:py-0`}>
 
             {/* ── Left panel: Packs ───────────────────────────────────── */}
-            <div
-              className={[
-                'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
-                'md:w-[40vw] md:max-w-[40vw]',
-                'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
-                'self-stretch flex flex-col min-h-0',
-                'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
-              ].join(' ')}
-            >
-              <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+            <ColumnShell tabLabel="Packs">
 
                 <ColumnHeader icon={<Box className="size-12 text-blue-400" />} title="Packs" />
 
@@ -849,20 +831,10 @@ export default function AppHome() {
 
                 )}
 
-              </div>
-            </div>
+            </ColumnShell>
 
             {/* ── Middle panel: Your Decks ────────────────────────────── */}
-            <div
-              className={[
-                'shrink-0 w-[90vw] max-w-[90vw] snap-start snap-always',
-                'md:w-[40vw] md:max-w-[40vw]',
-                'lg:w-auto lg:flex-1 lg:max-w-[384px] lg:min-w-0',
-                'self-stretch flex flex-col min-h-0',
-                'bg-gray-900 border border-gray-700 rounded-lg shadow-sm overflow-hidden',
-              ].join(' ')}
-            >
-              <div className="flex flex-col gap-4 items-center p-5 flex-1 min-h-0">
+            <ColumnShell tabLabel="Decks">
 
                 {loading ? (
 
@@ -966,8 +938,7 @@ export default function AppHome() {
 
                 )}
 
-              </div>
-            </div>
+            </ColumnShell>
 
             {/* ── Right panel: News & Updates — the shared column ─────── */}
             <NewsColumn app="battlecards" appName="Battlecards" />
@@ -977,6 +948,7 @@ export default function AppHome() {
 
         {/* ── Version footer ────────────────────────────────────────────────── */}
         <AppFooter className="shrink-0" appName="Battlecards" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
+        <ColumnTabBar />
 
       </div>
 

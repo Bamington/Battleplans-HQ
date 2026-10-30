@@ -22,7 +22,8 @@
  *   children  — Rendered in the right-side flex container before the user area.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
@@ -41,6 +42,8 @@ import { usePlatformApps } from '../hooks/usePlatformApps';
 import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import { setImpersonatedRole } from '../lib/impersonation';
 import Eye from '../icons/Eye';
+import ColumnTabs from './ColumnTabs';
+import { useColumnTabs } from '../lib/columnTabs';
 
 export interface AppEntry {
   /** Stable id, matching public.platform_apps.slug */
@@ -183,6 +186,67 @@ function Breadcrumbs({ items }: { items: Breadcrumb[] }) {
   );
 }
 
+/**
+ * The column jump-tabs, centred on the bar.
+ *
+ * Shown only when the page's column row overflows, and only while it has room:
+ * it's the least important thing in the header, so it hides rather than crowd
+ * the breadcrumbs or the right-hand controls. Below `md` it never shows.
+ *
+ * Hidden with `invisible`, not unmounted, so it keeps its width and can tell
+ * when there's room again.
+ */
+function NavColumnTabs({ rightSlotRef }: { rightSlotRef: RefObject<HTMLDivElement | null> }) {
+  const { tabs, overflowing, reveal } = useColumnTabs();
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [fits, setFits] = useState(false);
+  const show = overflowing && tabs.length > 1;
+
+  // No deps: the right slot's children change with the Navbar's props and auth
+  // state, so re-attach to whatever is there now on every render.
+  useEffect(() => {
+    const slot = rightSlotRef.current;
+    const el = tabsRef.current;
+    if (!show || !slot || !el) return;
+
+    const measure = () => {
+      const t = el.getBoundingClientRect();
+      const s = slot.getBoundingClientRect();
+      // The slot is flex-1, so its left edge is where the logo / breadcrumbs
+      // end. Its content is pushed right — find where that actually starts.
+      let contentLeft = s.right;
+      for (const c of slot.children) {
+        const r = c.getBoundingClientRect();
+        if (r.width > 0) contentLeft = Math.min(contentLeft, r.left);
+      }
+      setFits(t.width > 0 && t.left >= s.left && t.right <= contentLeft);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    ro.observe(slot);
+    for (const c of slot.children) ro.observe(c);
+    return () => ro.disconnect();
+  });
+
+  if (!show) return null;
+
+  return (
+    <div
+      className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block ${fits ? '' : 'invisible'}`}
+      aria-hidden={fits ? undefined : true}
+      inert={!fits}
+    >
+      <ColumnTabs
+        ref={tabsRef}
+        tabs={tabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, active: t.visible }))}
+        onSelect={reveal}
+      />
+    </div>
+  );
+}
+
 const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, logo, breadcrumbs = [] }: NavbarProps) => {
   const navigate = useNavigate();
   const { apps: accessibleApps } = usePlatformApps();
@@ -215,6 +279,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
   // update the name and picture the moment it saves.
   const { username, avatarUrl: avatarSrc } = useProfileDisplay();
   const [profileOpen, setProfileOpen] = useState(false);
+  const rightSlotRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Get the current session on mount, then fetch the display name. The role
@@ -271,7 +336,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
         className,
       ].join(' ')}
     >
-      <div className="px-3 pt-3 pb-[13px] flex items-center">
+      <div className="relative px-3 pt-3 pb-[13px] flex items-center">
 
         {/* ── Logo / platform switcher ─────────────────────────────── */}
         {/* With only one accessible app there's nothing to switch to, so the
@@ -332,8 +397,11 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
         {/* ── Breadcrumbs ──────────────────────────────────────────────── */}
         <Breadcrumbs items={breadcrumbs} />
 
+        {/* ── Column tabs — centred, absolutely, so they ignore the slots ── */}
+        <NavColumnTabs rightSlotRef={rightSlotRef} />
+
         {/* ── Right-side slot ──────────────────────────────────────────── */}
-        <div className="flex flex-1 items-center justify-end gap-3 min-w-0">
+        <div ref={rightSlotRef} className="flex flex-1 items-center justify-end gap-3 min-w-0">
           {children}
 
           {/* ── Auth area ──────────────────────────────────────────────── */}

@@ -231,7 +231,7 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameI
 
   return (
     <>
-      <ColumnShell className={className}>
+      <ColumnShell className={className} tabLabel="Friends">
         <ColumnHeader
           icon={<UserHandUp className="w-12 h-12 text-primary-400" />}
           title="My Friends"

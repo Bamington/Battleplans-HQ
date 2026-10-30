@@ -75,7 +75,7 @@ function boxImages(b: SharedBox): string[] {
 function Hero({ images, name, gameSlug, onOpen }: { images: string[]; name: string; gameSlug?: string | null; onOpen: (i: number) => void }) {
   const icon = gameSlug ? GAME_ICONS[gameSlug] ?? null : null;
   if (images.length) {
-    return <ImageCarousel images={images} alt={name} dots autoHeight onImageClick={onOpen} className="w-full bg-neutral-950 max-h-[60vh] rounded-t-xl overflow-hidden" />;
+    return <ImageCarousel images={images} alt={name} dots autoHeight swipe onImageClick={onOpen} className="w-full bg-neutral-950 max-h-[60vh] rounded-t-xl overflow-hidden" />;
   }
   return (
     <div className="h-48 relative overflow-hidden bg-neutral-950 flex items-center justify-center rounded-t-xl">
