@@ -563,6 +563,7 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
               alt={model.name}
               dots
               autoHeight
+              swipe
               onImageClick={setLightbox}
               className="w-full shrink-0 bg-neutral-950 max-h-[55vh]"
             />
