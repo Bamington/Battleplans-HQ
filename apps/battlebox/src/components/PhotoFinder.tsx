@@ -158,7 +158,10 @@ export function PhotoFinder({ value, onChange, suggestedQuery, searchHint, initi
               <p className="font-body text-xs text-neutral-400">
                 {searchOnly ? 'Tap a photo to add it.' : 'Tap the photos you want to use.'}
               </p>
-              <div className={`grid grid-cols-3 gap-1.5 max-h-72 overflow-y-auto${searching ? ' opacity-50' : ''}`}>
+              {/* auto-rows-max + shrink-0: when a modal squeezes this box to a
+                  fixed height, plain auto rows shrink to fit while the square
+                  tiles don't, and the tiles overlap. */}
+              <div className={`grid grid-cols-3 auto-rows-max gap-1.5 max-h-72 shrink-0 overflow-y-auto${searching ? ' opacity-50' : ''}`}>
                 {results.map(img => {
                   const picked = pickedImages.has(img.image);
                   return (
