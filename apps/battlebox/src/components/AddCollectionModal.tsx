@@ -17,6 +17,11 @@ import type { PendingPhoto } from '../lib/imageSearch';
 
 const TYPES: ('Box' | 'Collection')[] = ['Box', 'Collection'];
 
+/** What to do once it's created: just open it, look its contents up (boxes
+ *  only — a box is a product; a collection is the user's own grouping), or
+ *  pick from models the user already has. */
+export type AfterCreate = 'open' | 'suggest' | 'existing';
+
 function DateField({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string | null) => void }) {
   return (
     <label className="flex-1 flex flex-col gap-1 min-w-0">
@@ -31,21 +36,21 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
   open: boolean;
   onClose: () => void;
   userId: string | null;
-  /** Called with the new collection's id once it's saved. `addModels` is true
-   *  when the user chose "Create and Add Models", so the caller can follow up
-   *  with the model picker. */
-  onCreated: (id: string, addModels: boolean) => void;
+  /** Called with the new collection's id once it's saved, and which CTA was
+   *  used, so the caller can follow up (open it, suggest contents, or the
+   *  model picker). */
+  onCreated: (id: string, next: AfterCreate) => void;
 }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Box' | 'Collection'>('Box');
   const [gameId, setGameId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
-  /** Which CTA is mid-save, so only that button shows a spinner. */
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
-  const [saving, setSaving] = useState<null | 'create' | 'createAdd'>(null);
+  /** Which CTA is mid-save, so only that button shows a spinner. */
+  const [saving, setSaving] = useState<null | AfterCreate>(null);
   const [error, setError] = useState<string | null>(null);
   /** Set when the collection saved but some photos didn't — the form stays up to say so. */
-  const [saved, setSaved] = useState<{ id: string; addModels: boolean } | null>(null);
+  const [saved, setSaved] = useState<{ id: string; next: AfterCreate } | null>(null);
   const games = useAllGames(open);
   const recentGameIds = useRecentGameIds(userId, open);
   const gameName = games.find(g => g.id === gameId)?.name ?? '';
@@ -60,12 +65,12 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
 
   if (!open) return null;
 
-  const finish = (id: string, addModels: boolean) => { onCreated(id, addModels); onClose(); };
-  const close = () => { if (saving) return; if (saved) finish(saved.id, saved.addModels); else onClose(); };
+  const finish = (id: string, next: AfterCreate) => { onCreated(id, next); onClose(); };
+  const close = () => { if (saving) return; if (saved) finish(saved.id, saved.next); else onClose(); };
 
-  const save = async (addModels: boolean) => {
+  const save = async (next: AfterCreate) => {
     if (!userId || saving) return;
-    setSaving(addModels ? 'createAdd' : 'create'); setError(null);
+    setSaving(next); setError(null);
     const { id, error: err } = await createBox(userId, {
       name: name.trim(),
       type,
@@ -76,11 +81,11 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
     const failed = await uploadPendingPhotos(photos, (file, isPrimary, source) => uploadBoxImage(id, userId, file, isPrimary, source));
     setSaving(null);
     if (failed > 0) {
-      setSaved({ id, addModels });
+      setSaved({ id, next });
       setError(`The collection was added, but ${failed === 1 ? '1 photo' : `${failed} photos`} couldn’t be saved. You can add more from its Edit form.`);
       return;
     }
-    finish(id, addModels);
+    finish(id, next);
   };
 
   const disabled = name.trim() === '' || saving !== null || !userId;
@@ -125,23 +130,52 @@ export function AddCollectionModal({ open, onClose, userId, onCreated }: {
           {error && <p className="font-body text-sm text-red-400">{error}</p>}
 
           {saved ? (
-            <Button color="primary" className="w-full justify-center" onClick={() => finish(saved.id, saved.addModels)}>Continue</Button>
+            <Button color="primary" className="w-full justify-center" onClick={() => finish(saved.id, saved.next)}>Continue</Button>
           ) : (
           <div className="flex flex-col gap-2 pt-1">
-            <Button
-              color="primary" className="w-full justify-center"
-              disabled={disabled} loading={saving === 'create'}
-              onClick={() => save(false)}
-            >
-              Create Collection
-            </Button>
-            <Button
-              variant="outline" color="primary" className="w-full justify-center"
-              disabled={disabled} loading={saving === 'createAdd'}
-              onClick={() => save(true)}
-            >
-              Create and Add Models
-            </Button>
+            {type === 'Box' ? (
+              <>
+                {/* A box is a product, so its contents can be looked up. */}
+                <Button
+                  color="primary" className="w-full justify-center"
+                  disabled={disabled} loading={saving === 'suggest'}
+                  onClick={() => save('suggest')}
+                >
+                  Create and Suggest Contents
+                </Button>
+                <Button
+                  variant="outline" color="primary" className="w-full justify-center"
+                  disabled={disabled} loading={saving === 'existing'}
+                  onClick={() => save('existing')}
+                >
+                  Create and Add My Models
+                </Button>
+                <Button
+                  variant="outline" color="primary" className="w-full justify-center"
+                  disabled={disabled} loading={saving === 'open'}
+                  onClick={() => save('open')}
+                >
+                  Create Empty Box
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  color="primary" className="w-full justify-center"
+                  disabled={disabled} loading={saving === 'open'}
+                  onClick={() => save('open')}
+                >
+                  Create Collection
+                </Button>
+                <Button
+                  variant="outline" color="primary" className="w-full justify-center"
+                  disabled={disabled} loading={saving === 'existing'}
+                  onClick={() => save('existing')}
+                >
+                  Create and Add Models
+                </Button>
+              </>
+            )}
             <Button variant="ghost" color="secondary" className="w-full justify-center" onClick={onClose}>Cancel</Button>
           </div>
           )}

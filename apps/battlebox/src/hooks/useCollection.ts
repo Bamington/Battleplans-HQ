@@ -977,6 +977,16 @@ export async function createModel(userId: string, fields: NewModelFields): Promi
   return { id: (data as { id: string } | null)?.id ?? null, error: error?.message ?? null };
 }
 
+/** Add several models in one insert (e.g. a box's suggested contents). Returns
+ *  the new ids in the same order. */
+export async function createModels(userId: string, rows: NewModelFields[]): Promise<{ ids: string[]; error: string | null }> {
+  if (!rows.length) return { ids: [], error: null };
+  const { data, error } = await supabase.from('models')
+    .insert(rows.map(fields => ({ ...withPaintedRule(fields), user_id: userId })))
+    .select('id');
+  return { ids: ((data as { id: string }[] | null) ?? []).map(r => r.id), error: error?.message ?? null };
+}
+
 export interface BoxOption {
   id: string;
   name: string;
