@@ -192,7 +192,11 @@ export function SuggestContentsModal({ boxId, userId, onClose, onAdded, onPickEx
         {/* List — the only scrolling region, so the header and CTA stay put. */}
         <div className="px-5 pt-3 flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5">
           {loading ? (
-            <p className="py-8 text-center font-body text-sm text-neutral-400">Looking up what comes in this box…</p>
+            <div role="status" className="py-8 flex flex-col items-center gap-3 text-center">
+              <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-neutral-700 border-t-primary-400 animate-spin" />
+              <p className="font-body text-sm text-neutral-300">Looking up what comes in this box…</p>
+              <p className="font-body text-xs text-neutral-500">This usually takes around 5–10 seconds.</p>
+            </div>
           ) : lookupError ? (
             <p className="py-6 text-center font-body text-sm text-red-400">{lookupError}</p>
           ) : (

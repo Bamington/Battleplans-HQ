@@ -167,7 +167,8 @@ function ManageBoxContentsInner() {
               <Button size="sm" color="primary" leftIcon={<Magnifer className="w-4 h-4" />} loading={looking} disabled={!lookupName.trim() || looking} onClick={runLookup}>
                 Look Up
               </Button>
-              {lookupMsg && <span className="font-body text-sm text-neutral-300">{lookupMsg}</span>}
+              {looking && <span className="font-body text-sm text-neutral-500">Usually takes around 5–10 seconds…</span>}
+              {!looking && lookupMsg && <span className="font-body text-sm text-neutral-300">{lookupMsg}</span>}
             </div>
           </div>
 
