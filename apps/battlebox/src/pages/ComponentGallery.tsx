@@ -53,6 +53,8 @@ import { ImageEditor } from '../components/ImageEditor';
 import { GamePicker } from '../components/GamePicker';
 import { CollectionPicker } from '../components/CollectionPicker';
 import { AddCollectionModal } from '../components/AddCollectionModal';
+import { SuggestionRow, SuggestContentsModal } from '../components/SuggestContentsModal';
+import type { Suggestion } from '../components/SuggestContentsModal';
 import { AddModelModal } from '../components/AddModelModal';
 import { AddModelsToCollectionModal } from '../components/AddModelsToCollectionModal';
 import { AddPaintRecipeModal } from '../components/AddPaintRecipeModal';
@@ -262,6 +264,14 @@ const DEMO_PACK_ADDED: PaintPack = {
 // ── Local nav ────────────────────────────────────────────────────────────────
 
 /** Sidebar entries for this app's own sections, appended after the shared ones. */
+const DEMO_SUGGESTIONS: Suggestion[] = [
+  { key: 'a', name: 'RX-78-2 Gundam', count: 1, selected: true, existing: null, useExisting: false },
+  { key: 'b', name: 'Zaku II', count: 2, selected: false, existing: null, useExisting: false },
+  { key: 'c', name: 'Char’s Zaku II', count: 1, selected: true, existing: { id: 'm1', name: 'Char’s Zaku II' }, useExisting: true },
+  { key: 'd', name: 'Guncannon', count: 1, selected: true, existing: { id: 'm2', name: 'Guncannon' }, useExisting: false },
+  { key: 'manual', name: '', count: 1, selected: true, existing: null, useExisting: false },
+];
+
 const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-navbar',              label: 'Navbar',                icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-box-item',            label: 'Box Item',              icon: <Bookmark className="w-5 h-5" /> },
@@ -283,6 +293,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-pickers',             label: 'Game & Collection Pickers', icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-image-editor',        label: 'Image Editor',          icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-photo-finder',        label: 'Photo Finder',          icon: <Gallery className="w-5 h-5" /> },
+  { href: '#nav-suggest-contents',    label: 'Suggest Contents',      icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-add-modals',          label: 'Add Modals',            icon: <AddCircle className="w-5 h-5" /> },
   { href: '#nav-detail-modals',       label: 'Detail Modals',         icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-edit-modals',         label: 'Edit Modals',           icon: <Pen2 className="w-5 h-5" /> },
@@ -291,6 +302,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
 // ── Gallery page ─────────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
+  const [suggestions,    setSuggestions]    = useState<Suggestion[]>(DEMO_SUGGESTIONS);
+  const [suggestOpen,    setSuggestOpen]    = useState(false);
   const [packDetail,     setPackDetail]     = useState<PaintPack | null>(null);
   const [packFilterOpen, setPackFilterOpen] = useState(false);
   const [packBrands,     setPackBrands]     = useState<string[]>([]);
@@ -975,6 +988,38 @@ const ComponentGallery = () => {
           exists. The second demo is seeded with stub results; a live search
           calls the <code>image-search</code> Edge Function and needs a session
           and the BRAVE_SEARCH_API_KEY secret.
+        </GalleryNote>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SUGGEST CONTENTS
+          "What's in the box?" — the suggestion rows are presentational and
+          driven with literal data; the modal looks a box up by id, so here it
+          shows its loading / error state.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-suggest-contents" title="Suggest Contents / Row & Modal">
+        <div className="flex flex-col gap-1.5 max-w-md">
+          {suggestions.map(s => (
+            <SuggestionRow key={s.key} suggestion={s}
+              onChange={next => setSuggestions(prev => prev.map(r => (r.key === next.key ? next : r)))}
+              onRemove={s.key === 'manual' ? () => setSuggestions(prev => prev.filter(r => r.key !== 'manual')) : undefined} />
+          ))}
+        </div>
+        <div className="mt-3">
+          <Button variant="outline" color="secondary" onClick={() => setSuggestOpen(true)}>Open Suggest Contents</Button>
+        </div>
+        <SuggestContentsModal
+          boxId={suggestOpen ? 'stub-box-id' : null}
+          userId={null}
+          onClose={() => setSuggestOpen(false)}
+          onAdded={() => setSuggestOpen(false)}
+          onPickExisting={() => setSuggestOpen(false)}
+        />
+        <GalleryNote>
+          Rows, top to bottom: a plain suggestion; one unticked; one matching a
+          model the user already owns (links theirs); the same, switched to
+          making a new one; and a row added by hand (removable). Names and counts
+          are editable in place. The modal needs a session and a real box id.
         </GalleryNote>
       </GallerySection>
 

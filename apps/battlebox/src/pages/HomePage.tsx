@@ -15,6 +15,7 @@ import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { AddModelModal } from '../components/AddModelModal';
 import { AddCollectionModal } from '../components/AddCollectionModal';
 import { AddModelsToCollectionModal } from '../components/AddModelsToCollectionModal';
+import { SuggestContentsModal } from '../components/SuggestContentsModal';
 import { CollectionFilterSheet } from '../components/CollectionFilterSheet';
 import { RecipeItem, RecipeGridItem } from '../components/RecipeItem';
 import { ShoppingListItem } from '../components/ShoppingListItem';
@@ -365,6 +366,7 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
   const [addOpen, setAddOpen] = useState(false);
   /** Set to a new collection's id when the user chose "Create and Add Models". */
   const [addModelsBoxId, setAddModelsBoxId] = useState<string | null>(null);
+  const [suggestBoxId, setSuggestBoxId] = useState<string | null>(null);
   const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
   const searchGameIds = useMatchingGameIds(query);
@@ -407,13 +409,21 @@ function CollectionsColumn({ userId, isDesktop, boxId, onOpenBox, onCloseBox, on
       open={addOpen}
       onClose={() => setAddOpen(false)}
       userId={userId}
-      onCreated={(id, addModels) => {
+      onCreated={(id, next) => {
         refetch();
-        // "Create and Add Models" goes to the picker first; the plain CTA
-        // opens the new collection straight away.
-        if (addModels) setAddModelsBoxId(id);
+        // Suggest contents / add my models go to their picker first; the
+        // plain CTA opens the new collection straight away.
+        if (next === 'suggest') setSuggestBoxId(id);
+        else if (next === 'existing') setAddModelsBoxId(id);
         else onOpenBox(id);
       }}
+    />
+    <SuggestContentsModal
+      boxId={suggestBoxId}
+      userId={userId}
+      onClose={() => setSuggestBoxId(null)}
+      onAdded={() => { refetch(); onChanged(); if (suggestBoxId) onOpenBox(suggestBoxId); }}
+      onPickExisting={() => { const id = suggestBoxId; setSuggestBoxId(null); setAddModelsBoxId(id); }}
     />
     <AddModelsToCollectionModal
       boxId={addModelsBoxId}

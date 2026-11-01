@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Sheet, Lightbox, UserRounded, Box, Button, AddCircle } from '@battleplans/ui';
+import { Sheet, Lightbox, UserRounded, Box, Button, AddCircle, Magnifer } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { ImageCarousel } from './ImageCarousel';
 import { ModelItem } from './ModelItem';
@@ -7,6 +7,7 @@ import { KebabMenu } from './KebabMenu';
 import { EditCollectionModal } from './EditCollectionModal';
 import { AddModelModal } from './AddModelModal';
 import { AddModelsToCollectionModal } from './AddModelsToCollectionModal';
+import { SuggestContentsModal } from './SuggestContentsModal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ShareModal } from './ShareModal';
 import { useBoxDetail, deleteBox, useUserId, uploadBoxImage } from '../hooks/useCollection';
@@ -64,6 +65,8 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
   const [addExisting, setAddExisting] = useState(false);
   /** Create a brand-new model already filed into this collection. */
   const [addNew, setAddNew] = useState(false);
+  /** "Find What's in This Box" — suggested contents (boxes only). */
+  const [suggesting, setSuggesting] = useState(false);
   useEffect(() => {
     setLightbox(null); setEditing(false); setConfirmDelete(false); setSharing(false);
     setAddExisting(false); setAddNew(false);
@@ -203,6 +206,16 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
                 Add New Model
               </Button>
             </div>
+            {box.type === 'Box' && (
+              <Button
+                variant="ghost" color="primary" size="sm"
+                leftIcon={<Magnifer className="w-4 h-4" />}
+                className="w-full justify-center -mt-2"
+                onClick={() => setSuggesting(true)}
+              >
+                Find What’s in This Box
+              </Button>
+            )}
           </div>
           </div>
 
@@ -234,6 +247,16 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
             userId={userId}
             onClose={() => setAddExisting(false)}
             onAdded={afterAdd}
+            dismissLabel="Cancel"
+          />
+
+          {/* Look the box up and add what comes in it. */}
+          <SuggestContentsModal
+            boxId={suggesting ? boxId : null}
+            userId={userId}
+            onClose={() => setSuggesting(false)}
+            onAdded={afterAdd}
+            onPickExisting={() => { setSuggesting(false); setAddExisting(true); }}
             dismissLabel="Cancel"
           />
 
