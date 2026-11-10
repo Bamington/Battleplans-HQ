@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
   ScrollColumn, NewsColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
-  COLUMN_ROW, ColumnTabBar,
+  COLUMN_ROW, ColumnTabBar, listFriends,
 } from '@battleplans/ui';
 import type { ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { ModelDetailModal } from '../components/ModelDetailModal';
+import { FriendModelModal } from '../components/FriendModelModal';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { AddModelModal } from '../components/AddModelModal';
@@ -289,8 +290,22 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
   const [search,  setSearch]  = useState('');
   const query = useDebouncedValue(search.trim(), 300);
 
-  const { models, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filters, query);
+  const { models: rawModels, loading, loadingMore, hasMore, loadMore, refetch } = useModels(userId, filters, query);
   useRefetchOnTick(tick, refetch);
+
+  // Friends' models credited to you are named by the friend, as you know them.
+  const [friendNames, setFriendNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!userId) return;
+    listFriends()
+      .then(fs => setFriendNames(Object.fromEntries(fs.map(f => [f.id, f.username?.trim() || `@${f.handle}`]))))
+      .catch(() => {});
+  }, [userId]);
+  const models = useMemo(() => rawModels.map(m => (m.shared
+    ? { ...m, shared: { ...m.shared, ownerName: friendNames[m.shared.ownerId] ?? null } } : m)), [rawModels, friendNames]);
+  /** A friend's model, open read-only. */
+  const [friendModel, setFriendModel] = useState<CollectionModel | null>(null);
+  const open = (m: CollectionModel) => (m.shared ? setFriendModel(m) : onOpenModel(m.id));
   // Gallery is a desktop-only view; mobile & tablet always show the list.
   const gallery = isDesktop && view === 'gallery';
   const filterCount = activeModelFilterCount(filters);
@@ -316,8 +331,8 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       listClassName={gallery ? GRID_LIST : ROW_LIST}
       getKey={m => m.id}
       renderItem={m => (gallery
-        ? <ModelGridItem model={m} onClick={() => onOpenModel(m.id)} />
-        : <ModelItem     model={m} onClick={() => onOpenModel(m.id)} />)}
+        ? <ModelGridItem model={m} onClick={() => open(m)} />
+        : <ModelItem     model={m} onClick={() => open(m)} />)}
       footer={
         <div className="flex gap-2 w-full shrink-0">
           <Button color="primary" leftIcon={<AddCircle className="w-4 h-4" />} className="flex-1 justify-center" onClick={() => setAddOpen(true)}>
@@ -336,6 +351,7 @@ function ModelsColumn({ userId, isDesktop, modelId, onOpenModel, onCloseModel, o
       onCreated={id => { refetch(); onOpenModel(id); }}
     />
     <ModelDetailModal modelId={modelId} onClose={onCloseModel} onChanged={() => { refetch(); onChanged(); }} onOpenBox={onOpenBox} />
+    <FriendModelModal modelId={friendModel?.id ?? null} ownerName={friendModel?.shared?.ownerName} onClose={() => setFriendModel(null)} />
     <ModelFilterSheet
       open={filterOpen}
       onClose={() => setFilterOpen(false)}

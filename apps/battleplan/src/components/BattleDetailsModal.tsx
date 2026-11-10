@@ -14,9 +14,9 @@ import {
   supabase, Modal, Button, SearchSelect, Input, Select, RichTextEditor, MarkdownBody,
   MenuDots, Pen2, TrashBinMinimalistic, UploadMinimalistic, CloseCircle, StarBold, Star,
   AltArrowLeft, AltArrowRight, CheckCircle, Widget2, UserRounded, inRegionOf,
+  OpponentPicker,
 } from '@battleplans/ui';
 import DatePickerInput from './DatePickerInput';
-import { OpponentPicker } from './OpponentPicker';
 import { GAME_ICONS } from './gameIcons';
 import { VenueScopeHint } from './VenueScopeHint';
 import type { Battle, BattleResult } from '../hooks/useBattles';

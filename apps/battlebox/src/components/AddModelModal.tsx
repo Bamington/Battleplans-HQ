@@ -6,11 +6,13 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, Input } from '@battleplans/ui';
+import { Button, Input, useOpponents } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { GamePicker } from './GamePicker';
 import { CollectionPicker } from './CollectionPicker';
 import { PhotoFinder } from './PhotoFinder';
+import { PainterField } from './PainterField';
+import { PAINTED_BY_ME, painterColumns, type PainterValue } from '../lib/painters';
 import { Chip } from './filterControls';
 import { createModel, addModelToBox, uploadModelImage, useAllGames, useRecentGameIds, todayISO } from '../hooks/useCollection';
 import type { ModelStatus } from '../hooks/useCollection';
@@ -61,6 +63,8 @@ export function AddModelModal({
   const [purchaseDate, setPurchaseDate] = useState<string | null>(null);
   const [paintedDate, setPaintedDate] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [painter, setPainter] = useState<PainterValue>(PAINTED_BY_ME);
+  const { opponents: people } = useOpponents(open ? userId : null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Set when the model saved but some photos didn't — the form stays up to say so. */
@@ -73,7 +77,7 @@ export function AddModelModal({
   // the caller prefilled (e.g. opened from inside a collection).
   useEffect(() => {
     if (!open) return;
-    setName(''); setCount(1); setStatus('None'); setPaintedDate(null);
+    setName(''); setCount(1); setStatus('None'); setPaintedDate(null); setPainter(PAINTED_BY_ME);
     setGameId(initialGameId); setBoxId(initialBoxId); setPurchaseDate(initialPurchaseDate);
     setPhotos(prev => { releasePendingPhotos(prev); return []; });
     setSaving(false); setError(null); setSavedId(null);
@@ -104,6 +108,7 @@ export function AddModelModal({
       purchase_date: purchaseDate,
       painted_date: !forDesk && status === 'Painted' ? paintedDate : null,
       ...(forDesk ? { on_desk: true, started_painting_date: todayISO() } : {}),
+      ...(await painterColumns(userId, painter)),
     });
     if (err || !id) { setSaving(false); setError('Could not add the model. Please try again.'); return; }
     if (boxId) await addModelToBox(id, boxId);
@@ -171,6 +176,11 @@ export function AddModelModal({
               <div className="flex gap-3"><DateField label="Date" value={paintedDate} onChange={setPaintedDate} /></div>
             </div>
           )}
+
+          <div className="flex flex-col gap-1.5">
+            <span className="font-body text-sm font-medium text-white">Who Painted It</span>
+            <PainterField value={painter} onChange={setPainter} options={people} disabled={saving} />
+          </div>
 
           <PhotoFinder
             value={photos}

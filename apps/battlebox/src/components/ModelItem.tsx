@@ -118,7 +118,13 @@ export function ModelCardBody({ model }: { model: CollectionModel }) {
         <Badge color={status.color} icon={<PaintRollerIcon />}>
           {status.label}
         </Badge>
-        {model.onDesk && <Badge color="primary">On the desk</Badge>}
+        {model.onDesk && !model.shared && <Badge color="primary">On the desk</Badge>}
+        {/* A friend's model credited to you — worded from your side. */}
+        {model.shared && (
+          <Badge color="purple">
+            {model.shared.direction === 'painted_by_viewer' ? 'Painted for' : 'Painted by'} {model.shared.ownerName || 'a friend'}
+          </Badge>
+        )}
       </div>
     </div>
   );

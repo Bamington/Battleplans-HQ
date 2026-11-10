@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@battleplans/ui';
+import { painterValueOf, type PainterColumns, type PainterPerson, type PainterValue } from '../lib/painters';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,12 @@ export interface CollectionModel {
   onDesk: boolean;
   /** "Started Painting" (YYYY-MM-DD) — set when it went on the desk. */
   startedPaintingDate: string | null;
+  /**
+   * Set when it's a friend's model credited to the viewer (read-only here):
+   * whose it is, and whether the viewer painted it for them or they painted
+   * it for the viewer. Absent on your own models.
+   */
+  shared?: { ownerId: string; direction: 'painted_by_viewer' | 'painted_for_viewer'; ownerName?: string | null } | null;
 }
 
 export interface CollectionBox {
@@ -86,6 +93,9 @@ interface ModelRow {
   game: CollectionGame | null;
   model_boxes: { box: { name: string } | null }[] | null;
   model_images: ModelImageRow[] | null;
+  user_id: string;
+  painter_id: string | null;
+  painted_for_id: string | null;
 }
 
 interface BoxImageRow {
@@ -107,6 +117,7 @@ interface BoxRow {
 
 const MODEL_SELECT =
   'id, name, status, count, image_path, on_desk, started_painting_date, game:games ( name, slug ), ' +
+  'user_id, painter_id, painted_for_id, ' +
   'model_boxes ( box:boxes ( name ) ), model_images ( image_path, is_primary, display_order, is_progress, created_at )';
 const BOX_SELECT =
   'id, name, type, includes_string, game:games ( name, slug ), ' +
@@ -156,6 +167,17 @@ function mapModel(r: ModelRow): CollectionModel {
     onDesk: r.on_desk ?? false,
     startedPaintingDate: r.started_painting_date ?? null,
   };
+}
+
+/** mapModel for a list that may hold friends' models: anything not owned by
+ *  `viewerId` is one, read-only, credited to the viewer. */
+function mapModelFor(viewerId: string | null) {
+  return (r: ModelRow): CollectionModel => ({
+    ...mapModel(r),
+    shared: viewerId && r.user_id && r.user_id !== viewerId
+      ? { ownerId: r.user_id, direction: r.painter_id ? 'painted_by_viewer' : 'painted_for_viewer' }
+      : null,
+  });
 }
 
 /** Resolve one box_image row: a bucket object path, else an external link. */
@@ -271,6 +293,9 @@ function usePagedCollection<Row, T>(
   /** ORDER BY terms; must be stable across renders. Paging needs a total
    *  order, so `id` is always added last as the tie-break. */
   order: OrderBy[] = NEWEST_FIRST,
+  /** Replaces the "owned by me" filter (e.g. mine OR shared with me). Must be
+   *  stable across renders. */
+  ownerFilter?: QueryStep,
 ): PagedList<T> {
   const [items,       setItems]       = useState<T[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -288,12 +313,13 @@ function usePagedCollection<Row, T>(
   const loadingMoreRef = useRef(false);
 
   const fetchRange = useCallback((from: number, to: number) => {
-    let q = supabase.from(table).select(select).eq(ownerColumn, userId!);
+    const base = supabase.from(table).select(select);
+    let q = ownerFilter ? ownerFilter(base) : base.eq(ownerColumn, userId!);
     for (const o of order) q = q.order(o.column, { ascending: o.ascending, nullsFirst: o.nullsFirst ?? false });
     return applyFilter(q.order('id', { ascending: false }))
       .range(from, to)
       .then(({ data }: { data: unknown }) => ((data as Row[]) ?? []).map(map));
-  }, [userId, table, select, map, applyFilter, ownerColumn, order]);
+  }, [userId, table, select, map, applyFilter, ownerColumn, order, ownerFilter]);
 
   const load = useCallback(async () => {
     const gen = ++genRef.current;
@@ -357,6 +383,9 @@ export interface ModelFilters {
   gameIds:      string[];
   /** Has / needs the user's own photo (null = either). */
   photo:        OwnPhotoFilter | null;
+  /** Show friends' models credited to you (painted by or for you). Optional
+   *  so filters saved before this existed read as the default, shown. */
+  hideShared?:  boolean;
   /** List order. Lives with the filters (same sheet, same saved state) but
    *  isn't counted as one. */
   sort:         ModelSort;
@@ -387,11 +416,18 @@ export function activeModelFilterCount(f: ModelFilters): number {
     (f.paintedFrom  || f.paintedTo  ? 1 : 0) +
     (f.statuses.length ? 1 : 0) +
     (f.gameIds.length  ? 1 : 0) +
-    (f.photo ? 1 : 0)
+    (f.photo ? 1 : 0) +
+    (f.hideShared ? 1 : 0)
   );
 }
 
 export function useModels(userId: string | null, filters: ModelFilters, search = '') {
+  // Mine, plus (unless hidden) friends' models credited to me — the
+  // shared_with_me computed field, which RLS also checks.
+  const ownerFilter = useCallback<QueryStep>(
+    q => (filters.hideShared ? q.eq('user_id', userId!) : q.or(`user_id.eq.${userId},shared_with_me.is.true`)),
+    [userId, filters.hideShared]);
+  const map = useMemo(() => mapModelFor(userId), [userId]);
   const applyFilter = useCallback<QueryStep>(q => {
     let x = q;
     if (search)                  x = x.ilike('name', `%${search}%`);
@@ -405,7 +441,7 @@ export function useModels(userId: string | null, filters: ModelFilters, search =
     return x;
   }, [filters, search]);
   const { items, ...rest } = usePagedCollection<ModelRow, CollectionModel>(
-    userId, 'models', MODEL_SELECT, mapModel, applyFilter, 'user_id', SORT_ORDER[filters.sort] ?? NEWEST_FIRST);
+    userId, 'models', MODEL_SELECT, map, applyFilter, 'user_id', SORT_ORDER[filters.sort] ?? NEWEST_FIRST, ownerFilter);
   return { models: items, ...rest };
 }
 
@@ -604,6 +640,8 @@ export interface ModelDetail {
    *  tab's progress strip. (They're in `images` too only while the model has
    *  no finished photo.) */
   progressImages: string[];
+  /** Who painted it: me, someone else, or me for someone else. */
+  painter: PainterValue;
 }
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
@@ -659,11 +697,16 @@ interface ModelDetailRow {
     recipe: RecipeRow | null;
   }[] | null;
   model_hobby_items: { section: string | null; sort_order: number; hobby_item: HobbyItemRef | null }[] | null;
+  painted_by_me: boolean;
+  painter: PainterPerson | null;
+  painted_for: PainterPerson | null;
 }
 
 const MODEL_DETAIL_SELECT =
   'id, name, status, count, image_path, purchase_date, painted_date, painting_notes, lore_name, lore_description, ' +
-  'on_desk, started_painting_date, game:games ( name, slug ), ' +
+  'on_desk, started_painting_date, game:games ( name, slug ), painted_by_me, ' +
+  'painter:opponents!models_painter_id_fkey ( id, name, linked_user_id ), ' +
+  'painted_for:opponents!models_painted_for_id_fkey ( id, name, linked_user_id ), ' +
   'model_images ( image_path, is_primary, display_order, is_progress, created_at ), ' +
   'model_boxes ( box:boxes ( id, name, type, includes_string, game:games ( name, slug ), ' +
     'box_images ( image_path, image_url, is_primary, display_order ), model_boxes ( model:models ( image_path, status ) ) ) ), ' +
@@ -708,6 +751,7 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
       .map(i => modelImageUrl(i.image_path))
       .filter((u): u is string => !!u),
+    painter: painterValueOf(r.painted_by_me, r.painter, r.painted_for),
   };
 }
 
@@ -845,7 +889,7 @@ export type ModelPatch = Partial<{
   lore_name: string | null;
   lore_description: string | null;
   painted_date: string | null;
-}>;
+} & PainterColumns>;
 
 /**
  * A model with a painted date is Painted. Every model save goes through this,
@@ -966,6 +1010,10 @@ export interface NewModelFields {
   /** Created straight onto the Painting Desk. */
   on_desk?: boolean;
   started_painting_date?: string | null;
+  /** Who painted it — omitted means painted by me. */
+  painted_by_me?: boolean;
+  painter_id?: string | null;
+  painted_for_id?: string | null;
 }
 
 /** Add a model to the user's collection. Photos are added afterwards via the
@@ -1546,14 +1594,14 @@ export function removeFromDesk(modelId: string) {
  * off the desk (withPaintedRule).
  */
 export async function markDeskModelPainted(
-  modelId: string, userId: string, paintedDate: string, photo: File | null,
+  modelId: string, userId: string, paintedDate: string, photo: File | null, painter?: PainterColumns,
 ): Promise<{ error: string | null }> {
   if (photo) {
     const { error, id } = await uploadModelImage(modelId, userId, photo, false, 'upload', false);
     if (error) return { error };
     if (id) await setModelPrimaryImage(modelId, id);
   }
-  const { error } = await updateModel(modelId, { status: 'Painted', painted_date: paintedDate });
+  const { error } = await updateModel(modelId, { status: 'Painted', painted_date: paintedDate, ...painter });
   return { error: error?.message ?? null };
 }
 

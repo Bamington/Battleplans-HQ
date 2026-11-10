@@ -36,8 +36,9 @@ export function useCollectionStats(userId: string | null) {
     (async () => {
       const all: ModelStatsRow[] = [];
       for (let from = 0; ; from += PAGE) {
+        // Models painted FOR someone else aren't the user's collection.
         const { data } = await supabase.from('models').select(SELECT)
-          .eq('user_id', userId)
+          .eq('user_id', userId).is('painted_for_id', null)
           .order('id', { ascending: true })
           .range(from, from + PAGE - 1);
         if (cancelled) return;

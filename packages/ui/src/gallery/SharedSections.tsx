@@ -72,6 +72,8 @@ import ModeToggle from '../components/ModeToggle';
 import type { Mode } from '../components/ModeToggle';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import Notebook from '../icons/Notebook';
+import { OpponentPicker } from '../components/OpponentPicker';
+import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import Pagination from '../components/Pagination';
 import PickerTile from '../components/PickerTile';
 import { HandleLink, ProfileModalProvider } from '../components/ProfileModalProvider';
@@ -1217,6 +1219,13 @@ const BuilderShellGalleryDemo = () => {
  *
  *   nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]}
  */
+const DEMO_OPPONENTS: Opponent[] = [
+  { id: 'op-1', name: 'Marcus' },
+  { id: 'op-2', name: 'Priya', linkedUserId: 'u-2', isFriend: true },
+  { id: 'op-3', name: 'Sam' },
+  { id: null,   name: 'Jordan', linkedUserId: 'u-4', isFriend: true },
+];
+
 export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   // Order matches the render order of the sections below.
   { href: '#nav-app-footer',           label: 'App Footer',           icon: <Widget2 className="w-5 h-5" /> },
@@ -1253,7 +1262,8 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-callout',              label: 'Callout',              icon: <InfoCircle className="w-5 h-5" /> },
   { href: '#nav-game-logos',           label: 'Game Logos',           icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-selectable-list-item', label: 'Selectable List Item', icon: <ListCheck className="w-5 h-5" /> },
-  { href: '#nav-pagination',           label: 'Pagination',           icon: <AltArrowRight className="w-5 h-5" /> },
+  { href: '#nav-opponent-picker',      label: 'Opponent Picker',      icon: <UsersGroupRounded className="w-5 h-5" /> },
+  { href: '#nav-pagination',           label: 'Pagination',          icon: <AltArrowRight className="w-5 h-5" /> },
   { href: '#nav-markdown-body',        label: 'Markdown Body',        icon: <FileText className="w-5 h-5" /> },
   { href: '#nav-modal',                label: 'Modal',                icon: <Gallery className="w-5 h-5" /> },
   { href: '#nav-welcome-modal',        label: 'Welcome Modal',        icon: <Gallery className="w-5 h-5" /> },
@@ -1298,6 +1308,8 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
   const [counterError,   setCounterError]   = useState(0);
   const [multiSelected,  setMultiSelected]  = useState<string[]>([]);
   const [multiSelected2, setMultiSelected2] = useState<string[]>([]);
+  const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
+  const [painter,        setPainter]        = useState<SelectedOpponent[]>([]);
   // AvatarPicker demo: undefined = untouched, Blob = cropped, null = removed.
   const [pickedAvatar,   setPickedAvatar]   = useState<Blob | null | undefined>(undefined);
   // BannerPicker demo: same three-state contract as the avatar one.
@@ -3411,6 +3423,29 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
             <SelectableListItem name="Dodge"  checked={false} onCheckedChange={() => {}} disabled />
           </div>
 
+        </div>
+      </GallerySection>
+
+      <GallerySection id="nav-opponent-picker" title="Opponent Picker / Many & Single">
+        <div className="w-full max-w-md flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <OpponentPicker value={opponents} onChange={setOpponents} options={DEMO_OPPONENTS} />
+            <GalleryNote>
+              Battleplan's battle opponents. Picked: {opponents.length ? opponents.map(o => o.name).join(', ') : '(none)'}.
+              Typing a name that isn't in the list offers to create it — those come
+              back with <code>id: null</code> and are created on save.
+            </GalleryNote>
+          </div>
+          <div className="flex flex-col gap-3">
+            <OpponentPicker single value={painter} onChange={setPainter} options={DEMO_OPPONENTS}
+              label="Painted by" placeholder="Search or add a person…" />
+            <GalleryNote>
+              <code>single</code> — BattleBench's painter. Focus it to see your Friends
+              straight away; once someone's picked the input hides until you remove them.
+              Friends not yet in your list come back with <code>id: null</code> and
+              a <code>linkedUserId</code>, and get no email box.
+            </GalleryNote>
+          </div>
         </div>
       </GallerySection>
 

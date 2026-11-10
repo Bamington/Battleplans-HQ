@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Sheet, Lightbox, Select, Badge, Button, InfoCircle, FileText, AddCircle } from '@battleplans/ui';
+import { Sheet, Lightbox, Select, Badge, Button, InfoCircle, FileText, AddCircle, useOpponents } from '@battleplans/ui';
 import type { BadgeColor } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { BoxItem } from './BoxItem';
@@ -12,6 +12,8 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { KebabMenu } from './KebabMenu';
 import { MarkPaintedModal } from './MarkPaintedModal';
 import { ShareModal } from './ShareModal';
+import { PainterField } from './PainterField';
+import { painterColumns, painterLine, type PainterValue } from '../lib/painters';
 import {
   useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage,
   addModelsToDesk, removeFromDesk,
@@ -241,6 +243,12 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
             <span className="font-body text-sm text-white">Painted {shortDate(model.paintedDate)}</span>
           </div>
         )}
+        {painterLine(model.painter) && (
+          <div className="flex items-center gap-2 px-3 py-2.5 text-primary-400">
+            <PaintRollerIcon />
+            <span className="font-body text-sm text-white">{painterLine(model.painter)}</span>
+          </div>
+        )}
       </div>
 
       {model.includedIn.length > 0 && (
@@ -285,6 +293,18 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
   };
   const painted = model.status === 'Painted';
 
+  // Who painted it — held locally so a half-made choice (switch on, nobody
+  // picked yet) doesn't flicker back on the refetch that follows each save.
+  const { opponents: people, refetch: refetchPeople } = useOpponents(userId);
+  const [painter, setPainter] = useState<PainterValue>(model.painter);
+  const changePainter = async (v: PainterValue) => {
+    setPainter(v);
+    if (!userId) return;
+    const before = v.person?.id;
+    save(await painterColumns(userId, v));
+    if (v.person && !before) refetchPeople();   // a new person joined the list
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <TabIntro>Record your hobby progress, and keep notes for the future.</TabIntro>
@@ -324,6 +344,11 @@ function PaintingTab({ model, save, userId, onAdd, onEditPaint, onEditRecipe, on
         onConfirm={() => { if (pendingStatus) save({ status: pendingStatus, painted_date: null }); setPendingStatus(null); }}
         onCancel={() => setPendingStatus(null)}
       />
+
+      <div className="flex flex-col gap-2">
+        <Label>Who Painted It</Label>
+        <PainterField value={painter} onChange={changePainter} options={people} />
+      </div>
 
       <div className="flex flex-col gap-2">
         <Label>Painting Notes</Label>
