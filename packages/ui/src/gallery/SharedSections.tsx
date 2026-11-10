@@ -3442,8 +3442,8 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
             <GalleryNote>
               <code>single</code> — BattleBench's painter. Focus it to see your Friends
               straight away; once someone's picked the input hides until you remove them.
-              Friends not yet in your list come back with <code>id: null</code> and a
-              <code>linkedUserId</code>, and get no email box.
+              Friends not yet in your list come back with <code>id: null</code> and
+              a <code>linkedUserId</code>, and get no email box.
             </GalleryNote>
           </div>
         </div>
