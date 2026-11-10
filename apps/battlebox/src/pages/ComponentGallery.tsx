@@ -79,6 +79,12 @@ import { DeskItem } from '../components/DeskItem';
 import { AddToDeskModal } from '../components/AddToDeskModal';
 import { MarkPaintedModal } from '../components/MarkPaintedModal';
 import { ShareModal } from '../components/ShareModal';
+import { PainterField } from '../components/PainterField';
+import { Switch } from '../components/Switch';
+import { FriendModelModal } from '../components/FriendModelModal';
+import { PAINTED_BY_ME, painterLine, type PainterValue } from '../lib/painters';
+import type { FriendModelPayload } from '../lib/sharing';
+import type { Opponent } from '@battleplans/ui';
 import { ShoppingItemModal } from '../components/ShoppingItemModal';
 import type { ShoppingItem } from '../hooks/useShoppingList';
 import type { PendingPhoto, WebImage } from '../lib/imageSearch';
@@ -142,6 +148,36 @@ const DEMO_MODEL: CollectionModel = {
   boxName: 'Leviathan Box Set',
   onDesk: false,
   startedPaintingDate: '2026-09-01',
+};
+
+const DEMO_MODEL_SHARED_FOR: CollectionModel = {
+  id: 'm-s1', name: 'Ork Warboss', status: 'Painted', count: 1, images: [PHOTO_B],
+  game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' }, boxName: null, onDesk: false, startedPaintingDate: null,
+  shared: { ownerId: 'u-2', direction: 'painted_by_viewer', ownerName: 'Priya' },
+};
+
+const DEMO_MODEL_SHARED_BY: CollectionModel = {
+  ...DEMO_MODEL_SHARED_FOR, id: 'm-s2', name: 'Blood Bowl Lineman', status: 'Partially Painted', images: [],
+  game: { name: 'Blood Bowl', slug: 'blood-bowl' },
+  shared: { ownerId: 'u-3', direction: 'painted_for_viewer', ownerName: '@sam' },
+};
+
+const DEMO_PEOPLE: Opponent[] = [
+  { id: 'op-1', name: 'Marcus' },
+  { id: 'op-2', name: 'Priya', linkedUserId: 'u-2', isFriend: true },
+  { id: null,   name: 'Jordan', linkedUserId: 'u-4', isFriend: true },
+];
+
+const DEMO_FRIEND_MODEL: FriendModelPayload = {
+  direction: 'painted_by_viewer',
+  owner: { id: 'u-2', handle: 'priya', avatar_path: null },
+  item: {
+    id: 'm-s1', name: 'Ork Warboss', status: 'Painted', count: 1, painted_date: '2026-10-30',
+    started_painting_date: '2026-10-02', on_desk: false, painting_notes: 'Glazed the skin twice.',
+    lore_name: null, lore_description: null, image_path: null, game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' },
+    images: [], recipes: [], direct_paints: [], included_in: [],
+    painted_by_me: false, painter_name: 'Bam', painted_for_name: null,
+  },
 };
 
 const DEMO_MODEL_WIP: CollectionModel = {
@@ -276,6 +312,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-navbar',              label: 'Navbar',                icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-box-item',            label: 'Box Item',              icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-model-item',          label: 'Model Item',            icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-painter-field',       label: 'Painter Field',         icon: <Pen2 className="w-5 h-5" /> },
+  { href: '#nav-friend-model',        label: 'Friend Model',          icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-recipe-item',         label: 'Recipe Item',           icon: <Clipboard className="w-5 h-5" /> },
   { href: '#nav-shopping-list',       label: 'Shopping List',         icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-painting-desk',       label: 'Painting Desk',         icon: <Pen2 className="w-5 h-5" /> },
@@ -302,6 +340,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
 // ── Gallery page ─────────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
+  const [painter,        setPainter]        = useState<PainterValue>(PAINTED_BY_ME);
+  const [friendModelOpen,setFriendModelOpen]= useState(false);
   const [suggestions,    setSuggestions]    = useState<Suggestion[]>(DEMO_SUGGESTIONS);
   const [suggestOpen,    setSuggestOpen]    = useState(false);
   const [packDetail,     setPackDetail]     = useState<PaintPack | null>(null);
@@ -567,6 +607,8 @@ const ComponentGallery = () => {
             <ModelItem model={DEMO_MODEL}      onClick={() => alert('Open model')} />
             <ModelItem model={DEMO_MODEL_WIP}  onClick={() => alert('Open model')} />
             <ModelItem model={DEMO_MODEL_BARE} />
+            <ModelItem model={DEMO_MODEL_SHARED_FOR} onClick={() => setFriendModelOpen(true)} />
+            <ModelItem model={DEMO_MODEL_SHARED_BY}  onClick={() => setFriendModelOpen(true)} />
           </div>
 
           <div className="max-w-2xl">
@@ -590,7 +632,39 @@ const ComponentGallery = () => {
         <GalleryNote>
           Status drives the badge: Painted, Partially Painted, and None
           (unpainted) are shown here — Assembled and Primed are the other two. A
-          model with several photos auto-rotates them in its thumbnail.
+          model with several photos auto-rotates them in its thumbnail. The last
+          two are friends' models credited to you (<code>shared</code>): "Painted
+          for" when you painted it for them, "Painted by" when they painted it for
+          you. Tapping one opens the read-only Friend Model view.
+        </GalleryNote>
+      </GallerySection>
+
+      <GallerySection id="nav-painter-field" title="Painter Field / Switch">
+        <div className="w-full max-w-md flex flex-col gap-6">
+          <PainterField value={painter} onChange={setPainter} options={DEMO_PEOPLE} />
+          <div className="flex flex-col gap-3">
+            <Switch label="On" checked onChange={() => {}} />
+            <Switch label="Off" checked={false} onChange={() => {}} />
+            <Switch label="Disabled" checked disabled onChange={() => {}} />
+          </div>
+        </div>
+        <GalleryNote>
+          "Painted by me" is on by default; turn it off to pick who painted it, or
+          leave it on and turn on "Painted for someone else" to pick who it's for.
+          The picker is the shared Opponent Picker in <code>single</code> mode, with
+          Friends listed on focus. Now: {painterLine(painter) ?? 'painted by me'}.
+          Switch on its own is the toggle used here and in the paint pack editor.
+        </GalleryNote>
+      </GallerySection>
+
+      <GallerySection id="nav-friend-model" title="Friend Model">
+        <Button size="sm" variant="outline" color="primary" onClick={() => setFriendModelOpen(true)}>Open a friend's model</Button>
+        <FriendModelModal modelId={friendModelOpen ? 'demo' : null} ownerName="Priya" payload={DEMO_FRIEND_MODEL}
+          onClose={() => setFriendModelOpen(false)} />
+        <GalleryNote>
+          A friend's model credited to you, read-only — the share page's model view
+          in a Sheet. Loaded with <code>get_friend_model</code>, which only answers
+          while you're friends; otherwise it says the model isn't shared any more.
         </GalleryNote>
       </GallerySection>
 

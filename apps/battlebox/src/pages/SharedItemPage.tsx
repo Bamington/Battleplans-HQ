@@ -125,7 +125,7 @@ function ThumbStrip({ images, label, onOpen }: { images: string[]; label: string
 }
 
 /** Opens a set of photos full screen; one per page is enough. */
-function usePhotoViewer() {
+export function usePhotoViewer() {
   const [view, setView] = useState<{ images: string[]; index: number; alt: string } | null>(null);
   const viewer = (
     <Lightbox open={view !== null} images={view?.images ?? []} startIndex={view?.index ?? 0}
@@ -136,8 +136,21 @@ function usePhotoViewer() {
 
 // ── Model ────────────────────────────────────────────────────────────────────
 
-function SharedModelView({ model, openPhotos }: { model: SharedModel; openPhotos: (images: string[], i: number, alt: string) => void }) {
+/** "Painted by Sam" / "Painted for Sam" from a shared model — the owner's words. */
+function sharedPainterLine(m: SharedModel): string | null {
+  if (m.painted_by_me === false) return m.painter_name ? `Painted by ${m.painter_name}` : 'Painted by someone else';
+  return m.painted_for_name ? `Painted for ${m.painted_for_name}` : null;
+}
+
+/** A shared model, read-only. Also the friend's view of a model credited to
+ *  them, which passes its own `painterLine` (worded from their side). */
+export function SharedModelView({ model, openPhotos, painterLine }: {
+  model: SharedModel;
+  openPhotos: (images: string[], i: number, alt: string) => void;
+  painterLine?: string | null;
+}) {
   const [tab, setTab] = useState<Tab>('details');
+  const credit = painterLine !== undefined ? painterLine : sharedPainterLine(model);
   const images = modelCarouselImages(model.images, model.image_path);
   const progress = progressImages(model.images);
   const recipes = model.recipes.filter(Boolean).map(recipeGroup);
@@ -164,6 +177,7 @@ function SharedModelView({ model, openPhotos }: { model: SharedModel; openPhotos
               <Row><Badge color={model.status === 'Painted' ? 'success' : 'gray'}>{STATUS_LABEL[model.status] ?? model.status}</Badge></Row>
               {model.started_painting_date && <Row>Started painting {shortDate(model.started_painting_date)}</Row>}
               {model.painted_date && <Row>Painted {shortDate(model.painted_date)}</Row>}
+              {credit && <Row>{credit}</Row>}
             </div>
             {deskStatus && (
               <div className={`${PAINT_FRAME} px-3 py-3 flex flex-col gap-1.5`}>

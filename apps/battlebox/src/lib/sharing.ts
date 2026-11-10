@@ -105,6 +105,10 @@ export interface SharedModel {
   image_path: string | null; game: { name: string; slug: string } | null;
   images: SharedImage[]; recipes: SharedRecipe[]; direct_paints: SharedPaint[];
   included_in: { name: string; type: string }[];
+  /** Who painted it (absent from links made before painters existed). */
+  painted_by_me?: boolean;
+  painter_name?: string | null;
+  painted_for_name?: string | null;
 }
 export interface SharedBox {
   id: string; name: string; type: string; includes_string: string | null;
@@ -126,4 +130,21 @@ export async function getSharedItem(token: string): Promise<SharedPayload | null
   const { data, error } = await supabase.rpc('get_shared_item', { p_token: token });
   if (error || !data || !(data as { item: unknown }).item) return null;
   return data as SharedPayload;
+}
+
+/**
+ * A friend's model credited to the signed-in user, read-only — null unless
+ * they're friends right now. `direction` is from the viewer's side.
+ * See migration 20261110120000_model_painters.sql.
+ */
+export interface FriendModelPayload {
+  direction: 'painted_by_viewer' | 'painted_for_viewer';
+  owner: { id: string; handle: string | null; avatar_path: string | null } | null;
+  item: SharedModel;
+}
+
+export async function getFriendModel(modelId: string): Promise<FriendModelPayload | null> {
+  const { data, error } = await supabase.rpc('get_friend_model', { p_model: modelId });
+  if (error || !data) return null;
+  return data as FriendModelPayload;
 }

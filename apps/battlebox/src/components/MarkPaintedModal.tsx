@@ -8,9 +8,11 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from '@battleplans/ui';
+import { Button, useOpponents } from '@battleplans/ui';
 import { CloseIcon, TrashIcon, PlusIcon } from './paintPickerBits';
+import { PainterField } from './PainterField';
 import { markDeskModelPainted, todayISO } from '../hooks/useCollection';
+import { PAINTED_BY_ME, fetchModelPainter, painterColumns, type PainterValue } from '../lib/painters';
 
 export function MarkPaintedModal({ model, userId, onClose, onDone }: {
   /** The model being finished; null closes the modal. */
@@ -26,11 +28,17 @@ export function MarkPaintedModal({ model, userId, onClose, onDone }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [painter, setPainter] = useState<PainterValue>(PAINTED_BY_ME);
+  const { opponents: people } = useOpponents(model ? userId : null);
 
-  // Fresh each time a model is opened.
+  // Fresh each time a model is opened — starting from who it's credited to now.
   useEffect(() => {
     if (!model) return;
     setDate(todayISO()); setPhoto(null); setPreview(null); setSaving(false); setError(null);
+    setPainter(PAINTED_BY_ME);
+    let cancelled = false;
+    fetchModelPainter(model.id).then(v => { if (!cancelled) setPainter(v); });
+    return () => { cancelled = true; };
   }, [model?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Free the preview's object URL when it's replaced or the modal goes.
@@ -49,7 +57,7 @@ export function MarkPaintedModal({ model, userId, onClose, onDone }: {
   const confirm = async () => {
     if (!userId || !date) return;
     setSaving(true); setError(null);
-    const { error: err } = await markDeskModelPainted(model.id, userId, date, photo);
+    const { error: err } = await markDeskModelPainted(model.id, userId, date, photo, await painterColumns(userId, painter));
     setSaving(false);
     if (err) { setError('Could not save. Please try again.'); return; }
     onDone();
@@ -74,6 +82,8 @@ export function MarkPaintedModal({ model, userId, onClose, onDone }: {
             <input type="date" value={date} max={todayISO()} onChange={e => setDate(e.target.value)}
               className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 font-body text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </label>
+
+          <PainterField value={painter} onChange={setPainter} options={people} disabled={saving} />
 
           <div className="flex flex-col gap-1.5">
             <span className="font-body text-sm font-medium text-white">Photo <span className="text-neutral-500 font-normal">(optional)</span></span>

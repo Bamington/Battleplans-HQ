@@ -264,6 +264,9 @@ export {
 export type { Friend, FriendRequest, PublicProfile, FriendGameStat } from './lib/friends'
 export { useFriends } from './hooks/useFriends'
 export type { UseFriends } from './hooks/useFriends'
+export { useOpponents, resolveOpponentIds } from './hooks/useOpponents'
+export type { Opponent, SelectedOpponent } from './hooks/useOpponents'
+export { OpponentPicker } from './components/OpponentPicker'
 export {
   listIncomingBookingShares,
   listOutgoingBookingShares,

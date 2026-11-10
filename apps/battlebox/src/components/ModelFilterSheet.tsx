@@ -105,6 +105,16 @@ export function ModelFilterSheet({ open, onClose, userId, value, onApply }: {
 
         <hr className="border-neutral-800" />
 
+        <Section title="Shared With Me" active={!!draft.hideShared} onReset={() => setDraft(d => ({ ...d, hideShared: false }))}>
+          <div className="flex flex-wrap gap-2">
+            <Chip label="Show" selected={!draft.hideShared} onClick={() => setDraft(d => ({ ...d, hideShared: false }))} />
+            <Chip label="Hide" selected={!!draft.hideShared} onClick={() => setDraft(d => ({ ...d, hideShared: true }))} />
+          </div>
+          <p className="font-body text-xs text-neutral-500 pt-2">Friends' models you painted for them, or they painted for you.</p>
+        </Section>
+
+        <hr className="border-neutral-800" />
+
         <Section title="Game" active={draft.gameIds.length > 0} onReset={() => setDraft(d => ({ ...d, gameIds: [] }))}>
           <GameMultiSelect games={games} selected={draft.gameIds} onToggle={toggleGame} />
         </Section>

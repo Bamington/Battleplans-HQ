@@ -44,7 +44,6 @@ import { BlockedDateItem, BlockNewDateModal } from '../components/BlockedDates';
 import { BookingDetailModal, BookingInvitationModal, CustomerList } from '../components/BookingDetailModal';
 import { BookingItem } from '../components/BookingItem';
 import DatePickerInput from '../components/DatePickerInput';
-import { OpponentPicker } from '../components/OpponentPicker';
 import { StoreSelector, StoreIcon } from '../components/StoreSelector';
 import { VenueScopeHint } from '../components/VenueScopeHint';
 import { VENUE_REGIONS_FLOW } from '../welcomeFlows.tsx';
@@ -55,7 +54,7 @@ import { StaffItem, AddStaffModal } from '../components/LocationStaff';
 import { PersonItem, AddMemberModal } from '../components/ClubMembers';
 import type { Battle } from '../hooks/useBattles';
 import type { Booking, Location, LocationTimeslot, StoreTable, BlockedDate, BookingFee, StaffMember, ClubPerson } from '../hooks/useBookingData';
-import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
+
 import type { IncomingBookingShare } from '@battleplans/ui';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -242,12 +241,6 @@ const DEMO_SHARE: IncomingBookingShare = {
   sharer: { id: 'u-1', handle: 'bamington', avatarUrl: null },
 };
 
-const DEMO_OPPONENTS: Opponent[] = [
-  { id: 'op-1', name: 'Marcus' },
-  { id: 'op-2', name: 'Priya' },
-  { id: 'op-3', name: 'Sam' },
-];
-
 // ── Local nav ────────────────────────────────────────────────────────────────
 
 /** Sidebar entries for this app's own sections, appended after the shared ones. */
@@ -260,7 +253,6 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-booking-detail',    label: 'Booking Detail',     icon: <Bookmark className="w-5 h-5" /> },
   { href: '#nav-booking-invite',    label: 'Booking Invitation', icon: <UsersGroupRounded className="w-5 h-5" /> },
   { href: '#nav-date-picker',       label: 'Date Picker Input',  icon: <Clipboard className="w-5 h-5" /> },
-  { href: '#nav-opponent-picker',   label: 'Opponent Picker',    icon: <UsersGroupRounded className="w-5 h-5" /> },
   { href: '#nav-store-selector',    label: 'Store Selector',     icon: <Home className="w-5 h-5" /> },
   { href: '#nav-venue-scope-hint',  label: 'Venue Scope Hint',   icon: <Home className="w-5 h-5" /> },
   { href: '#nav-welcome-flow',      label: 'Welcome Flow',       icon: <Bookmark className="w-5 h-5" /> },
@@ -286,7 +278,6 @@ const ComponentGallery = () => {
   const [staffOpen,      setStaffOpen]      = useState(false);
   const [peopleOpen,     setPeopleOpen]     = useState(false);
   const [date,           setDate]           = useState('2026-08-01');
-  const [opponents,      setOpponents]      = useState<SelectedOpponent[]>([{ id: 'op-1', name: 'Marcus' }]);
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
   const [scopeShowingAll, setScopeShowingAll] = useState(false);
   // Which intro step of the real welcome flow is on screen; null = closed.
@@ -620,21 +611,6 @@ const ComponentGallery = () => {
           <GalleryNote>
             Selected: {date}. <code>min</code> is how the booking flow stops you
             picking a date that has already passed.
-          </GalleryNote>
-        </div>
-      </GallerySection>
-
-      <GallerySection id="nav-opponent-picker" title="Opponent Picker">
-        <div className="w-full max-w-md flex flex-col gap-3">
-          <OpponentPicker
-            value={opponents}
-            onChange={setOpponents}
-            options={DEMO_OPPONENTS}
-          />
-          <GalleryNote>
-            Picked: {opponents.length ? opponents.map(o => o.name).join(', ') : '(none)'}.
-            Typing a name that isn't in the roster offers to create it — those come
-            back with <code>id: null</code> and are created when the battle saves.
           </GalleryNote>
         </div>
       </GallerySection>
