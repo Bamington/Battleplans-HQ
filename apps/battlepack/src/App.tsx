@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { supabase, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
+import { supabase, ProfilePage, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import PackEditor from './pages/PackEditor.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
 import PublicPack from './pages/PublicPack.tsx';
+
+/** The root is shared: "/@handle" is someone's profile, anything else a pack.
+ *  A slug can never start with "@", so the two can't collide. */
+function SlugRoute() {
+  const { slug = '' } = useParams();
+  return slug.startsWith('@') ? <ProfilePage appName="BattlePack" param="slug" /> : <PublicPack />;
+}
 
 /**
  * The app's own screens, as a route subtree.
@@ -76,7 +83,7 @@ export default function App() {
             unusable as a slug — the DB trigger rejects the reserved list, so
             add it there too or an organiser can claim a URL that will never
             resolve. */}
-        <Route path="/:slug" element={<PublicPack />} />
+        <Route path="/:slug" element={<SlugRoute />} />
       </Routes>
     </BrowserRouter>
   );

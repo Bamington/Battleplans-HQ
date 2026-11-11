@@ -40,7 +40,10 @@ What is already decided and should be kept to:
   `App.tsx`, the database trigger's reserved list, and the rewrite in
   [vercel.json](vercel.json) that sends slugs to the social-preview function.
   Miss the last one and that route is served the preview function instead of
-  the app.
+  the app. `/@username` (a user's profile) shares the same root: `SlugRoute` in
+  `App.tsx` sends anything starting with `@` to `ProfilePage`, and the rewrite
+  skips `@`. No slug can collide, since the trigger only allows letters, digits
+  and hyphens.
 - **The social preview is server-rendered by [api/og.ts](api/og.ts).** No
   crawler runs JavaScript, so for a SPA the tags have to be in the HTML on
   arrival — `vercel.json` rewrites `/<slug>` to an edge function that looks the

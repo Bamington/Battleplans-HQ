@@ -27,6 +27,9 @@ export interface ProfilePageProps {
   appName: string;
   /** Resolve a game slug to an icon URL, for Favourite Games. */
   resolveGameIcon?: (slug: string) => string | undefined;
+  /** The route param holding "@handle". Default "profile"; BattlePack shares
+   *  its root with pack slugs, so it mounts this under "/:slug". */
+  param?: string;
 }
 
 /** Signed in: the relationship, and the actions on it, from useFriends. */
@@ -61,8 +64,8 @@ function SignedInProfile({ profile, myId, resolveGameIcon }: { profile: PublicPr
   );
 }
 
-export default function ProfilePage({ appName, resolveGameIcon }: ProfilePageProps) {
-  const { profile: segment = '' } = useParams();
+export default function ProfilePage({ appName, resolveGameIcon, param = 'profile' }: ProfilePageProps) {
+  const segment = useParams()[param] ?? '';
   const navigate = useNavigate();
   const isProfile = segment.startsWith('@') && segment.length > 1;
   const handle = segment.slice(1);
