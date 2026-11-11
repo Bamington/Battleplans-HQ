@@ -20,7 +20,7 @@ import { ModelItem } from './ModelItem';
 import { GAME_ICONS } from '../lib/gameArt';
 import { TabControl, PaintRow, RecipeGroup, Label, PAINT_FRAME, shortDate, DeskProgress, type Tab } from './modelParts';
 import { modelCarouselImages, modelImageUrl } from './types';
-import type { CollectionModel, ModelRecipeGroup, ModelStatus, PaintRef } from './types';
+import type { CollectionBox, CollectionModel, ModelRecipeGroup, ModelStatus, PaintRef } from './types';
 
 // ── The shared JSON shapes ───────────────────────────────────────────────────
 
@@ -89,6 +89,19 @@ function boxImages(b: SharedBox): string[] {
   const members = b.models.map(m => modelCarouselImages(m.images, m.image_path)[0]).filter((u): u is string => !!u);
   return [...new Set([...own, ...members])];
 }
+
+/** A shared collection as a BoxItem card (for a profile's Favourites). */
+export const sharedBoxCard = (b: SharedBox): CollectionBox => {
+  const statuses = b.models.map(m => m.status);
+  return {
+    id: b.id, name: b.name, type: b.type === 'Box' ? 'Box' : 'Collection', includesString: b.includes_string,
+    game: b.game, modelCount: b.models.length,
+    allPainted:   statuses.length > 0 && statuses.every(s => s === 'Painted'),
+    allUnpainted: statuses.length > 0 && statuses.every(s => s === 'None'),
+    anyProgress:  statuses.some(s => s !== 'None'),
+    images: boxImages(b),
+  };
+};
 
 // ── Shared pieces ────────────────────────────────────────────────────────────
 

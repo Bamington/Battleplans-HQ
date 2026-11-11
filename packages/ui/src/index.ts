@@ -296,9 +296,17 @@ export { BoxCardBody, BoxItem, BoxGridItem } from './bench/BoxItem'
 export { shortDate, PaintRollerIcon, Label, PAINT_FRAME, PaintRow, RecipeGroup, TabControl, DeskProgress } from './bench/modelParts'
 export type { Tab } from './bench/modelParts'
 export {
-  SharedModelView, SharedBoxView, SharedRecipeView, usePhotoViewer, sharedModelCard, ProfileLink,
+  SharedModelView, SharedBoxView, SharedRecipeView, usePhotoViewer, sharedModelCard, sharedBoxCard, ProfileLink,
 } from './bench/SharedViews'
 export type { SharedPaint, SharedImage, SharedRecipe, SharedModel, SharedBox } from './bench/SharedViews'
+export {
+  STATUS_ORDER, STATUS_LABEL, STATUS_COLOR,
+  progressOf, gameGroups, collectionGroups, rankByTotal, rankByPainted, purchaseByYear, gameCount,
+} from './bench/collectionStats'
+export type { StatModel, Progress, Group, YearRow } from './bench/collectionStats'
+export { StatCard, PaintingProgressCard, TotalsCard, RankRow, RankedListCard, pct } from './bench/StatCards'
+export { default as ProfileSections, ProfileSectionsView } from './bench/ProfileSections'
+export type { ProfileSectionsData, ProfileStats } from './bench/ProfileSections'
 export type { ProfilePageProps } from './components/ProfilePage'
 export { ProfileModalProvider, useProfileLauncher, HandleLink } from './components/ProfileModalProvider'
 export type { ProfileModalProviderProps, ProfileTarget, HandleLinkProps } from './components/ProfileModalProvider'

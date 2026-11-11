@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase';
 import { avatarUrl as toAvatarUrl } from '../lib/avatars';
 import { useFriends } from '../hooks/useFriends';
 import { ProfileView, profilePath, type FriendProfileState } from './FriendProfileModal';
+import ProfileSections from '../bench/ProfileSections';
 
 interface PublicProfile { id: string; handle: string; avatar_path: string | null }
 
@@ -104,7 +105,7 @@ export default function ProfilePage({ appName, resolveGameIcon }: ProfilePagePro
         )}
       </header>
 
-      <main className="flex-1 w-full max-w-md mx-auto px-4 py-8">
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8 flex flex-col gap-8">
         {profile === undefined || myId === undefined ? (
           <p className="py-16 text-center font-body text-sm text-neutral-400">Loading…</p>
         ) : profile === null ? (
@@ -115,7 +116,8 @@ export default function ProfilePage({ appName, resolveGameIcon }: ProfilePagePro
             </p>
           </div>
         ) : (
-          <article className="bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden">
+          <>
+          <article className="w-full max-w-md mx-auto bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden">
             {myId ? (
               <SignedInProfile profile={profile} myId={myId} resolveGameIcon={resolveGameIcon} />
             ) : (
@@ -128,6 +130,9 @@ export default function ProfilePage({ appName, resolveGameIcon }: ProfilePagePro
               />
             )}
           </article>
+          {/* Painting Bench, Favourites, Painting Stats — whichever this viewer may see. */}
+          <ProfileSections userId={profile.id} />
+          </>
         )}
       </main>
     </div>

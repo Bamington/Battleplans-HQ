@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
-  Sheet, Lightbox, Select, Button, AddCircle, useOpponents, HandleLink,
+  Sheet, Lightbox, Select, Button, AddCircle, useOpponents, HandleLink, Star, StarBold,
   shortDate, Label, PAINT_FRAME, PaintRow, RecipeGroup, TabControl, PaintRollerIcon,
 } from '@battleplans/ui';
 import type { Tab } from '@battleplans/ui';
@@ -24,7 +24,7 @@ import { PainterField } from './PainterField';
 import { painterColumns, painterLine, useLinkedHandle, type PainterValue } from '../lib/painters';
 import {
   useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage,
-  addModelsToDesk, removeFromDesk,
+  addModelsToDesk, removeFromDesk, setFavourite,
 } from '../hooks/useCollection';
 import type { ModelDetail, ModelStatus, ModelPatch, PaintRef, ModelRecipeGroup } from '../hooks/useCollection';
 
@@ -138,11 +138,21 @@ function RowMenu({ canEdit, onEdit, onDelete, label }: { canEdit: boolean; onEdi
   );
 }
 
-function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (boxId: string) => void }) {
+function DetailsTab({ model, onOpenBox, onToggleFavourite }: {
+  model: ModelDetail;
+  onOpenBox?: (boxId: string) => void;
+  onToggleFavourite: () => void;
+}) {
   // A credited person with an account gets their @username, opening their profile.
   const painterHandle = useLinkedHandle(painterLine(model.painter) ? model.painter.person?.linkedUserId : null);
   return (
     <div className="flex flex-col gap-4">
+      {/* Favourites show on the profile, if the owner shares them. */}
+      <Button size="sm" variant={model.isFavourite ? 'filled' : 'outline'} color="primary" className="self-start"
+        leftIcon={model.isFavourite ? <StarBold className="w-4 h-4" /> : <Star className="w-4 h-4" />}
+        aria-pressed={model.isFavourite} onClick={onToggleFavourite}>
+        {model.isFavourite ? 'Favourite' : 'Add to Favourites'}
+      </Button>
       <div className="bg-neutral-900 border border-neutral-700 rounded-lg flex flex-col divide-y divide-neutral-800">
         <div className="flex items-center gap-2 px-3 py-2.5 text-primary-400">
           <BoxMiniIcon />
@@ -570,7 +580,8 @@ export function ModelDetailModal({ modelId, onClose, onChanged, onOpenBox }: {
 
           {/* Body */}
           <div className="px-5 py-4">
-            {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox} />}
+            {tab === 'details'  && <DetailsTab  model={model} onOpenBox={onOpenBox}
+              onToggleFavourite={async () => { await setFavourite('models', model.id, !model.isFavourite); refresh(); }} />}
             {tab === 'painting' && <PaintingTab model={model} save={save} userId={userId} onAdd={setAddKind} onEditPaint={setEditingPaint} onEditRecipe={setEditingRecipeId} onRemovePaint={removePaint} onRemoveRecipe={requestRemoveRecipe} onOpenRecipePhoto={(r, index) => setRecipePhotos({ recipe: r, index })} onMarkPainted={() => setMarkingPainted(true)} onOpenProgressPhoto={setProgressLightbox} />}
             {tab === 'lore'     && <LoreTab     model={model} save={save} />}
           </div>

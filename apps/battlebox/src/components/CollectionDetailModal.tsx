@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Sheet, Lightbox, UserRounded, Box, Button, AddCircle, Magnifer } from '@battleplans/ui';
+import { Sheet, Lightbox, UserRounded, Box, Button, AddCircle, Magnifer, Star, StarBold } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { ImageCarousel } from './ImageCarousel';
 import { ModelItem } from './ModelItem';
@@ -10,7 +10,7 @@ import { AddModelsToCollectionModal } from './AddModelsToCollectionModal';
 import { SuggestContentsModal } from './SuggestContentsModal';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ShareModal } from './ShareModal';
-import { useBoxDetail, deleteBox, useUserId, uploadBoxImage } from '../hooks/useCollection';
+import { useBoxDetail, deleteBox, useUserId, uploadBoxImage, setFavourite } from '../hooks/useCollection';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -159,6 +159,13 @@ export function CollectionDetailModal({ boxId, onClose, onOpenModel, onChanged }
 
           {/* Body */}
           <div className="px-5 py-4 flex flex-col gap-4">
+            {/* Favourites show on the profile, if the owner shares them. */}
+            <Button size="sm" variant={box.isFavourite ? 'filled' : 'outline'} color="primary" className="self-start"
+              leftIcon={box.isFavourite ? <StarBold className="w-4 h-4" /> : <Star className="w-4 h-4" />}
+              aria-pressed={box.isFavourite}
+              onClick={async () => { await setFavourite('boxes', box.id, !box.isFavourite); refetch(); onChanged?.(); }}>
+              {box.isFavourite ? 'Favourite' : 'Add to Favourites'}
+            </Button>
             <div className="bg-neutral-900 border border-neutral-700 rounded-lg flex flex-col divide-y divide-neutral-800">
               <DetailRow icon={<Box className="w-4 h-4" />}>{box.type}</DetailRow>
               <DetailRow icon={<UserRounded className="w-4 h-4" />}>

@@ -524,6 +524,8 @@ export interface ModelDetail {
   progressImages: string[];
   /** Who painted it: me, someone else, or me for someone else. */
   painter: PainterValue;
+  /** Starred — shown in Favourites on the owner's profile (if they share it). */
+  isFavourite: boolean;
 }
 
 interface HobbyItemRef { id: number; name: string; brand: string; type: string; swatch: string | null; owner: string | null }
@@ -582,11 +584,12 @@ interface ModelDetailRow {
   painted_by_me: boolean;
   painter: PainterPerson | null;
   painted_for: PainterPerson | null;
+  is_favourite: boolean;
 }
 
 const MODEL_DETAIL_SELECT =
   'id, name, status, count, image_path, purchase_date, painted_date, painting_notes, lore_name, lore_description, ' +
-  'on_desk, started_painting_date, game:games ( name, slug ), painted_by_me, ' +
+  'on_desk, started_painting_date, game:games ( name, slug ), painted_by_me, is_favourite, ' +
   'painter:opponents!models_painter_id_fkey ( id, name, linked_user_id ), ' +
   'painted_for:opponents!models_painted_for_id_fkey ( id, name, linked_user_id ), ' +
   'model_images ( image_path, is_primary, display_order, is_progress, created_at ), ' +
@@ -634,6 +637,7 @@ function mapModelDetail(r: ModelDetailRow): ModelDetail {
       .map(i => modelImageUrl(i.image_path))
       .filter((u): u is string => !!u),
     painter: painterValueOf(r.painted_by_me, r.painter, r.painted_for),
+    isFavourite: r.is_favourite ?? false,
   };
 }
 
@@ -676,6 +680,8 @@ export interface BoxDetail {
   images: string[];
   /** The models in this collection — the "Includes" list. */
   includes: CollectionModel[];
+  /** Starred — shown in Favourites on the owner's profile (if they share it). */
+  isFavourite: boolean;
 }
 
 interface BoxMemberRow {
@@ -701,10 +707,11 @@ interface BoxDetailRow {
   game: CollectionGame | null;
   box_images: BoxImageRow[] | null;
   model_boxes: { model: BoxMemberRow | null }[] | null;
+  is_favourite: boolean;
 }
 
 const BOX_DETAIL_SELECT =
-  'id, name, type, game_id, purchase_date, includes_string, image_path, game:games ( name, slug ), ' +
+  'id, name, type, game_id, purchase_date, includes_string, image_path, is_favourite, game:games ( name, slug ), ' +
   'box_images ( image_path, image_url, is_primary, display_order ), ' +
   'model_boxes ( model:models ( id, name, status, count, image_path, on_desk, started_painting_date, ' +
     'game:games ( name, slug ), model_images ( image_path, is_primary, display_order, is_progress, created_at ) ) )';
@@ -741,7 +748,13 @@ function mapBoxDetail(r: BoxDetailRow): BoxDetail {
     allPainted: statuses.length > 0 && statuses.every(s => s === 'Painted'),
     images: boxCarouselImages(r as unknown as BoxRow),
     includes: members.map(mapMember),
+    isFavourite: r.is_favourite ?? false,
   };
+}
+
+/** Star or unstar a model or collection (Favourites on the profile). RLS keeps it to the owner. */
+export function setFavourite(table: 'models' | 'boxes', id: string, on: boolean) {
+  return supabase.from(table).update({ is_favourite: on }).eq('id', id);
 }
 
 /** Full detail for one collection, for the click-a-collection modal. */
