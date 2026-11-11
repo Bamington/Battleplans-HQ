@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Sheet, avatarUrl } from '@battleplans/ui';
+import { Sheet, HandleLink, avatarUrl } from '@battleplans/ui';
 import { CloseIcon } from './paintPickerBits';
 import { SharedModelView, usePhotoViewer } from '../pages/SharedItemPage';
 import { getFriendModel, type FriendModelPayload } from '../lib/sharing';
@@ -51,7 +51,10 @@ export function FriendModelModal({ modelId, ownerName, onClose, payload: given }
               ? <img src={avatar} alt="" className="w-7 h-7 rounded-full object-cover border border-neutral-700" />
               : <span className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700" aria-hidden="true" />}
             <span className="flex-1 min-w-0 font-body text-sm text-neutral-300 truncate">
-              {name}’s model <span className="text-neutral-500">· view only</span>
+              {data?.owner?.handle
+                ? <>Model by <HandleLink userId={data.owner.id} handle={data.owner.handle} avatarUrl={avatar} /></>
+                : <>{name}’s model</>}
+              <span className="text-neutral-500"> · view only</span>
             </span>
             <button type="button" onClick={onClose} aria-label="Close" className="text-neutral-400 hover:text-white"><CloseIcon /></button>
           </div>

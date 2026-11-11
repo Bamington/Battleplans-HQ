@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Sheet, Lightbox, Select, Badge, Button, InfoCircle, FileText, AddCircle, useOpponents } from '@battleplans/ui';
+import { Sheet, Lightbox, Select, Badge, Button, InfoCircle, FileText, AddCircle, useOpponents, HandleLink } from '@battleplans/ui';
 import type { BadgeColor } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
 import { BoxItem } from './BoxItem';
@@ -13,7 +13,7 @@ import { KebabMenu } from './KebabMenu';
 import { MarkPaintedModal } from './MarkPaintedModal';
 import { ShareModal } from './ShareModal';
 import { PainterField } from './PainterField';
-import { painterColumns, painterLine, type PainterValue } from '../lib/painters';
+import { painterColumns, painterLine, useLinkedHandle, type PainterValue } from '../lib/painters';
 import {
   useModelDetail, updateModel, removeModelPaint, removeModelRecipe, deleteModel, useUserId, uploadModelImage,
   addModelsToDesk, removeFromDesk,
@@ -215,6 +215,8 @@ export function TabControl({ tab, onChange, show }: {
 }
 
 function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (boxId: string) => void }) {
+  // A credited person with an account gets their @username, opening their profile.
+  const painterHandle = useLinkedHandle(painterLine(model.painter) ? model.painter.person?.linkedUserId : null);
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-neutral-900 border border-neutral-700 rounded-lg flex flex-col divide-y divide-neutral-800">
@@ -246,7 +248,10 @@ function DetailsTab({ model, onOpenBox }: { model: ModelDetail; onOpenBox?: (box
         {painterLine(model.painter) && (
           <div className="flex items-center gap-2 px-3 py-2.5 text-primary-400">
             <PaintRollerIcon />
-            <span className="font-body text-sm text-white">{painterLine(model.painter)}</span>
+            <span className="font-body text-sm text-white">
+              {painterLine(model.painter)}
+              {painterHandle && <> (<HandleLink userId={model.painter.person?.linkedUserId} handle={painterHandle} />)</>}
+            </span>
           </div>
         )}
       </div>

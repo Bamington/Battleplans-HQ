@@ -8,6 +8,7 @@
  * migration.
  */
 
+import { useEffect, useState } from 'react';
 import { supabase, resolveOpponentIds, type SelectedOpponent } from '@battleplans/ui';
 
 /** The person a model credits, as embedded from `opponents`. */
@@ -46,6 +47,21 @@ export async function fetchModelPainter(modelId: string): Promise<PainterValue> 
     .eq('id', modelId).single();
   const r = data as unknown as { painted_by_me: boolean; painter: PainterPerson | null; painted_for: PainterPerson | null } | null;
   return r ? painterValueOf(r.painted_by_me, r.painter, r.painted_for) : PAINTED_BY_ME;
+}
+
+/** The @username of a person linked to a real account, for a profile link —
+ *  null for a typed name, or while loading. */
+export function useLinkedHandle(userId: string | null | undefined): string | null {
+  const [handle, setHandle] = useState<string | null>(null);
+  useEffect(() => {
+    setHandle(null);
+    if (!userId) return;
+    let cancelled = false;
+    supabase.from('public_profiles').select('handle').eq('id', userId).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setHandle((data as { handle: string | null } | null)?.handle ?? null); });
+    return () => { cancelled = true; };
+  }, [userId]);
+  return handle;
 }
 
 /** One line describing it, e.g. "Painted by Sam" — null when painted by me for no one. */

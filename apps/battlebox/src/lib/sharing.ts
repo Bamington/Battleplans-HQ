@@ -109,6 +109,9 @@ export interface SharedModel {
   painted_by_me?: boolean;
   painter_name?: string | null;
   painted_for_name?: string | null;
+  /** The credited person's @username, when they have an account. */
+  painter_handle?: string | null;
+  painted_for_handle?: string | null;
 }
 export interface SharedBox {
   id: string; name: string; type: string; includes_string: string | null;

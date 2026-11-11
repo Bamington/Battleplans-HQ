@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
   ScrollColumn, NewsColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
-  COLUMN_ROW, ColumnTabBar, listFriends, FriendsColumn,
+  COLUMN_ROW, ColumnTabBar, listFriends, FriendsColumn, ProfileModalProvider,
 } from '@battleplans/ui';
 import type { ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -767,6 +767,9 @@ export default function HomePage() {
   }, []);
 
   return (
+    // Any @username on the home screen (a friend's model, a painter) opens
+    // that person's profile through this one provider.
+    <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="min-h-dvh flex flex-col bg-neutral-950">
 
       {/* Navbar + columns fill exactly one viewport, so the footer is pushed
@@ -805,5 +808,6 @@ export default function HomePage() {
       <AppFooter className="shrink-0" appName="BattleBench" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
+    </ProfileModalProvider>
   );
 }

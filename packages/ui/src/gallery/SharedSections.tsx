@@ -57,7 +57,7 @@ import ColumnTabBar from '../components/ColumnTabBar';
 import Counter from '../components/Counter';
 import Dropdown, { DropdownDivider, DropdownHeader, DropdownItem } from '../components/Dropdown';
 import EditorPanel from '../components/EditorPanel';
-import FriendProfileModal from '../components/FriendProfileModal';
+import FriendProfileModal, { ProfileView } from '../components/FriendProfileModal';
 import type { FriendProfileState } from '../components/FriendProfileModal';
 import FriendsColumn from '../components/FriendsColumn';
 import HR from '../components/HR';
@@ -290,6 +290,7 @@ const FriendsModalsGalleryDemo = () => {
     { label: 'Request sent',    state: { kind: 'outgoing', friendshipId: 'demo' } },
     { label: 'Request received', state: { kind: 'incoming', friendshipId: 'demo' } },
     { label: 'Friends',         state: { kind: 'friends', friendshipId: 'demo', username: 'Bam Harrison' } },
+    { label: 'Yourself',        state: { kind: 'self' } },
   ];
 
   return (
@@ -322,6 +323,27 @@ const FriendsModalsGalleryDemo = () => {
         onRespond={() => setProfile(null)}
         onWithdraw={() => setProfile(null)}
       />
+
+      {/* The full page (/@username) renders the same ProfileView, page-sized. */}
+      <div className="w-full grid gap-4 sm:grid-cols-2 pt-4">
+        {([
+          ['Full page — public (signed out)', { kind: 'signedOut' }],
+          ['Full page — friends', { kind: 'friends', friendshipId: 'demo', username: 'Bam Harrison' }],
+        ] as [string, FriendProfileState][]).map(([label, state]) => (
+          <div key={label} className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">{label}</p>
+            <div className="bg-neutral-900 border border-neutral-700 rounded-xl overflow-hidden">
+              <ProfileView size="page" handle="bamington" state={state} onSignIn={() => {}} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <GalleryNote>
+        Four variants: the modal and the full page (<code>/@username</code>), each
+        public or friends. Signed out, the page asks you to sign in; the friends
+        variant adds the real name and Favourite Games (games load only for a real
+        friend in a signed-in app). The modal links to the page with "View full profile".
+      </GalleryNote>
     </div>
   );
 };

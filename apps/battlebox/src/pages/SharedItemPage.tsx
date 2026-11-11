@@ -15,7 +15,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { supabase, Lightbox, Badge, Button, avatarUrl } from '@battleplans/ui';
+import { supabase, Lightbox, Badge, Button, avatarUrl, profilePath } from '@battleplans/ui';
 import { ImageCarousel } from '../components/ImageCarousel';
 import { ModelItem } from '../components/ModelItem';
 import { DeskProgress } from '../components/DeskItem';
@@ -136,10 +136,20 @@ export function usePhotoViewer() {
 
 // ── Model ────────────────────────────────────────────────────────────────────
 
-/** "Painted by Sam" / "Painted for Sam" from a shared model — the owner's words. */
-function sharedPainterLine(m: SharedModel): string | null {
-  if (m.painted_by_me === false) return m.painter_name ? `Painted by ${m.painter_name}` : 'Painted by someone else';
-  return m.painted_for_name ? `Painted for ${m.painted_for_name}` : null;
+/** A link to someone's full profile page — it works signed out, unlike the modal. */
+const ProfileLink = ({ handle }: { handle: string }) => (
+  <Link to={profilePath(handle)} className="text-primary-400 hover:text-primary-300 hover:underline">@{handle}</Link>
+);
+
+/** "Painted by Sam" / "Painted for Sam" from a shared model — the owner's
+ *  words, plus the person's @username when they have an account. */
+function sharedPainterLine(m: SharedModel): React.ReactNode {
+  const withHandle = (text: string, handle?: string | null) =>
+    handle ? <>{text} (<ProfileLink handle={handle} />)</> : text;
+  if (m.painted_by_me === false) {
+    return m.painter_name ? withHandle(`Painted by ${m.painter_name}`, m.painter_handle) : 'Painted by someone else';
+  }
+  return m.painted_for_name ? withHandle(`Painted for ${m.painted_for_name}`, m.painted_for_handle) : null;
 }
 
 /** A shared model, read-only. Also the friend's view of a model credited to
@@ -147,7 +157,7 @@ function sharedPainterLine(m: SharedModel): string | null {
 export function SharedModelView({ model, openPhotos, painterLine }: {
   model: SharedModel;
   openPhotos: (images: string[], i: number, alt: string) => void;
-  painterLine?: string | null;
+  painterLine?: React.ReactNode;
 }) {
   const [tab, setTab] = useState<Tab>('details');
   const credit = painterLine !== undefined ? painterLine : sharedPainterLine(model);
@@ -357,7 +367,7 @@ export default function SharedItemPage() {
                   ? <img src={ownerAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-neutral-700" />
                   : <span className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700" aria-hidden="true" />}
                 <span className="font-body text-sm text-neutral-300">
-                  Shared by <span className="text-white font-medium">{owner.handle ? `@${owner.handle}` : 'a BattleBench painter'}</span>
+                  Shared by <span className="font-medium">{owner.handle ? <ProfileLink handle={owner.handle} /> : <span className="text-white">a BattleBench painter</span>}</span>
                 </span>
                 {isOwner && (
                   <Link to="/app" className="ml-auto"><Button size="xs" variant="outline" color="primary">This is yours — open in the app</Button></Link>
