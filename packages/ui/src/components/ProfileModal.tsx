@@ -93,22 +93,19 @@ function PublicProfileSettings({ sections, available, onChange, disabled, handle
       {SECTIONS.map(s => {
         const locked = !available[s.key];
         return (
-          <div key={s.key} className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className={`font-body text-sm font-medium ${locked ? 'text-gray-500' : 'text-white'}`}>{s.title}</p>
-                <p className="font-body text-xs text-gray-400">{locked ? s.locked : s.description}</p>
-              </div>
-              <Select
-                size="sm"
-                className="w-36 shrink-0"
-                aria-label={`${s.title} visibility`}
-                value={locked ? 'off' : sections[s.key]}
-                disabled={disabled || locked}
-                onChange={e => onChange(s.key, e.target.value as SectionVisibility)}
-                options={VISIBILITY_OPTIONS}
-              />
+          <div key={s.key} className="flex flex-col gap-2">
+            <div>
+              <p className={`font-body text-sm font-medium ${locked ? 'text-gray-500' : 'text-white'}`}>{s.title}</p>
+              <p className="font-body text-xs text-gray-400">{locked ? s.locked : s.description}</p>
             </div>
+            <Select
+              size="sm"
+              aria-label={`${s.title} visibility`}
+              value={locked ? 'off' : sections[s.key]}
+              disabled={disabled || locked}
+              onChange={e => onChange(s.key, e.target.value as SectionVisibility)}
+              options={VISIBILITY_OPTIONS}
+            />
           </div>
         );
       })}
