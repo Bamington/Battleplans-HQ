@@ -5,11 +5,14 @@
  * Tapping the card (not a button) opens the model.
  */
 
-import { Button } from '@battleplans/ui';
+import { Button, DeskProgress } from '@battleplans/ui';
+
+// Moved to @battleplans/ui (bench/modelParts); re-exported for existing imports.
+export { DeskProgress };
 import { CollectionThumb, clickableProps } from './ModelItem';
 import { KebabMenu } from './KebabMenu';
 import { GAME_ICONS } from './gameIcons';
-import { DESK_STEPS, nextDeskStatus } from '../hooks/useCollection';
+import { nextDeskStatus } from '../hooks/useCollection';
 import type { CollectionModel, ModelStatus } from '../hooks/useCollection';
 
 const STEP_LABEL: Record<ModelStatus, string> = {
@@ -25,20 +28,6 @@ const cardHover = ' cursor-pointer hover:border-neutral-500 transition-colors fo
 /** "2026-10-12" → "12/10/26" */
 const shortDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y.slice(2)}`; };
 
-/** Four segments, filled up to and including the current stage. */
-export function DeskProgress({ status }: { status: ModelStatus }) {
-  const at = Math.max(0, DESK_STEPS.indexOf(status));
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex gap-1" role="img" aria-label={`${STEP_LABEL[status]} — step ${at + 1} of ${DESK_STEPS.length}`}>
-        {DESK_STEPS.map((s, i) => (
-          <span key={s} className={`h-1.5 flex-1 rounded-full ${i <= at ? 'bg-primary-500' : 'bg-neutral-700'}`} />
-        ))}
-      </div>
-      <span className="font-body text-xs text-neutral-300">{STEP_LABEL[status]}</span>
-    </div>
-  );
-}
 
 export function DeskItem({ model, onClick, onNextStep, onMarkPainted, onRemove, onShare, busy = false }: {
   /** Open the Share dialog for this model. */

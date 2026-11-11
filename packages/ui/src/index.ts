@@ -286,6 +286,19 @@ export type { AddFriendModalProps } from './components/AddFriendModal'
 export { default as FriendProfileModal, ProfileView, profilePath } from './components/FriendProfileModal'
 export type { FriendProfileModalProps, FriendProfileState, ProfileViewProps } from './components/FriendProfileModal'
 export { default as ProfilePage } from './components/ProfilePage'
+
+// BattleBench's read-only model views — shared so any app (a profile, a share
+// link) can show a model, collection or recipe.
+export * from './bench/types'
+export { ImageCarousel } from './bench/ImageCarousel'
+export { clickableProps, CollectionThumb, ModelCardBody, ModelItem, ModelGridItem, CardHero } from './bench/ModelItem'
+export { BoxCardBody, BoxItem, BoxGridItem } from './bench/BoxItem'
+export { shortDate, PaintRollerIcon, Label, PAINT_FRAME, PaintRow, RecipeGroup, TabControl, DeskProgress } from './bench/modelParts'
+export type { Tab } from './bench/modelParts'
+export {
+  SharedModelView, SharedBoxView, SharedRecipeView, usePhotoViewer, sharedModelCard, ProfileLink,
+} from './bench/SharedViews'
+export type { SharedPaint, SharedImage, SharedRecipe, SharedModel, SharedBox } from './bench/SharedViews'
 export type { ProfilePageProps } from './components/ProfilePage'
 export { ProfileModalProvider, useProfileLauncher, HandleLink } from './components/ProfileModalProvider'
 export type { ProfileModalProviderProps, ProfileTarget, HandleLinkProps } from './components/ProfileModalProvider'

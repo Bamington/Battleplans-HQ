@@ -92,31 +92,9 @@ export async function setShareLevel(kind: ShareKind, itemId: string, level: Shar
 
 // ── The public page ──────────────────────────────────────────────────────────
 
-export interface SharedPaint { name: string; brand: string; type: string; swatch: string | null; note: string | null }
-export interface SharedImage {
-  image_path: string | null; image_url?: string | null;
-  is_primary: boolean; display_order: number; is_progress?: boolean; created_at?: string | null;
-}
-export interface SharedRecipe { id: string; name: string; description: string | null; paints: SharedPaint[]; images: SharedImage[] }
-export interface SharedModel {
-  id: string; name: string; status: string; count: number;
-  painted_date: string | null; started_painting_date: string | null; on_desk: boolean;
-  painting_notes: string | null; lore_name: string | null; lore_description: string | null;
-  image_path: string | null; game: { name: string; slug: string } | null;
-  images: SharedImage[]; recipes: SharedRecipe[]; direct_paints: SharedPaint[];
-  included_in: { name: string; type: string }[];
-  /** Who painted it (absent from links made before painters existed). */
-  painted_by_me?: boolean;
-  painter_name?: string | null;
-  painted_for_name?: string | null;
-  /** The credited person's @username, when they have an account. */
-  painter_handle?: string | null;
-  painted_for_handle?: string | null;
-}
-export interface SharedBox {
-  id: string; name: string; type: string; includes_string: string | null;
-  game: { name: string; slug: string } | null; images: SharedImage[]; models: SharedModel[];
-}
+// The JSON shapes moved to @battleplans/ui with the read-only views that show them.
+import type { SharedPaint, SharedImage, SharedRecipe, SharedModel, SharedBox } from '@battleplans/ui';
+export type { SharedPaint, SharedImage, SharedRecipe, SharedModel, SharedBox };
 
 export type SharedItem =
   | { kind: 'model'; item: SharedModel }
