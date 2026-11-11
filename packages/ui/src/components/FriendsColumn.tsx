@@ -217,10 +217,15 @@ export interface FriendsColumnProps {
   onOpenFriend?: (friend: Friend) => void;
   /** Resolve a game slug to an icon URL, for the profile modal's stats. */
   resolveGameIcon?: (slug: string) => string | undefined;
+  /** The header's line under "My Friends" — each app says what friends are for there. */
+  description?: string;
   className?: string;
 }
 
-export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameIcon, className }: FriendsColumnProps) {
+export default function FriendsColumn({
+  onAddFriends, onOpenFriend, resolveGameIcon, className,
+  description = 'Users who you’ve connected with on Battleplan. Invite them to your games!',
+}: FriendsColumnProps) {
   const { friends, incoming, outgoing, loading, busy, error, clearError, respond, remove, sendRequest } = useFriends();
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
   const [pendingDecline, setPendingDecline] = useState<FriendRequest | null>(null);
@@ -235,7 +240,7 @@ export default function FriendsColumn({ onAddFriends, onOpenFriend, resolveGameI
         <ColumnHeader
           icon={<UserHandUp className="w-12 h-12 text-primary-400" />}
           title="My Friends"
-          description="Users who you’ve connected with on Battleplan. Invite them to your games!"
+          description={description}
         />
 
         {/* Outer box scrolls; the inner list stays content-sized. Collapsing
