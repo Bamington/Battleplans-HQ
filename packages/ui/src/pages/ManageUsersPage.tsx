@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import UsersGroupRounded from '../icons/UsersGroupRounded';
 import MenuDots from '../icons/MenuDots';
 import Pen2 from '../icons/Pen2';
+import Magnifer from '../icons/Magnifer';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import Badge from '../components/Badge';
 import type { BadgeColor } from '../components/Badge';
 import Button from '../components/Button';
 import Checkbox from '../components/Checkbox';
+import Input from '../components/Input';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
 import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -64,6 +66,16 @@ export default function ManageUsersPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: 
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
+  const [query, setQuery]         = useState('');
+
+  // Matches @username, real name or email, anywhere in each, ignoring case
+  // and a leading "@" — so "@bam", "bam" and "chris" all find the same person.
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase().replace(/^@/, '');
+    if (!q) return users;
+    return users.filter(u =>
+      [u.handle, u.username, u.email].some(v => v?.toLowerCase().includes(q)));
+  }, [users, query]);
 
   // ── Edit modal state ────────────────────────────────────────────────────────
   const [editTarget, setEditTarget]           = useState<UserRow | null>(null);
@@ -217,10 +229,20 @@ export default function ManageUsersPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: 
             <h1 className="font-heading text-xl text-white">Manage Users</h1>
             {!loading && (
               <span className="font-body text-sm text-neutral-500 ml-auto">
-                {users.length} {users.length === 1 ? 'user' : 'users'}
+                {query.trim() ? `${shown.length} of ${users.length}` : users.length} {users.length === 1 ? 'user' : 'users'}
               </span>
             )}
           </div>
+
+          {/* Search */}
+          <Input
+            type="search"
+            placeholder="Search by username, name or email…"
+            aria-label="Search users"
+            leftIcon={<Magnifer className="w-4 h-4" />}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
 
           {/* List */}
           <div className="flex flex-col divide-y divide-neutral-800 border border-neutral-800 rounded-xl overflow-hidden">
@@ -242,7 +264,13 @@ export default function ManageUsersPage({ logo, breadcrumbs = DEFAULT_CRUMBS }: 
               </div>
             )}
 
-            {!loading && !error && users.map(u => (
+            {!loading && !error && users.length > 0 && shown.length === 0 && (
+              <div className="px-5 py-8 text-center font-body text-sm text-neutral-500">
+                No users match “{query.trim()}”.
+              </div>
+            )}
+
+            {!loading && !error && shown.map(u => (
               <div
                 key={u.id}
                 className="flex items-center gap-4 px-5 py-3.5 bg-neutral-900 hover:bg-neutral-800 transition-colors"
