@@ -50,8 +50,14 @@ type Status = 'loading' | 'ready';
 
 /** Who sees a profile section. */
 export type SectionVisibility = 'off' | 'friends' | 'everyone';
-type SectionKey = 'bench' | 'favourites' | 'stats';
+type SectionKey = 'bench' | 'favourites' | 'stats' | 'battles' | 'recent_battles' | 'venue';
 type Sections = Record<SectionKey, SectionVisibility>;
+/** What my_profile_section_availability() reports — Battle Record and Recent
+ *  Battles both unlock on the first logged battle. */
+type AvailabilityKey = 'bench' | 'favourites' | 'stats' | 'battles' | 'venue';
+
+const SECTIONS_OFF: Sections = { bench: 'off', favourites: 'off', stats: 'off', battles: 'off', recent_battles: 'off', venue: 'off' };
+const NONE_AVAILABLE: Record<AvailabilityKey, boolean> = { bench: false, favourites: false, stats: false, battles: false, venue: false };
 
 const VISIBILITY_OPTIONS: { value: SectionVisibility; label: string }[] = [
   { value: 'off',      label: 'Off' },
@@ -64,22 +70,31 @@ const VISIBILITY_OPTIONS: { value: SectionVisibility; label: string }[] = [
  * user has nothing for yet is shown but disabled, with what unlocks it — e.g.
  * someone who has never used BattleBench's Painting Desk can't share a bench.
  */
-const SECTIONS: { key: SectionKey; column: string; title: string; description: string; locked: string }[] = [
-  { key: 'bench', column: 'public_bench', title: 'Painting Bench',
+const SECTIONS: { key: SectionKey; needs: AvailabilityKey; group: string; title: string; description: string; locked: string }[] = [
+  { key: 'bench', needs: 'bench', group: 'Painting', title: 'Painting Bench',
     description: 'The models on your BattleBench Painting Desk, with their progress photos.',
     locked: 'Put a model on the Painting Desk in BattleBench to share this.' },
-  { key: 'favourites', column: 'public_favourites', title: 'Favourites',
+  { key: 'favourites', needs: 'favourites', group: 'Painting', title: 'Favourites',
     description: 'Models and collections you’ve marked as favourites in BattleBench.',
     locked: 'Mark a model or collection as a favourite in BattleBench to share this.' },
-  { key: 'stats', column: 'public_stats', title: 'Painting Stats',
+  { key: 'stats', needs: 'stats', group: 'Painting', title: 'Painting Stats',
     description: 'A summary of your collection: totals, painting progress and most collected games.',
     locked: 'Add a model in BattleBench to share this.' },
+  { key: 'battles', needs: 'battles', group: 'Gameplay', title: 'Battle Record',
+    description: 'Your wins, losses, draws and win rate, win streaks, and your top 10 most played games. Opponents are never shown.',
+    locked: 'Log a battle in BattlePlan to share this.' },
+  { key: 'recent_battles', needs: 'battles', group: 'Gameplay', title: 'Recent Battles',
+    description: 'Your last 5 battles from the past 3 months: game, result, date and photo. Opponents and notes are never shown.',
+    locked: 'Log a battle in BattlePlan to share this.' },
+  { key: 'venue', needs: 'venue', group: 'Gameplay', title: 'Favorite Venues',
+    description: 'The 3 stores you’ve visited most, from your bookings and the battles you’ve logged there.',
+    locked: 'Book a table or log a battle at a store in BattlePlan to share this.' },
 ];
 
 /** The "Public Profile" tab: one Off / Friends only / Everyone choice per section. */
 function PublicProfileSettings({ sections, available, onChange, disabled, handle }: {
   sections: Sections;
-  available: Record<SectionKey, boolean>;
+  available: Record<AvailabilityKey, boolean>;
   onChange: (key: SectionKey, v: SectionVisibility) => void;
   disabled: boolean;
   handle: string | null;
@@ -90,10 +105,14 @@ function PublicProfileSettings({ sections, available, onChange, disabled, handle
         Choose what else your profile shows. Your avatar and username are always visible;
         your name only ever shows to friends.
       </p>
-      {SECTIONS.map(s => {
-        const locked = !available[s.key];
+      {SECTIONS.map((s, i) => {
+        const locked = !available[s.needs];
+        const firstOfGroup = i === 0 || SECTIONS[i - 1].group !== s.group;
         return (
           <div key={s.key} className="flex flex-col gap-2">
+            {firstOfGroup && (
+              <p className={`font-heading text-xs uppercase tracking-wide text-gray-400${i > 0 ? ' pt-2' : ''}`}>{s.group}</p>
+            )}
             <div>
               <p className={`font-body text-sm font-medium ${locked ? 'text-gray-500' : 'text-white'}`}>{s.title}</p>
               <p className="font-body text-xs text-gray-400">{locked ? s.locked : s.description}</p>
@@ -134,8 +153,8 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
   const [savedAvatarUrl,      setSavedAvatarUrl]      = useState<string | null>(null);
   // undefined = untouched, Blob = new picture to upload, null = remove.
   const [pendingAvatar,       setPendingAvatar]       = useState<Blob | null | undefined>(undefined);
-  const [sections,            setSections]            = useState<Sections>({ bench: 'off', favourites: 'off', stats: 'off' });
-  const [available,           setAvailable]           = useState<Record<SectionKey, boolean>>({ bench: false, favourites: false, stats: false });
+  const [sections,            setSections]            = useState<Sections>(SECTIONS_OFF);
+  const [available,           setAvailable]           = useState<Record<AvailabilityKey, boolean>>(NONE_AVAILABLE);
   const [tab,                 setTab]                 = useState<'details' | 'public'>('details');
   const [saving,              setSaving]              = useState(false);
   const [error,               setError]               = useState<string | null>(null);
@@ -153,7 +172,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, handle, preferred_location_id, country, postcode, avatar_path, public_bench, public_favourites, public_stats')
+        .select('username, handle, preferred_location_id, country, postcode, avatar_path, public_bench, public_favourites, public_stats, public_battles, public_recent_battles, public_venue')
         .eq('id', user.id)
         .single();
       const { data: avail } = await supabase.rpc('my_profile_section_availability');
@@ -161,12 +180,15 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
       setTab('details');
       setSections({
-        bench:      (profile?.public_bench ?? 'off') as SectionVisibility,
-        favourites: (profile?.public_favourites ?? 'off') as SectionVisibility,
-        stats:      (profile?.public_stats ?? 'off') as SectionVisibility,
+        bench:          (profile?.public_bench ?? 'off') as SectionVisibility,
+        favourites:     (profile?.public_favourites ?? 'off') as SectionVisibility,
+        stats:          (profile?.public_stats ?? 'off') as SectionVisibility,
+        battles:        (profile?.public_battles ?? 'off') as SectionVisibility,
+        recent_battles: (profile?.public_recent_battles ?? 'off') as SectionVisibility,
+        venue:          (profile?.public_venue ?? 'off') as SectionVisibility,
       });
-      const a = (avail ?? {}) as Partial<Record<SectionKey, boolean>>;
-      setAvailable({ bench: !!a.bench, favourites: !!a.favourites, stats: !!a.stats });
+      const a = (avail ?? {}) as Partial<Record<AvailabilityKey, boolean>>;
+      setAvailable({ bench: !!a.bench, favourites: !!a.favourites, stats: !!a.stats, battles: !!a.battles, venue: !!a.venue });
 
       const hasLocation = !!profile?.preferred_location_id;
       setUserId(user.id);
@@ -235,11 +257,21 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       public_bench?: SectionVisibility;
       public_favourites?: SectionVisibility;
       public_stats?: SectionVisibility;
+      public_battles?: SectionVisibility;
+      public_recent_battles?: SectionVisibility;
+      public_venue?: SectionVisibility;
     } = { username: trimmed };
     // A locked section saves as off, whatever it was set to before.
-    update.public_bench      = available.bench      ? sections.bench      : 'off';
-    update.public_favourites = available.favourites ? sections.favourites : 'off';
-    update.public_stats      = available.stats      ? sections.stats      : 'off';
+    const vis = (key: SectionKey): SectionVisibility => {
+      const s = SECTIONS.find(x => x.key === key)!;
+      return available[s.needs] ? sections[key] : 'off';
+    };
+    update.public_bench          = vis('bench');
+    update.public_favourites     = vis('favourites');
+    update.public_stats          = vis('stats');
+    update.public_battles        = vis('battles');
+    update.public_recent_battles = vis('recent_battles');
+    update.public_venue          = vis('venue');
     if (handle !== originalHandle) update.handle = handle;
     if (showLocation) update.preferred_location_id = preferredLocationId;
     if (showRegion) {
@@ -272,7 +304,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
     setSaving(false);
     if (saveError) { fail(describeProfileSaveError(saveError)); return; }
-    publishProfileDisplay({ username: trimmed, avatarUrl: newAvatarUrl });
+    publishProfileDisplay({ username: trimmed, handle: handle || originalHandle, avatarUrl: newAvatarUrl });
     onSaved?.(trimmed);
     onClose();
   }

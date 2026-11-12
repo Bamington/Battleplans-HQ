@@ -279,7 +279,7 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
   const [loading, setLoading] = useState(true);
   // Shared so the onboarding modal — a sibling in the tree, not a child — can
   // update the name and picture the moment it saves.
-  const { username, avatarUrl: avatarSrc } = useProfileDisplay();
+  const { username, handle, avatarUrl: avatarSrc } = useProfileDisplay();
   const [profileOpen, setProfileOpen] = useState(false);
   const rightSlotRef = useRef<HTMLDivElement>(null);
 
@@ -293,11 +293,12 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
       if (u) {
         const { data } = await supabase
           .from('user_profiles')
-          .select('username, avatar_path')
+          .select('username, handle, avatar_path')
           .eq('id', u.id)
           .single();
         publishProfileDisplay({
           username: data?.username ?? null,
+          handle: data?.handle ?? null,
           avatarUrl: avatarUrl(data?.avatar_path),
         });
       }
@@ -444,11 +445,12 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                 >
                   <span className="text-gray-200">Edit Profile</span>
                 </DropdownItem>
-                {/* Needs a username — that's the address of the profile page. */}
-                {username && (
+                {/* The address is the @handle — NOT `username`, which is the
+                    real name ("Your Name") and would lead to "No one goes by". */}
+                {handle && (
                   <DropdownItem
                     icon={<UserCircle className="w-4 h-4 text-gray-400" />}
-                    onClick={() => navigate(profilePath(username))}
+                    onClick={() => navigate(profilePath(handle))}
                   >
                     <span className="text-gray-200">View my Profile</span>
                   </DropdownItem>

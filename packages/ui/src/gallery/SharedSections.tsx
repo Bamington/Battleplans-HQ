@@ -1266,6 +1266,35 @@ const DEMO_PROFILE_SECTIONS: ProfileSectionsData = {
       { key: 'g3', name: 'Halo: Flashpoint', slug: 'halo-flashpoint', total: 6, painted: 1 },
     ],
   },
+  battles: {
+    played: 38, won: 21, lost: 14, drew: 3, this_year: 17, games: 3,
+    current_streak: 2, longest_streak: 6,
+    most_played: [
+      { key: 'g1', name: 'Blood Bowl', slug: 'blood-bowl', played: 24, won: 15 },
+      { key: 'g2', name: 'Warhammer 40,000', slug: 'warhammer-40k', played: 10, won: 4 },
+      { key: 'g3', name: 'Halo: Flashpoint', slug: 'halo-flashpoint', played: 4, won: 2 },
+      { key: 'g4', name: 'Kill Team', slug: 'kill-team', played: 2, won: 0 },
+    ],
+    most_wins:   { name: 'Blood Bowl', slug: 'blood-bowl', count: 15, played: 24 },
+    most_losses: { name: 'Warhammer 40,000', slug: 'warhammer-40k', count: 6, played: 10 },
+  },
+  recent_battles: [
+    { id: 1, date_played: '2026-11-08', result: 'won',  game: { name: 'Blood Bowl', slug: 'blood-bowl' }, venue: 'Guf Werribee', photo_path: null },
+    { id: 2, date_played: '2026-11-01', result: 'lost', game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' }, venue: null, photo_path: null },
+    { id: 3, date_played: '2026-10-25', result: 'drew', game: null, venue: null, photo_path: null },
+  ],
+  venues: [
+    { id: 'v-1', name: 'Guf Werribee', icon: '🎲', address: '1 Watton St, Werribee VIC', country: 'AU', visits: 23 },
+    { id: 'v-2', name: 'Top Table Games', icon: null, address: null, country: 'AU', visits: 9 },
+    { id: 'v-3', name: 'Havoc Games', icon: '⚔️', address: null, country: 'AU', visits: 1 },
+  ],
+};
+
+/** Switched on, nothing in it yet — each section says so rather than vanishing. */
+const DEMO_PROFILE_SECTIONS_EMPTY: ProfileSectionsData = {
+  battles: { played: 0, won: 0, lost: 0, drew: 0, this_year: 0, games: 0, current_streak: 0, longest_streak: 0, most_played: [], most_wins: null, most_losses: null },
+  recent_battles: [],
+  venues: [],
 };
 
 const DEMO_OPPONENTS: Opponent[] = [
@@ -2071,9 +2100,13 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
         <div className="w-full max-w-2xl">
           <ProfileSectionsView data={DEMO_PROFILE_SECTIONS} />
         </div>
+        <div className="w-full max-w-2xl">
+          <ProfileSectionsView data={DEMO_PROFILE_SECTIONS_EMPTY} />
+        </div>
         <GalleryNote>
-          The optional parts of a profile page — Painting Bench, Favourites and
-          Painting Stats — each Off / Friends only / Everyone on the Public Profile
+          The optional parts of a profile page — Painting Bench, Favourites,
+          Painting Stats, Battle Record, Recent Battles and Favorite Venues — each
+          Off / Friends only / Everyone on the Public Profile
           tab of Edit Profile. get_profile_sections returns only what the viewer may
           see; tap a model or collection to open it read-only (the share-link view).
           An empty section (switched on, nothing in it) says so.

@@ -764,7 +764,7 @@ export default function WelcomeModal({ appName, flow }: WelcomeModalProps) {
     // The Navbar is a sibling of this modal, so it can't be reached by a prop —
     // publishing is what makes the new name and picture appear straight away
     // instead of only after the next page load.
-    publishProfileDisplay({ username: trimmedUsername || null, avatarUrl: newAvatarUrl });
+    publishProfileDisplay({ username: trimmedUsername || null, handle: handle || null, avatarUrl: newAvatarUrl });
     setStatus('done');
   }
 
