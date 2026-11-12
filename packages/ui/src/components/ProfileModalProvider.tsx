@@ -12,7 +12,8 @@
  * Request" for someone you don't know yet).
  */
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
 import FriendProfileModal, { type FriendProfileState } from './FriendProfileModal';
 import { useFriends } from '../hooks/useFriends';
 
@@ -43,8 +44,15 @@ export function ProfileModalProvider({ children, resolveGameIcon }: ProfileModal
   const [target, setTarget] = useState<ProfileTarget | null>(null);
   const { friends, incoming, outgoing, busy, error, sendRequest, respond, remove } = useFriends();
 
+  // Your own @username opens your profile with no friend button.
+  const [myId, setMyId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setMyId(data.session?.user?.id ?? null));
+  }, []);
+
   const state = useMemo<FriendProfileState>(() => {
     if (!target) return { kind: 'none' };
+    if (target.userId === myId) return { kind: 'self' };
     const f = friends.find(x => x.id === target.userId);
     if (f) return { kind: 'friends', friendshipId: f.friendshipId, username: f.username };
     const inc = incoming.find(x => x.id === target.userId);
@@ -52,9 +60,9 @@ export function ProfileModalProvider({ children, resolveGameIcon }: ProfileModal
     const out = outgoing.find(x => x.id === target.userId);
     if (out) return { kind: 'outgoing', friendshipId: out.friendshipId };
     return { kind: 'none' };
-  }, [target, friends, incoming, outgoing]);
+  }, [target, myId, friends, incoming, outgoing]);
 
-  const friendshipId = state.kind === 'none' ? null : state.friendshipId;
+  const friendshipId = 'friendshipId' in state ? state.friendshipId : null;
 
   return (
     <LauncherContext.Provider value={setTarget}>

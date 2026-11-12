@@ -4,6 +4,7 @@ import {
   supabase,
   AuthCallback,
   ResetPassword,
+  ProfilePage,
   useCurrentApp,
   setCurrentApp,
   type AppSlug,
@@ -90,6 +91,8 @@ function Shell() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback className="bg-neutral-950" />} />
         <Route path="/auth/reset-password" element={<ResetPassword className="bg-neutral-950" />} />
+        {/* Profiles — /@username ("View full profile" in any app's modal). */}
+        <Route path="/:profile" element={<ProfilePage appName="BattlePlan HQ" />} />
 
         {/* ── The active app's screens ── */}
         {APP_ROUTES[slug]!()}

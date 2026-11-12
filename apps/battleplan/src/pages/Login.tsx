@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, authRedirectTo, signInWithProvider, Input, Button, Checkbox } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 
@@ -41,6 +41,9 @@ type Mode = 'signin' | 'signup';
 
 export default function Login() {
   const navigate = useNavigate();
+  // Where to go after signing in (e.g. back to a profile). Same-site paths only.
+  const next = useSearchParams()[0].get('next');
+  const afterSignIn = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
 
   const [mode,            setMode]            = useState<Mode>('signin');
   const [email,           setEmail]           = useState('');
@@ -69,7 +72,7 @@ export default function Login() {
         setError(error.message);
         setLoading(false);
       } else {
-        navigate('/app');
+        navigate(afterSignIn);
       }
     } else {
       if (password !== confirmPassword) {

@@ -36,6 +36,8 @@ import Button from './Button';
 import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from './Dropdown';
 import Settings from '../icons/Settings';
 import UserCircle from '../icons/UserCircle';
+import Pen2 from '../icons/Pen2';
+import { profilePath } from './FriendProfileModal';
 import ProfileModal from './ProfileModal';
 import ImpersonationBanner from './ImpersonationBanner';
 import { usePlatformApps } from '../hooks/usePlatformApps';
@@ -437,11 +439,20 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                 }
               >
                 <DropdownItem
-                  icon={<UserCircle className="w-4 h-4 text-gray-400" />}
+                  icon={<Pen2 className="w-4 h-4 text-gray-400" />}
                   onClick={() => setProfileOpen(true)}
                 >
-                  <span className="text-gray-200">Your Profile</span>
+                  <span className="text-gray-200">Edit Profile</span>
                 </DropdownItem>
+                {/* Needs a username — that's the address of the profile page. */}
+                {username && (
+                  <DropdownItem
+                    icon={<UserCircle className="w-4 h-4 text-gray-400" />}
+                    onClick={() => navigate(profilePath(username))}
+                  >
+                    <span className="text-gray-200">View my Profile</span>
+                  </DropdownItem>
+                )}
                 <DropdownDivider />
                 {isAdmin && (
                   <>

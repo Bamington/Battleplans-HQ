@@ -57,7 +57,7 @@ import ColumnTabBar from '../components/ColumnTabBar';
 import Counter from '../components/Counter';
 import Dropdown, { DropdownDivider, DropdownHeader, DropdownItem } from '../components/Dropdown';
 import EditorPanel from '../components/EditorPanel';
-import FriendProfileModal from '../components/FriendProfileModal';
+import FriendProfileModal, { ProfileView } from '../components/FriendProfileModal';
 import type { FriendProfileState } from '../components/FriendProfileModal';
 import FriendsColumn from '../components/FriendsColumn';
 import HR from '../components/HR';
@@ -73,6 +73,8 @@ import type { Mode } from '../components/ModeToggle';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import Notebook from '../icons/Notebook';
 import { OpponentPicker } from '../components/OpponentPicker';
+import { ProfileSectionsView, type ProfileSectionsData } from '../bench/ProfileSections';
+import type { SharedModel } from '../bench/SharedViews';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import Pagination from '../components/Pagination';
 import PickerTile from '../components/PickerTile';
@@ -290,6 +292,7 @@ const FriendsModalsGalleryDemo = () => {
     { label: 'Request sent',    state: { kind: 'outgoing', friendshipId: 'demo' } },
     { label: 'Request received', state: { kind: 'incoming', friendshipId: 'demo' } },
     { label: 'Friends',         state: { kind: 'friends', friendshipId: 'demo', username: 'Bam Harrison' } },
+    { label: 'Yourself',        state: { kind: 'self' } },
   ];
 
   return (
@@ -322,6 +325,27 @@ const FriendsModalsGalleryDemo = () => {
         onRespond={() => setProfile(null)}
         onWithdraw={() => setProfile(null)}
       />
+
+      {/* The full page (/@username) renders the same ProfileView, page-sized. */}
+      <div className="w-full grid gap-4 sm:grid-cols-2 pt-4">
+        {([
+          ['Full page — public (signed out)', { kind: 'signedOut' }],
+          ['Full page — friends', { kind: 'friends', friendshipId: 'demo', username: 'Bam Harrison' }],
+        ] as [string, FriendProfileState][]).map(([label, state]) => (
+          <div key={label} className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">{label}</p>
+            <div className="bg-neutral-900 border border-neutral-700 rounded-xl overflow-hidden">
+              <ProfileView size="page" handle="bamington" state={state} onSignIn={() => {}} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <GalleryNote>
+        Four variants: the modal and the full page (<code>/@username</code>), each
+        public or friends. Signed out, the page asks you to sign in; the friends
+        variant adds the real name and Favourite Games (games load only for a real
+        friend in a signed-in app). The modal links to the page with "View full profile".
+      </GalleryNote>
     </div>
   );
 };
@@ -1219,6 +1243,31 @@ const BuilderShellGalleryDemo = () => {
  *
  *   nav={[...SHARED_GALLERY_NAV, ...LOCAL_NAV]}
  */
+const demoModel = (id: string, name: string, status: string, on_desk: boolean): SharedModel => ({
+  id, name, status, count: 1, painted_date: null, started_painting_date: on_desk ? '2026-10-20' : null, on_desk,
+  painting_notes: on_desk ? 'Base coats done; highlights next.' : null, lore_name: null, lore_description: null,
+  image_path: null, game: { name: 'Blood Bowl', slug: 'blood-bowl' }, images: [], recipes: [], direct_paints: [], included_in: [],
+});
+
+const DEMO_PROFILE_SECTIONS: ProfileSectionsData = {
+  bench: [demoModel('pm-1', 'Orc Blitzer', 'Primed', true), demoModel('pm-2', 'Troll', 'Partially Painted', true)],
+  favourites: {
+    models: [demoModel('pm-3', 'Star Player', 'Painted', false)],
+    boxes: [{ id: 'pb-1', name: 'Orc Team', type: 'Collection', includes_string: null,
+      game: { name: 'Blood Bowl', slug: 'blood-bowl' }, images: [],
+      models: [demoModel('pm-1', 'Orc Blitzer', 'Primed', true), demoModel('pm-3', 'Star Player', 'Painted', false)] }],
+  },
+  stats: {
+    total: 42, collections: 5, games: 3,
+    by_status: { None: 12, Assembled: 4, Primed: 6, 'Partially Painted': 5, Painted: 15 },
+    most_collected: [
+      { key: 'g1', name: 'Blood Bowl', slug: 'blood-bowl', total: 24, painted: 10 },
+      { key: 'g2', name: 'Warhammer 40,000', slug: 'warhammer-40k', total: 12, painted: 4 },
+      { key: 'g3', name: 'Halo: Flashpoint', slug: 'halo-flashpoint', total: 6, painted: 1 },
+    ],
+  },
+};
+
 const DEMO_OPPONENTS: Opponent[] = [
   { id: 'op-1', name: 'Marcus' },
   { id: 'op-2', name: 'Priya', linkedUserId: 'u-2', isFriend: true },
@@ -1240,6 +1289,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-badges',               label: 'Badges',               icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-avatars',              label: 'Avatars',              icon: <UserRounded className="w-5 h-5" /> },
   { href: '#nav-friends-modals',       label: 'Friends Modals',       icon: <UserPlusRounded className="w-5 h-5" /> },
+  { href: '#nav-profile-sections',     label: 'Profile Sections',     icon: <Star className="w-5 h-5" /> },
   { href: '#nav-avatar-picker',        label: 'Avatar Picker',        icon: <UserCircle className="w-5 h-5" /> },
   { href: '#nav-editable-list-item',   label: 'Editable List Item',   icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-panel-section',        label: 'Panel Section',        icon: <ListCheck className="w-5 h-5" /> },
@@ -2015,6 +2065,19 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
 
       <GallerySection id="nav-friends-modals" title="Friends / Modals">
         <FriendsModalsGalleryDemo />
+      </GallerySection>
+
+      <GallerySection id="nav-profile-sections" title="Profile Sections">
+        <div className="w-full max-w-2xl">
+          <ProfileSectionsView data={DEMO_PROFILE_SECTIONS} />
+        </div>
+        <GalleryNote>
+          The optional parts of a profile page — Painting Bench, Favourites and
+          Painting Stats — each Off / Friends only / Everyone on the Public Profile
+          tab of Edit Profile. get_profile_sections returns only what the viewer may
+          see; tap a model or collection to open it read-only (the share-link view).
+          An empty section (switched on, nothing in it) says so.
+        </GalleryNote>
       </GallerySection>
 
       <GallerySection id="nav-avatar-picker" title="AvatarPicker">

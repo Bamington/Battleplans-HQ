@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
-import { ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { ProtectedRoute, AppAccessRoute, WelcomeModal, AuthCallback, ResetPassword, ProfilePage } from '@battleplans/ui';
+import { GAME_ICONS } from './components/gameIcons';
 import Login from './pages/Login.tsx';
 import HomePage from './pages/HomePage.tsx';
 import BattleStatsPage from './pages/BattleStatsPage.tsx';
@@ -71,6 +72,10 @@ export default function App() {
 
         {/* Component gallery — dev tool, not a user-facing screen */}
         <Route path="/gallery" element={<ComponentGallery />} />
+
+        {/* Profiles — /@username, open to anyone. (Any other single segment
+            is sent home by ProfilePage.) */}
+        <Route path="/:profile" element={<ProfilePage appName="BattlePlan" resolveGameIcon={slug => GAME_ICONS[slug]} />} />
 
         {/* ── Protected routes — redirect unauthenticated users to /login,
                then gate on the user's platform access level ── */}

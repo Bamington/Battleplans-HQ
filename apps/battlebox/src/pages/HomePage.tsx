@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   supabase, AppFooter, Button, Input,
   ScrollColumn, NewsColumn, AddCircle, Magnifer, UserRounded, Filter, ListCheck, Gallery,
-  COLUMN_ROW, ColumnTabBar, listFriends,
+  COLUMN_ROW, ColumnTabBar, listFriends, FriendsColumn, ProfileModalProvider,
 } from '@battleplans/ui';
 import type { ColumnHeaderToggle } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
@@ -11,6 +11,7 @@ import { ModelItem, ModelGridItem } from '../components/ModelItem';
 import { BoxItem, BoxGridItem } from '../components/BoxItem';
 import { ModelDetailModal } from '../components/ModelDetailModal';
 import { FriendModelModal } from '../components/FriendModelModal';
+import { GAME_ICONS } from '../components/gameIcons';
 import { CollectionDetailModal } from '../components/CollectionDetailModal';
 import { ModelFilterSheet } from '../components/ModelFilterSheet';
 import { AddModelModal } from '../components/AddModelModal';
@@ -766,6 +767,9 @@ export default function HomePage() {
   }, []);
 
   return (
+    // Any @username on the home screen (a friend's model, a painter) opens
+    // that person's profile through this one provider.
+    <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="min-h-dvh flex flex-col bg-neutral-950">
 
       {/* Navbar + columns fill exactly one viewport, so the footer is pushed
@@ -790,6 +794,10 @@ export default function HomePage() {
             />
             <RecipesColumn userId={userId} isDesktop={isDesktop} onOpenModel={openModel} />
             <PaintsColumn userId={userId} />
+            <FriendsColumn
+              resolveGameIcon={slug => GAME_ICONS[slug]}
+              description="Users who you’ve connected with on Battleplan. Credit them when they paint for you, and see the models you’ve painted for each other."
+            />
             <NewsColumn app="battlebox" appName="BattleBench" />
           </div>
         </main>
@@ -800,5 +808,6 @@ export default function HomePage() {
       <AppFooter className="shrink-0" appName="BattleBench" version={__APP_VERSION__} buildDate={__APP_BUILD_DATE__} />
 
     </div>
+    </ProfileModalProvider>
   );
 }

@@ -49,7 +49,7 @@ import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
 import ManagePacks from './pages/ManagePacks';
 import ManageUpdates from './pages/ManageUpdates';
-import { AdminRoute, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
+import { AdminRoute, ProfilePage, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -121,6 +121,9 @@ function App() {
              second checks their platform access level covers this app. Every
              /app route lives inside them. ── */}
         {appRoutes()}
+
+        {/* ── Someone's profile, at /@username (public, like every app's). ── */}
+        <Route path="/:profile" element={<ProfilePage appName="BattleCards" />} />
 
       </Routes>
     </BrowserRouter>

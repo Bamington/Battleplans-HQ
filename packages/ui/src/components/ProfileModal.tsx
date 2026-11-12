@@ -31,8 +31,12 @@ import { avatarUrl, uploadAvatar } from '../lib/avatars';
 import { publishProfileDisplay } from '../lib/profileDisplay';
 import { validateHandle, describeProfileSaveError } from '../lib/handles';
 import { normalisePostcode, validatePostcode, regionFor, inRegionOf } from '../lib/regions';
+import { Link } from 'react-router-dom';
 import Modal from './Modal';
 import Button from './Button';
+import Select from './Select';
+import Tabs from './Tabs';
+import { profilePath } from './FriendProfileModal';
 import { ProfileFields, getInitials, type WelcomeLocation } from './WelcomeModal';
 
 interface ProfileModalProps {
@@ -43,6 +47,76 @@ interface ProfileModalProps {
 }
 
 type Status = 'loading' | 'ready';
+
+/** Who sees a profile section. */
+export type SectionVisibility = 'off' | 'friends' | 'everyone';
+type SectionKey = 'bench' | 'favourites' | 'stats';
+type Sections = Record<SectionKey, SectionVisibility>;
+
+const VISIBILITY_OPTIONS: { value: SectionVisibility; label: string }[] = [
+  { value: 'off',      label: 'Off' },
+  { value: 'friends',  label: 'Friends only' },
+  { value: 'everyone', label: 'Everyone' },
+];
+
+/**
+ * The public profile's optional sections. Every app lists all of them; one the
+ * user has nothing for yet is shown but disabled, with what unlocks it — e.g.
+ * someone who has never used BattleBench's Painting Desk can't share a bench.
+ */
+const SECTIONS: { key: SectionKey; column: string; title: string; description: string; locked: string }[] = [
+  { key: 'bench', column: 'public_bench', title: 'Painting Bench',
+    description: 'The models on your BattleBench Painting Desk, with their progress photos.',
+    locked: 'Put a model on the Painting Desk in BattleBench to share this.' },
+  { key: 'favourites', column: 'public_favourites', title: 'Favourites',
+    description: 'Models and collections you’ve marked as favourites in BattleBench.',
+    locked: 'Mark a model or collection as a favourite in BattleBench to share this.' },
+  { key: 'stats', column: 'public_stats', title: 'Painting Stats',
+    description: 'A summary of your collection: totals, painting progress and most collected games.',
+    locked: 'Add a model in BattleBench to share this.' },
+];
+
+/** The "Public Profile" tab: one Off / Friends only / Everyone choice per section. */
+function PublicProfileSettings({ sections, available, onChange, disabled, handle }: {
+  sections: Sections;
+  available: Record<SectionKey, boolean>;
+  onChange: (key: SectionKey, v: SectionVisibility) => void;
+  disabled: boolean;
+  handle: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="font-body text-sm text-gray-300">
+        Choose what else your profile shows. Your avatar and username are always visible;
+        your name only ever shows to friends.
+      </p>
+      {SECTIONS.map(s => {
+        const locked = !available[s.key];
+        return (
+          <div key={s.key} className="flex flex-col gap-2">
+            <div>
+              <p className={`font-body text-sm font-medium ${locked ? 'text-gray-500' : 'text-white'}`}>{s.title}</p>
+              <p className="font-body text-xs text-gray-400">{locked ? s.locked : s.description}</p>
+            </div>
+            <Select
+              size="sm"
+              aria-label={`${s.title} visibility`}
+              value={locked ? 'off' : sections[s.key]}
+              disabled={disabled || locked}
+              onChange={e => onChange(s.key, e.target.value as SectionVisibility)}
+              options={VISIBILITY_OPTIONS}
+            />
+          </div>
+        );
+      })}
+      {handle && (
+        <Link to={profilePath(handle)} className="self-start font-body text-sm text-primary-400 hover:text-primary-300 hover:underline">
+          View your profile
+        </Link>
+      )}
+    </div>
+  );
+}
 
 export default function ProfileModal({ open, onClose, onSaved }: ProfileModalProps) {
   const [status,              setStatus]              = useState<Status>('loading');
@@ -60,6 +134,9 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
   const [savedAvatarUrl,      setSavedAvatarUrl]      = useState<string | null>(null);
   // undefined = untouched, Blob = new picture to upload, null = remove.
   const [pendingAvatar,       setPendingAvatar]       = useState<Blob | null | undefined>(undefined);
+  const [sections,            setSections]            = useState<Sections>({ bench: 'off', favourites: 'off', stats: 'off' });
+  const [available,           setAvailable]           = useState<Record<SectionKey, boolean>>({ bench: false, favourites: false, stats: false });
+  const [tab,                 setTab]                 = useState<'details' | 'public'>('details');
   const [saving,              setSaving]              = useState(false);
   const [error,               setError]               = useState<string | null>(null);
 
@@ -76,10 +153,20 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username, handle, preferred_location_id, country, postcode, avatar_path')
+        .select('username, handle, preferred_location_id, country, postcode, avatar_path, public_bench, public_favourites, public_stats')
         .eq('id', user.id)
         .single();
+      const { data: avail } = await supabase.rpc('my_profile_section_availability');
       if (cancelled) return;
+
+      setTab('details');
+      setSections({
+        bench:      (profile?.public_bench ?? 'off') as SectionVisibility,
+        favourites: (profile?.public_favourites ?? 'off') as SectionVisibility,
+        stats:      (profile?.public_stats ?? 'off') as SectionVisibility,
+      });
+      const a = (avail ?? {}) as Partial<Record<SectionKey, boolean>>;
+      setAvailable({ bench: !!a.bench, favourites: !!a.favourites, stats: !!a.stats });
 
       const hasLocation = !!profile?.preferred_location_id;
       setUserId(user.id);
@@ -121,19 +208,21 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
     if (!userId) return;
     setError(null);
 
+    // Every check is about Your Details, so a failure takes you back there to see it.
+    const fail = (message: string) => { setError(message); setTab('details'); };
     const trimmed = username.trim();
-    if (!trimmed) { setError('Please enter your name.'); return; }
+    if (!trimmed) { fail('Please enter your name.'); return; }
     if (showRegion) {
-      if (!country) { setError('Please choose your country.'); return; }
+      if (!country) { fail('Please choose your country.'); return; }
       const postcodeError = validatePostcode(country, postcode);
-      if (postcodeError) { setError(postcodeError); return; }
+      if (postcodeError) { fail(postcodeError); return; }
     }
     if (showLocation && !preferredLocationId) {
-      setError('Please select a preferred location.');
+      fail('Please select a preferred location.');
       return;
     }
     const handleError = validateHandle(handle);
-    if (handleError) { setError(handleError); return; }
+    if (handleError) { fail(handleError); return; }
 
     setSaving(true);
     const update: {
@@ -143,7 +232,14 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       country?: string;
       postcode?: string | null;
       avatar_path?: string | null;
+      public_bench?: SectionVisibility;
+      public_favourites?: SectionVisibility;
+      public_stats?: SectionVisibility;
     } = { username: trimmed };
+    // A locked section saves as off, whatever it was set to before.
+    update.public_bench      = available.bench      ? sections.bench      : 'off';
+    update.public_favourites = available.favourites ? sections.favourites : 'off';
+    update.public_stats      = available.stats      ? sections.stats      : 'off';
     if (handle !== originalHandle) update.handle = handle;
     if (showLocation) update.preferred_location_id = preferredLocationId;
     if (showRegion) {
@@ -175,7 +271,7 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
       .eq('id', userId);
 
     setSaving(false);
-    if (saveError) { setError(describeProfileSaveError(saveError)); return; }
+    if (saveError) { fail(describeProfileSaveError(saveError)); return; }
     publishProfileDisplay({ username: trimmed, avatarUrl: newAvatarUrl });
     onSaved?.(trimmed);
     onClose();
@@ -210,6 +306,13 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
             className="flex flex-col gap-4"
             onSubmit={e => { e.preventDefault(); handleSave(); }}
           >
+            <Tabs
+              variant="segmented"
+              activeTab={tab}
+              onTabChange={id => setTab(id as 'details' | 'public')}
+              panelClassName="!p-0 !pt-4 !border-0 !bg-transparent !rounded-none"
+              tabs={[
+                { id: 'details', label: 'Your Details', content: (
             <ProfileFields
               showAvatar
               avatarUrl={savedAvatarUrl}
@@ -234,6 +337,18 @@ export default function ProfileModal({ open, onClose, onSaved }: ProfileModalPro
               onPreferredLocationChange={setPreferredLocationId}
               locations={offeredLocations}
               error={error}
+            />
+                ) },
+                { id: 'public', label: 'Public Profile', content: (
+                  <PublicProfileSettings
+                    sections={sections}
+                    available={available}
+                    onChange={(key, v) => setSections(s => ({ ...s, [key]: v }))}
+                    disabled={saving}
+                    handle={originalHandle}
+                  />
+                ) },
+              ]}
             />
 
             <div className="flex gap-3">
