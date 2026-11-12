@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, AppFooter, Button, Modal, Input, Select, SearchSelect, Checkbox, ArrowRight, UserRounded, Widget2, NewsColumn, PaginatedColumn, ScrollColumn, ColumnShell, ColumnHeader, HR, Shield, RichTextEditor, ListCheck, Gallery, Callout, CheckCircle as CheckCircleIcon, CloseCircle, FriendsColumn, ColumnTabBar, useBookingShares, Dropdown, DropdownItem, TrashBinMinimalistic, MenuDots, ProfileModalProvider, HandleLink, Badge, Trophy, COLUMN_ROW, inRegionOf, OpponentPicker } from '@battleplans/ui';
 import type { IncomingBookingShare } from '@battleplans/ui';
 import { BattleItem } from '../components/BattleItem';
@@ -72,7 +72,7 @@ interface FoundCustomer {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function NewBookingModal({
-  open, onClose, userId, onCreated, lockedLocationId,
+  open, onClose, userId, onCreated, lockedLocationId, initialLocationId, initialDate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -80,6 +80,10 @@ function NewBookingModal({
   onCreated: () => void;
   /** Opened from the store view: this venue, not switchable. */
   lockedLocationId?: string;
+  /** Opened from a venue's profile page: this venue to start with, switchable. */
+  initialLocationId?: string;
+  /** With initialLocationId: the date to start on (YYYY-MM-DD) — an Opening Hours row. */
+  initialDate?: string;
 }) {
   const [name,       setName]       = useState('');
   const [gameId,     setGameId]     = useState('');
@@ -151,13 +155,22 @@ function NewBookingModal({
     setLocationId(lockedLocationId);
   }, [open, lockedLocationId]);
 
+  // Opened from a venue's profile page: start on that venue, if it's bookable.
+  useEffect(() => {
+    if (!open || locationId || !initialLocationId || lockedLocationId) return;
+    if (!locations.some(l => l.id === initialLocationId)) return;
+    setLocationId(initialLocationId);
+    if (initialDate) setDate(initialDate);
+  }, [open, locationId, initialLocationId, initialDate, locations, lockedLocationId]);
+
   // Pre-select the user's preferred location when the modal opens, unless they've
   // already picked one. Guarded on the location still existing in the list.
   useEffect(() => {
     if (!open || locationId || !preferredLocationId || lockedLocationId) return;
+    if (initialLocationId && locations.some(l => l.id === initialLocationId)) return;
     if (!locations.some(l => l.id === preferredLocationId)) return;
     setLocationId(preferredLocationId);
-  }, [open, locationId, preferredLocationId, locations, lockedLocationId]);
+  }, [open, locationId, preferredLocationId, locations, lockedLocationId, initialLocationId]);
 
   // Losing the right to book for others (by switching venue) must not leave a
   // half-filled customer behind that the submit would still try to use.
@@ -709,8 +722,25 @@ function AcceptedBookingCard({ share, busy, onOpen, onLeave }: {
   );
 }
 
-function BookingCard({ userId }: { userId: string | null }) {
+/** A booking to start from a venue's profile page. */
+interface BookAt { locationId: string; date?: string }
+
+function BookingCard({ userId, bookAt, onBookAtHandled }: {
+  userId: string | null;
+  /** Venue (and maybe date) to open New Booking on — from /app?book=<id>&date=<YYYY-MM-DD>. */
+  bookAt?: BookAt | null;
+  onBookAtHandled?: () => void;
+}) {
+  const [initialLocationId, setInitialLocationId] = useState<string | undefined>(undefined);
+  const [initialDate, setInitialDate] = useState<string | undefined>(undefined);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+  useEffect(() => {
+    if (!bookAt) return;
+    setInitialLocationId(bookAt.locationId);
+    setInitialDate(bookAt.date);
+    setNewBookingOpen(true);
+    onBookAtHandled?.();
+  }, [bookAt, onBookAtHandled]);
   const [viewing, setViewing] = useState<Booking | null>(null);
   const [invite,  setInvite]  = useState<IncomingBookingShare | null>(null);
   const { bookings, loading, refetch } = useUserBookings(userId);
@@ -801,9 +831,11 @@ function BookingCard({ userId }: { userId: string | null }) {
 
       <NewBookingModal
         open={newBookingOpen}
-        onClose={() => setNewBookingOpen(false)}
+        onClose={() => { setNewBookingOpen(false); setInitialLocationId(undefined); setInitialDate(undefined); }}
         userId={userId}
         onCreated={refetch}
+        initialLocationId={initialLocationId}
+        initialDate={initialDate}
       />
 
       <BookingDetailModal
@@ -1703,7 +1735,7 @@ export default function HomePage() {
   }, []);
 
   // Venues this user is attached to — as an admin, or as staff who work there.
-  const { locations: venueLocations, roles: venueRoles } = useManagedLocations(userId);
+  const { locations: venueLocations, roles: venueRoles, refetch: refetchVenues } = useManagedLocations(userId);
   const hasVenue = venueLocations.length > 0;
 
   // What the navbar picker is pointed at. '' = "Your Profile" (the personal
@@ -1729,6 +1761,25 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venueLocations]);
 
+  // /app?book=<location id> — "Book a table" on a venue's profile page. That
+  // is a personal booking, so a venue person is switched to Your Profile first;
+  // otherwise the store view would replace the column that opens New Booking.
+  // Held here rather than in BookingCard because BookingCard can mount and
+  // unmount while the venue list loads. The parameter is dropped once used so a
+  // refresh or the back button doesn't open it again.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [bookAt, setBookAt] = useState<BookAt | null>(null);
+  useEffect(() => {
+    const id = searchParams.get('book');
+    if (!id) return;
+    // &date= comes from an Opening Hours row; anything malformed is ignored.
+    const date = searchParams.get('date');
+    setBookAt({ locationId: id, date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined });
+    selectVenue('');
+    setSearchParams(p => { p.delete('book'); p.delete('date'); return p; }, { replace: true });
+  }, [searchParams, setSearchParams, selectVenue]);
+  const clearBookAt = useCallback(() => setBookAt(null), []);
+
   // Venue people can switch between their personal view and a single venue.
   // Everyone else only ever has the personal view.
   const viewingStore = hasVenue && selectedVenueId !== '';
@@ -1740,13 +1791,19 @@ export default function HomePage() {
     : venueLocations.some(l => venueRoles[l.id] === 'admin');
 
   // A club and a shop get the same screens; only the standalone words differ.
-  const selectedKind = venueLocations.find(l => l.id === selectedVenueId)?.kind;
+  const selectedVenue = viewingStore ? venueLocations.find(l => l.id === selectedVenueId) : undefined;
+  const selectedKind = selectedVenue?.kind;
 
   return (
     <ProfileModalProvider resolveGameIcon={slug => GAME_ICONS[slug]}>
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
-      <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
+      <AppNavbar
+        fixed={false}
+        logo={<BattlePlanLogo />}
+        venue={selectedVenue ? { ...selectedVenue, slug: selectedVenue.slug ?? null, icon: selectedVenue.icon || null, role: venueRoles[selectedVenue.id] } : null}
+        onVenueSaved={refetchVenues}
+      >
         {/* Shown to everyone attached to a venue, even single-venue ones,
             because the picker is also how they get back to their personal view. */}
         {hasVenue && (
@@ -1773,7 +1830,7 @@ export default function HomePage() {
             </>
           ) : (
             <>
-              <BookingCard userId={userId} />
+              <BookingCard userId={userId} bookAt={bookAt} onBookAtHandled={clearBookAt} />
               {/* Renders nothing unless this person has been nominated as an
                   organiser somewhere. */}
               <MyEventsCard userId={userId} />

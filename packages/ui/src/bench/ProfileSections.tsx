@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Sheet from '../components/Sheet';
 import { ModelItem } from './ModelItem';
@@ -74,6 +75,8 @@ export interface ProfileVenue {
   country: string | null;
   /** Distinct days there — past bookings plus battles logged at it. */
   visits: number;
+  /** Its @name, when it has a profile page. Looked up after the sections load. */
+  slug?: string | null;
 }
 
 export interface ProfileSectionsData {
@@ -239,8 +242,9 @@ export function ProfileSectionsView({ data }: { data: ProfileSectionsData }) {
         <Section title="Favorite Venues">
           {data.venues.length === 0 ? <Empty>No venues visited yet.</Empty> : (
             <div className="flex flex-col gap-1.5">
-              {data.venues.map(v => (
-                <div key={v.id} className="bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] shadow-md flex gap-3 items-center">
+              {data.venues.map(v => {
+                const row = 'bg-neutral-800 border border-neutral-700 rounded-lg p-[13px] shadow-md flex gap-3 items-center';
+                const body = (<>
                   <div className="size-16 rounded overflow-hidden shrink-0 bg-neutral-700 flex items-center justify-center">
                     {v.icon?.startsWith('http')
                       ? <img src={v.icon} alt="" className="w-full h-full object-cover" />
@@ -257,8 +261,12 @@ export function ProfileSectionsView({ data }: { data: ProfileSectionsData }) {
                   <span className="font-body text-xs text-neutral-400 shrink-0">
                     {v.visits} {v.visits === 1 ? 'visit' : 'visits'}
                   </span>
-                </div>
-              ))}
+                </>);
+                // A venue with an @name opens its profile page.
+                return v.slug
+                  ? <Link key={v.id} to={`/@${v.slug}`} className={`${row} hover:border-neutral-500`}>{body}</Link>
+                  : <div key={v.id} className={row}>{body}</div>;
+              })}
             </div>
           )}
         </Section>
@@ -294,7 +302,18 @@ export default function ProfileSections({ userId }: { userId: string }) {
     let cancelled = false;
     setData(null);
     supabase.rpc('get_profile_sections', { p_user: userId })
-      .then(({ data: d }) => { if (!cancelled) setData((d as ProfileSectionsData | null) ?? {}); });
+      .then(async ({ data: d }) => {
+        const sections = (d as ProfileSectionsData | null) ?? {};
+        // Favorite Venues are public venues, which anyone may read — so their
+        // @names come straight from locations rather than a changed function.
+        if (sections.venues?.length) {
+          const { data: rows } = await supabase
+            .from('locations').select('id, slug').in('id', sections.venues.map(v => v.id));
+          const slugs = new Map((rows ?? []).map(r => [r.id as string, r.slug as string | null]));
+          sections.venues = sections.venues.map(v => ({ ...v, slug: slugs.get(v.id) ?? null }));
+        }
+        if (!cancelled) setData(sections);
+      });
     return () => { cancelled = true; };
   }, [userId]);
   if (!data) return null;

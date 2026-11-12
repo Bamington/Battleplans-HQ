@@ -75,6 +75,12 @@ interface NavbarProps {
   /** Right-side content — buttons, links, etc. Rendered before the user area. */
   children?: React.ReactNode;
   /**
+   * Extra user-menu items, shown under Edit Profile / View my Profile behind a
+   * divider — e.g. BattlePlan's "Edit Store Profile" while a venue is selected.
+   * Pass DropdownItems; nothing renders (not even the divider) when omitted.
+   */
+  userMenuItems?: React.ReactNode;
+  /**
    * Breadcrumb trail shown after the logo. The last crumb is the current page.
    * On narrow screens only the current page and its parent are shown.
    */
@@ -249,7 +255,7 @@ function NavColumnTabs({ rightSlotRef }: { rightSlotRef: RefObject<HTMLDivElemen
   );
 }
 
-const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, logo, breadcrumbs = [] }: NavbarProps) => {
+const Navbar = ({ fixed = true, className = '', children, userMenuItems, apps: appsOverride, logo, breadcrumbs = [] }: NavbarProps) => {
   const navigate = useNavigate();
   const { apps: accessibleApps } = usePlatformApps();
   const apps = appsOverride ?? accessibleApps;
@@ -454,6 +460,12 @@ const Navbar = ({ fixed = true, className = '', children, apps: appsOverride, lo
                   >
                     <span className="text-gray-200">View my Profile</span>
                   </DropdownItem>
+                )}
+                {userMenuItems && (
+                  <>
+                    <DropdownDivider />
+                    {userMenuItems}
+                  </>
                 )}
                 <DropdownDivider />
                 {isAdmin && (

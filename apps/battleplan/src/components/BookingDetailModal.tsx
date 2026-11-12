@@ -15,13 +15,14 @@
  */
 
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Modal, Button, Input, Dropdown, DropdownItem,
   MapPin, Calendar, Notebook, Layers, Letter, UserCircle, InfoCircle, UserRounded, UserPlusRounded,
   CheckCircle, CloseCircle, ArrowRight, TrashBinMinimalistic, MenuDots,
   useBookingShares, useFriends,
   normaliseHandle, validateHandle,
-  supabase, HandleLink,
+  supabase, HandleLink, profilePath,
   type IncomingBookingShare, type OutgoingBookingShare,
 } from '@battleplans/ui';
 import { GAME_ICONS } from './gameIcons';
@@ -50,11 +51,13 @@ function GameThumb({ slug, name }: { slug: string | null; name: string }) {
 
 /** Header: game thumbnail, game name, venue, and an optional attribution line. */
 function BookingHeader({
-  gameName, gameSlug, venue, invitedBy, bookedBy, bookedOnBehalfBy,
+  gameName, gameSlug, venue, venueSlug, invitedBy, bookedBy, bookedOnBehalfBy,
 }: {
   gameName: string;
   gameSlug: string | null;
   venue: string | null;
+  /** The venue's @name: the venue line then opens its profile page. */
+  venueSlug?: string | null;
   /** Invitee view: "Invited by @handle" — the handle opens their profile. */
   invitedBy?: { id: string; handle: string; avatarUrl: string | null };
   /** Store view: "Booked by {customer}". */
@@ -74,7 +77,11 @@ function BookingHeader({
           {gameName}
         </h2>
         {venue && (
-          <p className="font-body font-bold text-base text-neutral-300 leading-6 opacity-50 truncate">{venue}</p>
+          venueSlug ? (
+            <Link to={profilePath(venueSlug)} className="font-body font-bold text-base text-neutral-300 leading-6 opacity-50 hover:opacity-100 truncate">{venue}</Link>
+          ) : (
+            <p className="font-body font-bold text-base text-neutral-300 leading-6 opacity-50 truncate">{venue}</p>
+          )
         )}
         {invitedBy && (
           <p className="font-body text-sm text-neutral-50 leading-5 truncate">
@@ -356,6 +363,7 @@ export function BookingDetailModal({
             gameName={booking.game?.name ?? 'No game'}
             gameSlug={booking.game?.slug ?? null}
             venue={booking.location.name}
+            venueSlug={isStore ? null : booking.location.slug}
             bookedBy={isStore && takenByStaffLabel ? customerName : undefined}
             bookedOnBehalfBy={takenByStaffLabel ?? undefined}
           />

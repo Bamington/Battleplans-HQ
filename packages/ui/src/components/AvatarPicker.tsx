@@ -86,6 +86,8 @@ export interface AvatarPickerProps {
   onChange: (blob: Blob | null) => void;
   /** Greys out the controls (e.g. while the parent form is saving). */
   disabled?: boolean;
+  /** Field label — "Profile picture" by default; e.g. "Logo" for a venue. */
+  label?: string;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ export default function AvatarPicker({
   initials,
   onChange,
   disabled = false,
+  label = 'Profile picture',
 }: AvatarPickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,13 +180,13 @@ export default function AvatarPicker({
   return (
     <div className="flex flex-col gap-2">
       <label className="font-body text-sm font-medium text-gray-300">
-        Profile picture
+        {label}
       </label>
 
       <div className="flex items-center gap-4">
         {/* Square to match how the picture is actually shown — and to match the
             square cropper, so the preview is what the user just framed. */}
-        <Avatar src={shownUrl} initials={initials} size="2xl" shape="rounded" alt="Your profile picture" />
+        <Avatar src={shownUrl} initials={initials} size="2xl" shape="rounded" alt={label} />
 
         <div className="flex flex-col gap-2 items-start">
           <input

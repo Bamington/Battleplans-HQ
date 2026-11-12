@@ -26,6 +26,8 @@ import {
   regionFor,
   regionLabel,
   validatePostcode,
+  normaliseHandle,
+  validateHandle,
 } from '@battleplans/ui';
 import AppNavbar from '../../components/AppNavbar';
 import type { LocationKind } from '../../hooks/useBookingData';
@@ -33,6 +35,9 @@ import type { LocationKind } from '../../hooks/useBookingData';
 type LocationRow = {
   id: string;
   name: string;
+  /** Its profile page's @name (/@slug), shared with user handles. Null for a
+   *  space. A new venue or club is given one from its name by the database. */
+  slug: string | null;
   /** Null for a club — see locations_address_required_unless_club. */
   address: string | null;
   /**
@@ -435,6 +440,11 @@ function ManageLocationsInner() {
   // ── Edit modal ──────────────────────────────────────────────────────────────
   const [editTarget, setEditTarget] = useState<LocationRow | null>(null);
   const [editForm, setEditForm] = useState<LocationFormState>(EMPTY_FORM);
+  // Edit only: a new location is named by the database (locations_default_slug).
+  const [editSlug, setEditSlug] = useState('');
+  const slugProblem = editForm.kind !== 'space' && editSlug
+    ? validateHandle(editSlug)?.replace(/Usernames?/g, 'Profile names') ?? null
+    : null;
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -519,7 +529,7 @@ function ManageLocationsInner() {
       .from('locations')
       // Every kind, unfiltered — this is the one screen where a space is
       // supposed to be visible.
-      .select('id, name, address, country, postcode, icon, store_email, admins, kind, owner_location_id, meets_at_id, is_test')
+      .select('id, name, slug, address, country, postcode, icon, store_email, admins, kind, owner_location_id, meets_at_id, is_test')
       .order('name');
     if (error) setError(error.message);
     else setLocations((data ?? []) as LocationRow[]);
@@ -604,11 +614,12 @@ function ManageLocationsInner() {
       meets_at_id: loc.meets_at_id ?? '',
       is_test: loc.is_test,
     });
+    setEditSlug(loc.slug ?? '');
     setEditError(null);
   }
 
   async function handleSaveEdit() {
-    if (!editTarget || !formIsValid(editForm)) return;
+    if (!editTarget || !formIsValid(editForm) || slugProblem) return;
     setSaving(true);
     setEditError(null);
     const next = {
@@ -624,12 +635,19 @@ function ManageLocationsInner() {
       // Clubs only — locations_meets_at_clubs_only refuses it on anything else.
       meets_at_id: editForm.kind === 'club' ? (editForm.meets_at_id || null) : null,
       is_test: editForm.is_test,
+      // Spaces never have a page. Clearing it takes the page down.
+      slug: editForm.kind === 'space' ? null : (editSlug || null),
     };
     const { error } = await supabase
       .from('locations')
       .update(next)
       .eq('id', editTarget.id);
-    if (error) { setEditError(error.message); setSaving(false); return; }
+    if (error) {
+      // 23505: a user or another location already goes by it.
+      setEditError(error.code === '23505' ? `@${editSlug} is already taken.` : error.message);
+      setSaving(false);
+      return;
+    }
 
     try {
       await syncLocationApps(editTarget.id, editForm.apps);
@@ -921,6 +939,17 @@ function ManageLocationsInner() {
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   disabled={saving}
                 />
+                {editForm.kind !== 'space' && (
+                  <Input
+                    label="Profile name"
+                    value={editSlug}
+                    onChange={e => setEditSlug(normaliseHandle(e.target.value))}
+                    placeholder="e.g. guf-werribee"
+                    state={slugProblem ? 'error' : 'default'}
+                    helperText={slugProblem ?? (editSlug ? `Profile page at /@${editSlug}` : 'Empty: no profile page.')}
+                    disabled={saving}
+                  />
+                )}
                 {/* A club has nowhere of its own — it meets at a space or at
                     somebody else's shop. */}
                 {needsAddress(editForm.kind) && (
@@ -1001,7 +1030,7 @@ function ManageLocationsInner() {
               <Button variant="ghost" color="secondary" disabled={saving} onClick={() => setEditTarget(null)}>
                 Cancel
               </Button>
-              <Button color="primary" loading={saving} disabled={!formIsValid(editForm)} onClick={handleSaveEdit}>
+              <Button color="primary" loading={saving} disabled={!formIsValid(editForm) || !!slugProblem} onClick={handleSaveEdit}>
                 Save
               </Button>
             </div>

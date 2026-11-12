@@ -24,6 +24,8 @@ export interface Location {
   icon: string;
   /** Absent on older reads that predate the column being selected. */
   kind?: LocationKind;
+  /** The @name of its profile page. Only on reads that select it. */
+  slug?: string | null;
   /**
    * Raw region columns — see packages/ui/src/lib/regions.ts. Carried on the
    * row rather than pre-derived so callers can pass a Location straight to
@@ -76,7 +78,7 @@ export interface Booking {
   /** Who took the booking. Differs from user_id when a venue booked for someone. */
   created_by_user_id: string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string; address: string | null };
+  location:  { id: string; name: string; address: string | null; slug?: string | null };
   timeslot:  { id: string; name: string; start_time: string; end_time: string };
 }
 
@@ -96,7 +98,7 @@ interface RawBookingRow {
   timeslot_end_time:    string | null;
   table_label:          string | null;
   game:      { id: string; name: string; slug: string } | null;
-  location:  { id: string; name: string; address: string | null } | null;
+  location:  { id: string; name: string; address: string | null; slug?: string | null } | null;
   timeslot:  { id: string; name: string; start_time: string; end_time: string } | null;
 }
 
@@ -106,7 +108,7 @@ const BOOKING_SELECT = `
   id, date, user_name, user_id, created_by_user_id, location_id, timeslot_id,
   location_name, timeslot_name, timeslot_start_time, timeslot_end_time, table_label,
   game:game_catalogue(id, name, slug),
-  location:locations(id, name, address),
+  location:locations(id, name, address, slug),
   timeslot:timeslots(id, name, start_time, end_time)
 `;
 
@@ -127,6 +129,7 @@ function mapBookingRow(r: RawBookingRow): Booking {
       id:      r.location?.id ?? r.location_id ?? '',
       name:    r.location_name ?? r.location?.name ?? '',
       address: r.location?.address ?? null,
+      slug:    r.location?.slug ?? null,
     },
     timeslot: {
       id:         r.timeslot?.id ?? r.timeslot_id ?? '',
@@ -691,6 +694,7 @@ export function useAdminLocations(userId: string | null) {
   // this rather than set asynchronously, so it's never stale within a render:
   // the moment userId changes, loading flips true until its fetch resolves.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);   // bumped by refetch()
 
   useEffect(() => {
     let cancelled = false;
@@ -698,7 +702,7 @@ export function useAdminLocations(userId: string | null) {
 
     supabase
       .from('locations')
-      .select('id, name, icon, kind')
+      .select('id, name, icon, kind, slug')
       .contains('admins', [userId])
       .neq('kind', 'space')   // a room is not something you administer as a venue
       .order('name')
@@ -709,11 +713,13 @@ export function useAdminLocations(userId: string | null) {
       });
 
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, version]);
 
   const loading = !!userId && loadedFor !== userId;
 
-  return { adminLocations, loading };
+  const refetch = useCallback(() => setVersion(v => v + 1), []);
+
+  return { adminLocations, loading, refetch };
 }
 
 // ── Venue membership ──────────────────────────────────────────────────────────
@@ -734,6 +740,9 @@ export function useManagedLocations(userId: string | null) {
   // Same trick as useAdminLocations: derive `loading` from which user the
   // current data belongs to, so it's never stale within a render.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  // Bumped by refetch() — e.g. after a venue's profile is edited, so the
+  // selector shows its new name and logo.
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -743,7 +752,7 @@ export function useManagedLocations(userId: string | null) {
       // Spaces excluded, clubs kept: the store view is for an organisation, and
       // a club is one. A borrowed room is not — it has no bookings of its own,
       // no staff and no stats.
-      supabase.from('locations').select('id, name, icon, kind').contains('admins', [userId]).neq('kind', 'space'),
+      supabase.from('locations').select('id, name, icon, kind, slug').contains('admins', [userId]).neq('kind', 'space'),
       // COUNTER STAFF ONLY. An organiser is in this table too, but the store
       // view is bookings-shaped and RLS gives an organiser none of them — they
       // would land on a venue whose every column was empty and reasonably
@@ -761,7 +770,7 @@ export function useManagedLocations(userId: string | null) {
       let staffLocs: Location[] = [];
       if (staffIds.length > 0) {
         const { data } = await supabase
-          .from('locations').select('id, name, icon, kind').in('id', staffIds).neq('kind', 'space');
+          .from('locations').select('id, name, icon, kind, slug').in('id', staffIds).neq('kind', 'space');
         if (cancelled) return;
         staffLocs = (data ?? []) as Location[];
       }
@@ -776,11 +785,13 @@ export function useManagedLocations(userId: string | null) {
     });
 
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, version]);
 
   const loading = !!userId && loadedFor !== userId;
 
-  return { locations, roles, loading };
+  const refetch = useCallback(() => setVersion(v => v + 1), []);
+
+  return { locations, roles, loading, refetch };
 }
 
 /** The admin user ids on one venue — so the staff picker can spot an admin. */

@@ -79,6 +79,12 @@ export function describeProfileSaveError(error: { code?: string; message: string
  * only exists to catch the common case before the user hits Save.
  */
 export async function isHandleAvailable(handle: string, selfId: string | null): Promise<boolean> {
+  // Venues and clubs share the @namespace (locations.slug), and a private
+  // club's slug isn't readable — so ask the database across both tables.
+  const shared = await supabase.rpc('handle_in_use', { p_handle: handle, p_self: selfId })
+  if (!shared.error) return shared.data !== true
+
+  // Older database without handle_in_use: users only, as before.
   const { data, error } = await supabase
     .from('public_profiles')
     .select('id')

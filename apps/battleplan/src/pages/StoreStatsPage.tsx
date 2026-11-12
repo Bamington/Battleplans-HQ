@@ -286,7 +286,7 @@ export default function StoreStatsPage() {
     });
   }, []);
 
-  const { adminLocations } = useAdminLocations(userId);
+  const { adminLocations, refetch: refetchVenues } = useAdminLocations(userId);
 
   // Only ever a venue this user administers, and the one they were already
   // looking at where that's possible — see useSelectedVenue. Falls back to
@@ -294,6 +294,7 @@ export default function StoreStatsPage() {
   // change what the home screen shows.
   const [storedVenueId, selectVenue] = useSelectedVenue();
   const venueId = resolveVenue(storedVenueId, adminLocations);
+  const selectedVenue = adminLocations.find(l => l.id === venueId);
 
   const { bookings, loading } = useStoreStats(venueId || null);
 
@@ -313,7 +314,12 @@ export default function StoreStatsPage() {
   return (
     <div className="h-dvh overflow-hidden flex flex-col bg-neutral-950">
 
-      <AppNavbar fixed={false} logo={<BattlePlanLogo />}>
+      <AppNavbar
+        fixed={false}
+        logo={<BattlePlanLogo />}
+        venue={selectedVenue ? { ...selectedVenue, slug: selectedVenue.slug ?? null, icon: selectedVenue.icon || null, role: 'admin' } : null}
+        onVenueSaved={refetchVenues}
+      >
         {adminLocations.length > 0 && (
           <StoreSelector
             locations={adminLocations}

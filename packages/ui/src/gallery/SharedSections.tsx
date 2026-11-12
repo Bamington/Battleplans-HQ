@@ -74,6 +74,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import Notebook from '../icons/Notebook';
 import { OpponentPicker } from '../components/OpponentPicker';
 import { ProfileSectionsView, type ProfileSectionsData } from '../bench/ProfileSections';
+import LocationProfileView, { type LocationProfile, type LocationProfileSlot } from '../components/LocationProfileView';
 import type { SharedModel } from '../bench/SharedViews';
 import type { Opponent, SelectedOpponent } from '../hooks/useOpponents';
 import Pagination from '../components/Pagination';
@@ -1284,7 +1285,7 @@ const DEMO_PROFILE_SECTIONS: ProfileSectionsData = {
     { id: 3, date_played: '2026-10-25', result: 'drew', game: null, venue: null, photo_path: null },
   ],
   venues: [
-    { id: 'v-1', name: 'Guf Werribee', icon: '🎲', address: '1 Watton St, Werribee VIC', country: 'AU', visits: 23 },
+    { id: 'v-1', name: 'Guf Werribee', icon: '🎲', address: '1 Watton St, Werribee VIC', country: 'AU', visits: 23, slug: 'guf-werribee' },
     { id: 'v-2', name: 'Top Table Games', icon: null, address: null, country: 'AU', visits: 9 },
     { id: 'v-3', name: 'Havoc Games', icon: '⚔️', address: null, country: 'AU', visits: 1 },
   ],
@@ -1295,6 +1296,64 @@ const DEMO_PROFILE_SECTIONS_EMPTY: ProfileSectionsData = {
   battles: { played: 0, won: 0, lost: 0, drew: 0, this_year: 0, games: 0, current_streak: 0, longest_streak: 0, most_played: [], most_wins: null, most_losses: null },
   recent_battles: [],
   venues: [],
+};
+
+/** A public venue as a signed-out visitor sees it: tables, two events. */
+/** Three back-to-back sessions most days, an evening on Wed–Fri, shut Mondays. */
+const DEMO_HOURS: LocationProfileSlot[] = (['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const).flatMap(day => [
+  { day, start: '10:30', end: '15:00', name: 'Morning', interval_weeks: 1, anchor_date: null, audience: 'anyone' as const },
+  { day, start: '15:00', end: '18:00', name: 'Afternoon', interval_weeks: 1, anchor_date: null, audience: 'anyone' as const },
+  ...(['Wednesday', 'Thursday', 'Friday'].includes(day)
+    ? [{ day, start: '18:00', end: '22:00', name: 'Evening', interval_weeks: 1, anchor_date: null, audience: 'anyone' as const }]
+    : []),
+]);
+
+const DEMO_VENUE_PROFILE: LocationProfile = {
+  location: { id: 'loc-1', slug: 'burrow-games', name: 'Burrow Games', kind: 'venue', icon: '🐇', address: '12 Warren Rd, Footscray VIC 3011', country: 'AU', is_test: false },
+  viewer: { can_manage: false, is_member: false },
+  tables: [{ label: 'Wargaming', count: 8 }, { label: 'TCG', count: 4 }],
+  hours: DEMO_HOURS,
+  stats: {
+    bookings: 488,
+    games: [
+      { name: 'Warhammer 40,000', slug: 'warhammer-40k', count: 212 },
+      { name: 'Age of Sigmar', slug: 'age-of-sigmar', count: 96 },
+      { name: 'Kill Team', slug: 'kill-team', count: 71 },
+      { name: 'Bolt Action', slug: 'bolt-action', count: 38 },
+      { name: 'Star Wars: Shatterpoint', slug: 'star-wars-shatterpoint', count: 24 },
+    ],
+    days: [
+      { dow: 2, count: 31 }, { dow: 3, count: 58 }, { dow: 4, count: 74 },
+      { dow: 5, count: 96 }, { dow: 6, count: 148 }, { dow: 7, count: 81 },
+    ],
+  },
+  events: [
+    { id: 'e-1', name: 'Spring Crusade GT', slug: 'spring-crusade', starts_on: '2026-11-21', ends_on: '2026-11-22', hosted: false, game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' } },
+    { id: 'e-2', name: 'Kill Team League Night', slug: 'kt-league', starts_on: '2026-12-04', ends_on: null, hosted: false, game: { name: 'Kill Team', slug: 'kill-team' } },
+  ],
+};
+
+/** A club, seen by one of its members who also runs it. No address, no tables. */
+const DEMO_CLUB_PROFILE: LocationProfile = {
+  location: { id: 'loc-2', slug: 'mini-myths', name: 'Mini Myths', kind: 'club', icon: null, address: null, country: null, is_test: true },
+  viewer: { can_manage: true, is_member: true },
+  tables: [],
+  // A fortnightly members' night — a club's nights are all its hours.
+  hours: [{ day: 'Thursday', start: '18:30', end: '22:30', name: 'Club Night', interval_weeks: 2, anchor_date: '2026-11-05', audience: 'members' }],
+  stats: null,
+  events: [
+    { id: 'e-3', name: 'Mini Myths Open', slug: 'mm-open', starts_on: null, ends_on: null, hosted: true, game: null },
+  ],
+};
+
+/** A venue with nothing listed yet: the empty states. */
+const DEMO_VENUE_PROFILE_EMPTY: LocationProfile = {
+  location: { id: 'loc-3', slug: 'new-shop', name: 'The New Shop', kind: 'venue', icon: '', address: '1 High St, Ballarat VIC 3350', country: 'AU', is_test: false },
+  viewer: { can_manage: false, is_member: false },
+  tables: [],
+  hours: [],
+  stats: null,
+  events: [],
 };
 
 const DEMO_OPPONENTS: Opponent[] = [
@@ -1319,6 +1378,7 @@ export const SHARED_GALLERY_NAV: GalleryNavItem[] = [
   { href: '#nav-avatars',              label: 'Avatars',              icon: <UserRounded className="w-5 h-5" /> },
   { href: '#nav-friends-modals',       label: 'Friends Modals',       icon: <UserPlusRounded className="w-5 h-5" /> },
   { href: '#nav-profile-sections',     label: 'Profile Sections',     icon: <Star className="w-5 h-5" /> },
+  { href: '#nav-location-profile',     label: 'Location Profile',     icon: <UsersGroupRounded className="w-5 h-5" /> },
   { href: '#nav-avatar-picker',        label: 'Avatar Picker',        icon: <UserCircle className="w-5 h-5" /> },
   { href: '#nav-editable-list-item',   label: 'Editable List Item',   icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-panel-section',        label: 'Panel Section',        icon: <ListCheck className="w-5 h-5" /> },
@@ -2110,6 +2170,31 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
           tab of Edit Profile. get_profile_sections returns only what the viewer may
           see; tap a model or collection to open it read-only (the share-link view).
           An empty section (switched on, nothing in it) says so.
+        </GalleryNote>
+      </GallerySection>
+
+      <GallerySection id="nav-location-profile" title="LocationProfileView">
+        <div className="w-full max-w-2xl">
+          <LocationProfileView profile={DEMO_VENUE_PROFILE} eventHref={slug => `#${slug}`} onBook={() => {}} onBookDate={() => {}} />
+        </div>
+        <div className="w-full max-w-2xl">
+          <LocationProfileView profile={DEMO_CLUB_PROFILE} eventHref={slug => `#${slug}`} onBook={() => {}} onBookDate={() => {}} onManage={() => {}} />
+        </div>
+        <div className="w-full max-w-2xl">
+          <LocationProfileView profile={DEMO_VENUE_PROFILE_EMPTY} eventHref={slug => `#${slug}`} onBook={() => {}} />
+        </div>
+        <GalleryNote>
+          A venue or club's page at /@slug — the same address space as players.
+          ProfilePage asks get_location_profile when the name isn't a user's.
+          Book a table shows for a venue with opening hours; Manage only for its
+          admins. Upcoming Events is hidden when there are none. Opening Hours come
+          from bookable timeslots (back-to-back slots merge into one range), and each
+          open day gets a Book table button for a signed-in viewer, starting New
+          Booking on that day's next date. Store Stats appear only when the venue
+          switches them on and has 10+ bookings in the last year, as ranked lists with no numbers: the top 5 games and the 3 best days. Clubs are visible
+          only to their people until the public opt-in lands. Shown: a signed-in
+          viewer at a public venue with stats, a test club with a fortnightly night
+          seen by its admin, and a signed-out view of a venue with nothing listed.
         </GalleryNote>
       </GallerySection>
 

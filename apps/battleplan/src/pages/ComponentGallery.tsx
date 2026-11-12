@@ -37,6 +37,7 @@ import {
 import { Widget2, Gallery, ListCheck, Shield, Bookmark, UsersGroupRounded, Home, Clipboard } from '@battleplans/ui';
 
 import AppNavbar from '../components/AppNavbar';
+import EditLocationProfileModal from '../components/EditLocationProfileModal';
 import { BattleItem, BattleCardBody } from '../components/BattleItem';
 import { BattleGridItem } from '../components/BattleGridItem';
 import { BattleDetailsModal } from '../components/BattleDetailsModal';
@@ -262,6 +263,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-booking-fees',      label: 'Booking Fees',       icon: <ListCheck className="w-5 h-5" /> },
   { href: '#nav-location-staff',    label: 'Location Staff',     icon: <UsersGroupRounded className="w-5 h-5" /> },
   { href: '#nav-club-people',       label: 'Club People',        icon: <UsersGroupRounded className="w-5 h-5" /> },
+  { href: '#nav-location-profile-editor', label: 'Edit Location Profile', icon: <Home className="w-5 h-5" /> },
 ];
 
 // ── Gallery page ─────────────────────────────────────────────────────────────
@@ -277,6 +279,7 @@ const ComponentGallery = () => {
   const [feeOpen,        setFeeOpen]        = useState(false);
   const [staffOpen,      setStaffOpen]      = useState(false);
   const [peopleOpen,     setPeopleOpen]     = useState(false);
+  const [profileEdit,    setProfileEdit]    = useState<'venue' | 'club' | null>(null);
   const [date,           setDate]           = useState('2026-08-01');
   const [selectedStore,  setSelectedStore]  = useState('loc-1');
   const [scopeShowingAll, setScopeShowingAll] = useState(false);
@@ -949,6 +952,35 @@ const ComponentGallery = () => {
             clubName="Fitzroy Wargamers"
             existingIds={DEMO_PEOPLE.map(p => p.userId)}
             onSaved={() => setPeopleOpen(false)}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          EDIT LOCATION PROFILE
+          "Edit Store Profile" / "Edit Club Profile" in the user menu.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-location-profile-editor" title="Edit Location Profile">
+        <div className="w-full max-w-2xl flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Button onClick={() => setProfileEdit('venue')}>Open as a Store</Button>
+            <Button variant="outline" onClick={() => setProfileEdit('club')}>Open as a Club</Button>
+          </div>
+          <GalleryNote>
+            Opened from the user menu by a venue or club admin while that location is
+            picked in the Viewing selector; staff only get View. The store demo has
+            an emoji icon, which reads as no logo (initials), and the club demo has
+            none. Saving goes through <code>update_location_profile</code> and the
+            logo to <code>location-icons/&lt;location id&gt;/</code>, so it fails
+            here without a real location you administer. A taken or malformed
+            profile name is caught before Save.
+          </GalleryNote>
+          <EditLocationProfileModal
+            open={profileEdit !== null}
+            onClose={() => setProfileEdit(null)}
+            location={profileEdit === 'club'
+              ? { id: 'loc-2', name: 'Fitzroy Wargamers', icon: null, slug: 'fitzroy-wargamers', kind: 'club' }
+              : { id: 'loc-1', name: 'Battleground North', icon: '🎲', slug: 'battleground-north', kind: 'venue' }}
           />
         </div>
       </GallerySection>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, AppFooter, Button, Layers, COLUMN_ROW, COLUMN_PANEL } from '@battleplans/ui';
 import AppNavbar from '../components/AppNavbar';
 import {
@@ -74,7 +74,7 @@ export default function ManageStore() {
   // Every column on this page edits venue settings, which is exactly what the
   // staff role withholds — so the page is venue admins only. Staff get their
   // venue's bookings on the home screen instead.
-  const { adminLocations, loading } = useAdminLocations(userId ?? null);
+  const { adminLocations, loading, refetch: refetchVenues } = useAdminLocations(userId ?? null);
   const [storedVenueId, selectVenue] = useSelectedVenue();
   const [addOpen,    setAddOpen]    = useState(false);
 
@@ -84,6 +84,19 @@ export default function ManageStore() {
   // deliberately without writing that back, so returning home still shows what
   // you actually picked.
   const selectedId = resolveVenue(storedVenueId, adminLocations);
+
+  // /app/manage-store?venue=<id> — "Manage venue" on a venue's profile page
+  // names which one. Adopt it once it's confirmed to be one of yours, then drop
+  // the parameter so it doesn't override a later pick on refresh.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const venueParam = searchParams.get('venue');
+  useEffect(() => {
+    // userId undefined = session still resolving, when the list is empty but
+    // not yet "loading" — acting then would throw the parameter away.
+    if (!venueParam || userId === undefined || loading) return;
+    if (adminLocations.some(l => l.id === venueParam)) selectVenue(venueParam);
+    setSearchParams(p => { p.delete('venue'); return p; }, { replace: true });
+  }, [venueParam, userId, loading, adminLocations, selectVenue, setSearchParams]);
 
   // Only venue admins may see this page — send everyone else home. Staff who
   // reach the URL directly land back on their bookings.
@@ -152,6 +165,8 @@ export default function ManageStore() {
         fixed={false}
         logo={<BattlePlanLogo />}
         breadcrumbs={[{ label: 'Home', href: '/app' }, { label: `Manage ${nounTitle}` }]}
+        venue={selectedStore ? { ...selectedStore, slug: selectedStore.slug ?? null, icon: selectedStore.icon || null, role: 'admin' } : null}
+        onVenueSaved={refetchVenues}
       >
         {selectedStore && (
           <StoreSelector locations={adminLocations} selectedId={selectedId} onSelect={selectVenue} />
