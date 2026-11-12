@@ -27,6 +27,11 @@ import ArrowRight from '../icons/ArrowRight';
 import UserRounded from '../icons/UserRounded';
 import Play from '../icons/Play';
 import Star from '../icons/Star';
+import Trophy from '../icons/Trophy';
+import { supabase } from '../lib/supabase';
+
+/** Your own W/L/D against someone — see my_record_against(). */
+interface HeadToHead { played: number; won: number; lost: number; drew: number }
 
 /** How the viewer is related to the person being viewed. */
 export type FriendProfileState =
@@ -86,6 +91,19 @@ export function ProfileView({
     return () => { cancelled = true; };
   }, [isFriend, userId]);
 
+  // Head to head: YOUR record against them, from your own battles where an
+  // opponent is linked to their account — so it needs no permission from them.
+  // Null when you've never logged one (the line just doesn't show).
+  const signedInOther = state.kind !== 'self' && state.kind !== 'signedOut';
+  const [h2h, setH2h] = useState<HeadToHead | null>(null);
+  useEffect(() => {
+    if (!signedInOther || !userId) { setH2h(null); return; }
+    let cancelled = false;
+    supabase.rpc('my_record_against', { p_user: userId })
+      .then(({ data }) => { if (!cancelled) setH2h((data as HeadToHead | null) ?? null); });
+    return () => { cancelled = true; };
+  }, [signedInOther, userId]);
+
   const name = state.kind === 'friends' ? state.username : null;
   const page = size === 'page';
 
@@ -109,6 +127,19 @@ export function ProfileView({
           <p className="font-body text-base text-neutral-300 leading-6 text-center">{name}</p>
         )}
       </div>
+
+      {h2h && h2h.played > 0 && (
+        <div className="flex flex-col gap-1.5 w-full items-center">
+          <p className="font-body font-bold text-sm leading-5 text-neutral-300 text-center">
+            Your record against @{handle}
+          </p>
+          <div className="flex flex-wrap gap-1.5 justify-center">
+            <Badge color="success" icon={<Trophy className="w-3 h-3" />}>{h2h.won} Won</Badge>
+            <Badge color="danger">{h2h.lost} Lost</Badge>
+            {h2h.drew > 0 && <Badge color="gray">{h2h.drew} Drawn</Badge>}
+          </div>
+        </div>
+      )}
 
       {/* Favourite Games — friends only, and only when they've logged any.
           An empty section would read as "this person doesn't play", which

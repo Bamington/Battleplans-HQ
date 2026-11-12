@@ -85,8 +85,12 @@ export function TotalsCard({ models, collections, games }: { models: number; col
   );
 }
 
-/** One ranked row: rank, optional game icon, name, total minis, painted %. */
-export function RankRow({ index, group, icon }: { index: number; group: Group; icon?: boolean }) {
+/**
+ * One ranked row: rank, optional game icon, name, total, and a rate.
+ * `rateLabel` names that rate — "painted" for collections (the default), or
+ * e.g. "won" when a Group carries battles (total = played, painted = won).
+ */
+export function RankRow({ index, group, icon, rateLabel = 'painted' }: { index: number; group: Group; icon?: boolean; rateLabel?: string }) {
   return (
     <li className="flex items-center gap-2">
       <span className="w-4 shrink-0 text-right font-body text-sm text-neutral-500">{index + 1}</span>
@@ -99,19 +103,24 @@ export function RankRow({ index, group, icon }: { index: number; group: Group; i
       )}
       <span className="flex-1 min-w-0 truncate font-body text-sm text-neutral-50">{group.name}</span>
       <span className="font-heading text-sm text-white tabular-nums">{group.total}</span>
-      <span className="w-16 shrink-0 text-right font-body text-xs text-neutral-400">{pct(group.paintedRate)}% painted</span>
+      <span className="w-16 shrink-0 text-right font-body text-xs text-neutral-400">{pct(group.paintedRate)}% {rateLabel}</span>
     </li>
   );
 }
 
-/** A numbered ranking: top 3 collapsed, "Show all" expands (paginated past 10). */
-export function RankedListCard({ title, groups, icon, emptyLabel }: {
-  title: string; groups: Group[]; icon?: boolean; emptyLabel: string;
+/**
+ * A numbered ranking: top 3 collapsed, "Show all" expands (paginated past 10).
+ * `expandable={false}` lists every group given, with no toggle or pages — for
+ * a list the caller has already capped (e.g. a profile's top 10).
+ */
+export function RankedListCard({ title, groups, icon, emptyLabel, rateLabel, expandable = true }: {
+  title: string; groups: Group[]; icon?: boolean; emptyLabel: string; rateLabel?: string; expandable?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [toggled, setExpanded] = useState(false);
+  const expanded = !expandable || toggled;
   const [page, setPage] = useState(0);
 
-  const paginated  = expanded && groups.length > RANK_PAGE;
+  const paginated  = expandable && expanded && groups.length > RANK_PAGE;
   const totalPages = Math.max(1, Math.ceil(groups.length / RANK_PAGE));
   const safePage   = Math.min(page, totalPages - 1);
   const start      = paginated ? safePage * RANK_PAGE : 0;
@@ -124,10 +133,10 @@ export function RankedListCard({ title, groups, icon, emptyLabel }: {
       ) : (
         <>
           <ol className="flex flex-col gap-1.5">
-            {visible.map((g, i) => <RankRow key={g.key} index={start + i} group={g} icon={icon} />)}
+            {visible.map((g, i) => <RankRow key={g.key} index={start + i} group={g} icon={icon} rateLabel={rateLabel} />)}
           </ol>
           {paginated && <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />}
-          {groups.length > 3 && (
+          {expandable && groups.length > 3 && (
             <button
               type="button"
               onClick={() => (expanded ? (setExpanded(false), setPage(0)) : setExpanded(true))}

@@ -20,13 +20,20 @@
 import { useSyncExternalStore } from 'react'
 
 export interface ProfileDisplay {
-  /** Chosen username, or null before one is set / when signed out. */
+  /**
+   * The `username` column, which is the REAL NAME (labelled "Your Name") —
+   * shown in the menu, never used as an address. Null before one is set /
+   * when signed out.
+   */
   username: string | null
+  /** The public @handle (the `handle` column, labelled "Username") — the
+   *  address of the profile page, /@handle. Null when signed out. */
+  handle: string | null
   /** Resolved public URL of the profile picture, or null for none. */
   avatarUrl: string | null
 }
 
-const EMPTY: ProfileDisplay = { username: null, avatarUrl: null }
+const EMPTY: ProfileDisplay = { username: null, handle: null, avatarUrl: null }
 
 let current: ProfileDisplay = EMPTY
 const listeners = new Set<() => void>()
@@ -41,7 +48,7 @@ export function publishProfileDisplay(next: ProfileDisplay): void {
   // useSyncExternalStore compares snapshots by identity, so only swap the
   // object when a field actually changed. Publishing an equal value would
   // otherwise re-render every subscriber for nothing.
-  if (current.username === next.username && current.avatarUrl === next.avatarUrl) return
+  if (current.username === next.username && current.handle === next.handle && current.avatarUrl === next.avatarUrl) return
   current = next
   listeners.forEach((l) => l())
 }

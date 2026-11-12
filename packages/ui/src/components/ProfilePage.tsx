@@ -133,7 +133,7 @@ export default function ProfilePage({ appName, resolveGameIcon, param = 'profile
               />
             )}
           </article>
-          {/* Painting Bench, Favourites, Painting Stats — whichever this viewer may see. */}
+          {/* Painting and gameplay sections — whichever this viewer may see. */}
           <ProfileSections userId={profile.id} />
           </>
         )}
