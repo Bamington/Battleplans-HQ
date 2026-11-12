@@ -10,6 +10,7 @@ import ManagePaintPacks from './pages/admin/ManagePaintPacks.tsx';
 import ManageUsers from './pages/admin/ManageUsers.tsx';
 import PaintPackEditor from './pages/admin/PaintPackEditor.tsx';
 import ManageBoxContents from './pages/admin/ManageBoxContents.tsx';
+import ManageUpdates from './pages/admin/ManageUpdates.tsx';
 import ComponentGallery from './pages/ComponentGallery.tsx';
 import SharedItemPage from './pages/SharedItemPage.tsx';
 
@@ -38,6 +39,7 @@ export function appRoutes() {
       <Route path="/app/admin/paint-packs" element={<ManagePaintPacks />} />
       <Route path="/app/admin/paint-packs/:packId" element={<PaintPackEditor />} />
       <Route path="/app/admin/box-contents" element={<ManageBoxContents />} />
+      <Route path="/app/admin/updates" element={<ManageUpdates />} />
     </Route>
   );
 }

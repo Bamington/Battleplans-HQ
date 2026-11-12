@@ -54,7 +54,25 @@ const ALL_APPS: { value: UpdateApp; label: string }[] = [
 
 const APP_LABEL = Object.fromEntries(ALL_APPS.map(a => [a.value, a.label]));
 
-const EMPTY_FORM = { title: '', body: '', version: '', apps: [] as string[], published: false, visible: true };
+/** `date` is the note's date as yyyy-mm-dd (local) — '' means "the day it's
+ *  published". It's stored in `published_at`, which News & Updates shows and
+ *  sorts by. */
+const EMPTY_FORM = { title: '', body: '', version: '', date: '', apps: [] as string[], published: false, visible: true };
+
+/** An ISO timestamp → its local calendar date, yyyy-mm-dd ('' for none). */
+function toDateInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** yyyy-mm-dd → an ISO timestamp at local noon, so no timezone can tip it
+ *  onto the day before or after. */
+function fromDateInput(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d, 12).toISOString();
+}
 
 interface ManageUpdatesPageProps {
   logo?: React.ReactNode;
@@ -103,6 +121,9 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
     const { data, error } = await supabase
       .from('updates')
       .select('id, title, body, version, apps, published, visible, published_by, published_by_name, published_at, created_at')
+      // Same order as News & Updates, so a changed date moves the note here
+      // too. Undated drafts sit at the top, newest first.
+      .order('published_at', { ascending: false, nullsFirst: true })
       .order('created_at', { ascending: false });
     if (error) setError(error.message);
     else setUpdates((data ?? []) as UpdateRow[]);
@@ -138,6 +159,7 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
       title:     u.title,
       body:      u.body ?? '',
       version:   u.version ?? '',
+      date:      toDateInput(u.published_at),
       apps:      u.apps ?? [],
       published: u.published,
       visible:   u.visible ?? true,
@@ -177,7 +199,14 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
         payload.published_by      = author.id;
         payload.published_by_name = author.name;
       }
-      payload.published_at = new Date().toISOString();
+      // No date chosen → it's dated the day it goes out.
+      if (!form.date) payload.published_at = new Date().toISOString();
+    }
+
+    // A chosen date wins. Left unchanged, the original timestamp is kept as-is
+    // (re-deriving it from the day would nudge its time to noon for nothing).
+    if (form.date && form.date !== toDateInput(editing?.published_at ?? null)) {
+      payload.published_at = fromDateInput(form.date);
     }
 
     const { error } = editing
@@ -319,6 +348,15 @@ export default function ManageUpdatesPage({ logo, breadcrumbs = DEFAULT_CRUMBS }
             placeholder="e.g. 1.09.0"
             value={form.version}
             onChange={e => setForm(f => ({ ...f, version: e.target.value }))}
+          />
+
+          <Input
+            label="Date"
+            type="date"
+            className="[color-scheme:dark]"
+            value={form.date}
+            onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+            helperText="Shown on the update, and sets its place in News & Updates. Leave blank to use the day it's published."
           />
 
           <div className="flex flex-col gap-2">
