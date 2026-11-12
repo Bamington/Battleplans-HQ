@@ -446,3 +446,32 @@
     outline: none;
   }
 }
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────────
+   A slim rounded thumb on a clear track, in every app, replacing the browser's
+   chunky grey bar with arrow buttons. The thumb lights up in the app's accent
+   (primary) on hover.
+
+   Two mechanisms, because no one syntax reaches everything:
+   - ::-webkit-scrollbar — Chrome, Edge, Safari, and the Android/iOS WebViews.
+     Full control: width, rounded thumb, hover colour.
+   - scrollbar-width / scrollbar-color — the standard, for Firefox. Only applied
+     where the pseudo-elements aren't supported, because where both exist the
+     standard properties win and would flatten the rounded thumb. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-700);
+  border-radius: 9999px;
+  border: 3px solid transparent;  /* inset from the edges */
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-primary-600); }
+::-webkit-scrollbar-button { display: none; }
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gray-700) transparent;
+  }
+}
