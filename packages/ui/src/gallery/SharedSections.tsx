@@ -1327,9 +1327,29 @@ const DEMO_VENUE_PROFILE: LocationProfile = {
       { dow: 5, count: 96 }, { dow: 6, count: 148 }, { dow: 7, count: 81 },
     ],
   },
+  profile: {
+    about: 'Footscray’s friendliest games shop. **Eight wargaming tables** with terrain supplied, four TCG tables, and a paint station you can use for free.',
+    cover_url: null,
+    cover_aspect: null,
+    founded_year: 2019,
+    links: [
+      { label: 'Online shop', url: 'https://example.com/shop' },
+      { label: 'Instagram', url: 'https://instagram.com/example' },
+    ],
+    rules: '- Painted or primed models preferred\n- No outside food at the tables\n- Pack down 15 minutes before close',
+    rules_url: null,
+  },
+  clubs: [
+    { id: 'loc-2', slug: 'mini-myths', name: 'Mini Myths', icon: null, home: true },
+    { id: 'loc-9', slug: 'western-wargamers', name: 'Western Wargamers', icon: '⚔️', home: false },
+  ],
   events: [
-    { id: 'e-1', name: 'Spring Crusade GT', slug: 'spring-crusade', starts_on: '2026-11-21', ends_on: '2026-11-22', hosted: false, game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' } },
+    { id: 'e-1', name: 'Spring Crusade GT', slug: 'spring-crusade', starts_on: '2026-11-21', ends_on: '2026-11-22', hosted: false, game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' }, host: { name: 'Mini Myths', slug: 'mini-myths' } },
     { id: 'e-2', name: 'Kill Team League Night', slug: 'kt-league', starts_on: '2026-12-04', ends_on: null, hosted: false, game: { name: 'Kill Team', slug: 'kill-team' } },
+  ],
+  past_events: [
+    { id: 'p-1', name: 'Battle for the Amethyst City', slug: 'amethyst-city', starts_on: '2026-07-19', ends_on: null, hosted: false, game: { name: 'Age of Sigmar', slug: 'age-of-sigmar' }, host: { name: 'Mini Myths', slug: 'mini-myths' } },
+    { id: 'p-2', name: 'Winter Kill Team Open', slug: 'winter-kt', starts_on: '2026-06-28', ends_on: null, hosted: false, game: { name: 'Kill Team', slug: 'kill-team' } },
   ],
 };
 
@@ -1341,9 +1361,32 @@ const DEMO_CLUB_PROFILE: LocationProfile = {
   // A fortnightly members' night — a club's nights are all its hours.
   hours: [{ day: 'Thursday', start: '18:30', end: '22:30', name: 'Club Night', interval_weeks: 2, anchor_date: '2026-11-05', audience: 'members' }],
   stats: null,
-  events: [
-    { id: 'e-3', name: 'Mini Myths Open', slug: 'mm-open', starts_on: null, ends_on: null, hosted: true, game: null },
+  settings: { show_stats: false, is_public: false },
+  profile: {
+    about: 'A not-for-profit wargaming club in Melbourne’s west, running 20–30 events a year. Competitive or casual, hobby hero or table titan — everyone is welcome.',
+    cover_url: null,
+    cover_aspect: null,
+    founded_year: 2022,
+    links: [
+      { label: 'Join our Discord', url: 'https://discord.gg/example' },
+      { label: 'Website', url: 'https://example.com' },
+    ],
+    rules: 'Be gracious in victory and defeat, explain your army, and roll dice where everyone can see them.',
+    rules_url: 'https://example.com/code-of-conduct',
+  },
+  venues: [
+    { id: 'loc-1', slug: 'burrow-games', name: 'Burrow Games', icon: '🐇', address: '12 Warren Rd, Footscray VIC 3011', home: true },
+    { id: 'loc-8', slug: null, name: 'Top Deck Arena', icon: null, address: '40 Main St, Sunshine VIC 3020', home: false },
   ],
+  events: [
+    { id: 'e-3', name: 'Mini Myths Open', slug: 'mm-open', starts_on: null, ends_on: null, hosted: true, game: null, venue: { name: 'Top Deck Arena', slug: null } },
+    { id: 'e-1', name: 'Spring Crusade GT', slug: 'spring-crusade', starts_on: '2026-11-21', ends_on: '2026-11-22', hosted: true, game: { name: 'Warhammer 40,000', slug: 'warhammer-40k' }, venue: { name: 'Burrow Games', slug: 'burrow-games' } },
+  ],
+  past_events: ['Purple Palette 5', 'Battle for the Amethyst City', 'Time for Armageddon!', 'Duel of the Fates', 'Fumble Rumble', 'Friday Night Hobby', 'War for Werribee'].map((name, i) => ({
+    id: `cp-${i}`, name, slug: `past-${i}`, starts_on: `2026-0${8 - i}-1${i}`, ends_on: null, hosted: true,
+    game: i % 2 ? { name: 'Age of Sigmar', slug: 'age-of-sigmar' } : { name: 'Warhammer 40,000', slug: 'warhammer-40k' },
+    venue: { name: 'Burrow Games', slug: 'burrow-games' },
+  })),
 };
 
 /** A venue with nothing listed yet: the empty states. */
@@ -1970,6 +2013,18 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
         </div>
       </GallerySection>
 
+      <GallerySection title="Button / As a Link">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button href="#nav-buttons">Same tab</Button>
+          <Button href="https://example.com" external rightIcon={<ExternalLink className="w-4 h-4" />}>Join our Discord</Button>
+          <Button href="https://example.com" external size="xs" variant="outline" color="secondary" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>Instagram</Button>
+        </div>
+        <GalleryNote>
+          With href, Button renders an &lt;a&gt; styled the same — for navigation, where a button
+          inside a link would be invalid. external opens a new tab.
+        </GalleryNote>
+      </GallerySection>
+
       <GallerySection id="nav-counter" title="Counter">
         <div className="space-y-6">
 
@@ -2175,10 +2230,10 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
 
       <GallerySection id="nav-location-profile" title="LocationProfileView">
         <div className="w-full max-w-2xl">
-          <LocationProfileView profile={DEMO_VENUE_PROFILE} eventHref={slug => `#${slug}`} onBook={() => {}} onBookDate={() => {}} />
+          <LocationProfileView profile={DEMO_VENUE_PROFILE} eventHref={slug => `#${slug}`} placeHref={slug => `#${slug}`} onBook={() => {}} onBookDate={() => {}} />
         </div>
         <div className="w-full max-w-2xl">
-          <LocationProfileView profile={DEMO_CLUB_PROFILE} eventHref={slug => `#${slug}`} onBook={() => {}} onBookDate={() => {}} onManage={() => {}} />
+          <LocationProfileView profile={DEMO_CLUB_PROFILE} eventHref={slug => `#${slug}`} placeHref={slug => `#${slug}`} onBook={() => {}} onBookDate={() => {}} onManage={() => {}} />
         </div>
         <div className="w-full max-w-2xl">
           <LocationProfileView profile={DEMO_VENUE_PROFILE_EMPTY} eventHref={slug => `#${slug}`} onBook={() => {}} />
@@ -2191,10 +2246,14 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
           from bookable timeslots (back-to-back slots merge into one range), and each
           open day gets a Book table button for a signed-in viewer, starting New
           Booking on that day's next date. Store Stats appear only when the venue
-          switches them on and has 10+ bookings in the last year, as ranked lists with no numbers: the top 5 games and the 3 best days. Clubs are visible
-          only to their people until the public opt-in lands. Shown: a signed-in
-          viewer at a public venue with stats, a test club with a fortnightly night
-          seen by its admin, and a signed-out view of a venue with nothing listed.
+          switches them on and has 10+ bookings in the last year, as ranked lists with no numbers: the top 5 games and the 3 best days.
+          The hand-written parts (cover, About, Est. year, links, House Rules / Code of
+          Conduct) come from the profile editor and hide when empty. With no booking to
+          offer, the first link becomes the main button. Where We Play / Clubs That Play
+          Here link clubs and stores both ways; events (upcoming and past, from BattlePack)
+          name whichever of venue and host club the page isn't. Clubs are private unless
+          their admins switch the page public. Shown: a public venue with stats and clubs,
+          a private test club seen by its admin, and a venue with nothing listed.
         </GalleryNote>
       </GallerySection>
 

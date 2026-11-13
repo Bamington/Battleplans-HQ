@@ -10,6 +10,10 @@
  *   <Button variant="ghost" color="secondary" rightIcon={<ArrowRight className="w-4 h-4" />}>
  *     View details
  *   </Button>
+ *   <Button href="https://discord.gg/abc" external>Join our Discord</Button>
+ *
+ * With `href` it renders a link styled as a button — for navigation, where a
+ * <button> inside an <a> would be invalid. `external` opens it in a new tab.
  */
 
 import React from 'react';
@@ -48,6 +52,10 @@ export interface ButtonProps {
   /** HTML button type attribute */
   type?: 'button' | 'submit' | 'reset';
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  /** Render as a link to this address instead of a <button>. */
+  href?: string;
+  /** With `href`: open in a new tab (target=_blank, rel=noreferrer). */
+  external?: boolean;
   /**
    * Accessible name. Required when the button is icon-only — with no text
    * child there is otherwise nothing for a screen reader to announce.
@@ -163,6 +171,8 @@ const Button = ({
   disabled  = false,
   type      = 'button',
   onClick,
+  href,
+  external = false,
   className = '',
   children,
   'aria-label': ariaLabel,
@@ -177,6 +187,21 @@ const Button = ({
     isDisabled ? 'opacity-50 cursor-not-allowed' : '',
     className,
   ].filter(Boolean).join(' ');
+
+  if (href && !isDisabled) {
+    return (
+      <a
+        href={href}
+        className={classes}
+        aria-label={ariaLabel}
+        {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+      >
+        {leftIcon}
+        {children}
+        {rightIcon}
+      </a>
+    );
+  }
 
   return (
     <button

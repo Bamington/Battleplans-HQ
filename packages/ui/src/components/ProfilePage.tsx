@@ -163,6 +163,7 @@ export default function ProfilePage({ appName, resolveGameIcon, param = 'profile
           <LocationProfileView
             profile={place}
             eventHref={eventHref}
+            placeHref={slug => `/@${slug}`}
             onBook={() => openInBattleplan(`/app?book=${place.location.id}`)}
             onBookDate={myId ? date => openInBattleplan(`/app?book=${place.location.id}&date=${date}`) : undefined}
             onManage={() => openInBattleplan(`/app/manage-store?venue=${place.location.id}`)}

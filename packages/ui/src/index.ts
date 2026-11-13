@@ -287,7 +287,7 @@ export { default as FriendProfileModal, ProfileView, profilePath } from './compo
 export type { FriendProfileModalProps, FriendProfileState, ProfileViewProps } from './components/FriendProfileModal'
 export { default as ProfilePage } from './components/ProfilePage'
 export { default as LocationProfileView } from './components/LocationProfileView'
-export type { LocationProfile, LocationProfileEvent, LocationProfileKind, LocationProfileViewProps, LocationProfileSlot, LocationProfileStats, Weekday } from './components/LocationProfileView'
+export type { LocationProfile, LocationProfileEvent, LocationProfileKind, LocationProfileViewProps, LocationProfileSlot, LocationProfileStats, LocationProfileContent, LocationProfileLink, LocationProfilePlace, Weekday } from './components/LocationProfileView'
 
 // BattleBench's read-only model views — shared so any app (a profile, a share
 // link) can show a model, collection or recipe.
