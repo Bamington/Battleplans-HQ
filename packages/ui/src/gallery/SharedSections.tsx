@@ -1308,6 +1308,9 @@ const DEMO_HOURS: LocationProfileSlot[] = (['Tuesday', 'Wednesday', 'Thursday', 
     : []),
 ]);
 
+/** A placeholder banner: a 2.4:1 gradient, so the gallery needs no network. */
+const DEMO_COVER = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c1d95"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs><rect width="1200" height="500" fill="url(#g)"/></svg>')}`;
+
 const DEMO_VENUE_PROFILE: LocationProfile = {
   location: { id: 'loc-1', slug: 'burrow-games', name: 'Burrow Games', kind: 'venue', icon: '🐇', address: '12 Warren Rd, Footscray VIC 3011', country: 'AU', is_test: false },
   viewer: { can_manage: false, is_member: false },
@@ -1331,7 +1334,7 @@ const DEMO_VENUE_PROFILE: LocationProfile = {
     about: 'Footscray’s friendliest games shop. **Eight wargaming tables** with terrain supplied, four TCG tables, and a paint station you can use for free.',
     cover_url: null,
     cover_aspect: null,
-    founded_year: 2019,
+    tagline: 'Est. 2019',
     links: [
       { label: 'Online shop', url: 'https://example.com/shop' },
       { label: 'Instagram', url: 'https://instagram.com/example' },
@@ -1364,9 +1367,9 @@ const DEMO_CLUB_PROFILE: LocationProfile = {
   settings: { show_stats: false, is_public: false },
   profile: {
     about: 'A not-for-profit wargaming club in Melbourne’s west, running 20–30 events a year. Competitive or casual, hobby hero or table titan — everyone is welcome.',
-    cover_url: null,
-    cover_aspect: null,
-    founded_year: 2022,
+    cover_url: DEMO_COVER,
+    cover_aspect: 2.4,
+    tagline: 'Gaming for everyone',
     links: [
       { label: 'Join our Discord', url: 'https://discord.gg/example' },
       { label: 'Website', url: 'https://example.com' },
@@ -2247,7 +2250,7 @@ const SharedGallerySections = ({ appName = 'BattleCards' }: SharedGallerySection
           open day gets a Book table button for a signed-in viewer, starting New
           Booking on that day's next date. Store Stats appear only when the venue
           switches them on and has 10+ bookings in the last year, as ranked lists with no numbers: the top 5 games and the 3 best days.
-          The hand-written parts (cover, About, Est. year, links, House Rules / Code of
+          The hand-written parts (cover banner — at most 400px tall —, About, tagline, links, House Rules / Code of
           Conduct) come from the profile editor and hide when empty. With no booking to
           offer, the first link becomes the main button. Where We Play / Clubs That Play
           Here link clubs and stores both ways; events (upcoming and past, from BattlePack)

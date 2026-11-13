@@ -8,7 +8,8 @@
  *
  * Stores and clubs share every section; labels follow `kind`.
  *
- *   header   — cover image, logo, name, @slug · Est. year, kind, address
+ *   cover    — a banner across the page, at most 400px tall
+ *   header   — logo, name, tagline, @slug, kind, address
  *              (venues; opens in Google Maps), links
  *   actions  — Book a table (a venue with opening hours), else the first link
  *              as the main button; Manage (its admins)
@@ -64,7 +65,10 @@ export interface LocationProfileContent {
   cover_url: string | null;
   /** Width ÷ height, so the page can hold the space before the image loads. */
   cover_aspect: number | null;
-  founded_year: number | null;
+  /** Superseded by tagline; still returned, no longer shown or edited. */
+  founded_year?: number | null;
+  /** One short line under the name — "Est. 2022", "Gaming for everyone". */
+  tagline?: string | null;
   /** The first is the page's main button when there's no booking to offer. */
   links: LocationProfileLink[];
   /** Markdown — House Rules for a store, Code of Conduct for a club. */
@@ -161,6 +165,26 @@ const KIND_LABEL: Record<LocationProfileKind, string> = { venue: 'Venue', club: 
 
 /** Past events shown before "Show all". */
 const PAST_PREVIEW = 5;
+
+/** The cover banner is never taller than this, at any width. */
+export const COVER_MAX_HEIGHT = 400;
+/**
+ * The tallest shape a cover may be (width ÷ height): COVER_MAX_HEIGHT at the
+ * page's 640px content width. The editor crops uploads to it.
+ */
+export const COVER_MIN_ASPECT = 640 / COVER_MAX_HEIGHT;
+
+/** About is a short introduction, not a history: at most this many words. */
+export const ABOUT_MAX_WORDS = 200;
+
+/**
+ * Words as update_location_profile counts them (public.word_count): runs of
+ * non-space characters containing a letter or digit, so markdown bullets and
+ * stray symbols don't count.
+ */
+export function countWords(text: string): number {
+  return text.match(/\S*[\p{L}\p{N}]\S*/gu)?.length ?? 0;
+}
 
 /** 'Sat 22 Aug 2026', or 'Sat 22 Aug – Sun 23 Aug 2026' over several days. */
 function formatEventDates(starts: string | null, ends: string | null): string {
@@ -349,27 +373,36 @@ export default function LocationProfileView({ profile, eventHref, placeHref, onB
 
   return (
     <div className="flex flex-col gap-8">
-      <article className="w-full max-w-md mx-auto bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden">
-        {hasCover && (
-          <div className="w-full bg-neutral-800" style={{ aspectRatio: String(content!.cover_aspect ?? 2) }}>
-            <img src={content!.cover_url!} alt="" className="w-full h-full object-cover" />
-          </div>
-        )}
+      <div className="flex flex-col">
+      {/* The cover is a banner across the page, wider than the card, and never
+          taller than COVER_MAX_HEIGHT. The editor crops to COVER_MIN_ASPECT, the
+          shape that height gives at the page's full width, so what an admin
+          crops is what shows. */}
+      {hasCover && (
+        <div
+          className="w-full rounded-xl overflow-hidden bg-neutral-800"
+          style={{ aspectRatio: String(Math.max(content!.cover_aspect ?? COVER_MIN_ASPECT, COVER_MIN_ASPECT)), maxHeight: COVER_MAX_HEIGHT }}
+        >
+          <img src={content!.cover_url!} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
+      <article
+        className={`relative max-w-md mx-auto bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden ${
+          // On a phone the card is as wide as the banner: inset it a little and
+          // overlap less, so the banner still reads as a banner.
+          hasCover ? 'w-[calc(100%-1.5rem)] -mt-8 sm:w-full sm:-mt-16' : 'w-full'}`}
+      >
         <div className="p-6 gap-4 flex flex-col items-center">
-          <Logo
-            icon={loc.icon}
-            kind={loc.kind}
-            size={hasCover ? 128 : 160}
-            className={hasCover ? '-mt-20 ring-4 ring-neutral-900 shadow-lg' : ''}
-          />
+          <Logo icon={loc.icon} kind={loc.kind} size={hasCover ? 128 : 160} />
 
           <div className="flex flex-col w-full items-center gap-1">
             <h1 className="font-heading text-white text-4xl leading-10 text-center break-words [text-shadow:0px_0px_4px_rgba(255,255,255,0.1)]">
               {loc.name}
             </h1>
-            <p className="font-body text-base text-neutral-400 leading-6">
-              @{loc.slug}{content?.founded_year ? ` · Est. ${content.founded_year}` : ''}
-            </p>
+            {content?.tagline && (
+              <p className="font-body text-base text-neutral-200 leading-6 text-center break-words">{content.tagline}</p>
+            )}
+            <p className="font-body text-sm text-neutral-400 leading-5">@{loc.slug}</p>
             <div className="flex flex-wrap gap-1.5 justify-center pt-1">
               <Badge color="primary">{KIND_LABEL[loc.kind]}</Badge>
               {viewer.is_member && <Badge color="success">Member</Badge>}
@@ -435,6 +468,7 @@ export default function LocationProfileView({ profile, eventHref, placeHref, onB
           )}
         </div>
       </article>
+      </div>
 
       {content?.about && (
         <Section title="About">

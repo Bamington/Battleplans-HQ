@@ -286,7 +286,7 @@ export type { AddFriendModalProps } from './components/AddFriendModal'
 export { default as FriendProfileModal, ProfileView, profilePath } from './components/FriendProfileModal'
 export type { FriendProfileModalProps, FriendProfileState, ProfileViewProps } from './components/FriendProfileModal'
 export { default as ProfilePage } from './components/ProfilePage'
-export { default as LocationProfileView } from './components/LocationProfileView'
+export { default as LocationProfileView, COVER_MAX_HEIGHT, COVER_MIN_ASPECT, ABOUT_MAX_WORDS, countWords } from './components/LocationProfileView'
 export type { LocationProfile, LocationProfileEvent, LocationProfileKind, LocationProfileViewProps, LocationProfileSlot, LocationProfileStats, LocationProfileContent, LocationProfileLink, LocationProfilePlace, Weekday } from './components/LocationProfileView'
 
 // BattleBench's read-only model views — shared so any app (a profile, a share

@@ -5,10 +5,10 @@
  * that location is selected. Stores and clubs get the same editor; a club also
  * gets its public switch and a Venues tab.
  *
- *   Details — logo, name, @profile name, founded year, (club) public page,
+ *   Details — logo, name, tagline, @profile name, (club) public page,
  *             Store/Club Stats
- *   Page    — cover image, About, links (the first is the page's main button
- *             when there's no booking)
+ *   Page    — cover banner, About (200 words at most), links (the first is
+ *             the page's main button when there's no booking)
  *   Rules   — House Rules / Code of Conduct, and a link to the full version
  *   Venues  — clubs only: where the club plays, and which is home
  *
@@ -28,6 +28,7 @@ import {
   supabase, Modal, Button, Input, AvatarPicker, BannerPicker, Checkbox, Tabs,
   RichTextEditor, SearchSelect, EditableListItem, Badge,
   normaliseHandle, validateHandle, isHandleAvailable, HANDLE_MAX_LENGTH,
+  COVER_MIN_ASPECT, COVER_MAX_HEIGHT, ABOUT_MAX_WORDS, countWords,
   type PendingBanner,
 } from '@battleplans/ui';
 
@@ -59,7 +60,7 @@ interface ProfileForm {
   about:        string;
   cover_url:    string | null;
   cover_aspect: number | null;
-  founded_year: string;
+  tagline:      string;
   links:        LinkRow[];
   rules:        string;
   rules_url:    string;
@@ -67,13 +68,14 @@ interface ProfileForm {
 
 const EMPTY_FORM: ProfileForm = {
   show_stats: false, is_public: false, about: '', cover_url: null, cover_aspect: null,
-  founded_year: '', links: [], rules: '', rules_url: '',
+  tagline: '', links: [], rules: '', rules_url: '',
 };
 
 const ICON_BUCKET = 'location-icons';
 const MAX_LINKS   = 8;
 const MAX_VENUES  = 10;
 const URL_RE      = /^https?:\/\/\S+$/i;
+const TAGLINE_MAX = 60;
 
 let linkSeq = 0;
 const newLinkKey = () => `link-${++linkSeq}`;
@@ -132,7 +134,7 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
       const [{ data: lp, error: lpError }, clubVenues, options] = await Promise.all([
         supabase
           .from('location_profiles')
-          .select('show_stats, is_public, about, cover_url, cover_aspect, founded_year, links, rules, rules_url')
+          .select('show_stats, is_public, about, cover_url, cover_aspect, tagline, links, rules, rules_url')
           .eq('location_id', location.id)
           .maybeSingle(),
         isClub
@@ -157,7 +159,7 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
           about:        lp.about ?? '',
           cover_url:    lp.cover_url,
           cover_aspect: lp.cover_aspect,
-          founded_year: lp.founded_year ? String(lp.founded_year) : '',
+          tagline:      lp.tagline ?? '',
           links:        ((lp.links ?? []) as { label: string; url: string }[]).map(l => ({ key: newLinkKey(), ...l })),
           rules:        lp.rules ?? '',
           rules_url:    lp.rules_url ?? '',
@@ -176,6 +178,7 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const aboutWords  = countWords(form.about);
   const slugProblem = slug ? validateHandle(slug)?.replace(/Usernames?/g, 'Profile names') ?? null : null;
   // AvatarPicker shows images only; an emoji icon reads as "no picture".
   const currentLogoUrl = location.icon?.startsWith('http') ? location.icon : null;
@@ -203,8 +206,9 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
     if (!trimmed) { setError(`Please enter the ${noun.toLowerCase()}'s name.`); return; }
     if (!slug) { setError('Please choose a profile name.'); return; }
     if (slugProblem) { setError(slugProblem); return; }
-    const year = form.founded_year.trim();
-    if (year && !/^(19|20)\d\d$/.test(year)) { setError('Founded should be a year, like 2022.'); return; }
+    if (aboutWords > ABOUT_MAX_WORDS) {
+      setError(`About is ${aboutWords} words. Please trim it to ${ABOUT_MAX_WORDS} or fewer.`); return;
+    }
     const links = form.links.filter(l => l.url.trim());
     const badLink = links.find(l => !URL_RE.test(l.url.trim()));
     if (badLink) { setError(`“${badLink.url}” isn’t a web address. Links start with https://`); return; }
@@ -236,7 +240,7 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
         about:        form.about,
         cover_url:    coverUrl ?? '',
         cover_aspect: coverAspect,
-        founded_year: year,
+        tagline:      form.tagline.trim(),
         links:        links.map(l => ({ label: l.label.trim(), url: l.url.trim() })),
         rules:        form.rules,
         rules_url:    form.rules_url.trim(),
@@ -294,6 +298,16 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
       />
 
       <Input
+        label="Tagline"
+        value={form.tagline}
+        onChange={e => patch({ tagline: e.target.value })}
+        maxLength={TAGLINE_MAX}
+        placeholder={isClub ? 'e.g. Est. 2022, or Gaming for everyone' : 'e.g. Est. 2019, or Your local games shop'}
+        disabled={busy}
+        helperText="One short line under your name, up to 60 characters. Optional."
+      />
+
+      <Input
         label="Profile name"
         value={slug}
         onChange={e => setSlug(normaliseHandle(e.target.value))}
@@ -303,16 +317,6 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
         state={slugProblem ? 'error' : 'default'}
         leftIcon={<span className="font-body text-sm text-gray-400">@</span>}
         helperText={slugProblem ?? `Your page lives at /@${slug || '…'}`}
-      />
-
-      <Input
-        label="Founded"
-        value={form.founded_year}
-        onChange={e => patch({ founded_year: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-        inputMode="numeric"
-        placeholder="e.g. 2022"
-        disabled={busy}
-        helperText="Shown as “Est. 2022” under the name. Optional."
       />
 
       <div className="flex flex-col gap-3">
@@ -343,8 +347,8 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
         label="Cover image"
         currentUrl={form.cover_url}
         currentAspect={form.cover_aspect}
-        minAspect={3 / 2}
-        hint={isClub ? 'A photo from one of your events works well.' : 'Your shopfront or gaming room.'}
+        minAspect={COVER_MIN_ASPECT}
+        hint={`A banner across the top of your page, up to ${COVER_MAX_HEIGHT}px tall — taller images are cropped to fit. ${isClub ? 'A photo from one of your events works well.' : 'Your shopfront or gaming room works well.'}`}
         onChange={setPendingCover}
         disabled={busy}
       />
@@ -358,6 +362,9 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
             ? 'Who you are, what you play, and who’s welcome.'
             : 'What the shop is, what you stock, and what goes on in the gaming room.'}
         />
+        <p className={`font-body text-xs self-end ${aboutWords > ABOUT_MAX_WORDS ? 'text-red-400' : 'text-gray-400'}`}>
+          {aboutWords}/{ABOUT_MAX_WORDS} words
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -504,7 +511,7 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
         >
           <Tabs
             variant="segmented"
-            panelClassName="pt-4"
+            panelClassName="!p-0 !pt-5 !border-0 !bg-transparent !rounded-none"
             tabs={[
               { id: 'details', label: 'Details', content: detailsTab },
               { id: 'page',    label: 'Page',    content: pageTab },
@@ -526,7 +533,7 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
             >
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={busy || !!slugProblem}>
+            <Button type="submit" className="flex-1" disabled={busy || !!slugProblem || aboutWords > ABOUT_MAX_WORDS}>
               {saving ? 'Saving…' : 'Save'}
             </Button>
           </div>
