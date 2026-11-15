@@ -17,6 +17,7 @@
  * - /app/packs                     → Manage packs (placeholder until built)
  * - /app/packs/new                 → Create pack (placeholder; in-app flow uses a modal)
  * - /app/packs/:packId/edit        → Pack editor
+ * - /app/deck/:slug                → Open a deck (custom builder or generic List Builder)
  * - /app/builder/blood-bowl        → Blood Bowl card builder
  * - /app/builder/halo-flashpoint   → Halo Flashpoint card builder
  * - /app/builder/kill-team         → Kill Team card builder
@@ -39,6 +40,7 @@ import CardBuilderRyg from './pages/CardBuilderRyg';
 import CardBuilderSept from './pages/CardBuilderSept';
 import CardBuilderGod from './pages/CardBuilderGod';
 import PrintDeck from './pages/PrintDeck';
+import DeckPage from './pages/DeckPage';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
 import PacksPlaceholder from './pages/PacksPlaceholder';
@@ -163,6 +165,9 @@ export function appRoutes() {
           <Route path="/app/packs"               element={<PacksPlaceholder mode="manage" />} />
           <Route path="/app/packs/new"           element={<PacksPlaceholder mode="create" />} />
           <Route path="/app/packs/:packId/edit"  element={<PackEditor />} />
+
+        {/* ── Deck — custom builder if the game has one, else generic List Builder ── */}
+        <Route path="/app/deck/:slug" element={<DeckPage />} />
 
           {/* ── Card Builder — Blood Bowl ── */}
           <Route path="/app/builder/blood-bowl" element={<CardBuilderBloodBowl />} />

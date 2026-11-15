@@ -29,7 +29,9 @@ import type {
   PrintableRygSept,
   PrintableRygGod,
   PrintableEnemyCard,
+  PrintableStaticCard,
 } from '../components/PrintCardGrid';
+import { cardFaceUrl } from '../components/StaticCard';
 import type { RygWeapon, RygArmor, RygItem, RygSpell } from '../components/RygCard';
 import type { EnemyAbility, EnemyEquipment } from '../components/EnemyCard';
 import type {
@@ -40,6 +42,7 @@ import type {
   RygDestinyStats,
   RygGodStats,
   RygWeaponStats,
+  CardTypeSizes,
 } from './database.types';
 
 // ── Games with a finished card layout ────────────────────────────────────────
@@ -674,7 +677,10 @@ async function loadRygCards(client: SupabaseClient, deckId: string) {
  *  empty for games they don't apply to, which is what PrintCardGrid expects. */
 export interface PrintableDeck {
   deckName:       string;
-  gameSlug:       SupportedGameSlug;
+  /** 'list' = static card faces (simple-mode deck, or no custom layout). */
+  gameSlug:       SupportedGameSlug | 'list';
+  /** The game's real slug (differs from gameSlug for 'list' decks). */
+  realSlug:       string;
   printSize:      [number, number];
   bleedSize:      [number, number];
   bloodBowlCards: PrintableBloodBowlCard[];
@@ -687,6 +693,10 @@ export interface PrintableDeck {
   rygGodCard:     PrintableRygGod | null;
   /** Enemies, which sort to the end of a RYG deck. */
   rygEnemyCards:  PrintableEnemyCard[];
+  /** List Builder cards, units first then tactics/rules. */
+  staticCards:    (PrintableStaticCard & { cardType: string })[];
+  /** Per-card-type print/bleed overrides (games.card_type_sizes). */
+  staticSizes:    CardTypeSizes;
 }
 
 export type LoadDeckResult =
@@ -703,7 +713,30 @@ const EMPTY = {
   rygSeptCard:    null as PrintableRygSept | null,
   rygGodCard:     null as PrintableRygGod | null,
   rygEnemyCards:  [] as PrintableEnemyCard[],
+  staticCards:    [] as (PrintableStaticCard & { cardType: string })[],
+  staticSizes:    {} as CardTypeSizes,
 };
+
+/** List Builder games without a print_size fall back to a standard card. */
+const LIST_PRINT_FALLBACK: { print: [number, number]; bleed: [number, number] } = {
+  print: [63, 88], bleed: [69, 94],
+};
+
+/** Static card faces, units first then tactics/rules (List Builder order). */
+async function loadStaticCards(client: SupabaseClient, deckId: string) {
+  const { data, error } = await client
+    .from('cards')
+    .select('id, name, card_type, face_path')
+    .eq('deck_id', deckId)
+    .order('sort_order', { ascending: true, nullsFirst: false });
+  if (error) { console.error('[loadPrintableDeck] static cards:', error); return []; }
+  const rows = (data ?? []) as { id: string; name: string; card_type: string; face_path: string | null }[];
+  const rank = (t: string) => (t === 'operative' ? 0 : t === 'rule' ? 1 : 2);
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => rank(a.r.card_type) - rank(b.r.card_type) || a.i - b.i)
+    .map(({ r }) => ({ id: r.id, name: r.name, cardType: r.card_type, faceUrl: cardFaceUrl(r.face_path) }));
+}
 
 /**
  * Load a deck and everything on its cards.
@@ -719,7 +752,7 @@ export async function loadPrintableDeck(
 ): Promise<LoadDeckResult> {
   const { data: deck, error: deckErr } = await client
     .from('decks')
-    .select('name, game_id, games(slug, print_size, bleed_size)')
+    .select('name, game_id, card_mode, games(slug, print_size, bleed_size, card_type_sizes)')
     .eq('id', deckId)
     .single();
 
@@ -728,6 +761,23 @@ export async function loadPrintableDeck(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const game = (deck as any).games;
   const slug = game?.slug as string;
+
+  // Simple decks, and games with no custom card layout, print their static faces.
+  if ((deck as { card_mode?: string }).card_mode === 'simple' || !isSupportedGame(slug)) {
+    return {
+      ok: true,
+      deck: {
+        ...EMPTY,
+        deckName:    deck.name as string,
+        gameSlug:    'list',
+        realSlug:    slug,
+        printSize:   resolvePrintDim(game?.print_size, LIST_PRINT_FALLBACK.print, 'print_size', slug),
+        bleedSize:   resolvePrintDim(game?.bleed_size, LIST_PRINT_FALLBACK.bleed, 'bleed_size', slug),
+        staticSizes: (game?.card_type_sizes ?? {}) as CardTypeSizes,
+        staticCards: await loadStaticCards(client, deckId),
+      },
+    };
+  }
 
   if (!isSupportedGame(slug)) {
     return { ok: false, error: `Unsupported game: ${slug}` };
@@ -738,6 +788,7 @@ export async function loadPrintableDeck(
     ...EMPTY,
     deckName:  deck.name as string,
     gameSlug:  slug,
+    realSlug:  slug,
     printSize: resolvePrintDim(game?.print_size, fb.print, 'print_size', slug),
     bleedSize: resolvePrintDim(game?.bleed_size, fb.bleed, 'bleed_size', slug),
   };

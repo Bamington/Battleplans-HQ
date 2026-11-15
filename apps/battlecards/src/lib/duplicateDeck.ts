@@ -7,7 +7,9 @@
  *
  * What gets cloned:
  *   - decks            → new row, name suffixed " (Copy)"
- *   - cards            → one clone per source card (deck_id remapped)
+ *   - cards            → one clone per source card (deck_id remapped).
+ *                        face_path (static card face) is copied as-is: faces
+ *                        are shared pack files, never duplicated in storage.
  *   - card_addons      → join rows remapped to the cloned cards
  *                        (addons themselves are user-library items, shared)
  *   - card_keywords    → join rows remapped to the cloned cards

@@ -57,6 +57,11 @@ import BloodBowlCardForm from '../components/BloodBowlCardForm';
 import KillTeamCardForm from '../components/KillTeamCardForm';
 import StarcraftCardForm from '../components/StarcraftCardForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
+import StaticCardModal, { type StaticCardType } from '../components/StaticCardModal';
+import StaticCard, { cardFaceUrl } from '../components/StaticCard';
+import { nativeDimsFor as staticNativeDims, type GameSizeInfo } from '../lib/cardSizes';
+import { GAME_PAGES } from './DeckPage';
+import { useGameCapabilities } from '../hooks/useGameCapabilities';
 import { AddCircle } from '@battleplans/ui';
 import { UserRounded } from '@battleplans/ui';
 import { FileText } from '@battleplans/ui';
@@ -432,6 +437,12 @@ export default function PackEditor() {
   const [deleteErr,  setDeleteErr]  = useState<string | null>(null);
   const [previewCard, setPreviewCard] = useState<CardWithJoins | null>(null);
 
+  // Static-card create/edit (List Builder games — no custom card builder).
+  const [staticCardCtx, setStaticCardCtx] = useState<{
+    cardType: StaticCardType;
+    card?:    CardWithJoins;
+  } | null>(null);
+
   // Portrait upload flow — opened after AddToPackModal's "Add Portrait Image"
   // button copies a card into the pack. game is stored so UploadPhotoModal
   // can show game-appropriate framing.
@@ -697,11 +708,36 @@ export default function PackEditor() {
       ?.rule_types?.length,
   );
 
+  // List Builder games have no custom builder page: their cards are static
+  // images (face_path) created via StaticCardModal.
+  // A pack uses the static-card flow when the game has no builder page, or
+  // when only simple cards are available to this user for the game.
+  const { bySlug: capBySlug } = useGameCapabilities();
+  const packCap = pack ? capBySlug[pack.game.slug] : undefined;
+  const isListGame = pack
+    ? !GAME_PAGES[pack.game.slug] || Boolean(packCap?.simple && !packCap?.custom)
+    : false;
+  /** Native px size of a static card in this pack's game, by card type. */
+  const listCardDims = useMemo<[number, number]>(() => {
+    const d = staticNativeDims(pack?.game as GameSizeInfo | undefined, previewCard?.card_type ?? 'operative');
+    return [d.w, d.h];
+  }, [pack, previewCard]);
+
+  /** Add/edit handlers: static-card modal for list games, existing flows otherwise. */
+  const openAddCard = (cardType: StaticCardType, fallback: () => void) =>
+    isListGame ? setStaticCardCtx({ cardType }) : fallback();
+  const openEditCard = (card: CardWithJoins) => {
+    if (!pack) return;
+    if (isListGame) { setStaticCardCtx({ cardType: card.card_type === 'rule' ? 'rule' : 'operative', card }); return; }
+    const CardForm = CARD_EDIT_FORMS[pack.game.slug];
+    if (CardForm) setEditingCardCtx({ card, Form: CardForm });
+  };
+
   const previewModalDims = useMemo(() => {
     if (!previewCard || !pack) return null;
-    const [nW, nH] = nativeDimsFor(previewCard, pack.game.slug);
+    const [nW, nH] = isListGame ? listCardDims : nativeDimsFor(previewCard, pack.game.slug);
     return modalDimsFor(nW, nH);
-  }, [previewCard, pack]);
+  }, [previewCard, pack, isListGame, listCardDims]);
 
   async function handleDuplicateCard(card: CardWithJoins) {
     if (!pack) return;
@@ -821,45 +857,45 @@ export default function PackEditor() {
               title="Unit Cards"
               subtitle="Cards that represent units on the battlefield."
               addLabel="Add Unit"
-              onAdd={() => setAddModal({
+              onAdd={() => openAddCard('operative', () => setAddModal({
                 entityType:    'card',
                 cardType:      'operative',
                 title:         'Add Unit to Pack',
                 description:   'Adding this card will also add all the addons and keywords associated with it to the pack.',
                 newButtonLabel:'New Unit',
-              })}
+              }))}
             >
               {operativeCards.length === 0 ? (
-                <EmptyPanelState message="No units yet. Click Add Unit to create one." />
+                <EmptyPanelState message={isListGame
+                  ? 'No units yet. Click Add Unit to upload a card face.'
+                  : 'No units yet. Click Add Unit to create one.'} />
               ) : (
                 <CardPreviewRow
                   cards={operativeCards}
                   gameSlug={pack.game.slug}
                   onDeleteCard={card => requestDelete('card', card.id, card.name, 'Unit')}
                   onPreviewCard={setPreviewCard}
-                  onEditCard={card => {
-                    const CardForm = CARD_EDIT_FORMS[pack.game.slug];
-                    if (CardForm) setEditingCardCtx({ card, Form: CardForm });
-                  }}
+                  onEditCard={openEditCard}
                   onDuplicateCard={handleDuplicateCard}
                 />
               )}
             </PackPanel>
 
-            {/* Rules panel — full width, only when the game has rule_types */}
-            {gameHasRules && (
+            {/* Rules panel — full width, when the game has rule_types (or is a
+                List Builder game, where tactics are rule cards) */}
+            {(gameHasRules || isListGame) && (
               <PackPanel
                 icon={<FileText className="size-12 text-blue-400" />}
-                title="Rule Cards"
+                title={isListGame ? 'Tactics & Rule Cards' : 'Rule Cards'}
                 subtitle="Faction rules, ploys, equipment and other rule cards."
                 addLabel="Add Rule Card"
-                onAdd={() => setAddModal({
+                onAdd={() => openAddCard('rule', () => setAddModal({
                   entityType:    'card',
                   cardType:      'rule',
                   title:         'Add Rule Card to Pack',
                   description:   'Adding this card will also add all the addons and keywords associated with it to the pack.',
                   newButtonLabel:'New Rule Card',
-                })}
+                }))}
               >
                 {ruleCards.length === 0 ? (
                   <EmptyPanelState message="No rule cards yet. Click Add Rule Card to create one." />
@@ -869,10 +905,7 @@ export default function PackEditor() {
                     gameSlug={pack.game.slug}
                     onDeleteCard={card => requestDelete('card', card.id, card.name, 'Rule Card')}
                     onPreviewCard={setPreviewCard}
-                    onEditCard={card => {
-                      const CardForm = CARD_EDIT_FORMS[pack.game.slug];
-                      if (CardForm) setEditingCardCtx({ card, Form: CardForm });
-                    }}
+                    onEditCard={openEditCard}
                   />
                 )}
               </PackPanel>
@@ -1342,7 +1375,9 @@ export default function PackEditor() {
           <div className="flex justify-center pt-4 px-4">
             <div style={{ width: previewModalDims.w, height: previewModalDims.h, overflow: 'hidden', borderRadius: 6, flexShrink: 0 }}>
               <div style={{ width: previewModalDims.nativeW, height: previewModalDims.nativeH, transform: `scale(${previewModalDims.scale})`, transformOrigin: 'top left' }}>
-                {renderCardOnly(previewCard, pack.game.slug)}
+                {isListGame
+                  ? <StaticCard faceUrl={cardFaceUrl(previewCard.face_path)} name={previewCard.name} width={listCardDims[0]} height={listCardDims[1]} radius={0} />
+                  : renderCardOnly(previewCard, pack.game.slug)}
               </div>
             </div>
           </div>
@@ -1352,6 +1387,22 @@ export default function PackEditor() {
             </p>
           </div>
         </Modal>
+      )}
+
+      {/* Static card create / edit (List Builder games) */}
+      {pack && (
+        <StaticCardModal
+          open={staticCardCtx !== null}
+          onClose={() => setStaticCardCtx(null)}
+          packId={pack.id}
+          gameId={pack.game_id}
+          statSchema={pack.game.stat_schema ?? []}
+          printSize={(pack.game as { print_size?: [number, number] }).print_size ?? null}
+          cardTypeSizes={(pack.game as GameSizeInfo).card_type_sizes ?? null}
+          defaultCardType={staticCardCtx?.cardType ?? 'operative'}
+          card={staticCardCtx?.card ?? null}
+          onSaved={loadAll}
+        />
       )}
 
       {/* Publish confirmation modal */}
