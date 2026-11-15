@@ -1,9 +1,16 @@
 {
   "rewrites": [
     {
+      "source": "/:handle(@[^/]+)",
+      "destination": "/api/profile-og?handle=:handle"
+    },
+    {
       "source": "/:slug((?!@|app$|app/|login|auth|gallery|api/|game-art\\.json$)[^/]+)",
       "destination": "/api/og?slug=:slug"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
