@@ -75,6 +75,19 @@ const ICON_BUCKET = 'location-icons';
 const MAX_LINKS   = 8;
 const MAX_VENUES  = 10;
 const URL_RE      = /^https?:\/\/\S+$/i;
+
+/**
+ * A web address as people type it, made whole: "discord.gg/abc" or
+ * "www.shop.com" gets https:// in front. Anything with a scheme already, or
+ * that doesn't look like an address (no dot, or spaces), is left as typed so
+ * the validation can say what's wrong with it.
+ */
+function withScheme(raw: string): string {
+  const url = raw.trim();
+  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || /\s/.test(url) || !url.includes('.')) return url;
+  return `https://${url.replace(/^\/+/, '')}`;
+}
+const isUrl = (raw: string) => URL_RE.test(withScheme(raw));
 const TAGLINE_MAX = 60;
 
 let linkSeq = 0;
@@ -210,10 +223,10 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
       setError(`About is ${aboutWords} words. Please trim it to ${ABOUT_MAX_WORDS} or fewer.`); return;
     }
     const links = form.links.filter(l => l.url.trim());
-    const badLink = links.find(l => !URL_RE.test(l.url.trim()));
-    if (badLink) { setError(`“${badLink.url}” isn’t a web address. Links start with https://`); return; }
-    if (form.rules_url.trim() && !URL_RE.test(form.rules_url.trim())) {
-      setError('The rules link should start with https://'); return;
+    const badLink = links.find(l => !isUrl(l.url));
+    if (badLink) { setError(`“${badLink.url}” isn’t a web address.`); return; }
+    if (form.rules_url.trim() && !isUrl(form.rules_url)) {
+      setError('The rules link isn’t a web address.'); return;
     }
 
     setSaving(true);
@@ -241,9 +254,9 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
         cover_url:    coverUrl ?? '',
         cover_aspect: coverAspect,
         tagline:      form.tagline.trim(),
-        links:        links.map(l => ({ label: l.label.trim(), url: l.url.trim() })),
+        links:        links.map(l => ({ label: l.label.trim(), url: withScheme(l.url) })),
         rules:        form.rules,
-        rules_url:    form.rules_url.trim(),
+        rules_url:    withScheme(form.rules_url),
       };
       if (isClub) {
         profile.is_public = form.is_public;
@@ -397,11 +410,11 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
             />
             <Input
               size="sm"
-              placeholder="https://"
+              placeholder="discord.gg/… or https://…"
               value={l.url}
               onChange={e => setLink(l.key, { url: e.target.value })}
               disabled={busy}
-              state={l.url.trim() && !URL_RE.test(l.url.trim()) ? 'error' : 'default'}
+              state={l.url.trim() && !isUrl(l.url) ? 'error' : 'default'}
             />
           </EditableListItem>
         ))}
@@ -436,11 +449,11 @@ export default function EditLocationProfileModal({ open, onClose, location, onSa
       </div>
       <Input
         label="Link to the full version"
-        placeholder="https://"
+        placeholder="yoursite.com/rules"
         value={form.rules_url}
         onChange={e => patch({ rules_url: e.target.value })}
         disabled={busy}
-        state={form.rules_url.trim() && !URL_RE.test(form.rules_url.trim()) ? 'error' : 'default'}
+        state={form.rules_url.trim() && !isUrl(form.rules_url) ? 'error' : 'default'}
         helperText="Optional. For when the whole thing lives on your website."
       />
     </div>

@@ -13,7 +13,7 @@
  *   />
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -71,6 +71,9 @@ const RichTextEditor = ({
   placeholder = '',
   className = '',
 }: RichTextEditorProps) => {
+  // Every markdown string this editor has handed to onChange since it last
+  // took a value from outside (see the sync effect).
+  const emitted = useRef<Set<string>>(new Set());
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -92,11 +95,19 @@ const RichTextEditor = ({
     },
     onUpdate: ({ editor: ed }) => {
       const md = (ed.storage as any).markdown.getMarkdown() as string;
+      emitted.current.add(md);
       onChange(md);
     },
   });
 
-  // Sync external value changes into the editor (e.g. on modal open/reset)
+  // Sync external value changes into the editor (e.g. on modal open/reset).
+  //
+  // A `value` this editor produced itself is never pushed back in, and nothing
+  // is pushed in while someone is typing. Comparing against the editor's
+  // CURRENT markdown isn't enough: when keystrokes land faster than the parent
+  // re-renders, `value` can be any of several updates behind the editor, so it
+  // looks like an outside change — setContent would then rewind the text, drop
+  // the formatting just applied, and throw the cursor to the start.
   const editorMdRef = useCallback(() => {
     if (!editor) return '';
     return (editor.storage as any).markdown.getMarkdown() as string;
@@ -104,8 +115,10 @@ const RichTextEditor = ({
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
+    if (emitted.current.has(value) || editor.isFocused) return;
     const current = editorMdRef();
     if (current !== value) {
+      emitted.current = new Set();
       editor.commands.setContent(value);
     }
   }, [value, editor, editorMdRef]);
