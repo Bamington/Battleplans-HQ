@@ -17,7 +17,7 @@
  * Route: /app/builder/halo-flashpoint?deckId=<uuid>
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
@@ -52,7 +52,8 @@ import KeywordInfoModal from '../components/KeywordInfoModal';
 // Kill Team already uses the universal modal for weapons + abilities.
 import WeaponInfoModal from '../components/WeaponInfoModal';
 import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
-import { Badge } from '@battleplans/ui';
+import { Badge, supabase as listRulesDb } from '@battleplans/ui';
+import { evaluateListRules, type ListRules, type ListSettings } from '../lib/listRules';
 import { Card, CardBody } from '@battleplans/ui';
 import { Magnifer } from '@battleplans/ui';
 import UploadPhotoModal from '../components/UploadPhotoModal';
@@ -222,6 +223,28 @@ const CardBuilderHaloFlashpoint = () => {
   });
   const { cards, activeCardId } = cardState;
   const activeCard = cards.find(c => c.id === activeCardId) ?? cards[0];
+
+  // ── List rules (games.list_rules) — evaluated live from local card state ──
+  const [listRules, setListRules] = useState<ListRules | null>(null);
+  const [listSettings, setListSettings] = useState<ListSettings>({});
+  useEffect(() => {
+    if (!deckId) return;
+    (async () => {
+      const [g, d] = await Promise.all([
+        listRulesDb.from('games').select('list_rules').eq('slug', 'halo-flashpoint').maybeSingle(),
+        listRulesDb.from('decks').select('list_settings').eq('id', deckId).maybeSingle(),
+      ]);
+      setListRules(((g.data as { list_rules?: ListRules | null } | null)?.list_rules) ?? null);
+      setListSettings(((d.data as { list_settings?: ListSettings } | null)?.list_settings) ?? {});
+    })();
+  }, [deckId]);
+  const listEvaluation = useMemo(() => evaluateListRules(
+    listRules,
+    cards.filter(c => !isHaloCardBlank(c)).map(c => ({
+      id: c.id, name: c.unitName, card_type: 'operative', stats: { pointsCost: c.pointsCost },
+    })),
+    listSettings,
+  ), [listRules, listSettings, cards]);
 
   // ── Play-mode tokens (shared engine) ──────────────────────────────────────────
   // Halo's tokens run through the same `useDeckTokens` hook as every other game.
@@ -1584,6 +1607,19 @@ const CardBuilderHaloFlashpoint = () => {
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
           onCancelEdit={() => setEditingDeckName(false)}
+          headerSubtitle={listEvaluation.tallies.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {listEvaluation.tallies.map(t => (
+                <Badge
+                  key={t.key}
+                  variant="outline"
+                  color={t.failed === 'error' ? 'danger' : t.failed === 'warning' ? 'warning' : t.limit != null ? 'success' : 'gray'}
+                >
+                  {t.label} {t.total}{t.limit != null ? `/${t.limit}` : ''}
+                </Badge>
+              ))}
+            </div>
+          ) : undefined}
           headerAction={appMode === 'edit' ? (
             <DeckPanelMenu
               editMode={editMode}
