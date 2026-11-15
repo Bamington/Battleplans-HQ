@@ -49,6 +49,7 @@ import PackEditor from './pages/PackEditor';
 import AdminTools from './pages/AdminTools';
 import ManageUsers from './pages/ManageUsers';
 import ManageGames from './pages/ManageGames';
+import ManageGameTracking from './pages/ManageGameTracking';
 import ManagePacks from './pages/ManagePacks';
 import ManageUpdates from './pages/ManageUpdates';
 import { AdminRoute, ProfilePage, ProtectedRoute, AppAccessRoute, WelcomeModal, PROFILE_ONBOARDING_FLOW, AuthCallback, ResetPassword } from '@battleplans/ui';
@@ -158,6 +159,7 @@ export function appRoutes() {
           <Route path="/app/admin"        element={<AdminRoute><AdminTools /></AdminRoute>} />
           <Route path="/app/admin/users"  element={<AdminRoute><ManageUsers /></AdminRoute>} />
           <Route path="/app/admin/games"  element={<AdminRoute><ManageGames /></AdminRoute>} />
+          <Route path="/app/admin/games/:gameId/tracking" element={<AdminRoute><ManageGameTracking /></AdminRoute>} />
           <Route path="/app/admin/packs"  element={<AdminRoute><ManagePacks /></AdminRoute>} />
           <Route path="/app/admin/updates" element={<AdminRoute><ManageUpdates /></AdminRoute>} />
 
