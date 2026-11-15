@@ -1395,7 +1395,7 @@ const CardBuilderBloodBowl = () => {
   return (
     <BuilderShell
       navbar={
-        <AppNavbar fixed={false}>
+        <AppNavbar fixed={false} deckName={deckName}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (

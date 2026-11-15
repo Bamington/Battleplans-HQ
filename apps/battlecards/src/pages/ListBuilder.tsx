@@ -369,7 +369,7 @@ const ListBuilder = () => {
   return (
     <BuilderShell
       navbar={
-        <AppNavbar fixed={false}>
+        <AppNavbar fixed={false} deckName={deckName}>
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
               <Link to={`/app/print?deckId=${deckId}`}>

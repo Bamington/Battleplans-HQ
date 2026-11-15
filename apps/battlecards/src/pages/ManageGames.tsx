@@ -328,6 +328,16 @@ export default function ManageGames() {
               The game is listed for anyone who can use at least one option.
             </p>
 
+            <Button
+              variant="outline"
+              color="secondary"
+              size="sm"
+              disabled={saving}
+              onClick={() => navigate(`/app/admin/games/${editTarget.id}/tracking`)}
+            >
+              Manage bars &amp; tokens
+            </Button>
+
             {editError && (
               <p className="font-body text-sm text-red-400">{editError}</p>
             )}

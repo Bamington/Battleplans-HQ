@@ -624,7 +624,7 @@ const CardBuilderStarcraft = () => {
 
   return (
     <BuilderShell
-      navbar={<AppNavbar fixed={false} />}
+      navbar={<AppNavbar fixed={false} deckName={deckName} />}
       topBar={
         <EditSubnav
           className="lg:hidden"
