@@ -27,7 +27,7 @@ import CenterViewport from '../components/CenterViewport';
 import CardCarousel from '../components/CardCarousel';
 import UnitListEntry from '../components/UnitListEntry';
 import {
-  BuilderShell, ListPanel, ModeToggle, type Mode, Dropdown, DropdownItem, Button, Badge, HR, Modal, Text, Tabs,
+  BuilderShell, ListPanel, ModeToggle, type Mode, Dropdown, DropdownItem, Button, Badge, Callout, Select, HR, Modal, Text, Tabs,
   AddCircle, CheckCircle, Pen2, Play, AltArrowDown, supabase,
 } from '@battleplans/ui';
 import StaticCard, { cardFaceUrl } from '../components/StaticCard';
@@ -36,6 +36,7 @@ import TokenOverlay from '../components/TokenOverlay';
 import TokenMenu from '../components/TokenMenu';
 import { useCardBuilder } from '../hooks/useCardBuilder';
 import type { CardType, CardTypeSizes, Json, TokenDefinition } from '../lib/database.types';
+import { evaluateListRules, cardIdentity, resolveSettings, type ListRules, type ListSettings } from '../lib/listRules';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ interface ListCard {
   stats:      Record<string, Json>;
   face_path:  string | null;
   sort_order: number | null;
+  pack_source_id: string | null;
 }
 
 interface GameInfo {
@@ -75,7 +77,7 @@ const numericStats = (stats: Record<string, Json>): Record<string, number> => {
   return out;
 };
 
-const CARD_COLUMNS = 'id, name, card_type, stats, face_path, sort_order';
+const CARD_COLUMNS = 'id, name, card_type, stats, face_path, sort_order, pack_source_id';
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -101,6 +103,8 @@ const ListBuilder = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tokenDefinitions, setTokenDefinitions] = useState<TokenDefinition[]>([]);
+  const [listRules, setListRules] = useState<ListRules | null>(null);
+  const [listSettings, setListSettings] = useState<ListSettings>({});
   /** Ephemeral play state: card id → token def id → value. */
   const [tokenState, setTokenState] = useState<Record<string, Record<string, number>>>({});
 
@@ -129,13 +133,18 @@ const ListBuilder = () => {
       setGame(g);
       setDeckName((deck as unknown as { name: string }).name);
 
-      const [cardsRes, tokensRes] = await Promise.all([
+      const [cardsRes, tokensRes, rulesRes, settingsRes] = await Promise.all([
         supabase.from('cards').select(CARD_COLUMNS)
           .eq('deck_id', deckId)
           .order('sort_order', { ascending: true, nullsFirst: false }),
         supabase.from('token_definitions').select('*')
           .eq('game_id', g.id).order('sort_order'),
+        // Separate queries so a missing column never breaks the deck page.
+        supabase.from('games').select('list_rules').eq('id', g.id).maybeSingle(),
+        supabase.from('decks').select('list_settings').eq('id', deckId).maybeSingle(),
       ]);
+      setListRules(((rulesRes.data as { list_rules?: ListRules | null } | null)?.list_rules) ?? null);
+      setListSettings(((settingsRes.data as { list_settings?: ListSettings } | null)?.list_settings) ?? {});
       const loaded = (cardsRes.data ?? []) as ListCard[];
       setCards(loaded);
       setActiveCardId(loaded[0]?.id ?? '');
@@ -173,8 +182,23 @@ const ListBuilder = () => {
     loadAvailable();
   };
 
-  const countInDeck = (name: string, type: string) =>
-    cards.filter(c => c.name === name && c.card_type === type).length;
+  const countInDeck = (c: ListCard) => {
+    // Pack cards are templates: deck copies point back to them via pack_source_id.
+    const k = cardIdentity({ ...c, pack_source_id: c.pack_source_id ?? c.id });
+    return cards.filter(d => d.card_type === c.card_type && cardIdentity(d) === k).length;
+  };
+
+  // ── List rules ─────────────────────────────────────────────────────────────
+  const evaluation = useMemo(() => evaluateListRules(listRules, cards, listSettings), [listRules, cards, listSettings]);
+  const settingValues = useMemo(() => resolveSettings(listRules, listSettings), [listRules, listSettings]);
+
+  const changeSetting = async (key: string, value: number) => {
+    const next = { ...listSettings, [key]: value };
+    setListSettings(next);
+    if (!deckId) return;
+    const { error } = await supabase.from('decks').update({ list_settings: next }).eq('id', deckId);
+    if (error) console.error('[ListBuilder] saving list settings failed:', error);
+  };
 
   const addCard = async (source: ListCard) => {
     if (!deckId || adding) return;
@@ -308,7 +332,7 @@ const ListBuilder = () => {
   const pickerGrid = (type: string | null) => (
     <div className="flex flex-wrap gap-4 pt-2">
       {available.filter(c => type == null || c.card_type === type).map(c => {
-        const count = countInDeck(c.name, c.card_type);
+        const count = countInDeck(c);
         return (
           <button
             key={c.id}
@@ -391,7 +415,24 @@ const ListBuilder = () => {
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
           onCancelEdit={() => setEditingDeckName(false)}
-          headerSubtitle={game ? <span className="text-xs text-gray-500">{game.name} · {cards.length} cards</span> : undefined}
+          headerSubtitle={game ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-gray-500">{game.name} · {cards.length} cards</span>
+              {evaluation.tallies.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {evaluation.tallies.map(t => (
+                    <Badge
+                      key={t.key}
+                      variant="outline"
+                      color={t.failed === 'error' ? 'danger' : t.failed === 'warning' ? 'warning' : t.limit != null ? 'success' : 'gray'}
+                    >
+                      {t.label} {t.total}{t.limit != null ? `/${t.limit}` : ''}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : undefined}
           headerAction={!isPlay && cards.length > 0 ? (
             <button
               type="button"
@@ -418,6 +459,25 @@ const ListBuilder = () => {
             </>
           ) : undefined}
         >
+          {!isPlay && (listRules?.settings?.length || evaluation.problems.length > 0) ? (
+            <div className="flex flex-col gap-2 px-1 pt-2">
+              {listRules?.settings?.map(s => s.options ? (
+                <Select
+                  key={s.key}
+                  label={s.label}
+                  size="sm"
+                  value={String(settingValues[s.key])}
+                  onChange={e => changeSetting(s.key, Number(e.target.value))}
+                  options={s.options.map(o => ({ value: String(o), label: `${o}${s.suffix ? ` ${s.suffix}` : ''}` }))}
+                />
+              ) : null)}
+              {evaluation.problems.map((p, i) => (
+                <Callout key={i} flavour={p.severity === 'error' ? 'bad' : 'warning'}>
+                  <span className="text-xs">{p.message}</span>
+                </Callout>
+              ))}
+            </div>
+          ) : null}
           {grouped.map(([type, list]) => (
             <div key={type}>
               {sectionHeader(typeLabel(type), list.length)}
