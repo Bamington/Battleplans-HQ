@@ -44,6 +44,8 @@ export interface ListResource {
   hasKeyword?: string;
   /** Used by rules but not shown as a tally badge. */
   hidden?: boolean;
+  /** Show the total with thousands separators (e.g. 1,150,000). */
+  grouping?: boolean;
 }
 
 /** A limit is a fixed number or a reference to a list setting. */
@@ -96,6 +98,8 @@ export interface ResourceTally {
   limit:  number | null;
   /** True when a rule about this resource failed. */
   failed: ListSeverity | null;
+  /** Display with thousands separators. */
+  grouping?: boolean;
 }
 
 export interface ListProblem {
@@ -112,9 +116,21 @@ export interface ListEvaluation {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const toNumber = (v: Json | undefined): number => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+/** Numbers from stats, tolerating free text like "$55,000" or "50k". */
+export const toNumber = (v: Json | undefined): number => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v !== 'string') return 0;
+  const s = v.trim().toLowerCase().replace(/[$,\s]/g, '');
+  const m = s.match(/^(-?\d+(?:\.\d+)?)(k)?/);
+  if (!m) return 0;
+  const n = Number(m[1]) * (m[2] ? 1000 : 1);
   return Number.isFinite(n) ? n : 0;
+};
+
+/** Badge text for a tally, e.g. "Points 191/200" or "GP 1,150,000". */
+export const tallyText = (t: ResourceTally): string => {
+  const fmt = (n: number) => (t.grouping ? n.toLocaleString('en-US') : String(n));
+  return `${t.label} ${fmt(t.total)}${t.limit != null ? `/${fmt(t.limit)}` : ''}`;
 };
 
 const truthy = (v: Json | undefined): boolean =>
@@ -174,7 +190,7 @@ export function evaluateListRules(
   const resources = new Map<string, ListResource>();
   for (const res of rules.resources ?? []) {
     resources.set(res.key, res);
-    tallies.set(res.key, { key: res.key, label: res.label, total: resourceTotal(res, cards), limit: null, failed: null });
+    tallies.set(res.key, { key: res.key, label: res.label, total: resourceTotal(res, cards), limit: null, failed: null, grouping: res.grouping });
   }
 
   const problems: ListProblem[] = [];

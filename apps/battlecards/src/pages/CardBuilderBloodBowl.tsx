@@ -20,7 +20,7 @@
  * Route: /app/builder/blood-bowl?deckId=<uuid>
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
@@ -52,7 +52,8 @@ import { Checkbox } from '@battleplans/ui';
 import { Modal } from '@battleplans/ui';
 import AddKeywordModal from '../components/AddKeywordModal';
 import KeywordInfoModal from '../components/KeywordInfoModal';
-import { Badge } from '@battleplans/ui';
+import { Badge, supabase as listRulesDb } from '@battleplans/ui';
+import { evaluateListRules, tallyText, type ListRules } from '../lib/listRules';
 import { Card, CardBody } from '@battleplans/ui';
 import { Magnifer } from '@battleplans/ui';
 import UploadPhotoModal from '../components/UploadPhotoModal';
@@ -263,6 +264,21 @@ const CardBuilderBloodBowl = () => {
     return { cards: [card] as BloodBowlCardData[], activeCardId: card.id };
   });
   const { cards, activeCardId } = cardState;
+
+  // ── List rules (games.list_rules) — evaluated live from local card state ──
+  const [listRules, setListRules] = useState<ListRules | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data } = await listRulesDb.from('games').select('list_rules').eq('slug', 'blood-bowl').maybeSingle();
+      setListRules(((data as { list_rules?: ListRules | null } | null)?.list_rules) ?? null);
+    })();
+  }, []);
+  const listEvaluation = useMemo(() => evaluateListRules(
+    listRules,
+    cards.filter(c => !isBloodBowlCardBlank(c)).map(c => ({
+      id: c.id, name: c.unitName, card_type: 'operative', stats: { cost: c.cost },
+    })),
+  ), [listRules, cards]);
   const activeCard = cards.find(c => c.id === activeCardId) ?? cards[0];
 
   // ── Play-mode tokens (shared engine) ──────────────────────────────────────
@@ -1447,6 +1463,15 @@ const CardBuilderBloodBowl = () => {
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
           onCancelEdit={() => setEditingDeckName(false)}
+          headerSubtitle={listEvaluation.tallies.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {listEvaluation.tallies.map(t => (
+                <Badge key={t.key} variant="outline" color={t.failed === 'error' ? 'danger' : t.failed === 'warning' ? 'warning' : 'gray'}>
+                  {tallyText(t)}
+                </Badge>
+              ))}
+            </div>
+          ) : undefined}
           headerAction={
             <DeckPanelMenu
               editMode={editMode}
