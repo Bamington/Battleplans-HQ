@@ -294,17 +294,32 @@ export interface Profile {
 
 export type GameStatus = 'draft' | 'beta' | 'published'
 
+/** Who can use a game capability (simple cards / custom builder). */
+export type AccessLevel = 'off' | 'admin' | 'beta' | 'everyone'
+
+/** How a deck is built: static faces (ListBuilder) or the custom builder. */
+export type CardMode = 'simple' | 'custom'
+
+/** Per-card-type overrides of a game's print/bleed size, keyed by card_type. */
+export type CardTypeSizes = Record<string, { print: [number, number]; bleed: [number, number] }>
+
 export interface Game {
   id:          string
   name:        string
   slug:        string
   /** BattleCards content-readiness only. BattlePlan ignores this. */
   battlecards_status: GameStatus
+  /** Who can build decks from static card faces (ListBuilder). */
+  simple_access: AccessLevel
+  /** Who can use the game's custom card builder. */
+  custom_access: AccessLevel
   stat_schema: StatField[]
   /** [width_mm, height_mm] — card dimensions for printing (no bleed) */
   print_size:  [number, number]
   /** [width_mm, height_mm] — card dimensions for printing (with bleed) */
   bleed_size:  [number, number]
+  /** Per-card-type size overrides (e.g. smaller portrait tactics cards). */
+  card_type_sizes?: CardTypeSizes
   created_at:  string
 }
 
@@ -431,6 +446,8 @@ export interface Deck {
   user_id:    string
   game_id:    string
   name:       string
+  /** Mode the deck was created in; decides which page opens it. */
+  card_mode:  CardMode
   created_at: string
 }
 
@@ -452,6 +469,10 @@ export interface Card {
   sort_order:     number | null
   /** null = default layout; 'portraitFramed' = show portrait frame overlay */
   portrait_style: string | null
+  /** Static card face image path (card-images bucket, packs/{pack_id}/...).
+   *  Shared by reference: never copied or deleted with the card. When set,
+   *  the card renders as this image instead of the game's layout. */
+  face_path:      string | null
   is_template:    boolean
   /** Set when this row IS a pack source card (template living inside a pack). */
   pack_id:              string | null

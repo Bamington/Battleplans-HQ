@@ -17,8 +17,8 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface GamePickerItemProps {
-  /** Path or URL for the game's wide logo image */
-  logoSrc: string;
+  /** Path or URL for the game's wide logo image. Omit to show logoAlt as text. */
+  logoSrc?: string;
   /** Alt text for the logo image */
   logoAlt: string;
   /** Whether this tile is currently selected */
@@ -45,11 +45,19 @@ const GamePickerItem = ({
         : 'bg-gray-900 border-gray-700 hover:bg-gray-700 hover:border-gray-500',
     ].join(' ')}
   >
-    <img
-      src={logoSrc}
-      alt={logoAlt}
-      className="h-[60px] w-full object-contain"
-    />
+    {logoSrc ? (
+      <img
+        src={logoSrc}
+        alt={logoAlt}
+        className="h-[60px] w-full object-contain"
+      />
+    ) : (
+      // No logo asset in the app yet (most games in the shared catalog):
+      // show the game name at the same height as a logo.
+      <span className="h-[60px] w-full flex items-center justify-center px-4 font-heading text-xl text-white text-center leading-tight">
+        {logoAlt}
+      </span>
+    )}
   </button>
 );
 

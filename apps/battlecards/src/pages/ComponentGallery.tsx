@@ -27,7 +27,7 @@ import {
   SHARED_GALLERY_NAV,
   type GalleryNavItem,
 } from '@battleplans/ui';
-import { Button, Counter, Input, Text, MarkdownBody } from '@battleplans/ui';
+import { Button, Counter, Input, Text, MarkdownBody, Badge } from '@battleplans/ui';
 import { BuilderShell, ListPanel, EditorPanel } from '@battleplans/ui';
 import { AddCircle, FileText, Pen2, Shield, Star, UserRounded, Widget2, Gallery, Bookmark, ListCheck, Play, Filter } from '@battleplans/ui';
 
@@ -49,6 +49,8 @@ import StarcraftCard from '../components/StarcraftCard';
 import StarcraftPhaseFrame from '../components/StarcraftPhaseFrame';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
+import StaticCard from '../components/StaticCard';
+import StaticCardModal from '../components/StaticCardModal';
 import AddonInfoModal from '../components/AddonInfoModal';
 import Card3DWrapper from '../components/Card3DWrapper';
 import DeckListItem from '../components/DeckListItem';
@@ -112,6 +114,7 @@ import iconBloodBowl from '../../../../packages/ui/src/assets/games/icons/blood-
 import iconHalo from '../../../../packages/ui/src/assets/games/icons/halo.png';
 import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-blood-bowl.png';
 import logoHaloFlashpoint from '../../../../packages/ui/src/assets/games/logos/logo-halo-flashpoint.png';
+import STATIC_DEMO_FACE_IMG from '../../../../packages/ui/src/assets/hero.png';
 
 /** A real release note, used to demo markdown rendering + clamping. */
 const MARKDOWN_SAMPLE = [
@@ -256,6 +259,44 @@ const RYG_ADDON_FORMS = [
 ];
 
 // ── AddToPackModalGalleryDemo ────────────────────────────────────────────────
+
+/** StaticCardModal preview in create and edit modes. Uses stub pack/game IDs,
+ *  so Save will fail (storage/RLS) — the point is the form chrome. */
+/** Demo face for the Static Card gallery section (any image works). */
+const STATIC_DEMO_FACE = STATIC_DEMO_FACE_IMG as string;
+
+const StaticCardModalGalleryDemo = () => {
+  const [mode, setMode] = useState<'create-unit' | 'create-rule' | 'edit' | null>(null);
+  const STUB_ID = '00000000-0000-0000-0000-000000000000';
+  const schema = [
+    { key: 'hp',       label: 'HP',                type: 'number' as const },
+    { key: 'vp',       label: 'VP',                type: 'number' as const },
+    { key: 'timeline', label: 'Starting Timeline', type: 'number' as const },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setMode('create-unit')}>Add Unit (create)</Button>
+      <Button variant="outline" onClick={() => setMode('create-rule')}>Add Tactic (create)</Button>
+      <Button variant="outline" onClick={() => setMode('edit')}>Edit existing card</Button>
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Stub IDs — saving will fail; use this to review the form and image preview.
+      </p>
+      <StaticCardModal
+        open={mode !== null}
+        onClose={() => setMode(null)}
+        packId={STUB_ID}
+        gameId={STUB_ID}
+        statSchema={schema}
+        printSize={[63, 88]}
+        defaultCardType={mode === 'create-rule' ? 'rule' : 'operative'}
+        card={mode === 'edit'
+          ? { id: STUB_ID, name: 'RX-78-2 Gundam', card_type: 'operative', stats: { hp: 6, vp: 3, timeline: 2 }, face_path: null }
+          : null}
+        onSaved={() => {}}
+      />
+    </div>
+  );
+};
 
 /** Live AddToPackModal preview. The picker hits Supabase with stubbed
  *  pack/game IDs, so the list will be empty unless you happen to be
@@ -557,6 +598,8 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-sc-phase-frame',        label: 'SC Phase Frame',        icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-kill-team-card',        label: 'KT Card',               icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-kill-team-rule-card',   label: 'KT Rule Card',          icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-static-card',           label: 'Static Card',           icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-static-card-modal',     label: 'Static Card Modal',     icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-ryg-card',              label: 'RYG Card',              icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-god-card',              label: 'God Card',              icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-sept-card',             label: 'Sept Card',             icon: <Shield className="w-5 h-5" /> },
@@ -1219,6 +1262,47 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Static Card ──────────────────────────────────────────── */}
+      <GallerySection id="nav-static-card" title="Static Card / Default">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Image-only card for List Builder games — renders a static card face at native size (750 × 1050 shown at 250px wide).
+          Children layer above the face (tokens, photo overlay).
+        </p>
+        <div className="flex flex-wrap gap-8 items-start">
+          {([
+            { label: 'Face loaded',            faceUrl: STATIC_DEMO_FACE,               dimmed: false, overlay: false },
+            { label: 'No face (placeholder)',  faceUrl: null,                    dimmed: false, overlay: false },
+            { label: 'Broken image URL',       faceUrl: '/does-not-exist.png',   dimmed: false, overlay: false },
+            { label: 'Dimmed',                 faceUrl: STATIC_DEMO_FACE,               dimmed: true,  overlay: false },
+            { label: 'With overlay layer',     faceUrl: STATIC_DEMO_FACE,               dimmed: false, overlay: true  },
+          ] as const).map(v => (
+            <div key={v.label} className="flex flex-col gap-2 items-center">
+              <p className="font-body text-xs text-gray-400 dark:text-gray-500">{v.label}</p>
+              <div className="relative overflow-hidden shrink-0" style={{ width: 250, height: Math.round(1050 * (250 / 750)) }}>
+                <div style={{ transform: `scale(${250 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                  <StaticCard faceUrl={v.faceUrl} name="RX-78-2 Gundam" width={750} height={1050} dimmed={v.dimmed}>
+                    {v.overlay && (
+                      <div style={{ position: 'absolute', top: 40, right: 40 }}>
+                        <Badge color="purple" size="lg">Overlay</Badge>
+                      </div>
+                    )}
+                  </StaticCard>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </GallerySection>
+
+      {/* ── Static Card Modal ────────────────────────────────────── */}
+      <GallerySection id="nav-static-card-modal" title="Static Card Modal / Create & Edit">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Pack Editor form for List Builder games — upload a card face, name it, pick Unit or Tactic, and set the
+          stats that drive play-mode tokens. Create mode adds "Save &amp; Add Another".
+        </p>
+        <StaticCardModalGalleryDemo />
+      </GallerySection>
+
       <GallerySection id="nav-kill-team-rule-card" title="Kill Team Rule Card / Default">
         <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
           Faction Rule layout — title + description, with an optional attached ability.
@@ -1866,6 +1950,14 @@ const ComponentGallery = () => {
             <div className="flex flex-col gap-1.5 max-w-lg">
               <GamePickerItem logoSrc={logoHaloFlashpoint} logoAlt="Halo: Flashpoint" selected />
               <GamePickerItem logoSrc={logoBloodBowl} logoAlt="Blood Bowl" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">No logo asset — falls back to the game name</p>
+            <div className="flex flex-col gap-1.5 max-w-lg">
+              <GamePickerItem logoAlt="Warhammer Underworlds" />
+              <GamePickerItem logoAlt="Star Wars: Shatterpoint" selected />
             </div>
           </div>
 

@@ -106,7 +106,19 @@ const BLOOD_BOWL: OverlayZoneConfig = {
   bar:    { x: 6,   y: 1120, width: 738, height: 70, gap: 12, orientation: 'horizontal' },
 };
 
+/** Gundam Assemble unit cards (List Builder): 150×105 mm landscape, rendered
+ *  750×525 px. Toggles sit above the card, the HP bar and badges beneath it,
+ *  so the printed card face stays fully readable. */
+const GUNDAM_ASSEMBLE: OverlayZoneConfig = {
+  other:  { x: 20,  y: -70, gap: 57 },
+  shield: { x: 400, y: -70, gap: 57 },
+  damage: { x: 640, y: 120, offset: 30 },
+  bar:    { x: 6,   y: 541, width: 738, height: 70, gap: 12, orientation: 'horizontal' },
+  badge:  { x: 6,   y: 625, gap: 10 },
+};
+
 export const TOKEN_OVERLAY_CONFIG: Record<string, OverlayZoneConfig> = {
+  'gundam-assemble':  GUNDAM_ASSEMBLE,
   'halo-flashpoint':  HALO_FLASHPOINT,
   'kill-team':        KILL_TEAM,
   'kill-team-mobile': KILL_TEAM_MOBILE,

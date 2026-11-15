@@ -104,6 +104,12 @@ import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-b
 import logoKillTeam from '../../../../packages/ui/src/assets/games/logos/logo-kill-team.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
 import logoStarcraft from '../../../../packages/ui/src/assets/games/logos/logo-starcraft.svg';
+import logoGundamAssemble from '../../../../packages/ui/src/assets/games/logos/logo-gundam-assemble.png';
+import iconGundamAssemble from '../../../../packages/ui/src/assets/games/icons/gundam-assemble.png';
+import { deckUrl, GAME_PAGES } from './DeckPage';
+import { Select } from '@battleplans/ui';
+import { useGameCapabilities, availableModes } from '../hooks/useGameCapabilities';
+import type { CardMode } from '../lib/database.types';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
 // Keyed by the game's slug (matches the value seeded into public.games).
@@ -145,9 +151,23 @@ const GAMES = [
     thumbnailSrc: iconRyg as string,
     thumbnailBg: 'bg-[#1a1612]',
   },
+  {
+    id: 'gundam-assemble',
+    name: 'Gundam Assemble',
+    logoSrc: logoGundamAssemble,
+    thumbnailSrc: iconGundamAssemble as string,
+    thumbnailBg: 'bg-[#45100f]',
+  },
 ] as const;
+// Which games appear in the pickers (and in which modes) is not decided here:
+// it comes from each game's simple_access / custom_access levels via
+// useGameCapabilities(). Games without an entry above show their name instead
+// of a logo.
 
-type GameSlug = typeof GAMES[number]['id'];
+const MODE_OPTIONS: Record<CardMode, { value: CardMode; label: string }> = {
+  custom: { value: 'custom', label: 'Custom cards — design your own with the card builder' },
+  simple: { value: 'simple', label: 'Simple cards — pick official cards from packs' },
+};
 
 /** Returns the UI assets for a game slug, or undefined if unknown. */
 const gameAssets = (slug: string) => GAMES.find(g => g.id === slug);
@@ -226,7 +246,7 @@ export default function AppHome() {
   const [showPackCreate,    setShowPackCreate]    = useState(false);
   const [packName,          setPackName]          = useState('');
   const [packDescription,   setPackDescription]   = useState('');
-  const [packGame,          setPackGame]          = useState<GameSlug | null>(null);
+  const [packGame,          setPackGame]          = useState<string | null>(null);
   const [creatingPack,      setCreatingPack]      = useState(false);
   const [packCreateError,   setPackCreateError]   = useState<string | null>(null);
 
@@ -253,12 +273,26 @@ export default function AppHome() {
   // ── Modal state ────────────────────────────────────────────────────────────
   const [showModal,    setShowModal]    = useState(false);
   const [deckName,     setDeckName]     = useState('');
-  const [selectedGame, setSelectedGame] = useState<GameSlug | null>(null);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState<CardMode | null>(null);
+
+  // ── Game capabilities (role-aware) ─────────────────────────────────────────
+  const { games: capGames, bySlug: capBySlug } = useGameCapabilities();
+  const modesFor = (slug: string) => availableModes(capBySlug[slug], Boolean(GAME_PAGES[slug]));
+  /** Games this user can start a deck (or pack) for, with logo assets if any. */
+  const pickerGames = capGames
+    .filter(g => modesFor(g.slug).length > 0)
+    .map(g => ({ id: g.slug, name: g.name, logoSrc: gameAssets(g.slug)?.logoSrc as string | undefined }));
+  const selectedModes = selectedGame ? modesFor(selectedGame) : [];
+  const pickGame = (slug: string) => {
+    setSelectedGame(slug);
+    setSelectedMode(modesFor(slug)[0] ?? null);
+  };
   const [creating,     setCreating]     = useState(false);
   const [createError,  setCreateError]  = useState<string | null>(null);
 
   const trimmed   = deckName.trim();
-  const canCreate = trimmed.length >= 1 && trimmed.length <= 99 && selectedGame !== null;
+  const canCreate = trimmed.length >= 1 && trimmed.length <= 99 && selectedGame !== null && selectedMode !== null;
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -603,6 +637,7 @@ export default function AppHome() {
   const openModal = () => {
     setDeckName('');
     setSelectedGame(null);
+    setSelectedMode(null);
     setCreateError(null);
     setShowModal(true);
   };
@@ -611,7 +646,7 @@ export default function AppHome() {
 
   const handleCreate = async () => {
     if (!canCreate || !userId) return;
-    const gameId = gameIdMap[selectedGame!];
+    const gameId = capBySlug[selectedGame!]?.gameId ?? gameIdMap[selectedGame!];
     if (!gameId) return;
 
     setCreating(true);
@@ -619,7 +654,7 @@ export default function AppHome() {
 
     const { data, error } = await supabase
       .from('decks')
-      .insert({ name: trimmed, game_id: gameId, user_id: userId })
+      .insert({ name: trimmed, game_id: gameId, user_id: userId, card_mode: selectedMode })
       .select('*, game:games(id, name, slug, stat_schema, created_at)')
       .single();
 
@@ -651,7 +686,7 @@ export default function AppHome() {
       );
     }
 
-    navigate(`/app/builder/${selectedGame}?deckId=${(data as DeckWithGame).id}`);
+    navigate(deckUrl(selectedGame!, (data as DeckWithGame).id));
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -916,7 +951,7 @@ export default function AppHome() {
                                   ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
                                   : undefined
                               }
-                              onClick={() => navigate(`/app/builder/${deck.game.slug}?deckId=${deck.id}`)}
+                              onClick={() => navigate(deckUrl(deck.game.slug, deck.id))}
                               onDuplicate={() => handleDuplicate(deck.id)}
                               onDelete={() => confirmDelete(deck.id)}
                             />
@@ -1038,16 +1073,27 @@ export default function AppHome() {
           </p>
 
           <div className="flex flex-col gap-1.5">
-            {GAMES.map(game => (
+            {pickerGames.map(game => (
               <GamePickerItem
                 key={game.id}
                 logoSrc={game.logoSrc}
                 logoAlt={game.name}
                 selected={selectedGame === game.id}
-                onClick={() => !creating && setSelectedGame(game.id)}
+                onClick={() => !creating && pickGame(game.id)}
               />
             ))}
           </div>
+
+          {/* Card style — only when the selected game offers more than one mode */}
+          {selectedModes.length > 1 && (
+            <Select
+              label="Card style"
+              options={selectedModes.map(m => MODE_OPTIONS[m])}
+              value={selectedMode ?? ''}
+              disabled={creating}
+              onChange={e => setSelectedMode(e.target.value as CardMode)}
+            />
+          )}
 
           {/* Inline error */}
           {createError && (
@@ -1082,7 +1128,7 @@ export default function AppHome() {
         onClose={() => setShowImport(false)}
         onImported={(deckId, gameSlug) => {
           setShowImport(false);
-          navigate(`/app/builder/${gameSlug}?deckId=${deckId}`);
+          navigate(deckUrl(gameSlug, deckId));
         }}
       />
 
@@ -1244,7 +1290,7 @@ export default function AppHome() {
           </p>
 
           <div className="flex flex-col gap-1.5">
-            {GAMES.map(game => (
+            {pickerGames.map(game => (
               <GamePickerItem
                 key={game.id}
                 logoSrc={game.logoSrc}

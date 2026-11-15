@@ -28,7 +28,11 @@ import type {
   PrintableRygSept,
   PrintableRygGod,
   PrintableEnemyCard,
+  PrintableStaticCard,
+  PrintGameSlug,
 } from '../components/PrintCardGrid';
+import { deckUrl } from './DeckPage';
+import type { CardTypeSizes } from '../lib/database.types';
 import { loadPrintableDeck } from '../lib/loadPrintableDeck';
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -41,7 +45,11 @@ const PrintDeck = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setDeckName] = useState('');
-  const [gameSlug, setGameSlug] = useState<'blood-bowl' | 'halo-flashpoint' | 'kill-team' | 'ryg' | null>(null);
+  const [gameSlug, setGameSlug] = useState<PrintGameSlug | null>(null);
+  /** The game's actual slug ('list' games keep theirs here for the back link). */
+  const [realSlug, setRealSlug] = useState<string | null>(null);
+  const [staticSizes, setStaticSizes] = useState<CardTypeSizes>({});
+  const [staticCards, setStaticCards] = useState<(PrintableStaticCard & { cardType: string })[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [showBleed, setShowBleed] = useState(true);
@@ -89,6 +97,9 @@ const PrintDeck = () => {
       const d = result.deck;
       setDeckName(d.deckName);
       setGameSlug(d.gameSlug);
+      setRealSlug(d.realSlug);
+      setStaticCards(d.staticCards);
+      setStaticSizes(d.staticSizes);
       setPrintSize(d.printSize);
       setBleedSize(d.bleedSize);
       setBloodBowlCards(d.bloodBowlCards);
@@ -117,11 +128,7 @@ const PrintDeck = () => {
   };
 
   // ── Determine builder back-link ──────────────────────────────────────────
-  const builderPath =
-    gameSlug === 'blood-bowl'      ? `/app/builder/blood-bowl?deckId=${deckId}`      :
-    gameSlug === 'kill-team'       ? `/app/builder/kill-team?deckId=${deckId}`       :
-    gameSlug === 'ryg'             ? `/app/builder/ryg?deckId=${deckId}`             :
-    `/app/builder/halo-flashpoint?deckId=${deckId}`;
+  const builderPath = realSlug && deckId ? deckUrl(realSlug, deckId) : '/app';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -152,6 +159,7 @@ const PrintDeck = () => {
   // ── Build sidebar card list data ───────────────────────────────────────
   type SidebarItem = { id: string; name: string; subtitle: string; avatarUrl: string | null };
   const sidebarUnits: SidebarItem[] =
+    gameSlug === 'list' ? staticCards.filter(c => c.cardType !== 'rule').map(c => ({ id: c.id, name: c.name, subtitle: 'Unit', avatarUrl: c.faceUrl })) :
     gameSlug === 'blood-bowl' ? bloodBowlCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.playerRole || c.teamName || '', avatarUrl: c.avatarUrl })) :
     gameSlug === 'kill-team'  ? killTeamCards.map(c => ({ id: c.id, name: c.operativeName || 'New Operative', subtitle: c.role || c.teamName || '', avatarUrl: c.avatarUrl })) :
     gameSlug === 'ryg'        ? [
@@ -162,7 +170,9 @@ const PrintDeck = () => {
     haloCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.keywords || '', avatarUrl: c.avatarUrl }));
 
   const sidebarRules: SidebarItem[] =
-    gameSlug === 'kill-team'
+    gameSlug === 'list'
+      ? staticCards.filter(c => c.cardType === 'rule').map(c => ({ id: c.id, name: c.name, subtitle: 'Tactic', avatarUrl: null }))
+      : gameSlug === 'kill-team'
       ? killTeamRules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Faction Rule', avatarUrl: null }))
       : gameSlug === 'ryg' ? []
       : rules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Rule', avatarUrl: null }));
@@ -231,7 +241,7 @@ const PrintDeck = () => {
               >
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <p className="text-base font-medium font-body leading-6 truncate text-gray-100">{item.name}</p>
-                  <p className="text-xs font-bold font-body uppercase tracking-[1.2px] leading-4 truncate text-gray-500">Rule</p>
+                  <p className="text-xs font-bold font-body uppercase tracking-[1.2px] leading-4 truncate text-gray-500">{item.subtitle || 'Rule'}</p>
                 </div>
                 {included
                   ? <Eye className="size-4 shrink-0 text-green-400" />
@@ -296,6 +306,8 @@ const PrintDeck = () => {
           rygSeptCard={rygSeptCard ?? undefined}
           rygGodCard={rygGodCard ?? undefined}
           rygEnemyCards={rygEnemyCards}
+          staticCards={staticCards}
+          staticSizes={staticSizes}
         />
       </div>
     </div>

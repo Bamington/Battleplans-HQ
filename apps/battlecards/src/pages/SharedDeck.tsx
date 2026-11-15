@@ -35,6 +35,7 @@ import {
   copySharedDeck,
   type SharedDeckMeta,
 } from '../lib/shareClient';
+import { deckUrl } from './DeckPage';
 import { loadPrintableDeck, type PrintableDeck } from '../lib/loadPrintableDeck';
 import type {
   PrintableBloodBowlCard,
@@ -320,7 +321,7 @@ const SharedDeck = () => {
     setCopyError(null);
     try {
       const newDeckId = await copySharedDeck(token);
-      navigate(`/app/builder/${meta?.gameSlug}?deckId=${newDeckId}`);
+      navigate(deckUrl(meta?.gameSlug ?? '', newDeckId));
     } catch (err) {
       console.error('[BattleCards] Failed to copy shared deck:', err);
       setCopyError("Couldn't copy this deck. Please try again.");
