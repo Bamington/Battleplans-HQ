@@ -26,6 +26,11 @@ export interface ListSettingDef {
   options?: number[];
   /** Shown after the value, e.g. "units" or "pts". */
   suffix?:  string;
+  /** Bounds for a free-number setting. */
+  min?:     number;
+  max?:     number;
+  /** Which resource's tally opens this setting when tapped. */
+  resource?: string;
 }
 
 export interface ListResource {
@@ -35,6 +40,10 @@ export interface ListResource {
   source: 'count' | { stat: string; /** Also add this stat from upgrades. */ addonStat?: string };
   /** Only count these card types. Omit for all. */
   cardTypes?: string[];
+  /** Only count cards carrying this keyword (case-insensitive). */
+  hasKeyword?: string;
+  /** Used by rules but not shown as a tally badge. */
+  hidden?: boolean;
 }
 
 /** A limit is a fixed number or a reference to a list setting. */
@@ -73,6 +82,8 @@ export interface RuleCard {
   stats:     Record<string, Json>;
   /** Official card identity; copies of the same pack card share it. */
   pack_source_id?: string | null;
+  /** Keyword names on the card, for resources with hasKeyword. */
+  keywords?: string[];
   /** Stats of attached upgrades, for resources with addonStat. */
   addons?:   { stats: Record<string, Json> }[];
 }
@@ -111,6 +122,10 @@ const truthy = (v: Json | undefined): boolean =>
 
 const ofTypes = (types: string[] | undefined) => (c: RuleCard) => !types || types.includes(c.card_type);
 
+const inResource = (res: ListResource) => (c: RuleCard) =>
+  ofTypes(res.cardTypes)(c) &&
+  (!res.hasKeyword || (c.keywords ?? []).some(k => k.trim().toLowerCase() === res.hasKeyword!.trim().toLowerCase()));
+
 /** Identity for uniqueness: printed card number, then pack source, then name. */
 export const cardIdentity = (c: RuleCard): string => {
   const num = c.stats?.card_number;
@@ -133,7 +148,7 @@ const resolveLimit = (limit: ListLimit, settings: ListSettings): number | null =
   typeof limit === 'number' ? limit : settings[limit.setting] ?? null;
 
 const resourceTotal = (res: ListResource, cards: RuleCard[]): number => {
-  const pool = cards.filter(ofTypes(res.cardTypes));
+  const pool = cards.filter(inResource(res));
   if (res.source === 'count') return pool.length;
   const { stat, addonStat } = res.source;
   return pool.reduce((sum, c) => {
@@ -209,11 +224,12 @@ export function evaluateListRules(
     problems.push({
       severity,
       message: rule.message ?? auto,
-      cardIds: cards.filter(ofTypes(res.cardTypes)).map(c => c.id),
+      cardIds: cards.filter(inResource(res)).map(c => c.id),
     });
   }
 
   // Errors before warnings.
   problems.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
-  return { tallies: [...tallies.values()], problems };
+  const hidden = new Set((rules.resources ?? []).filter(r => r.hidden).map(r => r.key));
+  return { tallies: [...tallies.values()].filter(t => !hidden.has(t.key)), problems };
 }
