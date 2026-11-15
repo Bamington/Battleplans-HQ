@@ -320,6 +320,8 @@ export interface Game {
   bleed_size:  [number, number]
   /** Per-card-type size overrides (e.g. smaller portrait tactics cards). */
   card_type_sizes?: CardTypeSizes
+  /** List-level building rules (see lib/listRules.ts). null = none. */
+  list_rules?: import('./listRules').ListRules | null
   created_at:  string
 }
 
@@ -448,6 +450,8 @@ export interface Deck {
   name:       string
   /** Mode the deck was created in; decides which page opens it. */
   card_mode:  CardMode
+  /** Per-deck values for the game's list_rules settings. */
+  list_settings?: Record<string, number>
   created_at: string
 }
 
