@@ -104,8 +104,8 @@ import logoBloodBowl from '../../../../packages/ui/src/assets/games/logos/logo-b
 import logoKillTeam from '../../../../packages/ui/src/assets/games/logos/logo-kill-team.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
 import logoStarcraft from '../../../../packages/ui/src/assets/games/logos/logo-starcraft.svg';
-import logoGundamAssemble from '../../../../packages/ui/src/assets/games/logos/logo-gundam-assemble.svg';
-import iconGundamAssemble from '../../../../packages/ui/src/assets/games/icons/gundam-assemble.svg';
+import logoGundamAssemble from '../../../../packages/ui/src/assets/games/logos/logo-gundam-assemble.png';
+import iconGundamAssemble from '../../../../packages/ui/src/assets/games/icons/gundam-assemble.png';
 import { deckUrl, GAME_PAGES } from './DeckPage';
 import { Select } from '@battleplans/ui';
 import { useGameCapabilities, availableModes } from '../hooks/useGameCapabilities';
@@ -156,7 +156,7 @@ const GAMES = [
     name: 'Gundam Assemble',
     logoSrc: logoGundamAssemble,
     thumbnailSrc: iconGundamAssemble as string,
-    thumbnailBg: 'bg-gradient-to-b from-[#1e2a44] to-[#0f1626]',
+    thumbnailBg: 'bg-[#45100f]',
   },
 ] as const;
 // Which games appear in the pickers (and in which modes) is not decided here:
