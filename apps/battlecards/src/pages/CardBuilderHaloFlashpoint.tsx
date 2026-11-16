@@ -17,7 +17,7 @@
  * Route: /app/builder/halo-flashpoint?deckId=<uuid>
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import AppNavbar from '../components/AppNavbar';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
@@ -52,7 +52,8 @@ import KeywordInfoModal from '../components/KeywordInfoModal';
 // Kill Team already uses the universal modal for weapons + abilities.
 import WeaponInfoModal from '../components/WeaponInfoModal';
 import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
-import { Badge } from '@battleplans/ui';
+import { Badge, Callout, supabase as listRulesDb } from '@battleplans/ui';
+import { evaluateListRules, type ListRules, type ListSettings } from '../lib/listRules';
 import { Card, CardBody } from '@battleplans/ui';
 import { Magnifer } from '@battleplans/ui';
 import UploadPhotoModal from '../components/UploadPhotoModal';
@@ -222,6 +223,47 @@ const CardBuilderHaloFlashpoint = () => {
   });
   const { cards, activeCardId } = cardState;
   const activeCard = cards.find(c => c.id === activeCardId) ?? cards[0];
+
+  // ── List rules (games.list_rules) — evaluated live from local card state ──
+  const [listRules, setListRules] = useState<ListRules | null>(null);
+  const [listSettings, setListSettings] = useState<ListSettings>({});
+  useEffect(() => {
+    if (!deckId) return;
+    (async () => {
+      const [g, d] = await Promise.all([
+        listRulesDb.from('games').select('list_rules').eq('slug', 'halo-flashpoint').maybeSingle(),
+        listRulesDb.from('decks').select('list_settings').eq('id', deckId).maybeSingle(),
+      ]);
+      setListRules(((g.data as { list_rules?: ListRules | null } | null)?.list_rules) ?? null);
+      setListSettings(((d.data as { list_settings?: ListSettings } | null)?.list_settings) ?? {});
+    })();
+  }, [deckId]);
+  /** Setting being edited from a tapped tally badge (e.g. Maximum Points). */
+  const [limitEdit, setLimitEdit] = useState<{ key: string; label: string; value: string; min: number; max: number } | null>(null);
+  const settingForTally = (resourceKey: string) => listRules?.settings?.find(s => s.resource === resourceKey);
+  const openLimitEdit = (resourceKey: string) => {
+    const s = settingForTally(resourceKey);
+    if (!s) return;
+    setLimitEdit({ key: s.key, label: s.label, value: String(listSettings[s.key] ?? s.default), min: s.min ?? 0, max: s.max ?? 9999 });
+  };
+  const limitValid = (l: NonNullable<typeof limitEdit>) =>
+    l.value !== '' && Number(l.value) >= l.min && Number(l.value) <= l.max;
+  const saveLimitEdit = async () => {
+    if (!limitEdit || !deckId || !limitValid(limitEdit)) return;
+    const next = { ...listSettings, [limitEdit.key]: Number(limitEdit.value) };
+    setListSettings(next);
+    setLimitEdit(null);
+    const { error } = await listRulesDb.from('decks').update({ list_settings: next }).eq('id', deckId);
+    if (error) console.error('[HaloBuilder] saving list settings failed:', error);
+  };
+  const listEvaluation = useMemo(() => evaluateListRules(
+    listRules,
+    cards.filter(c => !isHaloCardBlank(c)).map(c => ({
+      id: c.id, name: c.unitName, card_type: 'operative', stats: { pointsCost: c.pointsCost },
+      keywords: c.unitKeywords.map(k => k.keywordName),
+    })),
+    listSettings,
+  ), [listRules, listSettings, cards]);
 
   // ── Play-mode tokens (shared engine) ──────────────────────────────────────────
   // Halo's tokens run through the same `useDeckTokens` hook as every other game.
@@ -1512,7 +1554,7 @@ const CardBuilderHaloFlashpoint = () => {
   return (
     <BuilderShell
       navbar={
-        <AppNavbar fixed={false}>
+        <AppNavbar fixed={false} deckName={deckName}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1584,6 +1626,33 @@ const CardBuilderHaloFlashpoint = () => {
           onStartEdit={startDeckNameEdit}
           onCommit={commitDeckName}
           onCancelEdit={() => setEditingDeckName(false)}
+          headerSubtitle={listEvaluation.tallies.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap gap-1">
+                {listEvaluation.tallies.map(t => {
+                  const setting = settingForTally(t.key);
+                  const badge = (
+                    <Badge
+                      variant="outline"
+                      color={t.failed === 'error' ? 'danger' : t.failed === 'warning' ? 'warning' : t.limit != null ? 'success' : 'gray'}
+                    >
+                      {t.label} {t.total}{t.limit != null ? `/${t.limit}` : ''}
+                    </Badge>
+                  );
+                  return setting ? (
+                    <button key={t.key} type="button" onClick={() => openLimitEdit(t.key)} className="rounded hover:opacity-80" title={`Set ${setting.label}`}>
+                      {badge}
+                    </button>
+                  ) : <span key={t.key}>{badge}</span>;
+                })}
+              </div>
+              {listEvaluation.problems.map((p, i) => (
+                <Callout key={i} flavour={p.severity === 'error' ? 'bad' : 'warning'}>
+                  <span className="text-xs">{p.message}</span>
+                </Callout>
+              ))}
+            </div>
+          ) : undefined}
           headerAction={appMode === 'edit' ? (
             <DeckPanelMenu
               editMode={editMode}
@@ -2239,6 +2308,31 @@ const CardBuilderHaloFlashpoint = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ── List limit modal (tap a tally badge, e.g. Points) ───────────── */}
+      <Modal open={limitEdit !== null} onClose={() => setLimitEdit(null)} className="max-w-xs">
+        {limitEdit && (
+          <form className="p-5 flex flex-col gap-4" onSubmit={e => { e.preventDefault(); saveLimitEdit(); }}>
+            <Input
+              label={limitEdit.label}
+              type="number"
+              inputMode="numeric"
+              min={limitEdit.min}
+              max={limitEdit.max}
+              value={limitEdit.value}
+              autoFocus
+              onChange={e => {
+                const digits = e.target.value.replace(/[^0-9]/g, '');
+                setLimitEdit(l => l && ({ ...l, value: digits.slice(0, String(l.max).length) }));
+              }}
+            />
+            <div className="flex items-center justify-end gap-3">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setLimitEdit(null)}>Cancel</Button>
+              <Button type="submit" color="primary" size="sm" disabled={!limitValid(limitEdit)}>Save</Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* ── Delete card confirmation modal ─────────────────────────────── */}

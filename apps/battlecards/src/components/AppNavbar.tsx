@@ -1,4 +1,4 @@
-import { useLocation, matchPath } from 'react-router-dom';
+import { useLocation, useSearchParams, matchPath } from 'react-router-dom';
 import { Navbar } from '@battleplans/ui';
 import type { Breadcrumb } from '@battleplans/ui';
 
@@ -33,17 +33,34 @@ const CRUMBS: { pattern: string; trail: Breadcrumb[] }[] = [
   { pattern: '/app/print',                trail: [HOME, { label: 'Print' }] },
 ];
 
-function useBreadcrumbs(): Breadcrumb[] {
+/**
+ * Trail for the current screen. Viewing a deck (/app/deck/:slug?deckId=…, or a
+ * legacy /app/builder/<game>?deckId=…) shows Home › Deck name.
+ */
+function useBreadcrumbs(deckName: string | null | undefined): Breadcrumb[] {
   const { pathname } = useLocation();
+  const [params] = useSearchParams();
+  const deckId = params.get('deckId');
+  const deck: Breadcrumb[] = [HOME, { label: deckName || 'Deck' }];
+
+  if (matchPath({ path: '/app/deck/:slug', end: true }, pathname)) return deck;
   for (const { pattern, trail } of CRUMBS) {
-    if (matchPath({ path: pattern, end: true }, pathname)) return trail;
+    if (!matchPath({ path: pattern, end: true }, pathname)) continue;
+    // Legacy builder routes opened on a deck: the deck is the current page.
+    if (deckId && pattern.startsWith('/app/builder/') && !pattern.includes('ryg-')) return deck;
+    return trail;
   }
   return [];
 }
 
 type NavbarProps = Parameters<typeof Navbar>[0];
 
-export default function AppNavbar(props: Omit<NavbarProps, 'apps'>) {
-  const crumbs = useBreadcrumbs();
+export interface AppNavbarProps extends Omit<NavbarProps, 'apps'> {
+  /** Current deck's name, shown as the last breadcrumb on deck pages. */
+  deckName?: string | null;
+}
+
+export default function AppNavbar({ deckName, ...props }: AppNavbarProps) {
+  const crumbs = useBreadcrumbs(deckName);
   return <Navbar {...props} breadcrumbs={props.breadcrumbs ?? crumbs} />;
 }

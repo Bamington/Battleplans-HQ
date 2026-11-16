@@ -33,6 +33,7 @@ import { AddCircle, FileText, Pen2, Shield, Star, UserRounded, Widget2, Gallery,
 
 // ── Local component imports ──────────────────────────────────────────────────
 import AppNavbar from '../components/AppNavbar';
+import TokenDefinitionForm, { emptyTokenDraft, tokenDraftError, type TokenDraft } from '../components/TokenDefinitionForm';
 import ZoomControls from '../components/ZoomControls';
 import UnitListEntry from '../components/UnitListEntry';
 import DeckCardList from '../components/DeckCardList';
@@ -586,6 +587,35 @@ const BuilderShellDemo = () => {
 // ── Local nav ────────────────────────────────────────────────────────────────
 
 /** Sidebar entries for this app's own sections, appended after the shared ones. */
+/** Token Definition Form demo: a new badge, an HP-style bar, an icon row, and an invalid draft. */
+const TokenDefinitionFormGalleryDemo = () => {
+  const [badge, setBadge] = useState<TokenDraft>({ ...emptyTokenDraft(), name: 'Activated', is_toggle: true, max_value: '1', refresh_on_turn: '-1', is_activation_token: true, color_set: 'Amber', display_glyph: 'A' });
+  const [bar, setBar]     = useState<TokenDraft>({ ...emptyTokenDraft(), name: 'Damage', display_style: 'bar', stat_key: 'hp', color_set: 'Red' });
+  const [icon, setIcon]   = useState<TokenDraft>({ ...emptyTokenDraft(), name: 'Shield', display_style: 'icon', is_toggle: true, refresh_on_turn: '1', color_set: '' });
+  const [bad, setBad]     = useState<TokenDraft>({ ...emptyTokenDraft(), name: '', min_value: '5', max_value: '2' });
+  const panels: [string, TokenDraft, (d: TokenDraft) => void, boolean?][] = [
+    ['Badge — on/off activation token', badge, setBadge],
+    ['Bar — maximum from the hp card stat', bar, setBar],
+    ['Icon row — artwork kept, numbers editable', icon, setIcon],
+    ['Invalid draft (shows the first problem)', bad, setBad],
+  ];
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {panels.map(([label, v, set]) => (
+        <div key={label} className="flex flex-col gap-3 rounded-xl border border-gray-800 bg-gray-900 p-5">
+          <p className="font-body text-xs text-gray-400">{label}</p>
+          <TokenDefinitionForm value={v} onChange={set} statKeys={['hp', 'wounds', 'life']} />
+          <p className="font-body text-xs text-red-400 min-h-4">{tokenDraftError(v) ?? ''}</p>
+        </div>
+      ))}
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-800 bg-gray-900 p-5">
+        <p className="font-body text-xs text-gray-400">Disabled (while saving)</p>
+        <TokenDefinitionForm value={badge} onChange={() => {}} disabled />
+      </div>
+    </div>
+  );
+};
+
 const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-navbar',                label: 'Navbar',                icon: <Widget2 className="w-5 h-5" /> },
   { href: '#nav-zoom-controls',         label: 'Zoom Controls',         icon: <Gallery className="w-5 h-5" /> },
@@ -600,6 +630,7 @@ const LOCAL_NAV: GalleryNavItem[] = [
   { href: '#nav-kill-team-rule-card',   label: 'KT Rule Card',          icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-static-card',           label: 'Static Card',           icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-static-card-modal',     label: 'Static Card Modal',     icon: <Shield className="w-5 h-5" /> },
+  { href: '#nav-token-definition-form', label: 'Token Definition Form', icon: <Pen2 className="w-5 h-5" /> },
   { href: '#nav-ryg-card',              label: 'RYG Card',              icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-god-card',              label: 'God Card',              icon: <Shield className="w-5 h-5" /> },
   { href: '#nav-sept-card',             label: 'Sept Card',             icon: <Shield className="w-5 h-5" /> },
@@ -1292,6 +1323,15 @@ const ComponentGallery = () => {
             </div>
           ))}
         </div>
+      </GallerySection>
+
+      {/* ── Token Definition Form ─────────────────────────────────── */}
+      <GallerySection id="nav-token-definition-form" title="Token Definition Form / Variants">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Manage Games › Tracking form for one play-mode bar or token: name, style (bar or badge), min / max / starting
+          values, a card stat for the maximum, turn behaviour and colour. Icon tokens keep their artwork.
+        </p>
+        <TokenDefinitionFormGalleryDemo />
       </GallerySection>
 
       {/* ── Static Card Modal ────────────────────────────────────── */}
