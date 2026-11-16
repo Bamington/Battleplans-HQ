@@ -4,9 +4,12 @@
 were already there). Verified by replaying all 23 schedules back out of
 production against the parsed source: 0 mismatches in time, label and kind.
 
-One corrective script remains optional:
-`tools/minimyths-ingest/transform/fix_sections.sql` — 5 Prizes rows, see
-"Section extraction defects" below.
+Two corrective scripts, in `tools/minimyths-ingest/transform/`:
+
+- **`fix_host_club.sql` — REQUIRED.** Without it all 89 packs are invisible to
+  the club's own organisers. See "The host club" below.
+- `fix_sections.sql` — 5 Prizes rows, cosmetic. See "Section extraction
+  defects".
 
 ---
 
@@ -162,6 +165,32 @@ asserted.
   Mandalore both carry `12:15 AM - Round 1 complete` from the same template.
 - `Operation Frostbite` has a resource whose title is a full sentence, and
   `Purple Palette: Fantasy` has a "prize" that is really a qualifying rule.
+
+## The host club — why the imported packs were invisible
+
+`battlepacks` carries two location columns and they mean different things:
+
+- `location_id` — **where it happened**. NOT NULL.
+- `host_location_id` — **the club running it**. NULL means the venue runs it
+  itself.
+
+The read policy (`20260818020000`) grants access through *either*, via
+`administers_location` / `is_location_organiser`. The import set only
+`location_id`, mostly Guf Werribee — a store the Mini Myths organisers do not
+administer — and left the host club null. Result: `listPacks()` applies no
+filter of its own, RLS returned nothing, and My BattlePacks showed none of the
+89 under the Mini Myths context.
+
+Every event in this archive is a Mini Myths event; that is the filter the
+source snapshot was taken under. So `host_location_id` is
+`53809c67-b6a5-4ebc-8941-9c14da626d5a` for all 89. `stage2.py` and `gen_sql.py`
+now set it on insert, and `fix_host_club.sql` backfills the rows already in
+production (scoped to the 89 ids explicitly, so no pre-existing pack is
+touched).
+
+The lesson for anything similar: a NOT NULL column being satisfied does not
+mean the right column was filled. `location_id` was required and correct, and
+the import still produced 89 rows nobody could see.
 
 ## Section extraction defects found after import
 

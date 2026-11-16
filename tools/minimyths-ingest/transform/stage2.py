@@ -11,6 +11,8 @@ recs = json.load(open(R('transform', 'staging.json')))
 # exactly what a single segment's starts_on/ends_on pair is for.
 TWO_DAY = {'Arcpoint 2025', 'Duel of the Fates 2025', 'Duel of the Fates 2026'}
 
+MINI_MYTHS_CLUB = '53809c67-b6a5-4ebc-8941-9c14da626d5a'
+
 def _dayafter(d):
     import datetime
     return (datetime.date.fromisoformat(d) + datetime.timedelta(days=1)).isoformat()
@@ -127,6 +129,12 @@ for r in recs:
             'schedule_shape': ('days' if (len(segs) > 1 or not r['ends_on'])
                                and not r['is_league'] else 'periods'),
             'recurrence': 'none',
+            # The club running the event, as distinct from location_id, which is
+            # only ever where it happened. Every event in this archive is a Mini
+            # Myths event -- that is the filter the snapshot was taken under --
+            # and the read policy grants access via EITHER side, so leaving this
+            # null hides all 89 packs from the club's own admins.
+            'host_location_id': MINI_MYTHS_CLUB,
             'starts_on': r['starts_on'],
             '_ends_on': r['ends_on'],
         },

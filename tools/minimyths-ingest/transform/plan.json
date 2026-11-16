@@ -11,6 +11,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-07-09",
    "_ends_on": null
   },
@@ -53,6 +54,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-07-23",
    "_ends_on": null
   },
@@ -95,6 +97,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-08-15",
    "_ends_on": null
   },
@@ -132,6 +135,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-08-20",
    "_ends_on": null
   },
@@ -174,6 +178,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-09-10",
    "_ends_on": null
   },
@@ -216,6 +221,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-09-24",
    "_ends_on": null
   },
@@ -258,6 +264,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2022-10-22",
    "_ends_on": null
   },
@@ -300,6 +307,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-01-21",
    "_ends_on": null
   },
@@ -342,6 +350,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-01-28",
    "_ends_on": null
   },
@@ -384,6 +393,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-02-11",
    "_ends_on": null
   },
@@ -426,6 +436,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-04-30",
    "_ends_on": null
   },
@@ -468,6 +479,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-05-13",
    "_ends_on": null
   },
@@ -510,6 +522,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-05-18",
    "_ends_on": null
   },
@@ -552,6 +565,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-05-20",
    "_ends_on": null
   },
@@ -594,6 +608,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-06-10",
    "_ends_on": null
   },
@@ -631,6 +646,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-06-24",
    "_ends_on": null
   },
@@ -673,6 +689,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-07-08",
    "_ends_on": null
   },
@@ -715,6 +732,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-07-22",
    "_ends_on": null
   },
@@ -757,6 +775,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-08-06",
    "_ends_on": null
   },
@@ -799,6 +818,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-08-24",
    "_ends_on": null
   },
@@ -841,6 +861,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-09-10",
    "_ends_on": null
   },
@@ -883,6 +904,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-09-17",
    "_ends_on": null
   },
@@ -925,6 +947,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2023-11-08",
    "_ends_on": null
   },
@@ -967,6 +990,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-02-24",
    "_ends_on": null
   },
@@ -1009,6 +1033,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-02-29",
    "_ends_on": null
   },
@@ -1046,6 +1071,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-03-09",
    "_ends_on": null
   },
@@ -1088,6 +1114,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-04-06",
    "_ends_on": null
   },
@@ -1194,6 +1221,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-04-11",
    "_ends_on": null
   },
@@ -1231,6 +1259,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-04-28",
    "_ends_on": null
   },
@@ -1273,6 +1302,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-05-04",
    "_ends_on": null
   },
@@ -1315,6 +1345,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-05-25",
    "_ends_on": null
   },
@@ -1357,6 +1388,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-06-02",
    "_ends_on": null
   },
@@ -1447,6 +1479,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-06-05",
    "_ends_on": null
   },
@@ -1489,6 +1522,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-06-15",
    "_ends_on": null
   },
@@ -1531,6 +1565,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-06-22",
    "_ends_on": null
   },
@@ -1573,6 +1608,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-07-06",
    "_ends_on": null
   },
@@ -1615,6 +1651,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-07-20",
    "_ends_on": null
   },
@@ -1657,6 +1694,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-07-21",
    "_ends_on": null
   },
@@ -1699,6 +1737,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-08-10",
    "_ends_on": null
   },
@@ -1793,6 +1832,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-08-18",
    "_ends_on": null
   },
@@ -1835,6 +1875,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-08-24",
    "_ends_on": null
   },
@@ -1877,6 +1918,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-09-14",
    "_ends_on": null
   },
@@ -1919,6 +1961,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-09-29",
    "_ends_on": null
   },
@@ -1961,6 +2004,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-10-12",
    "_ends_on": null
   },
@@ -2003,6 +2047,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-10-19",
    "_ends_on": null
   },
@@ -2045,6 +2090,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-11-02",
    "_ends_on": null
   },
@@ -2087,6 +2133,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2024-12-21",
    "_ends_on": null
   },
@@ -2129,6 +2176,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-01-25",
    "_ends_on": null
   },
@@ -2171,6 +2219,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-02-15",
    "_ends_on": null
   },
@@ -2213,6 +2262,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-02-23",
    "_ends_on": null
   },
@@ -2255,6 +2305,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-03-15",
    "_ends_on": null
   },
@@ -2297,6 +2348,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-03-22",
    "_ends_on": null
   },
@@ -2339,6 +2391,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-03-30",
    "_ends_on": null
   },
@@ -2381,6 +2434,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-04-05",
    "_ends_on": null
   },
@@ -2513,6 +2567,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-04-12",
    "_ends_on": null
   },
@@ -2610,6 +2665,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-04-13",
    "_ends_on": null
   },
@@ -2714,6 +2770,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-04-20",
    "_ends_on": null
   },
@@ -2793,6 +2850,7 @@
    "timeline": "multi-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-05-03",
    "_ends_on": "2025-05-04"
   },
@@ -2843,6 +2901,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-05-04",
    "_ends_on": null
   },
@@ -2932,6 +2991,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-05-18",
    "_ends_on": null
   },
@@ -3021,6 +3081,7 @@
    "timeline": "league",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-05-26",
    "_ends_on": "2025-08-05"
   },
@@ -3087,6 +3148,7 @@
    "timeline": "league",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-06-15",
    "_ends_on": "2025-09-28"
   },
@@ -3133,6 +3195,7 @@
    "timeline": "multi-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-06-21",
    "_ends_on": "2025-06-22"
   },
@@ -3246,6 +3309,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-06-22",
    "_ends_on": null
   },
@@ -3365,6 +3429,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-07-26",
    "_ends_on": null
   },
@@ -3454,6 +3519,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-07-26",
    "_ends_on": null
   },
@@ -3588,6 +3654,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-08-02",
    "_ends_on": null
   },
@@ -3663,6 +3730,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-09-14",
    "_ends_on": null
   },
@@ -3745,6 +3813,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-10-12",
    "_ends_on": null
   },
@@ -3819,6 +3888,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-10-25",
    "_ends_on": null
   },
@@ -3951,6 +4021,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-11-15",
    "_ends_on": null
   },
@@ -4033,6 +4104,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-12-06",
    "_ends_on": null
   },
@@ -4122,6 +4194,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2025-12-13",
    "_ends_on": null
   },
@@ -4164,6 +4237,7 @@
    "timeline": "league",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-01-18",
    "_ends_on": "2026-03-14"
   },
@@ -4210,6 +4284,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-03-08",
    "_ends_on": null
   },
@@ -4304,6 +4379,7 @@
    "timeline": "multi-day",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-03-15",
    "_ends_on": "2026-04-30"
   },
@@ -4341,6 +4417,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-04-18",
    "_ends_on": null
   },
@@ -4419,6 +4496,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-05-02",
    "_ends_on": null
   },
@@ -4555,6 +4633,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-05-23",
    "_ends_on": null
   },
@@ -4660,6 +4739,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-06-13",
    "_ends_on": null
   },
@@ -4762,6 +4842,7 @@
    "timeline": "multi-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-06-20",
    "_ends_on": "2026-06-21"
   },
@@ -4835,6 +4916,7 @@
    "timeline": "league",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-06-22",
    "_ends_on": null
   },
@@ -4881,6 +4963,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-07-05",
    "_ends_on": null
   },
@@ -5019,6 +5102,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-07-10",
    "_ends_on": null
   },
@@ -5056,6 +5140,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-07-12",
    "_ends_on": null
   },
@@ -5169,6 +5254,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-07-18",
    "_ends_on": null
   },
@@ -5251,6 +5337,7 @@
    "timeline": "one-day",
    "schedule_shape": "days",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-07-19",
    "_ends_on": null
   },
@@ -5356,6 +5443,7 @@
    "timeline": "multi-day",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-08-14",
    "_ends_on": "2026-10-09"
   },
@@ -5406,6 +5494,7 @@
    "timeline": "multi-day",
    "schedule_shape": "periods",
    "recurrence": "none",
+   "host_location_id": "53809c67-b6a5-4ebc-8941-9c14da626d5a",
    "starts_on": "2026-11-13",
    "_ends_on": "2027-02-12"
   },

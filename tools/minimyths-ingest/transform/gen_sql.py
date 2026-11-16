@@ -60,6 +60,11 @@ w('-- No notification is sent: notify_battlepack_segment_change() returns early'
 w('-- unless the pack has a row in battlepack_calendar_adds, and a new pack has')
 w('-- none. Verified before generating this.')
 w('--')
+w('-- host_location_id is the CLUB running the event; location_id is only ever')
+w('-- where it happened. The read policy grants access through either, so a pack')
+w('-- with a venue the organiser does not administer and no host club is')
+w('-- invisible to them. Every event here is a Mini Myths event.')
+w('--')
 w('-- Run as a role that bypasses RLS (service_role / postgres).')
 w('')
 w('begin;')
@@ -76,11 +81,13 @@ for p in plan:
     pack_ends_on = p['pack'].get('_ends_on')
     w('insert into public.battlepacks'
       ' (id, name, game_id, location_id, owner_id, status, slug,'
-      ' format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)')
+      ' format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at,'
+      ' host_location_id)')
     w(f'select {q(pid)}, {q(nm)}, {q(pk["game_id"])}, {q(pk["location_id"])},')
     w(f'       {q(OWNER)}, {q(pk["status"])}, {q(pk["slug"])},')
     w(f'       {q(pk["format"])}, {q(pk["timeline"])}, {q(pk["schedule_shape"])}, {q(pk["recurrence"])},')
-    w(f'       {q(pk["starts_on"])}, {q(pack_ends_on)}, {q(seg1["starts_at"])}')
+    w(f'       {q(pk["starts_on"])}, {q(pack_ends_on)}, {q(seg1["starts_at"])},')
+    w(f'       {q(pk.get("host_location_id"))}')
     w(f'where not exists (select 1 from public.battlepack_slugs'
       f' where slug = lower({q(pk["slug"])}));')
 

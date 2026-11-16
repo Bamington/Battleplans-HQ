@@ -28,16 +28,22 @@
 -- unless the pack has a row in battlepack_calendar_adds, and a new pack has
 -- none. Verified before generating this.
 --
+-- host_location_id is the CLUB running the event; location_id is only ever
+-- where it happened. The read policy grants access through either, so a pack
+-- with a venue the organiser does not administer and no host club is
+-- invisible to them. Every event here is a Mini Myths event.
+--
 -- Run as a role that bypasses RLS (service_role / postgres).
 
 begin;
 
 -- ── Unnatural Resources  (unnatural-resources)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'eff6f23a-7691-5ef7-8110-200980d39f3b', 'Unnatural Resources', '2c423202-05c0-4805-802d-a0a750340992', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'unnatural-resources',
        'Organized Play', 'one-day', 'days', 'none',
-       '2022-07-09', null, null
+       '2022-07-09', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('unnatural-resources'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-07-09', ends_on = null,
@@ -49,11 +55,12 @@ where exists (select 1 from public.battlepacks where id = 'eff6f23a-7691-5ef7-81
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Multiversal Mayhem  (multiversal-mayhem)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '635558ff-0ad9-5d36-8a75-484d07479a68', 'Multiversal Mayhem', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'multiversal-mayhem',
        'Teams of 2 - Timeline Standard', 'one-day', 'days', 'none',
-       '2022-07-23', null, null
+       '2022-07-23', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('multiversal-mayhem'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-07-23', ends_on = null,
@@ -65,11 +72,12 @@ where exists (select 1 from public.battlepacks where id = '635558ff-0ad9-5d36-8a
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Clash of Kings  (clash-of-kings)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '6f504156-a0cc-56e2-90a9-64264d1a114d', 'Clash of Kings', 'abdc7897-0795-4b0a-9dee-a5d9b30500e5', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'clash-of-kings',
        'Narrative Campaign', 'one-day', 'days', 'none',
-       '2022-08-15', null, null
+       '2022-08-15', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('clash-of-kings'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-08-15', ends_on = null,
@@ -77,11 +85,12 @@ update public.battlepack_schedule_segments set
 where pack_id = '6f504156-a0cc-56e2-90a9-64264d1a114d' and ordinal = 1;
 
 -- ── Ghur Awakens  (ghur-awakens)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '3efbd516-f997-5ed1-ad27-00f230762027', 'Ghur Awakens', '1c61d554-a58c-4d6c-9066-d9f5befc8023', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'ghur-awakens',
        'Matched Play', 'one-day', 'days', 'none',
-       '2022-08-20', null, null
+       '2022-08-20', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('ghur-awakens'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-08-20', ends_on = null,
@@ -93,11 +102,12 @@ where exists (select 1 from public.battlepacks where id = '3efbd516-f997-5ed1-ad
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Winter is Coming  (winter-is-coming)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '4e732ee6-45f5-5e15-b8b5-dae68245324a', 'Winter is Coming', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'winter-is-coming',
        'Timeline Standard', 'one-day', 'days', 'none',
-       '2022-09-10', null, null
+       '2022-09-10', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('winter-is-coming'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-09-10', ends_on = null,
@@ -109,11 +119,12 @@ where exists (select 1 from public.battlepacks where id = '4e732ee6-45f5-5e15-b8
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Battleforce Skirmish  (battleforce-skirmish)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '28e9265e-1eae-5239-af8c-1d9e74146c8a', 'Battleforce Skirmish', '2c423202-05c0-4805-802d-a0a750340992', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'battleforce-skirmish',
        'Skirmish (500 Points)', 'one-day', 'days', 'none',
-       '2022-09-24', null, null
+       '2022-09-24', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('battleforce-skirmish'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-09-24', ends_on = null,
@@ -125,11 +136,12 @@ where exists (select 1 from public.battlepacks where id = '28e9265e-1eae-5239-af
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Mutant Mayhem  (mutant-mayhem)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '5bbc94b9-e7ee-5aac-8c6e-f9a03b2b5ef0', 'Mutant Mayhem', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'mutant-mayhem',
        'Timeline Standard', 'one-day', 'days', 'none',
-       '2022-10-22', null, null
+       '2022-10-22', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('mutant-mayhem'));
 update public.battlepack_schedule_segments set
   starts_on = '2022-10-22', ends_on = null,
@@ -141,11 +153,12 @@ where exists (select 1 from public.battlepacks where id = '5bbc94b9-e7ee-5aac-8c
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Dynamic Exit  (dynamic-exit)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'a6572107-db97-54a5-9856-cdd3ccac4847', 'Dynamic Exit', '2c423202-05c0-4805-802d-a0a750340992', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'dynamic-exit',
        'Painting Competition', 'one-day', 'days', 'none',
-       '2023-01-21', null, null
+       '2023-01-21', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('dynamic-exit'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-01-21', ends_on = null,
@@ -157,11 +170,12 @@ where exists (select 1 from public.battlepacks where id = 'a6572107-db97-54a5-98
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Heroes League  (heroes-league)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'c6cc8612-9614-5f2e-801f-4c4e4ac17afe', 'Heroes League', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'heroes-league',
        'Organised Play Kit', 'one-day', 'days', 'none',
-       '2023-01-28', null, null
+       '2023-01-28', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('heroes-league'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-01-28', ends_on = null,
@@ -173,11 +187,12 @@ where exists (select 1 from public.battlepacks where id = 'c6cc8612-9614-5f2e-80
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Valentine's Day Dakka  (valentines-day-dakka)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '14a423a0-774b-5635-ae72-f682efd09d3e', 'Valentine''s Day Dakka', '24bc318b-1970-4401-a32d-82737a57dc01', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'valentines-day-dakka',
        'Timeline Standard', 'one-day', 'days', 'none',
-       '2023-02-11', null, null
+       '2023-02-11', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('valentines-day-dakka'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-02-11', ends_on = null,
@@ -189,11 +204,12 @@ where exists (select 1 from public.battlepacks where id = '14a423a0-774b-5635-ae
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Armoured Warfare  (armoured-warfare)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '51a2e030-d326-55ee-b15c-20360eab6c45', 'Armoured Warfare', '2c423202-05c0-4805-802d-a0a750340992', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'armoured-warfare',
        'Timeline Standard', 'one-day', 'days', 'none',
-       '2023-04-30', null, null
+       '2023-04-30', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('armoured-warfare'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-04-30', ends_on = null,
@@ -205,11 +221,12 @@ where exists (select 1 from public.battlepacks where id = '51a2e030-d326-55ee-b1
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Battletech Learn to Play  (battletech-learn-to-play)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '792f03bf-1111-55c6-ad12-48fa7f1659d4', 'Battletech Learn to Play', 'aa727d43-324f-4f5c-9aa6-ebe5810e0abe', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'battletech-learn-to-play',
        'Learn to Play', 'one-day', 'days', 'none',
-       '2023-05-13', null, null
+       '2023-05-13', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('battletech-learn-to-play'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-05-13', ends_on = null,
@@ -221,11 +238,12 @@ where exists (select 1 from public.battlepacks where id = '792f03bf-1111-55c6-ad
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Whispers of Ghur  (whispers-of-ghur)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '888d6668-e68d-5bc6-9d1a-4aabe66ec62d', 'Whispers of Ghur', '1c61d554-a58c-4d6c-9066-d9f5befc8023', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'whispers-of-ghur',
        'Slow-Grow League', 'one-day', 'days', 'none',
-       '2023-05-18', null, null
+       '2023-05-18', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('whispers-of-ghur'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-05-18', ends_on = null,
@@ -237,11 +255,12 @@ where exists (select 1 from public.battlepacks where id = '888d6668-e68d-5bc6-9d
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Xenos vs Terra  (xenos-vs-terra)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '400a34c0-5906-5f6d-bb43-abf85a384ec2', 'Xenos vs Terra', '24bc318b-1970-4401-a32d-82737a57dc01', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'xenos-vs-terra',
        'Matched Play - Teams of Two', 'one-day', 'days', 'none',
-       '2023-05-20', null, null
+       '2023-05-20', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('xenos-vs-terra'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-05-20', ends_on = null,
@@ -253,11 +272,12 @@ where exists (select 1 from public.battlepacks where id = '400a34c0-5906-5f6d-bb
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Shatterpoint Learn to Play  (shatterpoint-learn-to-play)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'e34b250b-b352-5f4e-a339-a74b38c175e2', 'Shatterpoint Learn to Play', '44e458ea-51b2-4e56-9148-10ed10355eda', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'shatterpoint-learn-to-play',
        'Learn to Play', 'one-day', 'days', 'none',
-       '2023-06-10', null, null
+       '2023-06-10', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('shatterpoint-learn-to-play'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-06-10', ends_on = null,
@@ -265,11 +285,12 @@ update public.battlepack_schedule_segments set
 where pack_id = 'e34b250b-b352-5f4e-a339-a74b38c175e2' and ordinal = 1;
 
 -- ── Battle for Planet Guf!  (battle-for-planet-guf)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '9dce3e67-34e4-53f0-805c-b9a3d9418a5e', 'Battle for Planet Guf!', '44e458ea-51b2-4e56-9148-10ed10355eda', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'battle-for-planet-guf',
        'Casual Tournament', 'one-day', 'days', 'none',
-       '2023-06-24', null, null
+       '2023-06-24', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('battle-for-planet-guf'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-06-24', ends_on = null,
@@ -281,11 +302,12 @@ where exists (select 1 from public.battlepacks where id = '9dce3e67-34e4-53f0-80
 on conflict (pack_id, category_key) do nothing;
 
 -- ── 10th Edition Combat Patrol  (10th-edition-combat-patrol)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '13e3b77f-7e83-5c1a-9e53-34abe05f8b39', '10th Edition Combat Patrol', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', '10th-edition-combat-patrol',
        'Combat Patrol', 'one-day', 'days', 'none',
-       '2023-07-08', null, null
+       '2023-07-08', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('10th-edition-combat-patrol'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-07-08', ends_on = null,
@@ -297,11 +319,12 @@ where exists (select 1 from public.battlepacks where id = '13e3b77f-7e83-5c1a-9e
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Arrival of Leviathan  (arrival-of-leviathan)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '73b5eb5e-ae99-561b-809a-fa5149604adc', 'Arrival of Leviathan', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'arrival-of-leviathan',
        '1000 Point Matched Play', 'one-day', 'days', 'none',
-       '2023-07-22', null, null
+       '2023-07-22', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('arrival-of-leviathan'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-07-22', ends_on = null,
@@ -313,11 +336,12 @@ where exists (select 1 from public.battlepacks where id = '73b5eb5e-ae99-561b-80
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Dark Side Rising  (dark-side-rising)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '3e73349b-aa0d-5dd1-be5e-38f30112a5e8', 'Dark Side Rising', '44e458ea-51b2-4e56-9148-10ed10355eda', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'dark-side-rising',
        'Showdown (Standard Touirnament Rules)', 'one-day', 'days', 'none',
-       '2023-08-06', null, null
+       '2023-08-06', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('dark-side-rising'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-08-06', ends_on = null,
@@ -329,11 +353,12 @@ where exists (select 1 from public.battlepacks where id = '3e73349b-aa0d-5dd1-be
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Kalador Burning  (kalador-burning)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'f66ef0b1-dca6-58a1-9cb5-c5b31c6a543f', 'Kalador Burning', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'kalador-burning',
        'Crusade', 'one-day', 'days', 'none',
-       '2023-08-24', null, null
+       '2023-08-24', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('kalador-burning'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-08-24', ends_on = null,
@@ -345,11 +370,12 @@ where exists (select 1 from public.battlepacks where id = 'f66ef0b1-dca6-58a1-9c
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Fall of Oghram  (fall-of-oghram)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '3fd62d55-6da0-549f-a5cb-ca0e7987f7cc', 'Fall of Oghram', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'fall-of-oghram',
        'Matched Play - 2000 Points', 'one-day', 'days', 'none',
-       '2023-09-10', null, null
+       '2023-09-10', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('fall-of-oghram'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-09-10', ends_on = null,
@@ -361,11 +387,12 @@ where exists (select 1 from public.battlepacks where id = '3fd62d55-6da0-549f-a5
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Cosmic Clash!  (cosmic-clash)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'd34552db-74bd-5786-93f1-fd3af2c1bb8d', 'Cosmic Clash!', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'cosmic-clash',
        'Custom Missions', 'one-day', 'days', 'none',
-       '2023-09-17', null, null
+       '2023-09-17', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('cosmic-clash'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-09-17', ends_on = null,
@@ -377,11 +404,12 @@ where exists (select 1 from public.battlepacks where id = 'd34552db-74bd-5786-93
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Trials of the Jedi  (trials-of-the-jedi)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'e2b173e0-74ea-5f07-8aa5-e7fa5c2f6fa0', 'Trials of the Jedi', '44e458ea-51b2-4e56-9148-10ed10355eda', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'trials-of-the-jedi',
        'League', 'one-day', 'days', 'none',
-       '2023-11-08', null, null
+       '2023-11-08', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('trials-of-the-jedi'));
 update public.battlepack_schedule_segments set
   starts_on = '2023-11-08', ends_on = null,
@@ -393,11 +421,12 @@ where exists (select 1 from public.battlepacks where id = 'e2b173e0-74ea-5f07-8a
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Cities Under Siege  (cities-under-siege)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'a47fe4bb-528a-578a-b17e-6af52fe5ab9e', 'Cities Under Siege', '1c61d554-a58c-4d6c-9066-d9f5befc8023', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'cities-under-siege',
        '3 Rounds', 'one-day', 'days', 'none',
-       '2024-02-24', null, null
+       '2024-02-24', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('cities-under-siege'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-02-24', ends_on = null,
@@ -409,11 +438,12 @@ where exists (select 1 from public.battlepacks where id = 'a47fe4bb-528a-578a-b1
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Paradiso Escalation League  (paradiso-escalation-league)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '6e7bebca-67b5-55a6-8df4-e6716730e21b', 'Paradiso Escalation League', '8bdd2d21-1b81-4196-a1ca-f6ad93a9694a', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'paradiso-escalation-league',
        'Escalation Format', 'one-day', 'days', 'none',
-       '2024-02-29', null, null
+       '2024-02-29', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('paradiso-escalation-league'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-02-29', ends_on = null,
@@ -421,11 +451,12 @@ update public.battlepack_schedule_segments set
 where pack_id = '6e7bebca-67b5-55a6-8df4-e6716730e21b' and ordinal = 1;
 
 -- ── Rise of the Ewoks!  (rise-of-the-ewoks)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'b394cbf6-462c-59e2-9459-ffda02351eda', 'Rise of the Ewoks!', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'rise-of-the-ewoks',
        'Showdown', 'one-day', 'days', 'none',
-       '2024-03-09', null, null
+       '2024-03-09', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('rise-of-the-ewoks'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-03-09', ends_on = null,
@@ -437,11 +468,12 @@ where exists (select 1 from public.battlepacks where id = 'b394cbf6-462c-59e2-94
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Purple Palette  (purple-palette)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '4516575f-6f93-5c7b-aca2-6ab8f785bd7b', 'Purple Palette', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'purple-palette',
        'Painting Challenge', 'one-day', 'days', 'none',
-       '2024-04-06', null, null
+       '2024-04-06', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('purple-palette'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-04-06', ends_on = null,
@@ -457,11 +489,12 @@ where exists (select 1 from public.battlepacks where id = '4516575f-6f93-5c7b-ac
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Shatterpoint Learn to Play  (shatterpoint-learn-to-play-2024)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '0846c1b5-cc82-548e-9683-491dc457b9ad', 'Shatterpoint Learn to Play', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'shatterpoint-learn-to-play-2024',
        'Learn to Play', 'one-day', 'days', 'none',
-       '2024-04-11', null, null
+       '2024-04-11', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('shatterpoint-learn-to-play-2024'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-04-11', ends_on = null,
@@ -469,11 +502,12 @@ update public.battlepack_schedule_segments set
 where pack_id = '0846c1b5-cc82-548e-9683-491dc457b9ad' and ordinal = 1;
 
 -- ── Red Skull's Revenge!  (red-skulls-revenge)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '5b1d5833-7ffd-5212-ab6b-f377a509848e', 'Red Skull''s Revenge!', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'red-skulls-revenge',
        'Timeline Standard', 'one-day', 'days', 'none',
-       '2024-04-28', null, null
+       '2024-04-28', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('red-skulls-revenge'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-04-28', ends_on = null,
@@ -485,11 +519,12 @@ where exists (select 1 from public.battlepacks where id = '5b1d5833-7ffd-5212-ab
 on conflict (pack_id, category_key) do nothing;
 
 -- ── May the 4th Showdown  (may-the-4th-showdown)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '9c1fce60-4bd8-527e-872d-271c2276e527', 'May the 4th Showdown', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b403',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'may-the-4th-showdown',
        'Showdown', 'one-day', 'days', 'none',
-       '2024-05-04', null, null
+       '2024-05-04', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('may-the-4th-showdown'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-05-04', ends_on = null,
@@ -501,11 +536,12 @@ where exists (select 1 from public.battlepacks where id = '9c1fce60-4bd8-527e-87
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Fall of Mandalore  (fall-of-mandalore)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '61155f6f-b483-53b8-bfee-b56519581c35', 'Fall of Mandalore', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'fall-of-mandalore',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2024-05-25', null, null
+       '2024-05-25', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('fall-of-mandalore'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-05-25', ends_on = null,
@@ -517,11 +553,12 @@ where exists (select 1 from public.battlepacks where id = '61155f6f-b483-53b8-bf
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Purple Palette: Fluoro  (purple-palette-fluoro)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'cadd9c8d-8969-5608-aa7e-892ba343cfcd', 'Purple Palette: Fluoro', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'purple-palette-fluoro',
        'Painting Challenge', 'one-day', 'days', 'none',
-       '2024-06-02', null, null
+       '2024-06-02', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('purple-palette-fluoro'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-06-02', ends_on = null,
@@ -537,11 +574,12 @@ where exists (select 1 from public.battlepacks where id = 'cadd9c8d-8969-5608-aa
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Echoes of the Morgul Vale  (echoes-of-the-morgul-vale)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '0689aae4-28e3-5feb-84d5-2e46dfcb9248', 'Echoes of the Morgul Vale', '4a7bbf70-3b1f-41f3-afd3-596d7712c2d0', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'echoes-of-the-morgul-vale',
        'Battle Companies', 'one-day', 'days', 'none',
-       '2024-06-05', null, null
+       '2024-06-05', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('echoes-of-the-morgul-vale'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-06-05', ends_on = null,
@@ -553,11 +591,12 @@ where exists (select 1 from public.battlepacks where id = '0689aae4-28e3-5feb-84
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Farewell to Third Edition  (farewell-to-third-edition)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'cfa675d6-9aba-57d4-81fe-e07846038fca', 'Farewell to Third Edition', '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'farewell-to-third-edition',
        'Pitched Battles 23-24', 'one-day', 'days', 'none',
-       '2024-06-15', null, null
+       '2024-06-15', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('farewell-to-third-edition'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-06-15', ends_on = null,
@@ -569,11 +608,12 @@ where exists (select 1 from public.battlepacks where id = 'cfa675d6-9aba-57d4-81
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Birth of the Rebellion  (birth-of-the-rebellion)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '203089cb-7146-5b40-9ab9-a56e45cfd6bd', 'Birth of the Rebellion', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'birth-of-the-rebellion',
        'Showdown', 'one-day', 'days', 'none',
-       '2024-06-22', null, null
+       '2024-06-22', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('birth-of-the-rebellion'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-06-22', ends_on = null,
@@ -585,11 +625,12 @@ where exists (select 1 from public.battlepacks where id = '203089cb-7146-5b40-9a
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Defence of the Star League  (defence-of-the-star-league)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'ee9ec697-66c4-55b8-b03d-111165e75df0', 'Defence of the Star League', 'aa727d43-324f-4f5c-9aa6-ebe5810e0abe', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'defence-of-the-star-league',
        'TBA', 'one-day', 'days', 'none',
-       '2024-07-06', null, null
+       '2024-07-06', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('defence-of-the-star-league'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-07-06', ends_on = null,
@@ -601,11 +642,12 @@ where exists (select 1 from public.battlepacks where id = 'ee9ec697-66c4-55b8-b0
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Liberation of Lothal!  (liberation-of-lothal)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'eafaaf8d-9bb7-59aa-8ee9-d6622f725ffb', 'Liberation of Lothal!', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'liberation-of-lothal',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2024-07-20', null, null
+       '2024-07-20', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('liberation-of-lothal'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-07-20', ends_on = null,
@@ -617,11 +659,12 @@ where exists (select 1 from public.battlepacks where id = 'eafaaf8d-9bb7-59aa-8e
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Learn to Play AOS 4th Edition  (learn-to-play-aos-4th-edition)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '40d98c53-60ea-5859-b0a4-b70bb6a7cbf6', 'Learn to Play AOS 4th Edition', '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'learn-to-play-aos-4th-edition',
        'Learn to Play!', 'one-day', 'days', 'none',
-       '2024-07-21', null, null
+       '2024-07-21', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('learn-to-play-aos-4th-edition'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-07-21', ends_on = null,
@@ -633,11 +676,12 @@ where exists (select 1 from public.battlepacks where id = '40d98c53-60ea-5859-b0
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Purple Palette: Fantasy  (purple-palette-fantasy)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '1aaae56a-0644-530c-b945-f8973af5b9e2', 'Purple Palette: Fantasy', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'purple-palette-fantasy',
        'Painting Challenge', 'one-day', 'days', 'none',
-       '2024-08-10', null, null
+       '2024-08-10', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('purple-palette-fantasy'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-08-10', ends_on = null,
@@ -653,11 +697,12 @@ where exists (select 1 from public.battlepacks where id = '1aaae56a-0644-530c-b9
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Realm War  (realm-war)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '4af5c162-4401-5b4a-b019-f38b205ce2ad', 'Realm War', '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'realm-war',
        '1000 Points', 'one-day', 'days', 'none',
-       '2024-08-18', null, null
+       '2024-08-18', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('realm-war'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-08-18', ends_on = null,
@@ -669,11 +714,12 @@ where exists (select 1 from public.battlepacks where id = '4af5c162-4401-5b4a-b0
 on conflict (pack_id, category_key) do nothing;
 
 -- ── That's no Moon!  (thats-no-moon)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '79ea8a2d-4ae8-5c74-b188-3428e174e713', 'That''s no Moon!', '44e458ea-51b2-4e56-9148-10ed10355eda', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'thats-no-moon',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2024-08-24', null, null
+       '2024-08-24', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('thats-no-moon'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-08-24', ends_on = null,
@@ -685,11 +731,12 @@ where exists (select 1 from public.battlepacks where id = '79ea8a2d-4ae8-5c74-b1
 on conflict (pack_id, category_key) do nothing;
 
 -- ── End of N4  (end-of-n4)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'f0c59050-29bb-5e2f-84dd-9670bf03c225', 'End of N4', '8bdd2d21-1b81-4196-a1ca-f6ad93a9694a', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'end-of-n4',
        'Resilience Operations', 'one-day', 'days', 'none',
-       '2024-09-14', null, null
+       '2024-09-14', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('end-of-n4'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-09-14', ends_on = null,
@@ -701,11 +748,12 @@ where exists (select 1 from public.battlepacks where id = 'f0c59050-29bb-5e2f-84
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Mysteries of the Gray Havens  (mysteries-of-the-gray-havens)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'c32b0b59-065b-5492-9a7b-758d3fe547e7', 'Mysteries of the Gray Havens', '4a7bbf70-3b1f-41f3-afd3-596d7712c2d0', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'mysteries-of-the-gray-havens',
        '500 Points', 'one-day', 'days', 'none',
-       '2024-09-29', null, null
+       '2024-09-29', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('mysteries-of-the-gray-havens'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-09-29', ends_on = null,
@@ -717,11 +765,12 @@ where exists (select 1 from public.battlepacks where id = 'c32b0b59-065b-5492-9a
 on conflict (pack_id, category_key) do nothing;
 
 -- ── War for Werribee 2024  (war-for-werribee-2024)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '4428c002-4968-5f99-b5ff-560fb2c7d0e8', 'War for Werribee 2024', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'war-for-werribee-2024',
        'Timeline', 'one-day', 'days', 'none',
-       '2024-10-12', null, null
+       '2024-10-12', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('war-for-werribee-2024'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-10-12', ends_on = null,
@@ -733,11 +782,12 @@ where exists (select 1 from public.battlepacks where id = '4428c002-4968-5f99-b5
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Operation Phoenix  (operation-phoenix)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '9260ef55-9b60-58cc-aa91-fc58b75e56c7', 'Operation Phoenix', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'operation-phoenix',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2024-10-19', null, null
+       '2024-10-19', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('operation-phoenix'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-10-19', ends_on = null,
@@ -749,11 +799,12 @@ where exists (select 1 from public.battlepacks where id = '9260ef55-9b60-58cc-aa
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Shatterpoint Unleashed  (shatterpoint-unleashed)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '12935b12-c90d-5350-88fa-07eab3e816f1', 'Shatterpoint Unleashed', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'shatterpoint-unleashed',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2024-11-02', null, null
+       '2024-11-02', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('shatterpoint-unleashed'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-11-02', ends_on = null,
@@ -765,11 +816,12 @@ where exists (select 1 from public.battlepacks where id = '12935b12-c90d-5350-88
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Holiday on Hoth  (holiday-on-hoth)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'ca69e0c6-2225-588d-b2f8-a1d71c4486ab', 'Holiday on Hoth', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'holiday-on-hoth',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2024-12-21', null, null
+       '2024-12-21', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('holiday-on-hoth'));
 update public.battlepack_schedule_segments set
   starts_on = '2024-12-21', ends_on = null,
@@ -781,11 +833,12 @@ where exists (select 1 from public.battlepacks where id = 'ca69e0c6-2225-588d-b2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Can't Con  (cant-con)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '9427736e-f743-5858-97e7-b79eebc85b4a', 'Can''t Con', '8bdd2d21-1b81-4196-a1ca-f6ad93a9694a', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'cant-con',
        'Escalation', 'one-day', 'days', 'none',
-       '2025-01-25', null, null
+       '2025-01-25', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('cant-con'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-01-25', ends_on = null,
@@ -797,11 +850,12 @@ where exists (select 1 from public.battlepacks where id = '9427736e-f743-5858-97
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Battle for Kashyyyk  (battle-for-kashyyyk)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '33be643b-d3f6-56f7-af0f-e3998e0e673a', 'Battle for Kashyyyk', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'battle-for-kashyyyk',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-02-15', null, null
+       '2025-02-15', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('battle-for-kashyyyk'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-02-15', ends_on = null,
@@ -813,11 +867,12 @@ where exists (select 1 from public.battlepacks where id = '33be643b-d3f6-56f7-af
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Invasion of Naboo!  (invasion-of-naboo)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'af803076-2cd8-5af9-ad66-0578b044d461', 'Invasion of Naboo!', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'invasion-of-naboo',
        'Showdown', 'one-day', 'days', 'none',
-       '2025-02-23', null, null
+       '2025-02-23', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('invasion-of-naboo'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-02-23', ends_on = null,
@@ -829,11 +884,12 @@ where exists (select 1 from public.battlepacks where id = 'af803076-2cd8-5af9-ad
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Pariah Nexus Dust Off  (pariah-nexus-dust-off)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '8b72a188-d97d-5501-bbbc-9280612a795f', 'Pariah Nexus Dust Off', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'pariah-nexus-dust-off',
        '1350 Points', 'one-day', 'days', 'none',
-       '2025-03-15', null, null
+       '2025-03-15', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('pariah-nexus-dust-off'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-03-15', ends_on = null,
@@ -845,11 +901,12 @@ where exists (select 1 from public.battlepacks where id = '8b72a188-d97d-5501-bb
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Mayhem on Mustafar  (mayhem-on-mustafar)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '64777641-28df-51da-932d-c71b666b52dc', 'Mayhem on Mustafar', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'mayhem-on-mustafar',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-03-22', null, null
+       '2025-03-22', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('mayhem-on-mustafar'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-03-22', ends_on = null,
@@ -861,11 +918,12 @@ where exists (select 1 from public.battlepacks where id = '64777641-28df-51da-93
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Operation: Mini Mythmas  (operation-march-minimythmas)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '66a81c97-3bab-50e8-aeb1-1ca85580b05e', 'Operation: Mini Mythmas', '8bdd2d21-1b81-4196-a1ca-f6ad93a9694a', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'operation-march-minimythmas',
        '300pts/6swc', 'one-day', 'days', 'none',
-       '2025-03-30', null, null
+       '2025-03-30', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('operation-march-minimythmas'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-03-30', ends_on = null,
@@ -877,11 +935,12 @@ where exists (select 1 from public.battlepacks where id = '66a81c97-3bab-50e8-ae
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Quarmaggedon  (quarmaggedon)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '959f1d2d-041d-5804-9b89-256bcfd53155', 'Quarmaggedon', '18b781ec-71b5-481c-8166-1c177817e6b2', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'quarmaggedon',
        '300 Points', 'one-day', 'days', 'none',
-       '2025-04-05', null, '10:30'
+       '2025-04-05', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('quarmaggedon'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-04-05', ends_on = null,
@@ -916,7 +975,7 @@ select '06172829-1ef2-520c-902c-88e884d58025', '959f1d2d-041d-5804-9b89-256bcfd5
 where exists (select 1 from public.battlepacks where id = '959f1d2d-041d-5804-9b89-256bcfd53155')
   and not exists (select 1 from public.battlepack_schedule_items where pack_id = '959f1d2d-041d-5804-9b89-256bcfd53155' and ordinal = 7);
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
-select '959f1d2d-041d-5804-9b89-256bcfd53155', 'prizes', false, '{"items": [{"title": "Prize pool", "description": "### Master and Quar-mander Awarded to the player who demonstrates superior martial and tactical prowess — in other words, the player who wins the most games overall. ### Best in Show Awarded to the player with the best painted army. Army must be fully painted, including an appropriate base. All players will vote for the army they deem best painted. (No, you can''t vote for yourself.) ### A True Gentle-quar Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. (A true gentle-quar wouldn''t even think of voting for themselves!)"}]}'::jsonb
+select '959f1d2d-041d-5804-9b89-256bcfd53155', 'prizes', false, '{"items": [{"title": "Master and Quar-mander", "description": "Awarded to the player who demonstrates superior martial and tactical prowess — in other words, the player who wins the most games overall."}, {"title": "Best in Show", "description": "Awarded to the player with the best painted army. Army must be fully painted, including an appropriate base. All players will vote for the army they deem best painted. (No, you can''t vote for yourself.)"}, {"title": "A True Gentle-quar", "description": "Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. (A true gentle-quar wouldn''t even think of voting for themselves!)"}]}'::jsonb
 where exists (select 1 from public.battlepacks where id = '959f1d2d-041d-5804-9b89-256bcfd53155')
 on conflict (pack_id, category_key) do nothing;
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
@@ -929,11 +988,12 @@ where exists (select 1 from public.battlepacks where id = '959f1d2d-041d-5804-9b
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Assault on the Brass Citadel  (assault-on-the-brass-citadel)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '74f715e5-f06d-54af-a1d0-f5b996763b9f', 'Assault on the Brass Citadel', '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'assault-on-the-brass-citadel',
        '2000 Points', 'one-day', 'days', 'none',
-       '2025-04-12', null, '10:00'
+       '2025-04-12', null, '10:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('assault-on-the-brass-citadel'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-04-12', ends_on = null,
@@ -969,11 +1029,12 @@ where exists (select 1 from public.battlepacks where id = '74f715e5-f06d-54af-a1
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Assault on Alderaan  (assault-on-alderaan)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '719bd904-2f1b-5b18-ac16-9292609a2301', 'Assault on Alderaan', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'assault-on-alderaan',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-04-13', null, '09:00'
+       '2025-04-13', null, '09:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('assault-on-alderaan'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-04-13', ends_on = null,
@@ -1013,11 +1074,12 @@ where exists (select 1 from public.battlepacks where id = '719bd904-2f1b-5b18-ac
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Casual Casualties  (april-casual-casualties)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'b998b5ac-103f-546e-86a6-151c803c6969', 'Casual Casualties', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'april-casual-casualties',
        '2000 Points', 'one-day', 'days', 'none',
-       '2025-04-20', null, '10:45'
+       '2025-04-20', null, '10:45',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('april-casual-casualties'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-04-20', ends_on = null,
@@ -1049,11 +1111,12 @@ where exists (select 1 from public.battlepacks where id = 'b998b5ac-103f-546e-86
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Arcpoint 2025  (arcpoint-2025)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '6136343b-518c-55af-b215-2095740cfbde', 'Arcpoint 2025', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b404',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'arcpoint-2025',
        'Modiifed Showdown', 'multi-day', 'days', 'none',
-       '2025-05-03', '2025-05-04', null
+       '2025-05-03', '2025-05-04', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('arcpoint-2025'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-05-03', ends_on = null,
@@ -1069,11 +1132,12 @@ where exists (select 1 from public.battlepacks where id = '6136343b-518c-55af-b2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Defense of Mandalore  (defense-of-mandalore)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '2e3b8a07-c346-5f3b-8b84-971717571595', 'Defense of Mandalore', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'defense-of-mandalore',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-05-04', null, '09:00'
+       '2025-05-04', null, '09:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('defense-of-mandalore'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-05-04', ends_on = null,
@@ -1113,11 +1177,12 @@ where exists (select 1 from public.battlepacks where id = '2e3b8a07-c346-5f3b-8b
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Melee at Mygeeto  (melee-at-mygeeto)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '0b09f6dd-fa45-5a1e-b4b4-966dbd45697d', 'Melee at Mygeeto', '44e458ea-51b2-4e56-9148-10ed10355eda', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'melee-at-mygeeto',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-05-18', null, '10:30'
+       '2025-05-18', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('melee-at-mygeeto'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-05-18', ends_on = null,
@@ -1157,11 +1222,12 @@ where exists (select 1 from public.battlepacks where id = '0b09f6dd-fa45-5a1e-b4
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Chaos Nights  (chaos-nights)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '955e8eb5-e164-5e4e-b291-bddd35d6be90', 'Chaos Nights', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'chaos-nights',
        'League', 'league', 'periods', 'none',
-       '2025-05-26', '2025-08-05', null
+       '2025-05-26', '2025-08-05', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('chaos-nights'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-05-26', ends_on = '2025-08-05',
@@ -1177,11 +1243,12 @@ where exists (select 1 from public.battlepacks where id = '955e8eb5-e164-5e4e-b2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── MiniMyths Fumble Rumble I  (minimyths-fumble-rumble-i)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'd3112657-ff86-5b87-b71a-4233ae308816', 'MiniMyths Fumble Rumble I', '1a19e961-8273-46aa-9a74-f0ebd90657c5', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'minimyths-fumble-rumble-i',
        'Six-Game League', 'league', 'periods', 'none',
-       '2025-06-15', '2025-09-28', null
+       '2025-06-15', '2025-09-28', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('minimyths-fumble-rumble-i'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-06-15', ends_on = '2025-09-28',
@@ -1197,11 +1264,12 @@ where exists (select 1 from public.battlepacks where id = 'd3112657-ff86-5b87-b7
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Duel of the Fates 2025  (duel-of-the-fates-2025)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'a01192de-85c5-5eba-9b51-26e2ff9b6113', 'Duel of the Fates 2025', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'duel-of-the-fates-2025',
        'Showdown Premiere', 'multi-day', 'days', 'none',
-       '2025-06-21', '2025-06-22', null
+       '2025-06-21', '2025-06-22', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('duel-of-the-fates-2025'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-06-21', ends_on = null,
@@ -1212,7 +1280,7 @@ select 'f9b296a3-557c-501f-a17c-7d6c0bd029bd', 'a01192de-85c5-5eba-9b51-26e2ff9b
 where exists (select 1 from public.battlepacks where id = 'a01192de-85c5-5eba-9b51-26e2ff9b6113')
   and not exists (select 1 from public.battlepack_schedule_segments where pack_id = 'a01192de-85c5-5eba-9b51-26e2ff9b6113' and ordinal = 2);
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
-select 'a01192de-85c5-5eba-9b51-26e2ff9b6113', 'prizes', false, '{"items": [{"title": "Prize pool", "description": "## Rewards, Prizes, and Giveaways ### Participation All players will receive participation awards for each round they participate in, giving you a great incentive to play as many rounds as possible! These prizes will come directly from the AMG prize kit, so you wont be able to get the anywhere outside of an AMG Grand Tournament! ### Top Placements We''ll have prizes for all players who make it into Top 4 and Top 2, as well as prizes for the overall champion. We''ll be announcing these closer to the day. ### Best Strike Force We''ll have an independant judge on the day to give out some awards for "}, {"title": "Terrain Raffle", "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we''ll draw names from the raffle and give out some bonus prizes to those players. You get one raffle ticket for each full table of terrain you bring. All terrain must be painted and designed for use with Star Wars: Shatterpoint."}, {"title": "Prize pool", "description": "> Please note - we are still confirming our full suite of prizes from our various support partners. You can expect some fun surprises on the day! ### AMG Prize Kit All players will receive a prize simply for participating. This prize is granted for each round that you play, so the more games you complete, the more prizes you''ll receive. Additional prizes are available for top-placed players, specifically including prizes for top 4, top 2, and the champion player. ### Baron of Dice We have partnered with Baron of Dice to offer some really cool unofficial dice sets available to players. We''ll an"}]}'::jsonb
+select 'a01192de-85c5-5eba-9b51-26e2ff9b6113', 'prizes', false, '{"items": [{"title": "Participation", "description": "All players will receive participation awards for each round they participate in, giving you a great incentive to play as many rounds as possible! These prizes will come directly from the AMG prize kit, so you wont be able to get the anywhere outside of an AMG Grand Tournament!"}, {"title": "Top Placements", "description": "We''ll have prizes for all players who make it into Top 4 and Top 2, as well as prizes for the overall champion. We''ll be announcing these closer to the day."}, {"title": "Best Strike Force", "description": "We''ll have an independant judge on the day to give out some awards for the best painted Strike Forces on the day. Judging will happen across both days, so this is only open to players who attend both the Saturday and the Sunday."}, {"title": "Terrain Raffle", "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we''ll draw names from the raffle and give out some bonus prizes to those players. You get one raffle ticket for each full table of terrain you bring. All terrain must be painted and designed for use with Star Wars: Shatterpoint."}, {"title": "Prize Support", "description": "Please note - we are still confirming our full suite of prizes from our various support partners. You can expect some fun surprises on the day!"}, {"title": "AMG Prize Kit", "description": "All players will receive a prize simply for participating. This prize is granted for each round that you play, so the more games you complete, the more prizes you''ll receive. Additional prizes are available for top-placed players, specifically including prizes for top 4, top 2, and the champion player."}, {"title": "Baron of Dice", "description": "We have partnered with Baron of Dice to offer some really cool unofficial dice sets available to players. We''ll announce how to win these prizes on the day! Please note: unofficial dice are not allowed to be used during your games at this event. https://baronofdice.com/en-au"}, {"title": "Battle Kiwi", "description": "We''ve secured some goodies from Battle Kiwi, including a Battle Box to give away! We''ll be giving away a full size battle box, and two smaller initiate boxes. https://battlekiwi.com/"}, {"title": "Adrah Labs", "description": "We''ve partnered with Adrah Labs for some exclusive miniatures to give away! We''ll have 10 to give away to lucky participants! https://www.adrahlabs.com.au/"}]}'::jsonb
 where exists (select 1 from public.battlepacks where id = 'a01192de-85c5-5eba-9b51-26e2ff9b6113')
 on conflict (pack_id, category_key) do nothing;
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
@@ -1229,11 +1297,12 @@ where exists (select 1 from public.battlepacks where id = 'a01192de-85c5-5eba-9b
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Operation Frostbite Face-Off  (operation-frostbite-face-off)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'f57a3853-4d69-572f-9736-17d154c9a37a', 'Operation Frostbite Face-Off', '8bdd2d21-1b81-4196-a1ca-f6ad93a9694a', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'operation-frostbite-face-off',
        '300 Points', 'one-day', 'days', 'none',
-       '2025-06-22', null, '10:00'
+       '2025-06-22', null, '10:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('operation-frostbite-face-off'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-06-22', ends_on = null,
@@ -1273,11 +1342,12 @@ where exists (select 1 from public.battlepacks where id = 'f57a3853-4d69-572f-97
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Jump To Jakku  (jump-to-jakku)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '63b4a3f6-ba54-5755-b289-9294cc9cec83', 'Jump To Jakku', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'jump-to-jakku',
        'Threemiere', 'one-day', 'days', 'none',
-       '2025-07-26', null, '09:00'
+       '2025-07-26', null, '09:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('jump-to-jakku'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-07-26', ends_on = null,
@@ -1317,11 +1387,12 @@ where exists (select 1 from public.battlepacks where id = '63b4a3f6-ba54-5755-b2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Quarmaggedon II  (quarmaggedon-ii)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '10e711a9-ba2f-5da5-89d5-5e9704da5c19', 'Quarmaggedon II', '18b781ec-71b5-481c-8166-1c177817e6b2', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'quarmaggedon-ii',
        '500 Points', 'one-day', 'days', 'none',
-       '2025-07-26', null, '10:30'
+       '2025-07-26', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('quarmaggedon-ii'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-07-26', ends_on = null,
@@ -1373,11 +1444,12 @@ where exists (select 1 from public.battlepacks where id = '10e711a9-ba2f-5da5-89
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Casual Casulaties: The Incursion Diversion  (casual-casulaties-the-incursion-diversion)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '9fa1f52c-dd44-50a6-9dd8-47b99b38fe48', 'Casual Casulaties: The Incursion Diversion', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'casual-casulaties-the-incursion-diversion',
        '1000 Points', 'one-day', 'days', 'none',
-       '2025-08-02', null, '10:45'
+       '2025-08-02', null, '10:45',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('casual-casulaties-the-incursion-diversion'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-08-02', ends_on = null,
@@ -1409,11 +1481,12 @@ where exists (select 1 from public.battlepacks where id = '9fa1f52c-dd44-50a6-9d
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Strike on Scarif  (strike-on-scarif)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'ab667366-90b9-577a-a05b-62823b27c3db', 'Strike on Scarif', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b402',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'strike-on-scarif',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-09-14', null, '10:30'
+       '2025-09-14', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('strike-on-scarif'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-09-14', ends_on = null,
@@ -1449,11 +1522,12 @@ where exists (select 1 from public.battlepacks where id = 'ab667366-90b9-577a-a0
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Games Discovery Day  (games-discovery-day)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '5af0ae79-a15d-5799-a30d-fb78951d4f0e', 'Games Discovery Day', '118f64ca-fe9b-4bfe-a8a4-57c13f4d33dd', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'games-discovery-day',
        'Learn to Play', 'one-day', 'days', 'none',
-       '2025-10-12', null, null
+       '2025-10-12', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('games-discovery-day'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-10-12', ends_on = null,
@@ -1464,7 +1538,7 @@ select '5af0ae79-a15d-5799-a30d-fb78951d4f0e', 'faq', false, '{"items": [{"quest
 where exists (select 1 from public.battlepacks where id = '5af0ae79-a15d-5799-a30d-fb78951d4f0e')
 on conflict (pack_id, category_key) do nothing;
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
-select '5af0ae79-a15d-5799-a30d-fb78951d4f0e', 'prizes', false, '{"items": [{"title": "Prize pool", "description": "We want to use this fun event to get you excited about playing some new games. In that spirit, we''ve prepared a few special unique prizes for each of the systems: ### Kill Team Chaedi''s once again gone above and beyond, designing and printing these custom equipment packs. Depending on numbers, we''re hoping to have some sweet equipment for everybody to go home with. ### Warcrow Warcrow has it''s own unique measurement system called ''Strides'', that means you can''t just use your existing Mini Myths range rulers. Wouldn''t it be nice if someone provided one at an event… ### Halo: Flashpoint To be an"}]}'::jsonb
+select '5af0ae79-a15d-5799-a30d-fb78951d4f0e', 'prizes', false, '{"items": [{"title": "Kill Team", "description": "Chaedi''s once again gone above and beyond, designing and printing these custom equipment packs. Depending on numbers, we''re hoping to have some sweet equipment for everybody to go home with."}, {"title": "Warcrow", "description": "Warcrow has it''s own unique measurement system called ''Strides'', that means you can''t just use your existing Mini Myths range rulers. Wouldn''t it be nice if someone provided one at an event…"}, {"title": "Halo: Flashpoint", "description": "To be announced! We''re cooking up some pretty sweet Halo DLC…"}, {"title": "Other Prizes", "description": "We''ll be working with Guf to collect some cool giveaways for each system. All the prizes on the day will be door prizes, so expect a good chance to go home with some sweet merch!"}]}'::jsonb
 where exists (select 1 from public.battlepacks where id = '5af0ae79-a15d-5799-a30d-fb78951d4f0e')
 on conflict (pack_id, category_key) do nothing;
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
@@ -1473,11 +1547,12 @@ where exists (select 1 from public.battlepacks where id = '5af0ae79-a15d-5799-a3
 on conflict (pack_id, category_key) do nothing;
 
 -- ── War for Werribee 2025  (war-for-werribee-2025)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'a1fb177a-f01e-5040-8859-521e034d9e9a', 'War for Werribee 2025', 'a01e71b7-ce00-498c-bda2-7dce8b03d580', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b405',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'war-for-werribee-2025',
        'Challenger', 'one-day', 'days', 'none',
-       '2025-10-25', null, '09:15'
+       '2025-10-25', null, '09:15',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('war-for-werribee-2025'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-10-25', ends_on = null,
@@ -1533,11 +1608,12 @@ where exists (select 1 from public.battlepacks where id = 'a1fb177a-f01e-5040-88
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Nullification of Narkina  (nullification-of-narkina)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '80b0cc46-fe28-5f0b-8161-39f6e9ea25e5', 'Nullification of Narkina', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'nullification-of-narkina',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-11-15', null, '10:00'
+       '2025-11-15', null, '10:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('nullification-of-narkina'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-11-15', ends_on = null,
@@ -1573,11 +1649,12 @@ where exists (select 1 from public.battlepacks where id = '80b0cc46-fe28-5f0b-81
 on conflict (pack_id, category_key) do nothing;
 
 -- ── ORL 2025 Finale  (orl-2025-finale)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'c99fb184-33c5-5714-a2a5-cc965816f3e8', 'ORL 2025 Finale', '44e458ea-51b2-4e56-9148-10ed10355eda', 'f98a2ee8-aef4-4e5f-a843-d7dad4598d73',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'orl-2025-finale',
        'Showdown Premiere', 'one-day', 'days', 'none',
-       '2025-12-06', null, '09:00'
+       '2025-12-06', null, '09:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('orl-2025-finale'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-12-06', ends_on = null,
@@ -1617,11 +1694,12 @@ where exists (select 1 from public.battlepacks where id = 'c99fb184-33c5-5714-a2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Mini Myths Photo Day!  (mini-myths-photo-day)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'd1267aee-f387-5fd0-adfa-f8f497c4af7e', 'Mini Myths Photo Day!', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'mini-myths-photo-day',
        null, 'one-day', 'days', 'none',
-       '2025-12-13', null, null
+       '2025-12-13', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('mini-myths-photo-day'));
 update public.battlepack_schedule_segments set
   starts_on = '2025-12-13', ends_on = null,
@@ -1633,11 +1711,12 @@ where exists (select 1 from public.battlepacks where id = 'd1267aee-f387-5fd0-ad
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Stumble Rumble I  (stumble-rumble-i)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'a023a6ec-2ab6-55d0-94a9-0b1634b3cf75', 'Stumble Rumble I', '1a19e961-8273-46aa-9a74-f0ebd90657c5', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'stumble-rumble-i',
        '7’s', 'league', 'periods', 'none',
-       '2026-01-18', '2026-03-14', null
+       '2026-01-18', '2026-03-14', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('stumble-rumble-i'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-01-18', ends_on = '2026-03-14',
@@ -1653,11 +1732,12 @@ where exists (select 1 from public.battlepacks where id = 'a023a6ec-2ab6-55d0-94
 on conflict (pack_id, category_key) do nothing;
 
 -- ── On The March  (on-the-march)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '3bb34648-9da9-5e9b-b21a-a274cb21248a', 'On The March', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'on-the-march',
        '1350 Points', 'one-day', 'days', 'none',
-       '2026-03-08', null, '11:00'
+       '2026-03-08', null, '11:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('on-the-march'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-03-08', ends_on = null,
@@ -1697,11 +1777,12 @@ where exists (select 1 from public.battlepacks where id = '3bb34648-9da9-5e9b-b2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Clash of Rhyfles Painting Competition  (clash-of-rhyfles-painting-competition)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '946519e2-f69e-51f6-afe1-7065e8f0795c', 'Clash of Rhyfles Painting Competition', '18b781ec-71b5-481c-8166-1c177817e6b2', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'clash-of-rhyfles-painting-competition',
        'Hobby Event', 'multi-day', 'periods', 'none',
-       '2026-03-15', '2026-04-30', null
+       '2026-03-15', '2026-04-30', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('clash-of-rhyfles-painting-competition'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-03-15', ends_on = '2026-04-30',
@@ -1709,11 +1790,12 @@ update public.battlepack_schedule_segments set
 where pack_id = '946519e2-f69e-51f6-afe1-7065e8f0795c' and ordinal = 1;
 
 -- ── Flashpoint Fiesta  (flashpoint-fiesta)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'fac0ce91-b970-5486-9909-9f1ad6bb2dcc', 'Flashpoint Fiesta', '9ec0a79d-f780-4031-86bb-030fa669355e', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'flashpoint-fiesta',
        'Fiesta', 'one-day', 'days', 'none',
-       '2026-04-18', null, '10:30'
+       '2026-04-18', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('flashpoint-fiesta'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-04-18', ends_on = null,
@@ -1745,11 +1827,12 @@ where exists (select 1 from public.battlepacks where id = 'fac0ce91-b970-5486-99
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Arcpoint 2026  (arcpoint-2026)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'f7fd5587-107f-52da-b62d-5f4b9653d366', 'Arcpoint 2026', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b404',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'arcpoint-2026',
        'Threemiere', 'one-day', 'days', 'none',
-       '2026-05-02', null, '08:30'
+       '2026-05-02', null, '08:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('arcpoint-2026'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-05-02', ends_on = null,
@@ -1780,7 +1863,7 @@ select '12172528-fdd1-586b-b2af-baf17987d6c6', 'f7fd5587-107f-52da-b62d-5f4b9653
 where exists (select 1 from public.battlepacks where id = 'f7fd5587-107f-52da-b62d-5f4b9653d366')
   and not exists (select 1 from public.battlepack_schedule_items where pack_id = 'f7fd5587-107f-52da-b62d-5f4b9653d366' and ordinal = 6);
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
-select 'f7fd5587-107f-52da-b62d-5f4b9653d366', 'prizes', false, '{"items": [{"title": "Prize pool", "description": "## Arcpoint Champion Finishing at the top of the table will award you the Arcpoint Champion title, along with a fantastic custom trophy worth of a true champion. Additionally, we''ll have a suite of prizes for all our top-placed winners based on the event results. ## Champion of the Republic Arcfest celebrates sportsmanship and fun above all else. Across the day, you''ll have the chance to submit feedback on how much fun each of your games were. At the end of the day, we''ll award special prizes to those players who''ve been voted excellent opponents who created memorable gaming experiences. ## Em"}, {"title": "Terrain Raffle", "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we''ll draw names from the raffle and give out some bonus prizes to those players. We''ll announce what those prizes are on the day! You get one raffle ticket for each full table of terrain you bring. If you are eligible to receive a raffle ticket, you will get that ticket regardless of if the terrain ends up being used on the day or not. All terrain must be painted and designed for use with Star Wars: Shatterpoint. Sign up for the terrain raffle will be posted closer to the ev"}]}'::jsonb
+select 'f7fd5587-107f-52da-b62d-5f4b9653d366', 'prizes', false, '{"items": [{"title": "Arcpoint Champion", "description": "Finishing at the top of the table will award you the Arcpoint Champion title, along with a fantastic custom trophy worth of a true champion. Additionally, we''ll have a suite of prizes for all our top-placed winners based on the event results."}, {"title": "Champion of the Republic", "description": "Arcfest celebrates sportsmanship and fun above all else. Across the day, you''ll have the chance to submit feedback on how much fun each of your games were. At the end of the day, we''ll award special prizes to those players who''ve been voted excellent opponents who created memorable gaming experiences."}, {"title": "Emperor Paintpatine", "description": "Arcfest is a hobby-driven event and home to the epic ArcOpen painting competition, so we''d be remiss to not celebrate the amazing hobby efforts of our community at this event. We''ll crown multiple hobby winners on the day, alongside a trophy for our best-painted award; aptly named Emperor Paintpatine."}, {"title": "The Display Boardalorian", "description": "Display boards are so cool! I love seeing them at Warhammer events, at Marvel Crisis Protocol events, and so on. Man, I wish we had display boards at our events… Oh wait! Now we will! Bring your Display Board to Arc and you''ll receive a special prize, plus an additional bonus prize for the player who is voted to have the best display board at the event! Display boards are easy and fun to make - just grab a picture frame from K-Mart and you''re already 2/3rd of the way there! And, since we love our silly titles, you''ll also be crowned…The Displayboardalorian."}, {"title": "Door Prizes", "description": "Arcfest is for players of any ability, so we want to do everything we can to reward every attendee! Expect an awesome showbag of custom made doohickeys and prizes. We''ll have more information about this closer to the day, but to give you a tease; you can certainly expect to see some new custom unit cards like those from last year''s Outer-Rim League…"}, {"title": "Terrain Raffle", "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we''ll draw names from the raffle and give out some bonus prizes to those players. We''ll announce what those prizes are on the day! You get one raffle ticket for each full table of terrain you bring. If you are eligible to receive a raffle ticket, you will get that ticket regardless of if the terrain ends up being used on the day or not. All terrain must be painted and designed for use with Star Wars: Shatterpoint. Sign up for the terrain raffle will be posted closer to the ev"}]}'::jsonb
 where exists (select 1 from public.battlepacks where id = 'f7fd5587-107f-52da-b62d-5f4b9653d366')
 on conflict (pack_id, category_key) do nothing;
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
@@ -1797,11 +1880,12 @@ where exists (select 1 from public.battlepacks where id = 'f7fd5587-107f-52da-b6
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Nemesis Hunt  (nemesis-hunt)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'd1af7ab1-4c40-548a-8f68-f9c90c21df5b', 'Nemesis Hunt', '24bc318b-1970-4401-a32d-82737a57dc01', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'nemesis-hunt',
        'Nemesis Ops', 'one-day', 'days', 'none',
-       '2026-05-23', null, '11:00'
+       '2026-05-23', null, '11:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('nemesis-hunt'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-05-23', ends_on = null,
@@ -1841,11 +1925,12 @@ where exists (select 1 from public.battlepacks where id = 'd1af7ab1-4c40-548a-8f
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Flashpoint: Winter Warfare!  (flashpoint-winter-warfare)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '6aaa427b-67b0-5a5b-a219-803ace7f96d1', 'Flashpoint: Winter Warfare!', '9ec0a79d-f780-4031-86bb-030fa669355e', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'flashpoint-winter-warfare',
        '200 Points', 'one-day', 'days', 'none',
-       '2026-06-13', null, '10:30'
+       '2026-06-13', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('flashpoint-winter-warfare'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-06-13', ends_on = null,
@@ -1885,11 +1970,12 @@ where exists (select 1 from public.battlepacks where id = '6aaa427b-67b0-5a5b-a2
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Duel of the Fates 2026  (duel-of-the-fates-2026)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'b46f7193-7c92-51fd-9218-5ed17ee0a9a0', 'Duel of the Fates 2026', '44e458ea-51b2-4e56-9148-10ed10355eda', '9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'duel-of-the-fates-2026',
        'Showdown Premiere', 'multi-day', 'days', 'none',
-       '2026-06-20', '2026-06-21', null
+       '2026-06-20', '2026-06-21', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('duel-of-the-fates-2026'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-06-20', ends_on = null,
@@ -1913,11 +1999,12 @@ where exists (select 1 from public.battlepacks where id = 'b46f7193-7c92-51fd-92
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Fumble Rumble II  (fumble-rumble-ii)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '64d804b9-8c60-5bd0-9df1-2bc213d24f9f', 'Fumble Rumble II', '1a19e961-8273-46aa-9a74-f0ebd90657c5', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'fumble-rumble-ii',
        'League', 'league', 'periods', 'none',
-       '2026-06-22', null, null
+       '2026-06-22', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('fumble-rumble-ii'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-06-22', ends_on = null,
@@ -1933,11 +2020,12 @@ where exists (select 1 from public.battlepacks where id = '64d804b9-8c60-5bd0-9d
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Quarmageddon III  (quarmageddon-iii)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '84e3d455-6ab5-50c9-a6d7-f3987c9497c3', 'Quarmageddon III', '18b781ec-71b5-481c-8166-1c177817e6b2', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'quarmageddon-iii',
        '300 Points', 'one-day', 'days', 'none',
-       '2026-07-05', null, '10:30'
+       '2026-07-05', null, '10:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('quarmageddon-iii'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-07-05', ends_on = null,
@@ -1976,7 +2064,7 @@ select '7a865c27-1f54-5c26-b90e-0c2dd3634fff', '84e3d455-6ab5-50c9-a6d7-f3987c94
 where exists (select 1 from public.battlepacks where id = '84e3d455-6ab5-50c9-a6d7-f3987c9497c3')
   and not exists (select 1 from public.battlepack_schedule_items where pack_id = '84e3d455-6ab5-50c9-a6d7-f3987c9497c3' and ordinal = 8);
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
-select '84e3d455-6ab5-50c9-a6d7-f3987c9497c3', 'prizes', false, '{"items": [{"title": "Prize pool", "description": "#### Master and Quar-mander Awarded to the player that demonstrates superior martial and tactical prowess, or in other words, the player who scores the most points overall. In the event of a tie, the player with the highest scoring points that belongs to the faction with the most victories will win. Prize: Quar hard cover rule book and a Guf voucher. #### Best in show Awarded to the player with the best painted Army. All players will get to vote for the army they deem to have the best painted army. You may submit an army that you have used from a previous event, but this is also a good time to"}]}'::jsonb
+select '84e3d455-6ab5-50c9-a6d7-f3987c9497c3', 'prizes', false, '{"items": [{"title": "Master and Quar-mander", "description": "Awarded to the player that demonstrates superior martial and tactical prowess, or in other words, the player who scores the most points overall. In the event of a tie, the player with the highest scoring points that belongs to the faction with the most victories will win. Prize: Quar hard cover rule book and a Guf voucher."}, {"title": "Best in show", "description": "Awarded to the player with the best painted Army. All players will get to vote for the army they deem to have the best painted army. You may submit an army that you have used from a previous event, but this is also a good time to show off something new you''ve been working on. You will only be judged for models used in your games. If you do bring a display board, it should be the size of an A4 sheet of paper. Prize: Guf voucher."}, {"title": "A true Gentle-quar", "description": "Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. Keep in mind this does not have to be a person you played against on the day. Prize: Hard cover rule book and a Guf voucher."}]}'::jsonb
 where exists (select 1 from public.battlepacks where id = '84e3d455-6ab5-50c9-a6d7-f3987c9497c3')
 on conflict (pack_id, category_key) do nothing;
 insert into public.battlepack_categories (pack_id, category_key, hidden, content)
@@ -1989,11 +2077,12 @@ where exists (select 1 from public.battlepacks where id = '84e3d455-6ab5-50c9-a6
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Friday Night Hobby!  (friday-night-hobby)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '9dc19591-2284-576a-a8dd-b116f39ed7f8', 'Friday Night Hobby!', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'friday-night-hobby',
        'Hobby Night', 'one-day', 'days', 'none',
-       '2026-07-10', null, null
+       '2026-07-10', null, null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('friday-night-hobby'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-07-10', ends_on = null,
@@ -2001,11 +2090,12 @@ update public.battlepack_schedule_segments set
 where pack_id = '9dc19591-2284-576a-a8dd-b116f39ed7f8' and ordinal = 1;
 
 -- ── Time for Armageddon!  (time-for-armageddon)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '24782c81-94a5-54cc-9940-2c75e1464b81', 'Time for Armageddon!', '05009dfc-a129-4d86-9b25-680feb690746', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'time-for-armageddon',
        'Incursion (1000 pts)', 'one-day', 'days', 'none',
-       '2026-07-12', null, '10:00'
+       '2026-07-12', null, '10:00',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('time-for-armageddon'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-07-12', ends_on = null,
@@ -2053,11 +2143,12 @@ where exists (select 1 from public.battlepacks where id = '24782c81-94a5-54cc-99
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Top Table Trails  (top-table-trails)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select 'a75b4e5e-c833-5096-8da8-7b84427b802f', 'Top Table Trails', '44e458ea-51b2-4e56-9148-10ed10355eda', 'bfd3fdb4-378f-4daf-bb8e-fab9b5173155',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'top-table-trails',
        'Threemiere', 'one-day', 'days', 'none',
-       '2026-07-18', null, '10:15'
+       '2026-07-18', null, '10:15',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('top-table-trails'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-07-18', ends_on = null,
@@ -2093,11 +2184,12 @@ where exists (select 1 from public.battlepacks where id = 'a75b4e5e-c833-5096-8d
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Battle for the Amethyst City  (battle-for-the-amethyst-city)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '757e916a-3cfc-5183-af43-e777edab306d', 'Battle for the Amethyst City', '3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'battle-for-the-amethyst-city',
        '1500 Points', 'one-day', 'days', 'none',
-       '2026-07-19', null, '09:30'
+       '2026-07-19', null, '09:30',
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('battle-for-the-amethyst-city'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-07-19', ends_on = null,
@@ -2137,11 +2229,12 @@ where exists (select 1 from public.battlepacks where id = '757e916a-3cfc-5183-af
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Purple Palette 5: He’s Just A Little Guy!  (purple-palette-5-hes-just-a-little-guy)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '2e403025-3a3d-5214-b10f-db4d213b7a1a', 'Purple Palette 5: He’s Just A Little Guy!', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'purple-palette-5-hes-just-a-little-guy',
        'Hobby Competition', 'multi-day', 'periods', 'none',
-       '2026-08-14', '2026-10-09', null
+       '2026-08-14', '2026-10-09', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('purple-palette-5-hes-just-a-little-guy'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-08-14', ends_on = '2026-10-09',
@@ -2157,11 +2250,12 @@ where exists (select 1 from public.battlepacks where id = '2e403025-3a3d-5214-b1
 on conflict (pack_id, category_key) do nothing;
 
 -- ── Purple Palette 6: Monster Madness  (purple-palette-6-monster-madness)
-insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
+insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at, host_location_id)
 select '4ef11e05-f685-58ac-81f0-2b66488b5be6', 'Purple Palette 6: Monster Madness', 'f8906f05-5a28-4af0-8ffa-be293e96cba8', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'purple-palette-6-monster-madness',
        'Hobby Competition', 'multi-day', 'periods', 'none',
-       '2026-11-13', '2027-02-12', null
+       '2026-11-13', '2027-02-12', null,
+       '53809c67-b6a5-4ebc-8941-9c14da626d5a'
 where not exists (select 1 from public.battlepack_slugs where slug = lower('purple-palette-6-monster-madness'));
 update public.battlepack_schedule_segments set
   starts_on = '2026-11-13', ends_on = '2027-02-12',
