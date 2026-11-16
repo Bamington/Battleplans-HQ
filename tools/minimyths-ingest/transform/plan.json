@@ -4255,7 +4255,7 @@
    "slug": "clash-of-rhyfles-painting-competition",
    "status": "published",
    "game_id": "18b781ec-71b5-481c-8166-1c177817e6b2",
-   "location_id": null,
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
    "format": "Hobby Event",
    "timeline": "multi-day",
    "schedule_shape": "periods",
@@ -4282,7 +4282,7 @@
    "host": "Juan Acosta",
    "event_type": "Hobby/Painting Event",
    "game_name": "This Quar's War",
-   "location_name": ""
+   "location_name": "Guf Werribee"
   }
  },
  {

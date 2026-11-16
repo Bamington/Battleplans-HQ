@@ -7,8 +7,8 @@ Branch: `claude/brave-galileo-cz7mt8` (at `75bf7b9` when this was written).
 
 ## What is left to do, in order
 
-1. Apply `supabase/migrations/20261116120000_minimyths_archive_venues.sql`
-   (creates 5 locations). **Must go first** — the import references those ids.
+1. ~~Apply `20261116120000_minimyths_archive_venues.sql`~~ — **DONE**, all 5
+   locations confirmed present in production.
 2. Run `tools/minimyths-ingest/transform/import.sql`.
 3. Run the verification queries commented at the bottom of that file.
 
@@ -73,6 +73,24 @@ A `service_role` key is **not** a substitute: PostgREST cannot run DDL or a
 transactional multi-statement file, so using it would mean reimplementing the
 import's guards as separate HTTP calls with no transaction — turning a tested
 atomic file into something that can half-apply.
+
+## Already hit and fixed: location_id NOT NULL
+
+The first production attempt failed with `23502 null value in column
+"location_id"`. The transaction rolled back whole — nothing was imported — and
+the venues migration had already applied cleanly.
+
+Cause: `20260728000000` sets `battlepacks.location_id NOT NULL` (RLS derives
+edit access entirely from the venue). That migration cannot fully apply to a
+stub harness, so the constraint was missing locally and the import passed there.
+Exactly one event, the at-home Clash of Rhyfles painting competition, has no
+Notion Location; it now takes Guf Werribee — the club's home venue, where every
+other Quarmaggedon event ran, and named in its own body. Change it in
+`build.py` if you disagree, then regenerate.
+
+Re-verified against a harness with that constraint forced on: 89 / 89 / 92 /
+133 / 133, zero null `starts_on`, zero null `location_id`, idempotent over two
+passes.
 
 ## Two schema traps — do not "simplify" the import past these
 

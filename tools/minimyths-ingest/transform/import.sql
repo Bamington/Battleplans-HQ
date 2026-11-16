@@ -1698,7 +1698,7 @@ on conflict (pack_id, category_key) do nothing;
 
 -- ── Clash of Rhyfles Painting Competition  (clash-of-rhyfles-painting-competition)
 insert into public.battlepacks (id, name, game_id, location_id, owner_id, status, slug, format, timeline, schedule_shape, recurrence, starts_on, ends_on, starts_at)
-select '946519e2-f69e-51f6-afe1-7065e8f0795c', 'Clash of Rhyfles Painting Competition', '18b781ec-71b5-481c-8166-1c177817e6b2', null,
+select '946519e2-f69e-51f6-afe1-7065e8f0795c', 'Clash of Rhyfles Painting Competition', '18b781ec-71b5-481c-8166-1c177817e6b2', 'c9581dee-c19a-4486-84a1-6cb64e6af6f0',
        'c0fab326-f180-4fe6-bf1b-87c069be3794', 'published', 'clash-of-rhyfles-painting-competition',
        'Hobby Event', 'multi-day', 'periods', 'none',
        '2026-03-15', '2026-04-30', null

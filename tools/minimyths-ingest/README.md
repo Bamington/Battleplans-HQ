@@ -81,6 +81,23 @@ Items deliberately omit `segment_id`; `battlepack_item_default_segment` fills it
 with the pack's lowest-ordinal segment, which avoids depending on an id the
 trigger generated.
 
+### battlepacks.location_id is NOT NULL
+
+`20260728000000` sets it, because RLS derives edit access entirely from the
+venue: a pack without one is invisible to every store admin and editable only
+by platform admins. One archive event — the Clash of Rhyfles painting
+competition, run at home — has no Location in Notion, so the transform supplies
+the club's home venue (Guf Werribee), which is where every other Quarmaggedon
+event ran and which the event's own body names.
+
+This one bit in production after passing locally, because the migration that
+sets it also needs `platform_app_roles` and so cannot fully apply to a stub
+harness. **A migration that fails to apply locally may still carry a column
+constraint**: audit the failures for `set not null` / `add constraint` /
+`alter column` and force those onto the harness before trusting a pass. The
+harness now applies `alter table public.battlepacks alter column location_id
+set not null` explicitly for that reason.
+
 ## Verified against a real Postgres
 
 Applied twice to a throwaway cluster running the actual battlepack migrations:
@@ -94,6 +111,13 @@ Applied twice to a throwaway cluster running the actual battlepack migrations:
 | category rows | 133 | 133 |
 | packs with null `starts_on` | 0 | 0 |
 | items with null `segment_id` | 0 | 0 |
+| packs with null `location_id` | 0 | 0 |
+
+The harness is built by applying the real battlepack migrations over a small
+set of Supabase stubs (`auth.users`, `games`, `locations`, roles, a no-op
+`net.http_post`), then forcing the constraints from migrations that cannot
+fully apply. Note that `chmod -R` across the cluster directory stops Postgres
+starting — the data directory must stay 0700.
 
 The second pass changed nothing, which is the idempotency claim tested rather
 than asserted.

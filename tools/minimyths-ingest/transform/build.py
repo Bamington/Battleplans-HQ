@@ -108,6 +108,15 @@ for e in events:
     lnid  = _first_id(e.get('loc'))
     lname = NLOC.get(lnid, '')
     lid   = LOC_BY_NAME.get(lname)
+    # battlepacks.location_id is NOT NULL (20260728000000): RLS derives edit
+    # access entirely from the venue, so a pack without one is editable by
+    # platform admins alone. Notion has no Location for this one event -- an
+    # at-home painting competition -- so it takes the club's home venue, which
+    # is where every other Quarmaggedon event ran and which its own body names.
+    if not lnid and name == 'Clash of Rhyfles Painting Competition':
+        lid, lname = 'c9581dee-c19a-4486-84a1-6cb64e6af6f0', 'Guf Werribee'
+        report.append(('LOCATION-SUPPLIED', name,
+                       'no Notion Location; set to Guf Werribee (NOT NULL)'))
     if lnid and not lid:
         report.append(('LOC-UNMAPPED', name, lname or lnid))
     if not lnid:
