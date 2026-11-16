@@ -1,0 +1,5296 @@
+[
+ {
+  "notion_id": "1c76baf36b438003a181da894696c09c",
+  "pack": {
+   "name": "Unnatural Resources",
+   "slug": "unnatural-resources",
+   "status": "published",
+   "game_id": "2c423202-05c0-4805-802d-a0a750340992",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Organized Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-07-09",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Legion",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a86baf36b4380d891c3c9dd55972319",
+  "pack": {
+   "name": "Multiversal Mayhem",
+   "slug": "multiversal-mayhem",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Teams of 2 - Timeline Standard",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-07-23",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a86baf36b438048af9cceda14e07976",
+  "pack": {
+   "name": "Clash of Kings",
+   "slug": "clash-of-kings",
+   "status": "published",
+   "game_id": "abdc7897-0795-4b0a-9dee-a5d9b30500e5",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Narrative Campaign",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-08-15",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {},
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "A Song of Ice and Fire Miniatures Game",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380a287f5cf8a1abffcf0",
+  "pack": {
+   "name": "Ghur Awakens",
+   "slug": "ghur-awakens",
+   "status": "published",
+   "game_id": "1c61d554-a58c-4d6c-9066-d9f5befc8023",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Matched Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-08-20",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Warcry",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43807392c3c4d9df0388b4",
+  "pack": {
+   "name": "Winter is Coming",
+   "slug": "winter-is-coming",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Timeline Standard",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-09-10",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380dbbe53d0f0c7dc3dff",
+  "pack": {
+   "name": "Battleforce Skirmish",
+   "slug": "battleforce-skirmish",
+   "status": "published",
+   "game_id": "2c423202-05c0-4805-802d-a0a750340992",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Skirmish (500 Points)",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-09-24",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Legion",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380cbab73ef37b01d4d87",
+  "pack": {
+   "name": "Mutant Mayhem",
+   "slug": "mutant-mayhem",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Timeline Standard",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2022-10-22",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43804cbd84ed25f405c8c4",
+  "pack": {
+   "name": "Dynamic Exit",
+   "slug": "dynamic-exit",
+   "status": "published",
+   "game_id": "2c423202-05c0-4805-802d-a0a750340992",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Painting Competition",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-01-21",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Star Wars: Legion",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43804bb781f228d55c6471",
+  "pack": {
+   "name": "Heroes League",
+   "slug": "heroes-league",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Organised Play Kit",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-01-28",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380bfb89ee37c0aa8763c",
+  "pack": {
+   "name": "Valentine's Day Dakka",
+   "slug": "valentines-day-dakka",
+   "status": "published",
+   "game_id": "24bc318b-1970-4401-a32d-82737a57dc01",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Timeline Standard",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-02-11",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Warhammer 40,000: Kill Team",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380958410d060ffa6a4a2",
+  "pack": {
+   "name": "Armoured Warfare",
+   "slug": "armoured-warfare",
+   "status": "published",
+   "game_id": "2c423202-05c0-4805-802d-a0a750340992",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Timeline Standard",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-04-30",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Legion",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380ddacc1dd354eec2a58",
+  "pack": {
+   "name": "Battletech Learn to Play",
+   "slug": "battletech-learn-to-play",
+   "status": "published",
+   "game_id": "aa727d43-324f-4f5c-9aa6-ebe5810e0abe",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Learn to Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-05-13",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Battletech",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380e7baa0ed3b2bf3fcb0",
+  "pack": {
+   "name": "Whispers of Ghur",
+   "slug": "whispers-of-ghur",
+   "status": "published",
+   "game_id": "1c61d554-a58c-4d6c-9066-d9f5befc8023",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Slow-Grow League",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-05-18",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warcry",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380e4ac7ccc9bb1ce5793",
+  "pack": {
+   "name": "Xenos vs Terra",
+   "slug": "xenos-vs-terra",
+   "status": "published",
+   "game_id": "24bc318b-1970-4401-a32d-82737a57dc01",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Matched Play - Teams of Two",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-05-20",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warhammer 40,000: Kill Team",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380b39eefc718166adb1d",
+  "pack": {
+   "name": "Shatterpoint Learn to Play",
+   "slug": "shatterpoint-learn-to-play",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Learn to Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-06-10",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {},
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438060b25eebc80d6b1f5b",
+  "pack": {
+   "name": "Battle for Planet Guf!",
+   "slug": "battle-for-planet-guf",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Casual Tournament",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-06-24",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438064a54ad9841998c4fc",
+  "pack": {
+   "name": "10th Edition Combat Patrol",
+   "slug": "10th-edition-combat-patrol",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Combat Patrol",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-07-08",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380b39562dfb71ac175d2",
+  "pack": {
+   "name": "Arrival of Leviathan",
+   "slug": "arrival-of-leviathan",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "1000 Point Matched Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-07-22",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380f2b45fed1ea19c79b6",
+  "pack": {
+   "name": "Dark Side Rising",
+   "slug": "dark-side-rising",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Showdown (Standard Touirnament Rules)",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-08-06",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438043b036e16bc9f49b60",
+  "pack": {
+   "name": "Kalador Burning",
+   "slug": "kalador-burning",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Crusade",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-08-24",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43800fbb6fc1a9ee507203",
+  "pack": {
+   "name": "Fall of Oghram",
+   "slug": "fall-of-oghram",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Matched Play - 2000 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-09-10",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380c3bcf4e24cf61245df",
+  "pack": {
+   "name": "Cosmic Clash!",
+   "slug": "cosmic-clash",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Custom Missions",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-09-17",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43807fa925cef9e76c0f14",
+  "pack": {
+   "name": "Trials of the Jedi",
+   "slug": "trials-of-the-jedi",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "League",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2023-11-08",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438053b3c7c4a93100f0ed",
+  "pack": {
+   "name": "Cities Under Siege",
+   "slug": "cities-under-siege",
+   "status": "published",
+   "game_id": "1c61d554-a58c-4d6c-9066-d9f5befc8023",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "3 Rounds",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-02-24",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Warcry",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438047856ae2996386017d",
+  "pack": {
+   "name": "Paradiso Escalation League",
+   "slug": "paradiso-escalation-league",
+   "status": "published",
+   "game_id": "8bdd2d21-1b81-4196-a1ca-f6ad93a9694a",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Escalation Format",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-02-29",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {},
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Infinity (N4)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380feb5eecf3f2546b150",
+  "pack": {
+   "name": "Rise of the Ewoks!",
+   "slug": "rise-of-the-ewoks",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-03-09",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "2676baf36b4380308243e3720fa37d3e",
+  "pack": {
+   "name": "Purple Palette",
+   "slug": "purple-palette",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Painting Challenge",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-04-06",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "prizes": {
+    "items": [
+     {
+      "title": "First, Second, and Third",
+      "description": "Get a top-three score from our judges and win a prize!"
+     },
+     {
+      "title": "Community Vote",
+      "description": "On the final day, the community will have the chance to vote for their favourite model - most votes wins!"
+     },
+     {
+      "title": "Under 18's Champion",
+      "description": "The best-judged entry from the under 18's entrants will also win a prize"
+     },
+     {
+      "title": "Paragon",
+      "description": "The Judges will also pick an entrant who has been helpful, considerate, and generous in giving their time to our community"
+     }
+    ]
+   },
+   "faq": {
+    "items": [
+     {
+      "question": "When is the cut-off point?",
+      "answer": "You can sign up any time during the six weeks. We recommend starting within the first two weeks."
+     },
+     {
+      "question": "Do I need to paint a Warhammer model?",
+      "answer": "No \u2014 any brand/range is fine if purchased via Guf Werribee and follows restrictions."
+     },
+     {
+      "question": "Is there a minimum spend?",
+      "answer": "No minimum spend required."
+     },
+     {
+      "question": "Is there a minimum painting standard?",
+      "answer": "No enforcement, but we recommend the \"Strict\" standard: at least three colours, painted base."
+     },
+     {
+      "question": "Do I have to paint purple?",
+      "answer": "No \u2014 no theme colours required."
+     },
+     {
+      "question": "What if the model doesn't come with a base?",
+      "answer": "It must still fit within a 65mm footprint. Contact TOs if unsure."
+     },
+     {
+      "question": "Can I mount my model on an alternative base?",
+      "answer": "Yes, but the base must match the intended size of the supplied base."
+     },
+     {
+      "question": "What happens if I don't follow guidelines?",
+      "answer": "Your piece won't be eligible for prizes. Check with TOs if unsure."
+     },
+     {
+      "question": "Can I buy a kit with multiple models and enter one?",
+      "answer": "Yes \u2014 you may enter a single model from a multi-kit box, but customization must use only parts from that model."
+     },
+     {
+      "question": "Can I use bits from other kits for basing?",
+      "answer": "No \u2014 only tufts/flock/basing materials allowed. Exception: plastic basing kits (Citadel Skulls/Vines) are fine."
+     },
+     {
+      "question": "What are judges looking for?",
+      "answer": "Each judge has their own criteria. For tips, see Mindful Painting Tips."
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Nathan Haig (Mini Myths)",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380debff0df66b199d588",
+  "pack": {
+   "name": "Shatterpoint Learn to Play",
+   "slug": "shatterpoint-learn-to-play-2024",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Learn to Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-04-11",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {},
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43808fa0fced722de1b69f",
+  "pack": {
+   "name": "Red Skull's Revenge!",
+   "slug": "red-skulls-revenge",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Timeline Standard",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-04-28",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380578468eef57ca9cdbb",
+  "pack": {
+   "name": "May the 4th Showdown",
+   "slug": "may-the-4th-showdown",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b403",
+   "format": "Showdown",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-05-04",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Jason Brown",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Andrew's Hobbies"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438087bb27d2fba5475c4d",
+  "pack": {
+   "name": "Fall of Mandalore",
+   "slug": "fall-of-mandalore",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-05-25",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "2676baf36b438032a28ed8d73f76d361",
+  "pack": {
+   "name": "Purple Palette: Fluoro",
+   "slug": "purple-palette-fluoro",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Painting Challenge",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-06-02",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Execution",
+      "description": "How do all elements work together? What is the overall result?"
+     },
+     {
+      "title": "Technique",
+      "description": "How well are fundamental skills (blending, shading, highlighting, etc.) applied?"
+     },
+     {
+      "title": "Character",
+      "description": "Does it have identity, \"wow factor,\" or impact?"
+     },
+     {
+      "title": "Theme Representation",
+      "description": "Is the theme clear and well-integrated?"
+     },
+     {
+      "title": "Personal Style",
+      "description": "Does the contestant's own style come through?"
+     },
+     {
+      "title": "Top Score",
+      "description": "Highest average judge score"
+     },
+     {
+      "title": "Most Improved",
+      "description": "Biggest improvement vs. previous Purple Palette entry"
+     },
+     {
+      "title": "Community Vote",
+      "description": "Attendees pick their three favourite entries"
+     },
+     {
+      "title": "Best Character",
+      "description": "Strongest \"wow factor\" and execution"
+     },
+     {
+      "title": "Best Newcomer",
+      "description": "Highest scoring first-time entrant"
+     },
+     {
+      "title": "Best Under 18's",
+      "description": "Highest score in youth entries"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Nathan Haig (Mini Myths)",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380f9b27ffc76cb74850b",
+  "pack": {
+   "name": "Echoes of the Morgul Vale",
+   "slug": "echoes-of-the-morgul-vale",
+   "status": "published",
+   "game_id": "4a7bbf70-3b1f-41f3-afd3-596d7712c2d0",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Battle Companies",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-06-05",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Middle Earth Strategy Battle Game",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43805a8d6ec08d5b9db280",
+  "pack": {
+   "name": "Farewell to Third Edition",
+   "slug": "farewell-to-third-edition",
+   "status": "published",
+   "game_id": "3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Pitched Battles 23-24",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-06-15",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Age of Sigmar (4th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380dabe26f3ecc1382598",
+  "pack": {
+   "name": "Birth of the Rebellion",
+   "slug": "birth-of-the-rebellion",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-06-22",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380928d40ffab7a5cf15d",
+  "pack": {
+   "name": "Defence of the Star League",
+   "slug": "defence-of-the-star-league",
+   "status": "published",
+   "game_id": "aa727d43-324f-4f5c-9aa6-ebe5810e0abe",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "TBA",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-07-06",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Ryan Butler",
+   "event_type": null,
+   "game_name": "Battletech",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380bfb633db54a33b0120",
+  "pack": {
+   "name": "Liberation of Lothal!",
+   "slug": "liberation-of-lothal",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-07-20",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438069ac13f334cd4c231f",
+  "pack": {
+   "name": "Learn to Play AOS 4th Edition",
+   "slug": "learn-to-play-aos-4th-edition",
+   "status": "published",
+   "game_id": "3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Learn to Play!",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-07-21",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Age of Sigmar (4th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "2676baf36b43804286afe7073e56eb4c",
+  "pack": {
+   "name": "Purple Palette: Fantasy",
+   "slug": "purple-palette-fantasy",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Painting Challenge",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-08-10",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Execution",
+      "description": "How has the contestant shown their intention for the piece? How do all the elements work together? What is the overall result?"
+     },
+     {
+      "title": "Technique",
+      "description": "How well has the contestant used and implements fundamental techniques (blending, shading, highlighting, etc.)? How well are the techniques used to achieve the final result?"
+     },
+     {
+      "title": "Character",
+      "description": "How well does the character of the piece show through? Does it have a wow factor? Does it show an identity to what it is meant to be?"
+     },
+     {
+      "title": "Theme Representation",
+      "description": "How well is the theme represented? Is it integrated in a way that reflects positively to the piece? Does it hold your focus?"
+     },
+     {
+      "title": "Personal Style",
+      "description": "How well does the contestant's individual painting style show through? Is it a personal combination of other known styles? Does it feel identifiable or unique?"
+     },
+     {
+      "title": "Top Score",
+      "description": "The highest overall average judge score on the day. Each criteria will be averaged to the judge and then that score will be averaged over all judges. In the unlikely event of draw, the judges will decide a winner amongst themselves"
+     },
+     {
+      "title": "Most Improved",
+      "description": "The judges will unanimously pick an entry that was entered by someone who has previously competed in Purple Palette who has improved the most between entries"
+     },
+     {
+      "title": "Community Vote",
+      "description": "On the day, anyone who is at Guf Werribee will be able to look over the entries and pick their three favorite entries. The most popular entry will win"
+     },
+     {
+      "title": "Best Character",
+      "description": "The one the judges found had the most impact in the overall execution (aka \"wow-factor/x-factor\")"
+     },
+     {
+      "title": "Best Newcomer",
+      "description": "Highest score for a first time entrant. Only applicable to someone who has never entered a Purple Palette event before"
+     },
+     {
+      "title": "Best Under 18's",
+      "description": "If we have any underaged entries we will present an award to the highest score for an Under 18's category"
+     },
+     {
+      "title": "Any single player can only win one of the above prizes. In the scenario in which you might win two prizes, the judges will pick a runner up who will be awarded that prize. Players who are eligible for multiple prizes will be given the prize with the most value.",
+      "description": ""
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Nathan Haig (Mini Myths)",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b43809997aecc013702f324",
+  "pack": {
+   "name": "Realm War",
+   "slug": "realm-war",
+   "status": "published",
+   "game_id": "3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "1000 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-08-18",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Age of Sigmar (4th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438076ad34e7c9d7de012d",
+  "pack": {
+   "name": "That's no Moon!",
+   "slug": "thats-no-moon",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-08-24",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380c1b22cf0c22f5f4aa4",
+  "pack": {
+   "name": "End of N4",
+   "slug": "end-of-n4",
+   "status": "published",
+   "game_id": "8bdd2d21-1b81-4196-a1ca-f6ad93a9694a",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Resilience Operations",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-09-14",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Infinity (N4)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380819495c5a34f393f43",
+  "pack": {
+   "name": "Mysteries of the Gray Havens",
+   "slug": "mysteries-of-the-gray-havens",
+   "status": "published",
+   "game_id": "4a7bbf70-3b1f-41f3-afd3-596d7712c2d0",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "500 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-09-29",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Middle Earth Strategy Battle Game",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380b9814dea73320d7362",
+  "pack": {
+   "name": "War for Werribee 2024",
+   "slug": "war-for-werribee-2024",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Timeline",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-10-12",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "players-db-only",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380cf8fb4c8b571cceece",
+  "pack": {
+   "name": "Operation Phoenix",
+   "slug": "operation-phoenix",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-10-19",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380e2aac6d145169e3014",
+  "pack": {
+   "name": "Shatterpoint Unleashed",
+   "slug": "shatterpoint-unleashed",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-11-02",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380f68148fba2c792dfc3",
+  "pack": {
+   "name": "Holiday on Hoth",
+   "slug": "holiday-on-hoth",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2024-12-21",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b4380679e7ee6bdae37dd1f",
+  "pack": {
+   "name": "Can't Con",
+   "slug": "cant-con",
+   "status": "published",
+   "game_id": "8bdd2d21-1b81-4196-a1ca-f6ad93a9694a",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Escalation",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-01-25",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Infinity (N5)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438040a4d2c4177d3f394d",
+  "pack": {
+   "name": "Battle for Kashyyyk",
+   "slug": "battle-for-kashyyyk",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-02-15",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "presumed-blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c76baf36b438074b36ae01a3298cf3f",
+  "pack": {
+   "name": "Invasion of Naboo!",
+   "slug": "invasion-of-naboo",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-02-23",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": null,
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1a76baf36b4380a39853c076a219b9a9",
+  "pack": {
+   "name": "Pariah Nexus Dust Off",
+   "slug": "pariah-nexus-dust-off",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "1350 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-03-15",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Chaedi (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a76baf36b4380309d94fd06d0c7545b",
+  "pack": {
+   "name": "Mayhem on Mustafar",
+   "slug": "mayhem-on-mustafar",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-03-22",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "blank",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1a76baf36b4380ae8bc7f8758f2e0b1c",
+  "pack": {
+   "name": "Operation: Mini Mythmas",
+   "slug": "operation-march-minimythmas",
+   "status": "published",
+   "game_id": "8bdd2d21-1b81-4196-a1ca-f6ad93a9694a",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "300pts/6swc",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-03-30",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "results-db-only",
+   "host": "Chris G (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Infinity (N5)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a76baf36b43803db2ece2e72230de15",
+  "pack": {
+   "name": "Quarmaggedon",
+   "slug": "quarmaggedon",
+   "status": "published",
+   "game_id": "18b781ec-71b5-481c-8166-1c177817e6b2",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "300 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-04-05",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "17:20",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": "12:40",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:40",
+    "ends_at": "13:10",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:10",
+    "ends_at": "14:50",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "14:50",
+    "ends_at": "16:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Awards Ceremony",
+    "starts_at": "17:20",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $25 per player.",
+    "url": null
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "### Master and Quar-mander Awarded to the player who demonstrates superior martial and tactical prowess \u2014 in other words, the player who wins the most games overall. ### Best in Show Awarded to the player with the best painted army. Army must be fully painted, including an appropriate base. All players will vote for the army they deem best painted. (No, you can't vote for yourself.) ### A True Gentle-quar Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. (A true gentle-quar wouldn't even think of voting for themselves!)"
+     }
+    ]
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Good sportsmanship, patience, and good communication skills"
+     },
+     {
+      "text": "A 300-point army of any of the currently available forces in the current Addendum (no Tractors)"
+     },
+     {
+      "text": "A copy of the Rhyfler's Pocketbook 2.0 and the current rules Addendum (available for free here: https://rhyfler.com/rulebooks/)",
+      "url": "https://rhyfler.com/rulebooks/"
+     },
+     {
+      "text": "Tokens to track game conditions (e.g. gobsmacked, out of action, prone, etc.)"
+     },
+     {
+      "text": "3 dice"
+     },
+     {
+      "text": "Measuring tape"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-I",
+   "body_class": "rich",
+   "host": "Juan Acosta (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "This Quar's War",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a76baf36b43800988abd04f2b86280d",
+  "pack": {
+   "name": "Assault on the Brass Citadel",
+   "slug": "assault-on-the-brass-citadel",
+   "status": "published",
+   "game_id": "3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "2000 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-04-12",
+    "ends_on": null,
+    "starts_at": "10:00",
+    "ends_at": "15:00",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1 \u2013 Shifting Priorities",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2 \u2013 Limited Resources",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3 \u2013 Focal Points",
+    "starts_at": "15:00",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player.",
+    "url": null
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Good sportsmanship, patience, and good communication skills"
+     },
+     {
+      "text": "Appropriate miniatures to represent your army"
+     },
+     {
+      "text": "A set of D6 dice"
+     },
+     {
+      "text": "A tape measure or range rulers"
+     },
+     {
+      "text": "Appropriate rules documents (GHB, core rules, battletome, etc.)"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-I",
+   "body_class": "rich",
+   "host": "Nathan H (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Age of Sigmar (4th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1c66baf36b438035b8ebc86c79085212",
+  "pack": {
+   "name": "Assault on Alderaan",
+   "slug": "assault-on-alderaan",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-04-13",
+    "ends_on": null,
+    "starts_at": "09:00",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Gaming Arena Opens",
+    "starts_at": "09:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Round 1 Ends, Lunch Break",
+    "starts_at": "12:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Round 3 Ends, Prizes Handed Out",
+    "starts_at": "17:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player.",
+    "url": null
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "A Showdown-Premiere list (that's four squads)"
+     },
+     {
+      "text": "Dice"
+     },
+     {
+      "text": "Rulers"
+     },
+     {
+      "text": "Cards"
+     },
+     {
+      "text": "Tokens"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-I-time",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1c66baf36b4380d28183f6990df96b95",
+  "pack": {
+   "name": "Casual Casualties",
+   "slug": "april-casual-casualties",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "2000 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-04-20",
+    "ends_on": null,
+    "starts_at": "10:45",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:45",
+    "ends_at": "13:45",
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "Break (minimum 15 minutes)",
+    "starts_at": "13:45",
+    "ends_at": "14:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "14:00",
+    "ends_at": "17:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "event",
+    "label": "Pack Up & Raffle",
+    "starts_at": "17:00",
+    "ends_at": "17:30",
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player.",
+    "url": null
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "All prizes will be awarded as door prizes via raffle, depending on availability. Performance does not affect your chances \u2014 everyone has a shot!"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-I",
+   "body_class": "rich",
+   "host": "Chaedi FT",
+   "event_type": "Casual Event",
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a76baf36b4380818cedd8a4b0f712e5",
+  "pack": {
+   "name": "Arcpoint 2025",
+   "slug": "arcpoint-2025",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b404",
+   "format": "Modiifed Showdown",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-05-03",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": "Day 1"
+   },
+   {
+    "ordinal": 2,
+    "starts_on": "2025-05-04",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": "Day 2"
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $85 per player.",
+    "url": null
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Arcfest (Sandown Racecourse)"
+  }
+ },
+ {
+  "notion_id": "1e46baf36b43800ab830fd6b3fb8316a",
+  "pack": {
+   "name": "Defense of Mandalore",
+   "slug": "defense-of-mandalore",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-05-04",
+    "ends_on": null,
+    "starts_at": "09:00",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Gaming Arena Opens",
+    "starts_at": "09:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Round 1 complete, let's go for lunch!",
+    "starts_at": "12:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Round 3 complete, we'll hand out some prizes!",
+    "starts_at": "17:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player.",
+    "url": null
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/25481/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-G",
+   "body_class": "rich",
+   "host": "Bam Harrison (Mini Mythss)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1df6baf36b43802dbefcef659ede535b",
+  "pack": {
+   "name": "Melee at Mygeeto",
+   "slug": "melee-at-mygeeto",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-05-18",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Guf Opens",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Round 1 complete, let's go for lunch!",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Round 3 complete, we'll hand out some prizes!",
+    "starts_at": "17:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $15 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/6b3644fddd"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/25360/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-G",
+   "body_class": "rich",
+   "host": "Bam Harrison (Mini Mythss)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1dd6baf36b43805b9cf7e4bf47b909c7",
+  "pack": {
+   "name": "Chaos Nights",
+   "slug": "chaos-nights",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "League",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-05-26",
+    "ends_on": "2025-08-05",
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player.",
+    "url": null
+   },
+   "faq": {
+    "items": [
+     {
+      "question": "What if my opponent cancels/we can't get a game in?",
+      "answer": "If one player is at fault for a cancelled game they will take a game loss with 0 points. The other player will be awarded a win as if they had 66 points. If you can't schedule a game in and it's neither player's fault, you can agree to a draw with 33 to 33 points."
+     },
+     {
+      "question": "Can I change my list between rounds?",
+      "answer": "No! Unless something big like a dataslate or new mission pack drops we'll keep things the same. Your 1000 point and 2000 points lists will be able to be completely different though. They don't even have to share the same super faction."
+     },
+     {
+      "question": "How are we handling terrain?",
+      "answer": "I would recommend you talk to your opponent about that and set things up as you see fit. We encourage though that you use the WTC layouts (https://worldteamchampionship.com/wp-content/uploads/2025/03/WTC-2025-Map-Pack-Lite-v1.2compressed.pdf) and treat your bottom floor windows as blocking LOS. I've made some terrain footprint mats out of clear plastic and added them to various terrain sets at Guf Werribee to help facilitate this."
+     },
+     {
+      "question": "How are standings handled?",
+      "answer": "Your standings will primarily be based on W/L/D record. The next tie breaker will be point differentials (how much you beat your opponent by, so make sure to deny those last minute primary points). Then if needed strength of schedule is used. Essentially, you'll be rated slightly higher based on how strong your opponents were."
+     },
+     {
+      "question": "Is this a narrative event?",
+      "answer": "No. I'm sure we'll forge our own narratives through this, and tell some fun stories, but there is no narrative or crusade elements to this league. At its core, it's just straight up matched play. I'm sure I'll write some fun fluff about the Chaeos Cult but doing the same for your army is not a requirement nor an expectation."
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": true,
+   "sched_class": "league-fortnight",
+   "body_class": "rich",
+   "host": "Chaedi Forman-Todd",
+   "event_type": "Campaign / League",
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1f46baf36b4380d1839bc466d8710b6f",
+  "pack": {
+   "name": "MiniMyths Fumble Rumble I",
+   "slug": "minimyths-fumble-rumble-i",
+   "status": "published",
+   "game_id": "1a19e961-8273-46aa-9a74-f0ebd90657c5",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Six-Game League",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-06-15",
+    "ends_on": "2025-09-28",
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/7bad330034"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://app.deathpitch.com/bb/competitions/mini-myths-fumble-rumble-1747278359868?code=9613"
+   }
+  },
+  "meta": {
+   "is_league": true,
+   "sched_class": "league-weeks",
+   "body_class": "rich",
+   "host": "Nathan Haig (Mini Myths)",
+   "event_type": "Campaign / League",
+   "game_name": "Blood Bowl",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a86baf36b4380f9b1fcf2cc5536370c",
+  "pack": {
+   "name": "Duel of the Fates 2025",
+   "slug": "duel-of-the-fates-2025",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-06-21",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": "Day 1"
+   },
+   {
+    "ordinal": 2,
+    "starts_on": "2025-06-22",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": "Day 2"
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $80 per player. They were sold at the link below.",
+    "url": "https://www.thegamingarena.com.au/product/21st-jun-star-wars-shatterpoint-duel-of-the-fates/11031?cp=true&sa=false&sbp=false&q=false&category_id=187"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://www.longshanks.org/event/23208/"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "## Rewards, Prizes, and Giveaways ### Participation All players will receive participation awards for each round they participate in, giving you a great incentive to play as many rounds as possible! These prizes will come directly from the AMG prize kit, so you wont be able to get the anywhere outside of an AMG Grand Tournament! ### Top Placements We'll have prizes for all players who make it into Top 4 and Top 2, as well as prizes for the overall champion. We'll be announcing these closer to the day. ### Best Strike Force We'll have an independant judge on the day to give out some awards for "
+     },
+     {
+      "title": "Terrain Raffle",
+      "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we'll draw names from the raffle and give out some bonus prizes to those players. You get one raffle ticket for each full table of terrain you bring. All terrain must be painted and designed for use with Star Wars: Shatterpoint."
+     },
+     {
+      "title": "Prize pool",
+      "description": "> Please note - we are still confirming our full suite of prizes from our various support partners. You can expect some fun surprises on the day! ### AMG Prize Kit All players will receive a prize simply for participating. This prize is granted for each round that you play, so the more games you complete, the more prizes you'll receive. Additional prizes are available for top-placed players, specifically including prizes for top 4, top 2, and the champion player. ### Baron of Dice We have partnered with Baron of Dice to offer some really cool unofficial dice sets available to players. We'll an"
+     }
+    ]
+   },
+   "resources": {
+    "items": [
+     {
+      "title": "May 2025 Unit Update Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/05/DOC24_Cards_Unit-Stance_PrintSheet.pdf"
+     },
+     {
+      "title": "FAQ & Errata Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/01/SWP_FAQ_0225.pdf"
+     },
+     {
+      "title": "Showdown Premiere Rules",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/01/SWP_PREMIER_SHOWDOWN_012725.pdf"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "image",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "20d6baf36b438069bb32cf78f6f6183c",
+  "pack": {
+   "name": "Operation Frostbite Face-Off",
+   "slug": "operation-frostbite-face-off",
+   "status": "published",
+   "game_id": "8bdd2d21-1b81-4196-a1ca-f6ad93a9694a",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "300 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-06-22",
+    "ends_on": null,
+    "starts_at": "10:00",
+    "ends_at": "15:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/e9bd1316b7"
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Good sportsmanship, patience and good communication skills."
+     },
+     {
+      "text": "Appropriate miniatures to represent your army."
+     },
+     {
+      "text": "Appropriate tokens to keep track of your orders, prone, unconscious, wounds, etc."
+     },
+     {
+      "text": "A set of D20 dice (not 'spin downs')"
+     },
+     {
+      "text": "A set of templates (small and large teardrop and circular) and a ruler."
+     },
+     {
+      "text": "A printout of your army lists and a \"courtesy list\" for your opponents."
+     }
+    ]
+   },
+   "resources": {
+    "items": [
+     {
+      "title": "Infinity N5 rules, N5 tokens, FAQs and other documents can be located on the official Infinity website - https://infinitytheuniverse.com/resources/infinity",
+      "description": "",
+      "url": "https://infinitytheuniverse.com/resources/infinity"
+     },
+     {
+      "title": "Infinity Army Builder",
+      "description": "note, there is also a phone app that can be downloaded, but this does not have printing functionality",
+      "url": "https://infinitytheuniverse.com/army/infinity"
+     },
+     {
+      "title": "For help with the Army Builder, refer to this YouTube video",
+      "description": "",
+      "url": "https://www.youtube.com/watch?v=iGa4YP5MDWE"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-D-para",
+   "body_class": "rich",
+   "host": "Nick Groh (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Infinity (N5)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "21d6baf36b438047b794ceadc7ca2bbd",
+  "pack": {
+   "name": "Jump To Jakku",
+   "slug": "jump-to-jakku",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Threemiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-07-26",
+    "ends_on": null,
+    "starts_at": "09:00",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Gaming Arena Opens",
+    "starts_at": "09:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Round 1 complete, let's go for lunch!",
+    "starts_at": "12:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Round 3 complete, we'll hand out some prizes!",
+    "starts_at": "17:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://www.thegamingarena.com.au/product/26th-july-shatterpoint-at-the-arena-jump-to-jakku-/11758"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/26855/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-G",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "1e46baf36b43806089d8f809fef7d4f3",
+  "pack": {
+   "name": "Quarmaggedon II",
+   "slug": "quarmaggedon-ii",
+   "status": "published",
+   "game_id": "18b781ec-71b5-481c-8166-1c177817e6b2",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "500 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-07-26",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "17:20",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "event",
+    "label": "Door Prize Draw",
+    "starts_at": "10:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": "12:40",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:40",
+    "ends_at": "13:10",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:10",
+    "ends_at": "14:50",
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "14:50",
+    "ends_at": "16:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 7,
+    "kind": "event",
+    "label": "Awards",
+    "starts_at": "17:20",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $25 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/767151ebfa"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "Master and Quar-mander: Awarded to the player that demonstrates superior martial and tactical prowess, or in other words, the player who scores the most points overall. In the event of a tie, the player with the highest scoring points that belongs to the faction with the most victories will win. Nice Treads: Awarded to the player with the best painted tractor. All players will get to vote for the army they deem to have the best painted tractor. You may submit a tractor for judgement even if you don't run one in your squad. And no, you still can't vote for yourself \u2026 A true Gentle-quar: Awarded"
+     }
+    ]
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Good sportsmanship, patience and good communication skills, this is of paramount importance!"
+     },
+     {
+      "text": "A 500 point army of any of the currently available forces in the current addendum. You may include a single tractor or two squad tractors."
+     },
+     {
+      "text": "A copy of the Rhyfler's pocketbook 2.0, the tractor playtest rules and the current rules Addendum: https://rhyfler.com/rulebooks/",
+      "url": "https://rhyfler.com/rulebooks/"
+     },
+     {
+      "text": "Some tokens to keep track of game conditions e.g. gobsmacked, out of action, prone, etc."
+     },
+     {
+      "text": "Dice x 3"
+     },
+     {
+      "text": "Measuring tape."
+     },
+     {
+      "text": "An activation deck."
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-D-dots",
+   "body_class": "rich",
+   "host": "Juan Acosta",
+   "event_type": "Casual Event",
+   "game_name": "This Quar's War",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "21f6baf36b43804886e1c1a2a0ed929c",
+  "pack": {
+   "name": "Casual Casulaties: The Incursion Diversion",
+   "slug": "casual-casulaties-the-incursion-diversion",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "1000 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-08-02",
+    "ends_on": null,
+    "starts_at": "10:45",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:45",
+    "ends_at": "13:45",
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "15 minute minimum break",
+    "starts_at": "13:45",
+    "ends_at": "14:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "14:00",
+    "ends_at": "17:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "event",
+    "label": "Pack up and raffle",
+    "starts_at": "17:00",
+    "ends_at": "17:30",
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/39f4376724"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://warhammer40k.longshanks.org/event/26870/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-C",
+   "body_class": "rich",
+   "host": "Chaedi FT (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "23f6baf36b438057b92bedd96571abf2",
+  "pack": {
+   "name": "Strike on Scarif",
+   "slug": "strike-on-scarif",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b402",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-09-14",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "Round 1 complete, let's go for lunch!",
+    "starts_at": "12:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "event",
+    "label": "Round 3 complete, we'll hand out some prizes!",
+    "starts_at": "17:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $25 per player. They were sold at the link below.",
+    "url": "https://gamesportal.com.au/products/star-wars-shatterpoint-strike-on-scarif-ticket-sun-14-sep-2025?ticket=star-wars-shatterpoint-strike-on-scarif-ticket-sun-14-sep-2025"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/27708/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-G",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Games Portal"
+  }
+ },
+ {
+  "notion_id": "2686baf36b43805e85c9fe5a9c584eae",
+  "pack": {
+   "name": "Games Discovery Day",
+   "slug": "games-discovery-day",
+   "status": "published",
+   "game_id": "118f64ca-fe9b-4bfe-a8a4-57c13f4d33dd",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Learn to Play",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-10-12",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/67738e404e"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "We want to use this fun event to get you excited about playing some new games. In that spirit, we've prepared a few special unique prizes for each of the systems: ### Kill Team Chaedi's once again gone above and beyond, designing and printing these custom equipment packs. Depending on numbers, we're hoping to have some sweet equipment for everybody to go home with. ### Warcrow Warcrow has it's own unique measurement system called 'Strides', that means you can't just use your existing Mini Myths range rulers. Wouldn't it be nice if someone provided one at an event\u2026 ### Halo: Flashpoint To be an"
+     }
+    ]
+   },
+   "faq": {
+    "items": [
+     {
+      "question": "Can I bring my own miniatures?",
+      "answer": "You're welcome to bring your own miniatures for any of the three games, however depending on the scenario, we might ask you to use ours instead. We'd love for you to show them off and share your love for the game, though!"
+     },
+     {
+      "question": "I'm an expert in one of the games, but I'd like to try the others. Can I come?",
+      "answer": "Definitely! We'd ask that you use your time with the game you know well to really help out your opponent and teach them about what you love about the game."
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": null,
+   "event_type": "Casual / Learn to Play",
+   "game_name": "Warcrow",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "1a86baf36b4380a98c5fd852fa01769c",
+  "pack": {
+   "name": "War for Werribee 2025",
+   "slug": "war-for-werribee-2025",
+   "status": "published",
+   "game_id": "a01e71b7-ce00-498c-bda2-7dce8b03d580",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b405",
+   "format": "Challenger",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-10-25",
+    "ends_on": null,
+    "starts_at": "09:15",
+    "ends_at": "16:20",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "09:15",
+    "ends_at": "10:45",
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "10:55",
+    "ends_at": "12:25",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:25",
+    "ends_at": "13:10",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "13:10",
+    "ends_at": "14:40",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 4",
+    "starts_at": "14:50",
+    "ends_at": "16:20",
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Awards",
+    "starts_at": "16:20",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/79b6eb11ed"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://mcp.longshanks.org/event/23333/"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "Prizes will be announced closer to the event, including some special surprises on the day!"
+     }
+    ]
+   },
+   "resources": {
+    "items": [
+     {
+      "title": "Challanger Event Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/09/OP_CrisisProtocol_Challenger_091225.pdf"
+     },
+     {
+      "title": "FAQ and Errata",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/05/OP_CrisisProtocol_FAQ_05_19_2025.pdf"
+     },
+     {
+      "title": "Updated Cards",
+      "description": "",
+      "url": "https://www.atomicmassgames.com/mcp-rules/"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-F-rev",
+   "body_class": "rich",
+   "host": "Bam Harrison (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Marvel Crisis Protocol",
+   "location_name": "Arndell Park Community Center"
+  }
+ },
+ {
+  "notion_id": "27e6baf36b4380e29538e05d65584d1e",
+  "pack": {
+   "name": "Nullification of Narkina",
+   "slug": "nullification-of-narkina",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-11-15",
+    "ends_on": null,
+    "starts_at": "10:00",
+    "ends_at": "17:00",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "Round 1 complete, let's go for lunch!",
+    "starts_at": "12:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "12:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "event",
+    "label": "Round 3 complete, we'll hand out some prizes!",
+    "starts_at": "17:00",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $25 per player. They were sold at the link below.",
+    "url": "https://www.thegamingarena.com.au/product/15th-november-shatterpoint-at-the-arena-nullification-of-narkina-/BTZGLDE5HOZ4VZIHOWGDOR4Q"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/29013/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-G",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "2a26baf36b4380448cf1c0b59da884c4",
+  "pack": {
+   "name": "ORL 2025 Finale",
+   "slug": "orl-2025-finale",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "f98a2ee8-aef4-4e5f-a843-d7dad4598d73",
+   "format": "Showdown Premiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-12-06",
+    "ends_on": null,
+    "starts_at": "09:00",
+    "ends_at": "16:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Venue Opens",
+    "starts_at": "09:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "09:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "11:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "12:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "14:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Wrap up and Prizes!",
+    "starts_at": "16:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $35 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/20f3131ce8"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/29910/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-H",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Djerring Centre"
+  }
+ },
+ {
+  "notion_id": "2a96baf36b43804da6e2d93f703a89bc",
+  "pack": {
+   "name": "Mini Myths Photo Day!",
+   "slug": "mini-myths-photo-day",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": null,
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2025-12-13",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/minimyths/shop"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": null,
+   "event_type": null,
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "2ba6baf36b4380a19f20cd1e21d03fd5",
+  "pack": {
+   "name": "Stumble Rumble I",
+   "slug": "stumble-rumble-i",
+   "status": "published",
+   "game_id": "1a19e961-8273-46aa-9a74-f0ebd90657c5",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "7\u2019s",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-01-18",
+    "ends_on": "2026-03-14",
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/0dc514d4dc"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://app.deathpitch.com/bb/competitions/stumble-rumble-i-1763626767631?code=4882"
+   }
+  },
+  "meta": {
+   "is_league": true,
+   "sched_class": "league-weeks",
+   "body_class": "rich",
+   "host": "Nathan Haig (Mini Myths)",
+   "event_type": "Campaign / League",
+   "game_name": "Blood Bowl",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "2f76baf36b43807a8e32d7883d1bf652",
+  "pack": {
+   "name": "On The March",
+   "slug": "on-the-march",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "1350 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-03-08",
+    "ends_on": null,
+    "starts_at": "11:00",
+    "ends_at": "17:15",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": "12:45",
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:45",
+    "ends_at": "13:15",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:15",
+    "ends_at": "15:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:00",
+    "ends_at": "16:45",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "event",
+    "label": "Prizes and packup",
+    "starts_at": "16:45",
+    "ends_at": "17:15",
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/41acb43e9c"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://warhammer40k.longshanks.org/event/32039/"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Vouchers for podium placements",
+      "description": ""
+     },
+     {
+      "title": "3D printed goodies for all, picked in standing order",
+      "description": ""
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-C",
+   "body_class": "rich",
+   "host": "Chaedi Forman-Todd (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Warhammer 40,000 (10th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "3136baf36b438085ae85c341898229c7",
+  "pack": {
+   "name": "Clash of Rhyfles Painting Competition",
+   "slug": "clash-of-rhyfles-painting-competition",
+   "status": "published",
+   "game_id": "18b781ec-71b5-481c-8166-1c177817e6b2",
+   "location_id": null,
+   "format": "Hobby Event",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-03-15",
+    "ends_on": "2026-04-30",
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {},
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Juan Acosta",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "This Quar's War",
+   "location_name": ""
+  }
+ },
+ {
+  "notion_id": "3206baf36b4380dea92fdfb86e705587",
+  "pack": {
+   "name": "Flashpoint Fiesta",
+   "slug": "flashpoint-fiesta",
+   "status": "published",
+   "game_id": "9ec0a79d-f780-4031-86bb-030fa669355e",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Fiesta",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-04-18",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "15:00",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:30",
+    "ends_at": "13:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:00",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $10 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/3937db472e"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-D",
+   "body_class": "rich",
+   "host": "Mini Myths",
+   "event_type": "Casual / Learn to Play",
+   "game_name": "Halo: Flashpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "2fd6baf36b43803eaa93d629ff1e2f67",
+  "pack": {
+   "name": "Arcpoint 2026",
+   "slug": "arcpoint-2026",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b404",
+   "format": "Threemiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-05-02",
+    "ends_on": null,
+    "starts_at": "08:30",
+    "ends_at": "17:00",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors Open",
+    "starts_at": "08:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "09:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch Break",
+    "starts_at": "11:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "12:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "14:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Winners and Prizes",
+    "starts_at": "17:00",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $50 per player. They were sold at the link below.",
+    "url": "https://acme.arcscore.events/t/arcfest"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/32455/"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "## Arcpoint Champion Finishing at the top of the table will award you the Arcpoint Champion title, along with a fantastic custom trophy worth of a true champion. Additionally, we'll have a suite of prizes for all our top-placed winners based on the event results. ## Champion of the Republic Arcfest celebrates sportsmanship and fun above all else. Across the day, you'll have the chance to submit feedback on how much fun each of your games were. At the end of the day, we'll award special prizes to those players who've been voted excellent opponents who created memorable gaming experiences. ## Em"
+     },
+     {
+      "title": "Terrain Raffle",
+      "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we'll draw names from the raffle and give out some bonus prizes to those players. We'll announce what those prizes are on the day! You get one raffle ticket for each full table of terrain you bring. If you are eligible to receive a raffle ticket, you will get that ticket regardless of if the terrain ends up being used on the day or not. All terrain must be painted and designed for use with Star Wars: Shatterpoint. Sign up for the terrain raffle will be posted closer to the ev"
+     }
+    ]
+   },
+   "resources": {
+    "items": [
+     {
+      "title": "May 2025 Unit Update Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/05/DOC24_Cards_Unit-Stance_PrintSheet.pdf"
+     },
+     {
+      "title": "FAQ & Errata Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/01/SWP_FAQ_0225.pdf"
+     },
+     {
+      "title": "Showdown Premiere Rules",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/01/SWP_PREMIER_SHOWDOWN_012725.pdf"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-F",
+   "body_class": "rich",
+   "host": "Bam Harrison (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Arcfest (Sandown Racecourse)"
+  }
+ },
+ {
+  "notion_id": "3606baf36b43809d9f0ad54a1a700d3e",
+  "pack": {
+   "name": "Nemesis Hunt",
+   "slug": "nemesis-hunt",
+   "status": "published",
+   "game_id": "24bc318b-1970-4401-a32d-82737a57dc01",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Nemesis Ops",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-05-23",
+    "ends_on": null,
+    "starts_at": "11:00",
+    "ends_at": "17:30",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": "13:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "13:00",
+    "ends_at": "13:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:30",
+    "ends_at": "15:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:30",
+    "ends_at": "17:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "event",
+    "label": "Prizes and packup",
+    "starts_at": "17:30",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/e4d7d5f026"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "We've got some special goodies queued up on the day, but we can't say too much just yet\u2026"
+     }
+    ]
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Round 1: 11am to 1:00pm"
+     },
+     {
+      "text": "Lunch: 1:00pm to 1:30pm"
+     },
+     {
+      "text": "Round 2: 1:30pm to 3:30pm"
+     },
+     {
+      "text": "Round 3: 3:30pm to 5:30pm"
+     },
+     {
+      "text": "Prizes and packup: 5:30pm"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-C",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Warhammer 40,000: Kill Team",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "3626baf36b43806e9189c68734bfeb26",
+  "pack": {
+   "name": "Flashpoint: Winter Warfare!",
+   "slug": "flashpoint-winter-warfare",
+   "status": "published",
+   "game_id": "9ec0a79d-f780-4031-86bb-030fa669355e",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "200 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-06-13",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "17:00",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1 \u2013 Husky King of the Hill",
+    "starts_at": "11:00",
+    "ends_at": "12:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:30",
+    "ends_at": "13:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2 \u2013 Husky Strongholds",
+    "starts_at": "13:30",
+    "ends_at": "15:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3 \u2013 VIP",
+    "starts_at": "15:30",
+    "ends_at": "17:00",
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/ab01733ca6"
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Good sportsmanship, patience and good communication skills."
+     },
+     {
+      "text": "Appropriate miniatures to represent your list."
+     },
+     {
+      "text": "Appropriate tokens to keep track of your miniatures' statuses"
+     },
+     {
+      "text": "A set of Flashpoint dice."
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-E",
+   "body_class": "rich",
+   "host": "Chris G (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Halo: Flashpoint",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "2fe6baf36b4380cc94bee623092df8ea",
+  "pack": {
+   "name": "Duel of the Fates 2026",
+   "slug": "duel-of-the-fates-2026",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "9f1c2a7e-4b83-4d16-9a5e-0c2f81d6b401",
+   "format": "Showdown Premiere",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-06-20",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": "Day 1"
+   },
+   {
+    "ordinal": 2,
+    "starts_on": "2026-06-21",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": "Day 2"
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $60 per player. They were sold at the link below.",
+    "url": "https://buy.stripe.com/cNidRaagK73Bgu48UtaVa06"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/32388/"
+   },
+   "resources": {
+    "items": [
+     {
+      "title": "May 2025 Unit Update Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/05/DOC24_Cards_Unit-Stance_PrintSheet.pdf"
+     },
+     {
+      "title": "FAQ & Errata Document",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/01/SWP_FAQ_0225.pdf"
+     },
+     {
+      "title": "Showdown Premiere Rules",
+      "description": "",
+      "url": "https://cdn.svc.asmodee.net/production-amgcom/uploads/2025/01/SWP_PREMIER_SHOWDOWN_012725.pdf"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "image",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Competitive Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Gaming Arena"
+  }
+ },
+ {
+  "notion_id": "37b6baf36b43801fab8bc5c9c32615ac",
+  "pack": {
+   "name": "Fumble Rumble II",
+   "slug": "fumble-rumble-ii",
+   "status": "published",
+   "game_id": "1a19e961-8273-46aa-9a74-f0ebd90657c5",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "League",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-06-22",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $40 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/1a74634cda"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://app.deathpitch.com/bb/competitions/fumble-rumble-ii-2026-1781057251710?code=FGWMJB"
+   }
+  },
+  "meta": {
+   "is_league": true,
+   "sched_class": "league-weeks",
+   "body_class": "rich",
+   "host": "Nathan Haig (Mini Myths)",
+   "event_type": "Campaign / League",
+   "game_name": "Blood Bowl",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "36b6baf36b4380639042efaec566b3dd",
+  "pack": {
+   "name": "Quarmageddon III",
+   "slug": "quarmageddon-iii",
+   "status": "published",
+   "game_id": "18b781ec-71b5-481c-8166-1c177817e6b2",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "300 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-07-05",
+    "ends_on": null,
+    "starts_at": "10:30",
+    "ends_at": "17:20",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "event",
+    "label": "Door Prize Draw",
+    "starts_at": "10:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "11:00",
+    "ends_at": "12:40",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:40",
+    "ends_at": "13:10",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:10",
+    "ends_at": "14:50",
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "14:50",
+    "ends_at": "16:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 7,
+    "kind": "event",
+    "label": "Awards",
+    "starts_at": "17:20",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $25 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/f4ff2c0e94"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "#### Master and Quar-mander Awarded to the player that demonstrates superior martial and tactical prowess, or in other words, the player who scores the most points overall. In the event of a tie, the player with the highest scoring points that belongs to the faction with the most victories will win. Prize: Quar hard cover rule book and a Guf voucher. #### Best in show Awarded to the player with the best painted Army. All players will get to vote for the army they deem to have the best painted army. You may submit an army that you have used from a previous event, but this is also a good time to"
+     }
+    ]
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "Good sportsmanship, patience and good communication skills, this is of paramount importance!"
+     },
+     {
+      "text": "A 300 point Army of any of the currently available forces from the 'Main Stats' PDF. You may not include Tractors, vehicles or cavalry."
+     },
+     {
+      "text": "Some tokens to keep track of game conditions e.g. gobsmacked, out of action, prone, etc."
+     },
+     {
+      "text": "Dice x 3"
+     },
+     {
+      "text": "Measuring tape."
+     },
+     {
+      "text": "An Activation deck (provided)"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-D-mixed",
+   "body_class": "rich",
+   "host": "Juan Acosta",
+   "event_type": "Casual Event",
+   "game_name": "This Quar's War",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "3936baf36b4380a385b9f5f86b35dfdf",
+  "pack": {
+   "name": "Friday Night Hobby!",
+   "slug": "friday-night-hobby",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Hobby Night",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-07-10",
+    "ends_on": null,
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {},
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Nathan H (Mini Myths)",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "3716baf36b43801c8a09cdba198e5ac7",
+  "pack": {
+   "name": "Time for Armageddon!",
+   "slug": "time-for-armageddon",
+   "status": "published",
+   "game_id": "05009dfc-a129-4d86-9b25-680feb690746",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Incursion (1000 pts)",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-07-12",
+    "ends_on": null,
+    "starts_at": "10:00",
+    "ends_at": "17:45",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "doors open, setup, rego",
+    "starts_at": "10:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "round 1",
+    "starts_at": "10:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "lunch",
+    "starts_at": "12:45",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "round 2",
+    "starts_at": "13:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "round 3",
+    "starts_at": "15:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "wrap up and tidy up",
+    "starts_at": "17:45",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/1ac030d27c"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://warhammer40k.longshanks.org/event/35430/"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Prize pool",
+      "description": "All attendees will receive a door goodie of a commemorative 8\" melta-measure for all your arriving-8\"-away-using-deep-strike-with-an-18\"-melta needs. There will also be a number of prizes, such as vouchers, depending on how many tickets are sold."
+     }
+    ]
+   },
+   "what-to-bring": {
+    "items": [
+     {
+      "text": "familiarise yourself with the new core rules when available"
+     },
+     {
+      "text": "provide yourself with a method of accessing those rules on the day"
+     },
+     {
+      "text": "show up with your list ready and completely built"
+     },
+     {
+      "text": "bring all your needed supplies; something to score with, dice, measuring tape, etc."
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-B",
+   "body_class": "rich",
+   "host": "Chaedi Forman-Todd",
+   "event_type": "Casual / Learn to Play",
+   "game_name": "Warhammer 40,000 (11th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "3956baf36b4380c2adf8f698aaed53bf",
+  "pack": {
+   "name": "Top Table Trails",
+   "slug": "top-table-trails",
+   "status": "published",
+   "game_id": "44e458ea-51b2-4e56-9148-10ed10355eda",
+   "location_id": "bfd3fdb4-378f-4daf-bb8e-fab9b5173155",
+   "format": "Threemiere",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-07-18",
+    "ends_on": null,
+    "starts_at": "10:15",
+    "ends_at": "17:15",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "round",
+    "label": "Round 1",
+    "starts_at": "10:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "break",
+    "label": "Round 1 complete, let's go for lunch!",
+    "starts_at": "12:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "round",
+    "label": "Round 2",
+    "starts_at": "13:00",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 3",
+    "starts_at": "15:15",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "event",
+    "label": "Round 3 complete, we'll hand out some prizes!",
+    "starts_at": "17:15",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/1276798936"
+   },
+   "registration": {
+    "body": "Registration for this event was handled at the link below.",
+    "url": "https://shatterpoint.longshanks.org/event/36299/"
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-G",
+   "body_class": "rich",
+   "host": "Bam (Mini Myths)",
+   "event_type": "Casual Event",
+   "game_name": "Star Wars: Shatterpoint",
+   "location_name": "Top Table Games"
+  }
+ },
+ {
+  "notion_id": "36b6baf36b4380dd97b1d3ebc5805eb5",
+  "pack": {
+   "name": "Battle for the Amethyst City",
+   "slug": "battle-for-the-amethyst-city",
+   "status": "published",
+   "game_id": "3a1cc6ec-a1ec-4139-abb1-b0c6f29bb04d",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "1500 Points",
+   "timeline": "one-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-07-19",
+    "ends_on": null,
+    "starts_at": "09:30",
+    "ends_at": "19:00",
+    "label": null
+   }
+  ],
+  "items": [
+   {
+    "ordinal": 1,
+    "kind": "event",
+    "label": "Doors open / Registration",
+    "starts_at": "09:30",
+    "ends_at": null,
+    "segment": 1
+   },
+   {
+    "ordinal": 2,
+    "kind": "round",
+    "label": "Round 1 (Mission TBA)",
+    "starts_at": "10:00",
+    "ends_at": "12:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 3,
+    "kind": "break",
+    "label": "Lunch",
+    "starts_at": "12:30",
+    "ends_at": "13:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 4,
+    "kind": "round",
+    "label": "Round 2 (Mission TBA)",
+    "starts_at": "13:00",
+    "ends_at": "15:30",
+    "segment": 1
+   },
+   {
+    "ordinal": 5,
+    "kind": "round",
+    "label": "Round 3 (Mission TBA)",
+    "starts_at": "15:30",
+    "ends_at": "19:00",
+    "segment": 1
+   },
+   {
+    "ordinal": 6,
+    "kind": "event",
+    "label": "Presentation and awards",
+    "starts_at": "19:00",
+    "ends_at": null,
+    "segment": 1
+   }
+  ],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $30 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/cd58555d22"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Best Painted",
+      "description": ""
+     },
+     {
+      "title": "Coolest Lore (get the brain juices flowing \u2014 write a brief paragraph on the lore behind your army, to be judged by the TO)",
+      "description": ""
+     },
+     {
+      "title": "Best Sport",
+      "description": ""
+     },
+     {
+      "title": "Open door raffle",
+      "description": ""
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "fmt-A",
+   "body_class": "rich",
+   "host": "Adam Gardner",
+   "event_type": "Casual Event",
+   "game_name": "Age of Sigmar (4th Edition)",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "3ac6baf36b438086a4aef8d269a68198",
+  "pack": {
+   "name": "Purple Palette 5: He\u2019s Just A Little Guy!",
+   "slug": "purple-palette-5-hes-just-a-little-guy",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Hobby Competition",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-08-14",
+    "ends_on": "2026-10-09",
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/35c454acc7"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Judging Criteria",
+      "description": "We have some revised criteria for this specific Purple Palette. Each category is worth 10 points, for a total possible tally of 50 points. | Category | Description | Points | | --- | --- | --- | | Brushwork and Execution | Evaluates technical mastery. Judges look for flawlessly smooth blends, sharp edge highlights, precise Non-Metallic Metal (NMM) or True Metallic Metal (TMM) effects, and the absence of brush strokes or unintended texture. | 10 | | Color Theory and Scheme | Judges assess how colors interact. This includes contrast (light vs. dark, warm vs. cold), saturation, and how the color "
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Nathan (Mini-Myths)",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ },
+ {
+  "notion_id": "4186baf36b43806f8e3bdf9c4ed56dcc",
+  "pack": {
+   "name": "Purple Palette 6: Monster Madness",
+   "slug": "purple-palette-6-monster-madness",
+   "status": "published",
+   "game_id": "f8906f05-5a28-4af0-8ffa-be293e96cba8",
+   "location_id": "c9581dee-c19a-4486-84a1-6cb64e6af6f0",
+   "format": "Hobby Competition",
+   "timeline": "multi-day",
+   "schedule_shape": "days",
+   "recurrence": "none"
+  },
+  "segments": [
+   {
+    "ordinal": 1,
+    "starts_on": "2026-11-13",
+    "ends_on": "2027-02-12",
+    "starts_at": null,
+    "ends_at": null,
+    "label": null
+   }
+  ],
+  "items": [],
+  "sections": {
+   "tickets": {
+    "body": "Tickets were $20 per player. They were sold at the link below.",
+    "url": "https://ko-fi.com/s/47047ca7d9"
+   },
+   "prizes": {
+    "items": [
+     {
+      "title": "Brushwork & Execution",
+      "description": "Technical skill. Judges look for smooth blends, sharp edge highlights, precise Non-Metallic Metal (NMM) or True Metallic Metal (TMM), and no unintended brush strokes or texture"
+     },
+     {
+      "title": "Colour Theory & Scheme",
+      "description": "How the colours work together, including contrast (light vs dark, warm vs cool), saturation, and how the scheme draws the eye to the focal point"
+     },
+     {
+      "title": "Basing & Environment",
+      "description": "The base should complement the miniature, not distract from it. Judges look for cohesive environmental storytelling, realistic textures (mud, water, pigments) and a cleanly finished rim"
+     },
+     {
+      "title": "Creativity & Conversions",
+      "description": "Imagination. This covers freehand, kitbashing (combining parts from different kits) and scratch-built elements that take the model beyond its stock pose"
+     },
+     {
+      "title": "Craftsmanship & Cleanliness",
+      "description": "Build quality. Judges will deduct points for visible mould lines, gaps, or leftover sprue marks"
+     }
+    ]
+   }
+  },
+  "meta": {
+   "is_league": false,
+   "sched_class": "none",
+   "body_class": "rich",
+   "host": "Nathan (Mini-Myths)",
+   "event_type": "Hobby/Painting Event",
+   "game_name": "",
+   "location_name": "Guf Werribee"
+  }
+ }
+]

@@ -1,0 +1,9 @@
+events	notion_location	notion_address	status	location_id	battleplans_name	kind	is_test	basis
+64	Guf Werribee	GUF Werribee, 2/86 Cottrell Street, Werribee	MATCHED	c9581dee-c19a-4486-84a1-6cb64e6af6f0	Guf Werribee	venue	False	exact name
+17	Gaming Arena	123 Bakers Rd, Coburg North VIC 3058	MISSING					NOT IN locations TABLE
+2	Arcfest (Sandown Racecourse)	591-659 Princes Hwy, Springvale VIC 3171	MISSING					NOT IN locations TABLE
+1	Andrew's Hobbies	Unit 26/39 Eucumbene Dr, Ravenhall VIC 3023	MISSING					NOT IN locations TABLE
+1	Games Portal	1-5 Station Street, Mitcham	MISSING					NOT IN locations TABLE
+1	Arndell Park Community Center	49/29-49 Federation Blvd, Truganina VIC 3029	MISSING					NOT IN locations TABLE
+1	Djerring Centre	Eddy Ct, Abbotsford VIC 3067	MATCHED	f98a2ee8-aef4-4e5f-a843-d7dad4598d73	The Djerring Center	space	True	fuzzy
+1	Top Table Games	1/87 Overton Road, Williams Landing 3027	MATCHED	bfd3fdb4-378f-4daf-bb8e-fab9b5173155	Top Table Games	venue	False	exact name

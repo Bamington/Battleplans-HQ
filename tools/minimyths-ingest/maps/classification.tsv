@@ -1,0 +1,90 @@
+id	name	body	schedule	notes
+1c76baf36b43807392c3c4d9df0388b4	Winter is Coming	blank	none	
+1c76baf36b438087bb27d2fba5475c4d	Fall of Mandalore	blank	none	
+1c76baf36b4380b9814dea73320d7362	War for Werribee 2024	players-db-only	none	inline Players database only
+1a76baf36b4380a39853c076a219b9a9	Pariah Nexus Dust Off	blank	none	
+2ba6baf36b4380a19f20cd1e21d03fd5	Stumble Rumble I	rich	league-weeks	10 games/12 wks; periods not clock
+2fe6baf36b4380cc94bee623092df8ea	Duel of the Fates 2026	rich	image	# Schedule -> PNG only
+3716baf36b43801c8a09cdba198e5ac7	Time for Armageddon!	rich	fmt-B	time-first 12h escaped colons
+36b6baf36b4380dd97b1d3ebc5805eb5	Battle for the Amethyst City	rich	fmt-A	time-first 24h endash range; CANCELLED banner
+2f76baf36b43807a8e32d7883d1bf652	On The March	rich	fmt-C	label-first colon "to"
+3206baf36b4380dea92fdfb86e705587	Flashpoint Fiesta	rich	fmt-D	label-first endash; PDF pack
+3606baf36b43809d9f0ad54a1a700d3e	Nemesis Hunt	rich	fmt-C	label-first colon "to"; md tables
+3626baf36b43806e9189c68734bfeb26	Flashpoint: Winter Warfare!	rich	fmt-E	label-extra-range triple endash; PDF pack
+3136baf36b438085ae85c341898229c7	Clash of Rhyfles Painting Competition	rich	none	date-range painting comp; step deadlines
+2fd6baf36b43803eaa93d629ff1e2f67	Arcpoint 2026	rich	fmt-F	NOTION TABLE Event|Start Time
+37b6baf36b43801fab8bc5c9c32615ac	Fumble Rumble II	rich	league-weeks	12 wks/10 games; md tables
+36b6baf36b4380639042efaec566b3dd	Quarmageddon III	rich	fmt-D-mixed	mixed endash+colon, nested sublist, double space
+3956baf36b4380c2adf8f698aaed53bf	Top Table Trails	rich	fmt-G	time-first hyphen 12h "10:15 AM - Round 1"; one missing space
+3936baf36b4380a385b9f5f86b35dfdf	Friday Night Hobby!	rich	none	short prose, recurring hobby night
+3ac6baf36b438086a4aef8d269a68198	Purple Palette 5	rich	none	date-range comp; notion table = judging criteria
+4186baf36b43806f8e3bdf9c4ed56dcc	Purple Palette 6	rich	none	STILL RUNNING to 2027-02-12; body confirms start-range is correct, end_prop stale
+2a26baf36b4380448cf1c0b59da884c4	ORL 2025 Finale	rich	fmt-H	BARE TIMES no am/pm "9:00 - Venue Opens","4:30 - Wrap up" -> needs pm rollover
+27e6baf36b4380e29538e05d65584d1e	Nullification of Narkina	rich	fmt-G	ORL template "Order of the Day"
+2686baf36b43805e85c9fe5a9c584eae	Games Discovery Day	rich	none	prose format; has TOGGLE blocks -> faq category
+23f6baf36b438057b92bedd96571abf2	Strike on Scarif	rich	fmt-G	ORL template "Order of the Day"
+21d6baf36b438047b794ceadc7ca2bbd	Jump To Jakku	rich	fmt-G	DATA ERROR "12:15 AM - Round 1 complete" should be PM; end_prop<start
+21f6baf36b43804886e1c1a2a0ed929c	Casual Casulaties: Incursion Diversion	rich	fmt-C	"Round 2: 2:00 to 5:00pm" first time has no am/pm
+20d6baf36b438069bb32cf78f6f6183c	Operation Frostbite Face-Off	rich	fmt-D-para	NOT A LIST - plain paragraphs; "Round 2 –1:15pm" no space
+1f46baf36b4380d1839bc466d8710b6f	MiniMyths Fumble Rumble I	rich	league-weeks	internally inconsistent: "Six-Game League" vs 12 games vs 3 months
+1dd6baf36b43805b9cf7e4bf47b909c7	Chaos Nights	rich	league-fortnight	6-round fortnightly; bold-Q FAQ block -> faq category
+1a86baf36b4380f9b1fcf2cc5536370c	Duel of the Fates 2025	rich	image	DOTF_Schedule.png; inline results DB; 2-day 4+2
+1c76baf36b438003a181da894696c09c	Unnatural Resources	blank	none	
+1c76baf36b4380958410d060ffa6a4a2	Armoured Warfare	blank	none	
+1c76baf36b43804cbd84ed25f405c8c4	Dynamic Exit	blank	none	
+1c76baf36b4380a287f5cf8a1abffcf0	Ghur Awakens	blank	none	
+1c76baf36b438060b25eebc80d6b1f5b	Battle for Planet Guf!	blank	none	
+1c76baf36b43807fa925cef9e76c0f14	Trials of the Jedi	blank	none	
+1c76baf36b438047856ae2996386017d	Paradiso Escalation League	blank	none	
+1c76baf36b4380e2aac6d145169e3014	Shatterpoint Unleashed	blank	none	
+1c76baf36b438074b36ae01a3298cf3f	Invasion of Naboo!	blank	none	
+1c76baf36b4380dbbe53d0f0c7dc3dff	Battleforce Skirmish	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380cbab73ef37b01d4d87	Mutant Mayhem	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b43804bb781f228d55c6471	Heroes League	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380bfb89ee37c0aa8763c	Valentine's Day Dakka	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380ddacc1dd354eec2a58	Battletech Learn to Play	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380e7baa0ed3b2bf3fcb0	Whispers of Ghur	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380e4ac7ccc9bb1ce5793	Xenos vs Terra	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380b39eefc718166adb1d	Shatterpoint Learn to Play	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b438064a54ad9841998c4fc	10th Edition Combat Patrol	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380b39562dfb71ac175d2	Arrival of Leviathan	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380f2b45fed1ea19c79b6	Dark Side Rising	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b438043b036e16bc9f49b60	Kalador Burning	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b43800fbb6fc1a9ee507203	Fall of Oghram	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380c3bcf4e24cf61245df	Cosmic Clash!	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b438053b3c7c4a93100f0ed	Cities Under Siege	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380feb5eecf3f2546b150	Rise of the Ewoks!	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380debff0df66b199d588	Shatterpoint Learn to Play	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b43808fa0fced722de1b69f	Red Skull's Revenge!	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380578468eef57ca9cdbb	May the 4th Showdown	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380f9b27ffc76cb74850b	Echoes of the Morgul Vale	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b43805a8d6ec08d5b9db280	Farewell to Third Edition	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380dabe26f3ecc1382598	Birth of the Rebellion	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380928d40ffab7a5cf15d	Defence of the Star League	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380bfb633db54a33b0120	Liberation of Lothal!	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b438069ac13f334cd4c231f	Learn to Play AOS 4th Edition	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b43809997aecc013702f324	Realm War	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b438076ad34e7c9d7de012d	That's no Moon!	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380c1b22cf0c22f5f4aa4	End of N4	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380819495c5a34f393f43	Mysteries of the Gray Havens	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380cf8fb4c8b571cceece	Operation Phoenix	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380f68148fba2c792dfc3	Holiday on Hoth	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b4380679e7ee6bdae37dd1f	Can't Con	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1c76baf36b438040a4d2c4177d3f394d	Battle for Kashyyyk	presumed-blank	none	NOT FETCHED - 2025-03-31 bulk backfill cohort (13/13 sampled were blank)
+1a86baf36b4380d891c3c9dd55972319	Multiversal Mayhem	blank	none	
+1a86baf36b438048af9cceda14e07976	Clash of Kings	blank	none	
+2676baf36b4380308243e3720fa37d3e	Purple Palette	rich	none	6-week painting comp; 11 TOGGLE FAQs -> faq category
+2676baf36b438032a28ed8d73f76d361	Purple Palette: Fluoro	rich	none	6-week themed painting comp
+2676baf36b43804286afe7073e56eb4c	Purple Palette: Fantasy	rich	none	6-week themed comp; Battletech demo game on the day
+1a76baf36b4380309d94fd06d0c7545b	Mayhem on Mustafar	blank	none	Name/Format/Host props are HTML-wrapped with trailing space in Notion
+1a76baf36b4380ae8bc7f8758f2e0b1c	Operation: Mini Mythmas	results-db-only	none	body is just an inline results DB
+1a76baf36b43803db2ece2e72230de15	Quarmaggedon	rich	fmt-I	bold-label variant '- **Round 1:** 11:00am – 12:40pm'; awards time outside the list
+1a76baf36b43800988abd04f2b86280d	Assault on the Brass Citadel	rich	fmt-I	bold-label single times '- **Round 1 - Shifting Priorities:** 10:30am'
+1c66baf36b438035b8ebc86c79085212	Assault on Alderaan	rich	fmt-I-time	bold TIME first '- **9:00 AM** - Gaming Arena Opens'; 2 broken self-ref ticket links
+1c66baf36b4380d28183f6990df96b95	Casual Casualties	rich	fmt-I	bold-label endash ranges; 2 broken self-ref ticket links
+1a76baf36b4380818cedd8a4b0f712e5	Arcpoint 2025	rich	none	CANCELLED banner; short body
+1e46baf36b43800ab830fd6b3fb8316a	Defense of Mandalore	rich	fmt-G	DATA ERROR '12:15 AM - Round 1 complete' should be PM (same template bug as Jump To Jakku)
+1df6baf36b43802dbefcef659ede535b	Melee at Mygeeto	rich	fmt-G	ORL template; inline results DB
+1e46baf36b43806089d8f809fef7d4f3	Quarmaggedon II	rich	fmt-D-dots	DOT times '10.30am'; body date 26/06/25 contradicts start 2025-07-26 (matches stale end_prop)
+1a86baf36b4380a98c5fd852fa01769c	War for Werribee 2025	rich	fmt-F-rev	NOTION TABLE but Time|Event (cols reversed vs Arcpoint 2026) and RANGES in one cell
+2a96baf36b43804da6e2d93f703a89bc	Mini Myths Photo Day!	rich	none	3 ko-fi packages; no game, no clock schedule
