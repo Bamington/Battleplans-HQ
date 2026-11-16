@@ -39,6 +39,7 @@ for r in recs:
 
     # ---- segments
     segs = []
+    _last_override = None
     if r['name'] in TWO_DAY and r['ends_on']:
         segs = [
             {'ordinal': 1, 'starts_on': r['starts_on'], 'ends_on': None,
@@ -50,10 +51,48 @@ for r in recs:
         segs = [{'ordinal': 1, 'starts_on': r['starts_on'], 'ends_on': r['ends_on'],
                  'starts_at': first, 'ends_at': last, 'label': None}]
 
-    # ---- schedule items: all on segment 1 (the source gives one timetable)
-    items = [{'ordinal': i + 1, 'kind': it['kind'], 'label': it['label'],
-              'starts_at': it['start'], 'ends_at': it['end'], 'segment': 1}
-             for i, it in enumerate(sched)]
+    # ---- schedule items. The schema stores DURATION, not clock time: migration
+    # 20260728010000 dropped starts_at/ends_at from items because a round is
+    # "two hours" and where it lands follows from the anchor plus what precedes
+    # it. So convert to a contiguous duration chain.
+    #
+    # Each duration is taken from the gap to the NEXT item's start, which makes
+    # every derived start time exactly match the source. Where the source states
+    # an end AND the next item starts later, that gap is emitted as its own
+    # break item rather than being absorbed into the preceding one -- inflating
+    # a round from 100 to 150 minutes would misstate the round.
+    def _m(t):
+        h, mi = t.split(':'); return int(h) * 60 + int(mi)
+
+    items, defaulted = [], False
+    for i, it in enumerate(sched):
+        nxt = sched[i + 1] if i + 1 < len(sched) else None
+        own = _m(it['end']) - _m(it['start']) if it['end'] else None
+        if nxt:
+            span = _m(nxt['start']) - _m(it['start'])
+            dur = own if own is not None else span
+            gap = span - dur
+        else:
+            dur, gap = (own if own is not None else 60), 0
+            if own is None:
+                defaulted = True
+        items.append({'ordinal': len(items) + 1, 'kind': it['kind'],
+                      'label': it['label'], 'duration_minutes': max(dur, 0),
+                      'segment': 1})
+        if gap > 0:
+            items.append({'ordinal': len(items) + 1, 'kind': 'break',
+                          'label': 'Break', 'duration_minutes': gap,
+                          'segment': 1, 'generated': True})
+    if defaulted:
+        notes.append(('DURATION-DEFAULTED', r['name'],
+                      f"final item {sched[-1]['label']!r} has no end time -> 60 min"))
+
+    # segment end follows the chain, so it cannot contradict the timetable
+    if first and items:
+        _end = _m(first) + sum(i['duration_minutes'] for i in items)
+        if _end < 24 * 60:
+            for _s in segs:
+                _s['ends_at'] = '%02d:%02d' % (_end // 60, _end % 60)
 
     # ---- sections derived from Notion PROPERTIES (no body parsing, so these
     #      are exact). SectionForm shape is {body, url}.
@@ -80,9 +119,16 @@ for r in recs:
             'name': r['name'], 'slug': r['slug'], 'status': 'published',
             'game_id': r['game_id'], 'location_id': r['location_id'],
             'format': r['format'],
-            'timeline': 'one-day' if len(segs) == 1 and not r['ends_on'] else 'multi-day',
-            'schedule_shape': 'days',
+            # timeline IN ('one-day','multi-day','league');
+            # schedule_shape IN ('days','periods'). A league's run and a painting
+            # competition's submission window are PERIODS, not consecutive days.
+            'timeline': ('league' if r['is_league'] else
+                         'multi-day' if r['ends_on'] or len(segs) > 1 else 'one-day'),
+            'schedule_shape': ('days' if (len(segs) > 1 or not r['ends_on'])
+                               and not r['is_league'] else 'periods'),
             'recurrence': 'none',
+            'starts_on': r['starts_on'],
+            '_ends_on': r['ends_on'],
         },
         'segments': segs,
         'items': items,

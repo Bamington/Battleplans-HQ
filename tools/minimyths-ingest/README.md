@@ -31,7 +31,72 @@ the handful of live public slugs, which are preserved explicitly (see below).
       stage2.py     staging.json -> plan.json (packs, segments, items, sections)
       merge.py      folds sections.json into plan.json, reports review items
 
-Run order: `build.py` → `stage2.py` → `sections.py` → `merge.py`.
+      gen_sql.py    plan.json -> import.sql
+      import.sql    the generated import (89 packs). Idempotent; apply as a
+                    role that bypasses RLS (service_role / postgres).
+
+Run order: `build.py` → `stage2.py` → `sections.py` → `merge.py` → `gen_sql.py`.
+
+## Two schema facts that invalidate the obvious approach
+
+Both were found by applying the real migrations to a throwaway Postgres and
+running the import against it. Neither would have raised an error in
+production — the first fails silently, the second stores the wrong thing.
+
+### Schedule items store DURATION, not clock times
+
+Migration `20260728010000` dropped `starts_at`/`ends_at` from
+`battlepack_schedule_items` and replaced them with `duration_minutes`. A round
+is "two hours"; where it lands is derived from the segment's `starts_at` plus
+every duration before it. Writing clock times would be a second source of truth
+that goes stale on the first reorder.
+
+So the import emits a contiguous duration chain, with each duration taken from
+the gap to the next item's start. That makes every derived start time match the
+source exactly — verified by replaying all 23 chains against the parsed source,
+0 mismatches.
+
+The 6 gaps the sources genuinely state (10-minute changeovers, a 50-minute
+pre-awards packup) are emitted as their own `break` items. Absorbing a gap into
+the preceding round instead would render "Round 3: 150 minutes" when the source
+says 100 — actively misleading rather than merely lossy.
+
+### Segment 1 already exists by the time you can insert it
+
+`battlepacks_create_first_segment` is an AFTER INSERT trigger on `battlepacks`
+that unconditionally creates segment ordinal 1, copying the pack's `starts_on`,
+`ends_on` and `starts_at`.
+
+The intuitive import — leave the pack's date columns null because
+`20260821050000` made segments authoritative — therefore produces a segment
+full of nulls, a guarded insert for ordinal 1 that silently skips, and 89 packs
+with no dates and no schedule. No error is raised.
+
+The import instead writes the pack's date columns, lets the trigger create
+segment 1, and then UPDATEs it: to add `ends_at` and a label, and to clear
+`ends_on` on a two-day pack whose segment 1 is one day only. The envelope sync
+then recomputes the pack's `ends_on` from the segments.
+
+Items deliberately omit `segment_id`; `battlepack_item_default_segment` fills it
+with the pack's lowest-ordinal segment, which avoids depending on an id the
+trigger generated.
+
+## Verified against a real Postgres
+
+Applied twice to a throwaway cluster running the actual battlepack migrations:
+
+| | expected | got |
+|---|---|---|
+| packs | 89 | 89 |
+| slugs reserved | 89 | 89 |
+| segments | 92 | 92 |
+| schedule items | 133 | 133 |
+| category rows | 133 | 133 |
+| packs with null `starts_on` | 0 | 0 |
+| items with null `segment_id` | 0 | 0 |
+
+The second pass changed nothing, which is the idempotency claim tested rather
+than asserted.
 
 ## Why the schedule parser is a normaliser, not a format matcher
 
