@@ -133,8 +133,15 @@ export default function HomePage() {
         if (!end) return filter === 'upcoming';
         return filter === 'upcoming' ? end >= now : end < now;
       })
-      // Scoped to the store being acted as, the way BattlePlan's store view is.
-      .filter(p => !storeId || p.location_id === storeId)
+      // Scoped to whoever they are acting as, the way BattlePlan's store view
+      // is. Both sides are checked because the selector offers clubs as well as
+      // stores: a store's packs are the ones held THERE (location_id), but a
+      // club's are the ones it HOSTS (host_location_id), wherever they happen.
+      // Matching only location_id hides every pack a club runs at a venue it
+      // does not own, which is most of them.
+      .filter(p => !storeId
+        || p.location_id === storeId
+        || p.host_location_id === storeId)
       .filter(p => !q || p.name.toLowerCase().includes(q) || (p.game_name ?? '').toLowerCase().includes(q));
   }, [packs, filter, search, storeId]);
 
