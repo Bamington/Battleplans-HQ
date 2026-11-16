@@ -1,4 +1,10 @@
--- 20261116120000_minimyths_archive_venues.sql
+-- 20261116160000_minimyths_archive_venues.sql
+--
+-- Renamed from 20261116120000: that version collided with
+-- 20261116120000_halo_list_rules from a concurrent session, and Supabase keys
+-- applied migrations on the 14-digit prefix, so one of the two would have been
+-- silently skipped forever. Already applied to production under the old
+-- version; re-running is a no-op because every insert is ON CONFLICT DO NOTHING.
 --
 -- The five venues the Mini Myths event archive needs, and nothing else.
 --

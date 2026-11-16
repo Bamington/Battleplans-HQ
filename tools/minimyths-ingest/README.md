@@ -184,6 +184,6 @@ key for re-running the transform. Idempotency comes from the slug ledger, with
 ## Not yet done
 
 - `owner_id` must be supplied before SQL generation; it is a single constant.
-- The venues migration `20261116120000_minimyths_archive_venues.sql` is
+- The venues migration `20261116160000_minimyths_archive_venues.sql` is
   committed but **not applied**.
 - The Mini Myths club row still has `is_test = true`.

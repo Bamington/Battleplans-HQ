@@ -22,7 +22,7 @@ Branch: `claude/brave-galileo-cz7mt8` (at `75bf7b9` when this was written).
 
 ## What is left to do, in order
 
-1. ~~Apply `20261116120000_minimyths_archive_venues.sql`~~ — **DONE**, all 5
+1. ~~Apply `20261116160000_minimyths_archive_venues.sql`~~ — **DONE**, all 5
    locations confirmed present in production.
 2. Run `tools/minimyths-ingest/transform/import.sql`.
 3. Run the verification queries commented at the bottom of that file.
