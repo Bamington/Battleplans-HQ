@@ -219,6 +219,40 @@ Regenerate the script after any further change with:
 where the argument is a dump of `battlepack_categories` (pack_id,
 category_key, content) from production.
 
+## Descriptions and banners were never written
+
+The original import emitted neither column.
+
+**Descriptions** — `fix_descriptions.sql` sets 39. Text comes from the body's
+lead paragraphs, or from a named Background / Description / Overview section
+where the page has one; the named section wins, because the Quar pages lead
+with ticket and format detail and keep the real blurb under Background. The
+other 50 packs have no text anywhere in Notion. Notion's "Event Information"
+property is deliberately unused: it holds the mini-myths.com URL.
+
+**Banners** — `import_banners.py`, run by hand with your own credentials. It
+needs `NOTION_TOKEN` (an internal integration shared with the Events Database),
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus `pip install pillow
+requests`. Start with `--dry-run`, then `--limit 3`.
+
+The covers are Notion PAGE covers, not a property, so they are not in the
+frozen snapshot — and a Notion-hosted cover URL is a short-lived S3 signature,
+which is why the script downloads each one immediately after fetching its page
+rather than collecting URLs first.
+
+Each image is centre-cropped to 3:1 and downscaled to an 1800x600 JPEG, which
+is what the in-app cropper produces and the band the game-artwork fallback is
+drawn for (`GAME_BANNER_ASPECT = 3`). `banner_aspect` is therefore 3.0, inside
+the 1.4..20 the column allows.
+
+It is re-runnable: packs that already have a `banner_path` are skipped, and
+`banners.log.json` (gitignored) lets an interrupted run resume. A pack whose
+Notion page has no cover is logged and skipped, and keeps the game artwork.
+
+Verified here without credentials: the 89 computed pack ids all exist in
+production, and the crop produces exactly 1800x600 RGB from wide, tall, square,
+tiny, paletted and alpha sources, keeping the centre of the frame.
+
 ## Still open, unrelated to the import
 
 - The Mini Myths club location row has `is_test = true` — one checkbox in
