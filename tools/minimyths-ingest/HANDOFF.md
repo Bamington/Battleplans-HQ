@@ -1,0 +1,161 @@
+# HANDOFF — applying the Mini Myths archive import
+
+Everything is built, tested and committed. **Only the apply is left**, and it was
+blocked purely on credentials, not on anything unresolved about the data.
+
+Branch: `claude/brave-galileo-cz7mt8` (at `75bf7b9` when this was written).
+
+## What is left to do, in order
+
+1. Apply `supabase/migrations/20261116120000_minimyths_archive_venues.sql`
+   (creates 5 locations). **Must go first** — the import references those ids.
+2. Run `tools/minimyths-ingest/transform/import.sql`.
+3. Run the verification queries commented at the bottom of that file.
+
+Expected after the import: **89 packs, 92 segments, 133 schedule items, 133
+category rows**, and zero packs with a null `starts_on`.
+
+```
+supabase link --project-ref dezjjuumsrpfioyfhyzg
+supabase migration list --linked     # CLAUDE.md requires this before db push
+supabase db push
+psql "<connection string>" -f tools/minimyths-ingest/transform/import.sql
+```
+
+`import.sql` is one transaction and is idempotent (ids are uuid5-derived from
+the Notion page id, every row is guarded). A failure rolls back whole; a second
+apply is a no-op.
+
+## Facts you do not need to re-derive
+
+- Production project ref: **`dezjjuumsrpfioyfhyzg`**. The repo also contains
+  `dthxptbozocrbvmhwvao` in one old migration and in
+  `.claude/settings.local.json` — that is **not** production. Confirmed by the
+  user.
+- `owner_id` used throughout: **`c0fab326-f180-4fe6-bf1b-87c069be3794`**.
+- All 89 packs are `status = 'published'`. The user explicitly declined draft
+  staging.
+
+## Pre-flight: already run, all clean
+
+Run read-only against production through the anon key. No need to repeat.
+
+| check | result |
+|---|---|
+| slug collisions between the 89 and production | **0** |
+| slugs production already holds | 5 (`burrow-40k-rtt`, `top-table-strikes-back`, `test-quarmaggedon-3`, `zz-e2e-do-not-use`, `zz-trigger-probe`) |
+| the 5 archive venue ids present already | no — migration genuinely pending |
+| the 16 game ids referenced | 16 of 16 exist |
+| the 8 location ids referenced | 3 of 8 exist (the other 5 are what the migration creates) |
+
+Zero slug collisions is the important line: `battlepack_slugs` never releases a
+slug, so a collision would make the pack insert raise rather than skip.
+
+## Why it was not applied
+
+The session had no write credentials: the Supabase CLI was not linked, there was
+no access token, and the only database access was a proxy-injected **anon** key
+(read-only here).
+
+A Supabase personal access token was requested for `api.supabase.com` so the
+import could run through the Management API query endpoint, but every call
+returned `401 JWT could not be decoded` — including a call sent with no
+`Authorization` header at all, which proves the proxy *was* injecting a value
+that Supabase could not decode. Proxy injection itself works (requests to
+`dezjjuumsrpfioyfhyzg.supabase.co` with the anon key return live data), so the
+saved token value is wrong for that host.
+
+The Management API needs an account-level personal access token (`sbp_…`, from
+supabase.com/dashboard/account/tokens). A project `anon`/`service_role` key, or
+one of the newer `sb_secret_…` keys, will not work there.
+
+A `service_role` key is **not** a substitute: PostgREST cannot run DDL or a
+transactional multi-statement file, so using it would mean reimplementing the
+import's guards as separate HTTP calls with no transaction — turning a tested
+atomic file into something that can half-apply.
+
+## Two schema traps — do not "simplify" the import past these
+
+Both were found by applying the real migrations to a throwaway Postgres 16 and
+running the import against it. **Neither raises an error in production**; the
+first fails silently and the second stores the wrong thing. `README.md` has the
+full reasoning.
+
+1. **Items store `duration_minutes`, not clock times.** Migration
+   `20260728010000` dropped `starts_at`/`ends_at` from
+   `battlepack_schedule_items`. Clock times are derived from the segment anchor
+   plus preceding durations. The import emits a contiguous duration chain; all
+   23 chains were replayed against the parsed source with 0 mismatches. The 6
+   gaps the sources state are their own `break` items, because folding a
+   50-minute packup into Round 3 would render it as 150 minutes.
+
+2. **Segment 1 already exists by the time you could insert it.**
+   `battlepacks_create_first_segment` is an AFTER INSERT trigger that creates
+   ordinal 1 from the pack's date columns. Leaving those null — on the correct
+   reasoning that `20260821050000` made segments authoritative — yields a null
+   segment, a guarded insert that silently skips, and 89 dateless packs with no
+   schedule. The import writes the pack dates, lets the trigger fire, then
+   UPDATEs segment 1.
+
+No notification email is sent: `notify_battlepack_segment_change()` returns
+early unless the pack has a row in `battlepack_calendar_adds`, and a new pack
+has none. Verified.
+
+## Verified before handoff
+
+Applied twice to a throwaway cluster running the actual battlepack migrations.
+Counts came out 89 / 92 / 133 / 133 with 0 null `starts_on` and 0 orphaned
+`segment_id`, and **the second pass changed nothing** — idempotency tested, not
+asserted.
+
+## Judgement calls already made with the user
+
+- Cancelled events (Battle for the Amethyst City, Arcpoint 2025) are imported
+  **as published**; their bodies explain the cancellation.
+- Slugs are `slugify(name)`, except the 4 live mini-myths.com URLs that differ
+  (including `mayhem-of-mustafar`, a typo that is nonetheless the live public
+  URL), and the one genuine collision — two "Shatterpoint Learn to Play" events
+  (2023, 2024) — resolved by year-suffixing the later.
+- Prizes / What to Bring / Resources / FAQ are extracted from event bodies.
+  Tickets and Registration come from Notion properties and are exact.
+- No Notion ids are written to the database.
+
+## Known imperfections, deliberately left as-is
+
+- **13 packs** have a final schedule item with no end time in the source, so its
+  duration defaults to the schema's 60 minutes. Every *start* time is exact;
+  only the last item's length is a guess.
+- **Battle for the Amethyst City** Round 3 reads 15:30–19:00 (a 3.5h round) with
+  presentation at 19:00. Almost certainly a source typo for 17:30, but unlike
+  the `12:15 AM` bug there is no unambiguous correction, so it is faithful.
+- Two source typos *were* auto-repaired and logged: Jump To Jakku and Defense of
+  Mandalore both carry `12:15 AM - Round 1 complete` from the same template.
+- `Operation Frostbite` has a resource whose title is a full sentence, and
+  `Purple Palette: Fantasy` has a "prize" that is really a qualifying rule.
+
+## Still open, unrelated to the import
+
+- The Mini Myths club location row has `is_test = true` — one checkbox in
+  Manage Locations. `battlepack_by_slug` does not filter on `is_test`, so
+  rendering is unaffected.
+- Production holds `zz-e2e-do-not-use`, `zz-trigger-probe` and
+  `test-quarmaggedon-3`. The slugs are burned permanently (harmless), but if the
+  packs behind them are live test data, consider unpublishing them before 89
+  real archive packs land alongside.
+- `owner_id` appears in committed files (`gen_sql.py` line 11 and throughout
+  `import.sql`). It is a UUID, not a credential. Can be parameterised if wanted.
+
+## If the data must be regenerated
+
+Run order, from `tools/minimyths-ingest/transform/`:
+
+```
+python3 build.py      # raw + maps -> staging.json
+python3 stage2.py     # -> plan.json (packs, segments, duration chain, sections)
+python3 sections.py   # bodies -> sections.json
+python3 merge.py      # folds sections into plan.json
+python3 gen_sql.py    # -> import.sql
+```
+
+`raw/` is a frozen snapshot and should not be casually refetched — the import is
+reconciled against it. The 89 events were already filtered to Mini Myths only.
