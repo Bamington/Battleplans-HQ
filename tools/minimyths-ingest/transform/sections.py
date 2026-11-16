@@ -87,6 +87,34 @@ def _items(body):
     return out
 
 
+def _subsections(body):
+    """Split a block on its own sub-headings: [(heading, lines), ...].
+
+    A Prizes section often names each prize as a sub-heading with the criteria
+    underneath. Those headings are deeper than the section's own, so _blocks
+    collects them as body text; without this they collapse into one blob.
+    """
+    # Only real '#' headings. A bold-only LINE is good enough to find a section
+    # by (Quarmaggedon II titles its schedule '**Structure of the event**'), but
+    # it is also how an author emphasises a whole sentence -- and promoting
+    # "Performance does not affect your chances!" to a prize title is worse than
+    # leaving the block as prose.
+    out, cur = [], None
+    for raw in body:
+        m = HEAD.match(raw)
+        if m:
+            t = _plain(m.group('t'))
+            if t and len(t) <= 60 and not t.endswith(('.', '!', '?')):
+                cur = (t, [])
+                out.append(cur)
+                continue
+        if cur is not None:
+            cur[1].append(raw)
+    # A heading with no prose of its own is a container for the headings below
+    # it ("Rewards, Prizes, and Giveaways"), not a prize in its own right.
+    return [(h, b) for h, b in out if h and any(_plain(x) for x in b)]
+
+
 def _paras(body):
     """Non-bullet, non-blank prose lines."""
     return [(_plain(r), _url(r)) for r in body
@@ -100,6 +128,16 @@ def _is_just_url(t):
 def _strip_urls(t):
     t = re.sub(r'https?://\S+', '', t or '')
     return re.sub(r'\s+', ' ', t).strip(' \u2013\u2014-:,.')
+
+
+def _strip_md(t):
+    """No markdown markers should reach a jsonb section value."""
+    t = re.sub(r'^\s{0,3}#{1,6}\s*', '', t or '', flags=re.M)
+    t = re.sub(r'^\s{0,3}>\s*', '', t, flags=re.M)
+    t = re.sub(r'(?<=\s)>\s+', '', t)
+    t = re.sub(r'#{2,6}\s+', '', t)
+    t = re.sub(r'[*_`]{1,3}', '', t)
+    return re.sub(r'\s+', ' ', t).strip()
 
 
 def _tidy(t):
@@ -142,6 +180,14 @@ def extract(text):
             for t, u in bl:
                 a, b = _split_titled(t)
                 items.append({'title': a, 'description': _strip_urls(b), **({'url': u} if u else {})})
+        elif _subsections(body):
+            # each sub-heading names a prize; the prose under it is the criteria
+            for h, sub in _subsections(body):
+                desc = ' '.join(p for p, _ in _paras(sub))
+                bl = _items(sub)
+                if bl and not desc:
+                    desc = '; '.join(t for t, _ in bl)
+                items.append({'title': _tidy(h), 'description': _strip_md(desc)[:600]})
         else:
             # a prose-only Prizes section: keep the heading as the title
             pr = _paras(body)
@@ -149,9 +195,20 @@ def extract(text):
                 generic = re.match(r'^(prizes?|prizing|prize support|awards?)$',
                                    title.rstrip(':'), re.I)
                 items.append({'title': 'Prize pool' if generic else title.rstrip(':'),
-                              'description': ' '.join(p for p, _ in pr)[:600]})
-    if items:
-        got['prizes'] = {'items': items}
+                              'description': _strip_md(' '.join(p for p, _ in pr))[:600]})
+    seen, ded = set(), []
+    for it in items:
+        k = it['title'].strip().lower()
+        if k in seen:
+            # keep whichever copy carries the fuller description
+            for d in ded:
+                if d['title'].strip().lower() == k and \
+                        len(it.get('description', '')) > len(d.get('description', '')):
+                    d['description'] = it['description']
+            continue
+        seen.add(k); ded.append(it)
+    if ded:
+        got['prizes'] = {'items': ded}
 
     # ---- what to bring: checklist {items:[{text,url?}]}
     items = []

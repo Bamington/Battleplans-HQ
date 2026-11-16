@@ -24,8 +24,16 @@
   "prizes": {
    "items": [
     {
-     "title": "Prize pool",
-     "description": "### Master and Quar-mander Awarded to the player who demonstrates superior martial and tactical prowess \u2014 in other words, the player who wins the most games overall. ### Best in Show Awarded to the player with the best painted army. Army must be fully painted, including an appropriate base. All players will vote for the army they deem best painted. (No, you can't vote for yourself.) ### A True Gentle-quar Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. (A true gentle-quar wouldn't even think of voting for themselves!)"
+     "title": "Master and Quar-mander",
+     "description": "Awarded to the player who demonstrates superior martial and tactical prowess \u2014 in other words, the player who wins the most games overall."
+    },
+    {
+     "title": "Best in Show",
+     "description": "Awarded to the player with the best painted army. Army must be fully painted, including an appropriate base. All players will vote for the army they deem best painted. (No, you can't vote for yourself.)"
+    },
+    {
+     "title": "A True Gentle-quar",
+     "description": "Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. (A true gentle-quar wouldn't even think of voting for themselves!)"
     }
    ]
   },
@@ -87,16 +95,40 @@
   "prizes": {
    "items": [
     {
-     "title": "Prize pool",
-     "description": "## Rewards, Prizes, and Giveaways ### Participation All players will receive participation awards for each round they participate in, giving you a great incentive to play as many rounds as possible! These prizes will come directly from the AMG prize kit, so you wont be able to get the anywhere outside of an AMG Grand Tournament! ### Top Placements We'll have prizes for all players who make it into Top 4 and Top 2, as well as prizes for the overall champion. We'll be announcing these closer to the day. ### Best Strike Force We'll have an independant judge on the day to give out some awards for "
+     "title": "Participation",
+     "description": "All players will receive participation awards for each round they participate in, giving you a great incentive to play as many rounds as possible! These prizes will come directly from the AMG prize kit, so you wont be able to get the anywhere outside of an AMG Grand Tournament!"
+    },
+    {
+     "title": "Top Placements",
+     "description": "We'll have prizes for all players who make it into Top 4 and Top 2, as well as prizes for the overall champion. We'll be announcing these closer to the day."
+    },
+    {
+     "title": "Best Strike Force",
+     "description": "We'll have an independant judge on the day to give out some awards for the best painted Strike Forces on the day. Judging will happen across both days, so this is only open to players who attend both the Saturday and the Sunday."
     },
     {
      "title": "Terrain Raffle",
      "description": "Any player who brings a full table of painted terrain will be entered into the Terrain Raffle! At the end of the event, we'll draw names from the raffle and give out some bonus prizes to those players. You get one raffle ticket for each full table of terrain you bring. All terrain must be painted and designed for use with Star Wars: Shatterpoint."
     },
     {
-     "title": "Prize pool",
-     "description": "> Please note - we are still confirming our full suite of prizes from our various support partners. You can expect some fun surprises on the day! ### AMG Prize Kit All players will receive a prize simply for participating. This prize is granted for each round that you play, so the more games you complete, the more prizes you'll receive. Additional prizes are available for top-placed players, specifically including prizes for top 4, top 2, and the champion player. ### Baron of Dice We have partnered with Baron of Dice to offer some really cool unofficial dice sets available to players. We'll an"
+     "title": "Prize Support",
+     "description": "Please note - we are still confirming our full suite of prizes from our various support partners. You can expect some fun surprises on the day!"
+    },
+    {
+     "title": "AMG Prize Kit",
+     "description": "All players will receive a prize simply for participating. This prize is granted for each round that you play, so the more games you complete, the more prizes you'll receive. Additional prizes are available for top-placed players, specifically including prizes for top 4, top 2, and the champion player."
+    },
+    {
+     "title": "Baron of Dice",
+     "description": "We have partnered with Baron of Dice to offer some really cool unofficial dice sets available to players. We'll announce how to win these prizes on the day! Please note: unofficial dice are not allowed to be used during your games at this event. https://baronofdice.com/en-au"
+    },
+    {
+     "title": "Battle Kiwi",
+     "description": "We've secured some goodies from Battle Kiwi, including a Battle Box to give away! We'll be giving away a full size battle box, and two smaller initiate boxes. https://battlekiwi.com/"
+    },
+    {
+     "title": "Adrah Labs",
+     "description": "We've partnered with Adrah Labs for some exclusive miniatures to give away! We'll have 10 to give away to lucky participants! https://www.adrahlabs.com.au/"
     }
    ]
   },
@@ -440,8 +472,20 @@
   "prizes": {
    "items": [
     {
-     "title": "Prize pool",
-     "description": "We want to use this fun event to get you excited about playing some new games. In that spirit, we've prepared a few special unique prizes for each of the systems: ### Kill Team Chaedi's once again gone above and beyond, designing and printing these custom equipment packs. Depending on numbers, we're hoping to have some sweet equipment for everybody to go home with. ### Warcrow Warcrow has it's own unique measurement system called 'Strides', that means you can't just use your existing Mini Myths range rulers. Wouldn't it be nice if someone provided one at an event\u2026 ### Halo: Flashpoint To be an"
+     "title": "Kill Team",
+     "description": "Chaedi's once again gone above and beyond, designing and printing these custom equipment packs. Depending on numbers, we're hoping to have some sweet equipment for everybody to go home with."
+    },
+    {
+     "title": "Warcrow",
+     "description": "Warcrow has it's own unique measurement system called 'Strides', that means you can't just use your existing Mini Myths range rulers. Wouldn't it be nice if someone provided one at an event\u2026"
+    },
+    {
+     "title": "Halo: Flashpoint",
+     "description": "To be announced! We're cooking up some pretty sweet Halo DLC\u2026"
+    },
+    {
+     "title": "Other Prizes",
+     "description": "We'll be working with Guf to collect some cool giveaways for each system. All the prizes on the day will be door prizes, so expect a good chance to go home with some sweet merch!"
     }
    ]
   },
@@ -480,8 +524,24 @@
   "prizes": {
    "items": [
     {
-     "title": "Prize pool",
-     "description": "## Arcpoint Champion Finishing at the top of the table will award you the Arcpoint Champion title, along with a fantastic custom trophy worth of a true champion. Additionally, we'll have a suite of prizes for all our top-placed winners based on the event results. ## Champion of the Republic Arcfest celebrates sportsmanship and fun above all else. Across the day, you'll have the chance to submit feedback on how much fun each of your games were. At the end of the day, we'll award special prizes to those players who've been voted excellent opponents who created memorable gaming experiences. ## Em"
+     "title": "Arcpoint Champion",
+     "description": "Finishing at the top of the table will award you the Arcpoint Champion title, along with a fantastic custom trophy worth of a true champion. Additionally, we'll have a suite of prizes for all our top-placed winners based on the event results."
+    },
+    {
+     "title": "Champion of the Republic",
+     "description": "Arcfest celebrates sportsmanship and fun above all else. Across the day, you'll have the chance to submit feedback on how much fun each of your games were. At the end of the day, we'll award special prizes to those players who've been voted excellent opponents who created memorable gaming experiences."
+    },
+    {
+     "title": "Emperor Paintpatine",
+     "description": "Arcfest is a hobby-driven event and home to the epic ArcOpen painting competition, so we'd be remiss to not celebrate the amazing hobby efforts of our community at this event. We'll crown multiple hobby winners on the day, alongside a trophy for our best-painted award; aptly named Emperor Paintpatine."
+    },
+    {
+     "title": "The Display Boardalorian",
+     "description": "Display boards are so cool! I love seeing them at Warhammer events, at Marvel Crisis Protocol events, and so on. Man, I wish we had display boards at our events\u2026 Oh wait! Now we will! Bring your Display Board to Arc and you'll receive a special prize, plus an additional bonus prize for the player who is voted to have the best display board at the event! Display boards are easy and fun to make - just grab a picture frame from K-Mart and you're already 2/3rd of the way there! And, since we love our silly titles, you'll also be crowned\u2026The Displayboardalorian."
+    },
+    {
+     "title": "Door Prizes",
+     "description": "Arcfest is for players of any ability, so we want to do everything we can to reward every attendee! Expect an awesome showbag of custom made doohickeys and prizes. We'll have more information about this closer to the day, but to give you a tease; you can certainly expect to see some new custom unit cards like those from last year's Outer-Rim League\u2026"
     },
     {
      "title": "Terrain Raffle",
@@ -583,8 +643,16 @@
   "prizes": {
    "items": [
     {
-     "title": "Prize pool",
-     "description": "#### Master and Quar-mander Awarded to the player that demonstrates superior martial and tactical prowess, or in other words, the player who scores the most points overall. In the event of a tie, the player with the highest scoring points that belongs to the faction with the most victories will win. Prize: Quar hard cover rule book and a Guf voucher. #### Best in show Awarded to the player with the best painted Army. All players will get to vote for the army they deem to have the best painted army. You may submit an army that you have used from a previous event, but this is also a good time to"
+     "title": "Master and Quar-mander",
+     "description": "Awarded to the player that demonstrates superior martial and tactical prowess, or in other words, the player who scores the most points overall. In the event of a tie, the player with the highest scoring points that belongs to the faction with the most victories will win. Prize: Quar hard cover rule book and a Guf voucher."
+    },
+    {
+     "title": "Best in show",
+     "description": "Awarded to the player with the best painted Army. All players will get to vote for the army they deem to have the best painted army. You may submit an army that you have used from a previous event, but this is also a good time to show off something new you've been working on. You will only be judged for models used in your games. If you do bring a display board, it should be the size of an A4 sheet of paper. Prize: Guf voucher."
+    },
+    {
+     "title": "A true Gentle-quar",
+     "description": "Awarded to the player who is deemed to demonstrate the most gentle-quarly behaviour by their peers. Keep in mind this does not have to be a person you played against on the day. Prize: Hard cover rule book and a Guf voucher."
     }
    ]
   },

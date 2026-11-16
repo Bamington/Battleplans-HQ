@@ -1,4 +1,16 @@
-# HANDOFF — applying the Mini Myths archive import
+# HANDOFF — Mini Myths archive import
+
+**STATUS: imported.** 89 packs are live in production (95 total with the 6 that
+were already there). Verified by replaying all 23 schedules back out of
+production against the parsed source: 0 mismatches in time, label and kind.
+
+One corrective script remains optional:
+`tools/minimyths-ingest/transform/fix_sections.sql` — 5 Prizes rows, see
+"Section extraction defects" below.
+
+---
+
+# Original handoff — applying the Mini Myths archive import
 
 Everything is built, tested and committed. **Only the apply is left**, and it was
 blocked purely on credentials, not on anything unresolved about the data.
@@ -150,6 +162,33 @@ asserted.
   Mandalore both carry `12:15 AM - Round 1 complete` from the same template.
 - `Operation Frostbite` has a resource whose title is a full sentence, and
   `Purple Palette: Fantasy` has a "prize" that is really a qualifying rule.
+
+## Section extraction defects found after import
+
+Reading the imported rows back out of production (not the local plan) surfaced
+four defects in the Prizes extraction. All are fixed in `sections.py`, and
+`fix_sections.sql` carries the corrections for the 5 affected rows.
+
+1. A Prizes block naming each prize as a `#` sub-heading collapsed into one
+   item titled "Prize pool" — Quarmaggedon's three awards became one blob.
+2. Markdown markers (`###`, `**`, `>`) leaked into jsonb section values.
+3. The same prize was collected twice where an outer section and its own
+   sub-heading both matched the Prizes anchor (Duel of the Fates 2025 listed
+   five sponsors twice).
+4. A heading with no prose of its own ("Rewards, Prizes, and Giveaways") became
+   an empty-bodied prize rather than a container for the headings below it.
+
+A bold-only LINE is deliberately **not** treated as a sub-heading: it finds a
+section fine (Quarmaggedon II titles its schedule `**Structure of the event**`)
+but authors also bold whole sentences, and promoting "Performance does not
+affect your chances!" to a prize title is worse than leaving the block as prose.
+
+Regenerate the script after any further change with:
+
+    python3 gen_fix.py <live-categories.json>
+
+where the argument is a dump of `battlepack_categories` (pack_id,
+category_key, content) from production.
 
 ## Still open, unrelated to the import
 
